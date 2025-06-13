@@ -1086,7 +1086,58 @@ const swaggerUiOptions = {
  *     tags:
  *       - Webhooks
  *     summary: Configurar webhook para eventos
- *     description: Configura uma URL de webhook para receber eventos em tempo real da sessão
+ *     description: |
+ *       Configura uma URL de webhook para receber eventos em tempo real da sessão.
+ *       
+ *       **NOVO: Mídia em Base64**
+ *       Os webhooks agora incluem automaticamente o conteúdo de arquivos de mídia em base64 para arquivos até 3MB:
+ *       - Imagens (JPG, PNG, GIF, WebP)
+ *       - Vídeos (MP4, MOV, AVI, etc.)
+ *       - Áudios (MP3, WAV, OGG, etc.)
+ *       - Documentos (PDF, DOC, etc.)
+ *       - Stickers
+ *       
+ *       **Exemplo de payload recebido:**
+ *       ```json
+ *       {
+ *         "sessionId": "minha-sessao-1",
+ *         "eventType": "message.upsert",
+ *         "timestamp": "2024-12-06T15:30:00.000Z",
+ *         "data": {
+ *           "messageId": "3EB0C767B7CE45A3B3A36",
+ *           "messageType": "image",
+ *           "content": "Confira esta foto!",
+ *           "mediaData": {
+ *             "mimetype": "image/jpeg",
+ *             "fileLength": 524288,
+ *             "width": 1920,
+ *             "height": 1080
+ *           },
+ *           "mediaBase64": {
+ *             "success": true,
+ *             "base64": "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcU...",
+ *             "size": 524288,
+ *             "sizeFormatted": "512.00KB"
+ *           },
+ *           "chatInfo": {
+ *             "type": "contact",
+ *             "name": "João Silva",
+ *             "number": "5511999999999"
+ *           }
+ *         }
+ *       }
+ *       ```
+ *       
+ *       **Para arquivos > 3MB:**
+ *       ```json
+ *       {
+ *         "mediaBase64": {
+ *           "error": "FILE_TOO_LARGE",
+ *           "message": "Arquivo de 5.2MB excede o limite de 3MB",
+ *           "fileSize": 5452595
+ *         }
+ *       }
+ *       ```
  *     parameters:
  *       - in: path
  *         name: sessionId

@@ -508,8 +508,78 @@ async function sendWebhook(sessionId, eventType, data) {
   }
 }
 
-// Função para extrair dados completos da mensagem
-function extractMessageData(message) {
+// Função para baixar mídia e converter para base64 (máximo 3MB)
+async function downloadMediaAsBase64(sock, message) {
+  try {
+    const MAX_FILE_SIZE = 3 * 1024 * 1024; // 3MB em bytes
+    
+    // Verificar tamanho do arquivo antes de baixar
+    let fileLength = 0;
+    if (message.message.imageMessage) {
+      fileLength = message.message.imageMessage.fileLength;
+    } else if (message.message.videoMessage) {
+      fileLength = message.message.videoMessage.fileLength;
+    } else if (message.message.audioMessage) {
+      fileLength = message.message.audioMessage.fileLength;
+    } else if (message.message.documentMessage) {
+      fileLength = message.message.documentMessage.fileLength;
+    } else if (message.message.stickerMessage) {
+      fileLength = message.message.stickerMessage.fileLength;
+    }
+
+    // Se arquivo é maior que 3MB, não baixar
+    if (fileLength > MAX_FILE_SIZE) {
+      logger.warn(`Arquivo muito grande (${(fileLength / (1024 * 1024)).toFixed(2)}MB), não será incluído no webhook`);
+      return {
+        error: 'FILE_TOO_LARGE',
+        message: `Arquivo de ${(fileLength / (1024 * 1024)).toFixed(2)}MB excede o limite de 3MB`,
+        fileSize: fileLength
+      };
+    }
+
+    // Baixar o arquivo
+    const buffer = await downloadMediaMessage(
+      message,
+      'buffer',
+      {},
+      {
+        logger,
+        reuploadRequest: () => sock.updateMediaMessage,
+      }
+    );
+
+    // Verificar se o buffer não excede 3MB (double-check)
+    if (buffer.length > MAX_FILE_SIZE) {
+      logger.warn(`Buffer baixado excede 3MB (${(buffer.length / (1024 * 1024)).toFixed(2)}MB)`);
+      return {
+        error: 'BUFFER_TOO_LARGE',
+        message: `Buffer de ${(buffer.length / (1024 * 1024)).toFixed(2)}MB excede o limite de 3MB`,
+        actualSize: buffer.length
+      };
+    }
+
+    // Converter para base64
+    const base64Data = buffer.toString('base64');
+    
+    logger.info(`Mídia convertida para base64: ${(buffer.length / 1024).toFixed(2)}KB`);
+    
+    return {
+      success: true,
+      base64: base64Data,
+      size: buffer.length,
+      sizeFormatted: `${(buffer.length / 1024).toFixed(2)}KB`
+    };
+  } catch (error) {
+    logger.error(`Erro ao baixar mídia para webhook: ${error.message}`);
+    return {
+      error: 'DOWNLOAD_FAILED',
+      message: error.message
+    };
+  }
+}
+
+// Função para extrair dados completos da mensagem (agora com mídia em base64)
+async function extractMessageData(message, sock = null) {
   const messageData = {
     messageId: message.key.id,
     fromMe: message.key.fromMe,
@@ -521,6 +591,7 @@ function extractMessageData(message) {
     content: null,
     quotedMessage: null,
     mediaData: null,
+    mediaBase64: null, // Novo campo para dados em base64
     isGroup: message.key.remoteJid?.endsWith('@g.us') || false,
   };
 
@@ -546,6 +617,11 @@ function extractMessageData(message) {
         width: message.message.imageMessage.width,
         height: message.message.imageMessage.height,
       };
+      
+      // Baixar e converter para base64 se sock foi fornecido
+      if (sock) {
+        messageData.mediaBase64 = await downloadMediaAsBase64(sock, message);
+      }
     } else if (message.message.videoMessage) {
       messageData.messageType = 'video';
       messageData.content = message.message.videoMessage.caption || '';
@@ -557,6 +633,11 @@ function extractMessageData(message) {
         height: message.message.videoMessage.height,
         seconds: message.message.videoMessage.seconds,
       };
+      
+      // Baixar e converter para base64 se sock foi fornecido
+      if (sock) {
+        messageData.mediaBase64 = await downloadMediaAsBase64(sock, message);
+      }
     } else if (message.message.audioMessage) {
       messageData.messageType = 'audio';
       messageData.mediaData = {
@@ -566,6 +647,11 @@ function extractMessageData(message) {
         seconds: message.message.audioMessage.seconds,
         ptt: message.message.audioMessage.ptt || false,
       };
+      
+      // Baixar e converter para base64 se sock foi fornecido
+      if (sock) {
+        messageData.mediaBase64 = await downloadMediaAsBase64(sock, message);
+      }
     } else if (message.message.documentMessage) {
       messageData.messageType = 'document';
       messageData.content = message.message.documentMessage.caption || '';
@@ -577,6 +663,11 @@ function extractMessageData(message) {
         fileName: message.message.documentMessage.fileName,
         title: message.message.documentMessage.title,
       };
+      
+      // Baixar e converter para base64 se sock foi fornecido
+      if (sock) {
+        messageData.mediaBase64 = await downloadMediaAsBase64(sock, message);
+      }
     } else if (message.message.stickerMessage) {
       messageData.messageType = 'sticker';
       messageData.mediaData = {
@@ -587,6 +678,11 @@ function extractMessageData(message) {
         width: message.message.stickerMessage.width,
         height: message.message.stickerMessage.height,
       };
+      
+      // Baixar e converter para base64 se sock foi fornecido
+      if (sock) {
+        messageData.mediaBase64 = await downloadMediaAsBase64(sock, message);
+      }
     } else if (message.message.contactMessage) {
       messageData.messageType = 'contact';
       messageData.content = {
@@ -825,8 +921,8 @@ async function createWhatsAppSession(sessionId) {
           storeMessage(sessionId, message.key.id, message);
         }
 
-        // Extrair dados completos da mensagem
-        const messageData = extractMessageData(message);
+        // Extrair dados completos da mensagem (incluindo mídia em base64 para webhooks)
+        const messageData = await extractMessageData(message, sock);
 
         // Enviar webhook para todas as mensagens (enviadas e recebidas)
         await sendWebhook(sessionId, 'message.upsert', messageData);
