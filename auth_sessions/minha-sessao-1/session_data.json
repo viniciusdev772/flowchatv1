@@ -1,0 +1,13 @@
+{
+  "sessionId": "minha-sessao-1",
+  "isConnected": true,
+  "connectionState": "connected",
+  "createdAt": "2025-06-13T01:03:45.330Z",
+  "connectedAt": "2025-06-13T01:03:46.698Z",
+  "lastError": null,
+  "user": {
+    "id": "555592133798:88@s.whatsapp.net",
+    "lid": "20951152513046:88@lid",
+    "name": "Vinão"
+  }
+}
