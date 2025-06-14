@@ -375,18 +375,22 @@ async function getContactOrGroupInfo(jid, sock) {
           name: groupMetadata.subject || 'Grupo sem nome',
           participants: groupMetadata.participants?.length || 0,
           description: groupMetadata.desc || null,
-          createdAt: groupMetadata.creation ? new Date(groupMetadata.creation * 1000).toISOString() : null,
-          owner: groupMetadata.owner || null
+          createdAt: groupMetadata.creation
+            ? new Date(groupMetadata.creation * 1000).toISOString()
+            : null,
+          owner: groupMetadata.owner || null,
         };
       } catch (error) {
-        logger.warn(`Erro ao buscar metadados do grupo ${jid}: ${error.message}`);
+        logger.warn(
+          `Erro ao buscar metadados do grupo ${jid}: ${error.message}`
+        );
         return {
           type: 'group',
           name: 'Grupo',
           participants: 0,
           description: null,
           createdAt: null,
-          owner: null
+          owner: null,
         };
       }
     } else if (jid.endsWith('@s.whatsapp.net')) {
@@ -397,32 +401,35 @@ async function getContactOrGroupInfo(jid, sock) {
         if (contactInfo && contactInfo.length > 0) {
           return {
             type: 'contact',
-            name: contactInfo[0].name || contactInfo[0].notify || jid.split('@')[0],
+            name:
+              contactInfo[0].name || contactInfo[0].notify || jid.split('@')[0],
             number: jid.split('@')[0],
             exists: contactInfo[0].exists,
-            isRegistered: true
+            isRegistered: true,
           };
         }
       } catch (error) {
-        logger.warn(`Erro ao buscar informações do contato ${jid}: ${error.message}`);
+        logger.warn(
+          `Erro ao buscar informações do contato ${jid}: ${error.message}`
+        );
       }
-      
+
       // Fallback para número apenas
       return {
         type: 'contact',
         name: jid.split('@')[0],
         number: jid.split('@')[0],
         exists: true,
-        isRegistered: false
+        isRegistered: false,
       };
     }
-    
+
     return {
       type: 'unknown',
       name: jid,
       number: jid,
       exists: false,
-      isRegistered: false
+      isRegistered: false,
     };
   } catch (error) {
     logger.error(`Erro ao buscar informações para ${jid}: ${error.message}`);
@@ -431,7 +438,7 @@ async function getContactOrGroupInfo(jid, sock) {
       name: jid,
       number: jid,
       exists: false,
-      isRegistered: false
+      isRegistered: false,
     };
   }
 }
@@ -444,31 +451,39 @@ async function sendWebhook(sessionId, eventType, data) {
 
     // Enriquecer dados com informações de contato/grupo se disponível
     let enrichedData = { ...data };
-    
+
     if (data.remoteJid && eventType === 'message.upsert') {
       const session = sessions.get(sessionId);
       if (session && session.sock) {
         try {
-          const chatInfo = await getContactOrGroupInfo(data.remoteJid, session.sock);
+          const chatInfo = await getContactOrGroupInfo(
+            data.remoteJid,
+            session.sock
+          );
           enrichedData.chatInfo = chatInfo;
-          
+
           // Se for grupo e há um participante, adicionar info do participante
           if (chatInfo.type === 'group' && data.participant) {
             try {
-              const participantInfo = await getContactOrGroupInfo(data.participant, session.sock);
+              const participantInfo = await getContactOrGroupInfo(
+                data.participant,
+                session.sock
+              );
               enrichedData.participantInfo = {
                 jid: data.participant,
                 number: data.participant.split('@')[0],
                 name: participantInfo.name,
-                pushName: data.pushName || null
+                pushName: data.pushName || null,
               };
             } catch (error) {
-              logger.warn(`Erro ao buscar info do participante ${data.participant}: ${error.message}`);
+              logger.warn(
+                `Erro ao buscar info do participante ${data.participant}: ${error.message}`
+              );
               enrichedData.participantInfo = {
                 jid: data.participant,
                 number: data.participant.split('@')[0],
                 name: data.participant.split('@')[0],
-                pushName: data.pushName || null
+                pushName: data.pushName || null,
               };
             }
           }
@@ -512,7 +527,7 @@ async function sendWebhook(sessionId, eventType, data) {
 async function downloadMediaAsBase64(sock, message) {
   try {
     const MAX_FILE_SIZE = 3 * 1024 * 1024; // 3MB em bytes
-    
+
     // Verificar tamanho do arquivo antes de baixar
     let fileLength = 0;
     if (message.message.imageMessage) {
@@ -529,11 +544,17 @@ async function downloadMediaAsBase64(sock, message) {
 
     // Se arquivo é maior que 3MB, não baixar
     if (fileLength > MAX_FILE_SIZE) {
-      logger.warn(`Arquivo muito grande (${(fileLength / (1024 * 1024)).toFixed(2)}MB), não será incluído no webhook`);
+      logger.warn(
+        `Arquivo muito grande (${(fileLength / (1024 * 1024)).toFixed(
+          2
+        )}MB), não será incluído no webhook`
+      );
       return {
         error: 'FILE_TOO_LARGE',
-        message: `Arquivo de ${(fileLength / (1024 * 1024)).toFixed(2)}MB excede o limite de 3MB`,
-        fileSize: fileLength
+        message: `Arquivo de ${(fileLength / (1024 * 1024)).toFixed(
+          2
+        )}MB excede o limite de 3MB`,
+        fileSize: fileLength,
       };
     }
 
@@ -550,30 +571,38 @@ async function downloadMediaAsBase64(sock, message) {
 
     // Verificar se o buffer não excede 3MB (double-check)
     if (buffer.length > MAX_FILE_SIZE) {
-      logger.warn(`Buffer baixado excede 3MB (${(buffer.length / (1024 * 1024)).toFixed(2)}MB)`);
+      logger.warn(
+        `Buffer baixado excede 3MB (${(buffer.length / (1024 * 1024)).toFixed(
+          2
+        )}MB)`
+      );
       return {
         error: 'BUFFER_TOO_LARGE',
-        message: `Buffer de ${(buffer.length / (1024 * 1024)).toFixed(2)}MB excede o limite de 3MB`,
-        actualSize: buffer.length
+        message: `Buffer de ${(buffer.length / (1024 * 1024)).toFixed(
+          2
+        )}MB excede o limite de 3MB`,
+        actualSize: buffer.length,
       };
     }
 
     // Converter para base64
     const base64Data = buffer.toString('base64');
-    
-    logger.info(`Mídia convertida para base64: ${(buffer.length / 1024).toFixed(2)}KB`);
-    
+
+    logger.info(
+      `Mídia convertida para base64: ${(buffer.length / 1024).toFixed(2)}KB`
+    );
+
     return {
       success: true,
       base64: base64Data,
       size: buffer.length,
-      sizeFormatted: `${(buffer.length / 1024).toFixed(2)}KB`
+      sizeFormatted: `${(buffer.length / 1024).toFixed(2)}KB`,
     };
   } catch (error) {
     logger.error(`Erro ao baixar mídia para webhook: ${error.message}`);
     return {
       error: 'DOWNLOAD_FAILED',
-      message: error.message
+      message: error.message,
     };
   }
 }
@@ -617,7 +646,7 @@ async function extractMessageData(message, sock = null) {
         width: message.message.imageMessage.width,
         height: message.message.imageMessage.height,
       };
-      
+
       // Baixar e converter para base64 se sock foi fornecido
       if (sock) {
         messageData.mediaBase64 = await downloadMediaAsBase64(sock, message);
@@ -633,7 +662,7 @@ async function extractMessageData(message, sock = null) {
         height: message.message.videoMessage.height,
         seconds: message.message.videoMessage.seconds,
       };
-      
+
       // Baixar e converter para base64 se sock foi fornecido
       if (sock) {
         messageData.mediaBase64 = await downloadMediaAsBase64(sock, message);
@@ -647,7 +676,7 @@ async function extractMessageData(message, sock = null) {
         seconds: message.message.audioMessage.seconds,
         ptt: message.message.audioMessage.ptt || false,
       };
-      
+
       // Baixar e converter para base64 se sock foi fornecido
       if (sock) {
         messageData.mediaBase64 = await downloadMediaAsBase64(sock, message);
@@ -663,7 +692,7 @@ async function extractMessageData(message, sock = null) {
         fileName: message.message.documentMessage.fileName,
         title: message.message.documentMessage.title,
       };
-      
+
       // Baixar e converter para base64 se sock foi fornecido
       if (sock) {
         messageData.mediaBase64 = await downloadMediaAsBase64(sock, message);
@@ -678,7 +707,7 @@ async function extractMessageData(message, sock = null) {
         width: message.message.stickerMessage.width,
         height: message.message.stickerMessage.height,
       };
-      
+
       // Baixar e converter para base64 se sock foi fornecido
       if (sock) {
         messageData.mediaBase64 = await downloadMediaAsBase64(sock, message);
@@ -1621,11 +1650,13 @@ app.get('/api/session/:sessionId/messages', async (req, res) => {
 
     // Converter Map para Array e limitar resultados
     const messageEntries = Array.from(sessionMessages.entries()).slice(-limit);
-    
+
     // Buscar nomes de contatos/grupos para JIDs únicos
-    const uniqueJids = [...new Set(messageEntries.map(([id, data]) => data.jid))];
+    const uniqueJids = [
+      ...new Set(messageEntries.map(([id, data]) => data.jid)),
+    ];
     const contactInfoCache = new Map();
-    
+
     for (const jid of uniqueJids) {
       const contactInfo = await getContactOrGroupInfo(jid, session.sock);
       contactInfoCache.set(jid, contactInfo);
@@ -1634,7 +1665,7 @@ app.get('/api/session/:sessionId/messages', async (req, res) => {
     const messages = messageEntries.map(([id, data]) => {
       const message = data.message;
       const contactInfo = contactInfoCache.get(data.jid);
-      
+
       const messageInfo = {
         messageId: id,
         jid: data.jid,
@@ -1655,7 +1686,7 @@ app.get('/api/session/:sessionId/messages', async (req, res) => {
         messageInfo.participant = {
           jid: message.key.participant,
           number: message.key.participant.split('@')[0],
-          pushName: message.pushName || null
+          pushName: message.pushName || null,
         };
       }
 
@@ -1690,7 +1721,7 @@ app.get('/api/session/:sessionId/messages', async (req, res) => {
         sessionId,
         isConnected: session.isConnected,
         user: session.sock.user,
-      }
+      },
     });
   } catch (error) {
     logger.error(`Erro ao listar mensagens: ${error.message}`);
@@ -1831,12 +1862,17 @@ async function sendMessageWithAdvancedHumanBehavior(
   try {
     const sessionId = sock.user?.id;
     if (!checkRateLimit(sessionId)) {
-      throw new Error('Rate limit excedido. Muitas mensagens enviadas recentemente.');
+      throw new Error(
+        'Rate limit excedido. Muitas mensagens enviadas recentemente.'
+      );
     }
 
-    const messageText = typeof message === 'string' ? message : message.text || '';
+    const messageText =
+      typeof message === 'string' ? message : message.text || '';
     const messageLength = messageText.length;
-    const wordCount = messageText.split(/\s+/).filter(word => word.length > 0).length;
+    const wordCount = messageText
+      .split(/\s+/)
+      .filter((word) => word.length > 0).length;
 
     // 1. TEMPO DE LEITURA (se foi resposta a uma mensagem)
     let readingTime = 0;
@@ -1847,8 +1883,12 @@ async function sendMessageWithAdvancedHumanBehavior(
       readingTime = (replyWordCount / readingSpeed) * 60000;
       // Adicionar tempo extra para compreensão
       readingTime += Math.random() * 2000 + 1000; // 1-3 segundos extras
-      
-      logger.info(`Simulando leitura de ${replyWordCount} palavras por ${readingTime.toFixed(0)}ms`);
+
+      logger.info(
+        `Simulando leitura de ${replyWordCount} palavras por ${readingTime.toFixed(
+          0
+        )}ms`
+      );
       await delay(readingTime);
     }
 
@@ -1858,11 +1898,20 @@ async function sendMessageWithAdvancedHumanBehavior(
       // Baseado na complexidade da mensagem
       const complexityFactor = Math.min(wordCount / 10, 3); // Max 3x multiplier
       thinkingDelay = (1000 + Math.random() * 2000) * (1 + complexityFactor);
-      
+
       // Delay emocional baseado no conteúdo
       if (emotionalDelay) {
-        const emotionalWords = ['amor', 'ódio', 'raiva', 'feliz', 'triste', 'problema', 'urgente', 'importante'];
-        const hasEmotionalContent = emotionalWords.some(word => 
+        const emotionalWords = [
+          'amor',
+          'ódio',
+          'raiva',
+          'feliz',
+          'triste',
+          'problema',
+          'urgente',
+          'importante',
+        ];
+        const hasEmotionalContent = emotionalWords.some((word) =>
           messageText.toLowerCase().includes(word)
         );
         if (hasEmotionalContent) {
@@ -1876,43 +1925,50 @@ async function sendMessageWithAdvancedHumanBehavior(
 
     // 3. MARCAR COMO VISTO
     await delay(300 + Math.random() * 200); // Delay natural antes de marcar como visto
-    await sock.readMessages([{
-      remoteJid: jid,
-      id: message.id || crypto.randomBytes(10).toString('hex'),
-    }]);
+    await sock.readMessages([
+      {
+        remoteJid: jid,
+        id: message.id || crypto.randomBytes(10).toString('hex'),
+      },
+    ]);
 
     // 4. INICIAR DIGITAÇÃO
     await sock.sendPresenceUpdate('composing', jid);
 
     // 5. SIMULAÇÃO AVANÇADA DE DIGITAÇÃO
     let totalTypingTime = 0;
-    
+
     if (naturalPauses && wordCount > 5) {
       // Simular digitação com pausas naturais
       const wordsPerChunk = Math.random() * 8 + 3; // 3-11 palavras por "rajada"
       const chunks = Math.ceil(wordCount / wordsPerChunk);
-      
+
       for (let i = 0; i < chunks; i++) {
         // Tempo de digitação para este chunk
-        const chunkWords = Math.min(wordsPerChunk, wordCount - (i * wordsPerChunk));
+        const chunkWords = Math.min(
+          wordsPerChunk,
+          wordCount - i * wordsPerChunk
+        );
         const chunkTypingTime = (chunkWords / typingSpeed) * 60000;
-        
+
         // Adicionar variação natural (±30%)
         const variation = chunkTypingTime * 0.3;
-        const actualChunkTime = chunkTypingTime + (Math.random() * variation * 2 - variation);
-        
+        const actualChunkTime =
+          chunkTypingTime + (Math.random() * variation * 2 - variation);
+
         totalTypingTime += actualChunkTime;
-        
+
         // Simular digitação do chunk
         await delay(actualChunkTime);
-        
+
         // Pausa entre chunks (exceto no último)
         if (i < chunks - 1) {
           // Pausas mais longas ocasionalmente (pensar em como continuar)
-          const pauseDuration = Math.random() < 0.3 ? 
-            Math.random() * 2000 + 1000 : // Pausa longa (1-3s)
-            Math.random() * 800 + 200;    // Pausa normal (0.2-1s)
-          
+          const pauseDuration =
+            Math.random() < 0.3
+              ? Math.random() * 2000 + 1000 // Pausa longa (1-3s)
+              : Math.random() * 800 + 200; // Pausa normal (0.2-1s)
+
           await delay(pauseDuration);
           totalTypingTime += pauseDuration;
         }
@@ -1921,11 +1977,12 @@ async function sendMessageWithAdvancedHumanBehavior(
       // Digitação contínua para mensagens curtas
       const baseTypingTime = (wordCount / typingSpeed) * 60000;
       const variation = baseTypingTime * 0.25;
-      totalTypingTime = baseTypingTime + (Math.random() * variation * 2 - variation);
-      
+      totalTypingTime =
+        baseTypingTime + (Math.random() * variation * 2 - variation);
+
       // Tempo mínimo e máximo
       totalTypingTime = Math.max(1000, Math.min(totalTypingTime, 15000));
-      
+
       await delay(totalTypingTime);
     }
 
@@ -1933,31 +1990,36 @@ async function sendMessageWithAdvancedHumanBehavior(
     if (typoSimulation && Math.random() < 0.15 && messageLength > 20) {
       // 15% chance de "corrigir" algo durante digitação
       logger.info('Simulando correção de erro de digitação...');
-      
+
       // Parar de digitar, pausar, continuar
       await sock.sendPresenceUpdate('paused', jid);
       await delay(500 + Math.random() * 1000); // Pausa para "perceber o erro"
       await sock.sendPresenceUpdate('composing', jid);
       await delay(800 + Math.random() * 1200); // Tempo para corrigir
-      
+
       totalTypingTime += 2000;
     }
 
     // 7. FINALIZAÇÃO DA DIGITAÇÃO
     await sock.sendPresenceUpdate('paused', jid);
-    
+
     // Pequena pausa antes de enviar (finalizar pensamento)
     const finalPause = Math.random() * 500 + 300;
     await delay(finalPause);
 
     // 8. ENVIAR MENSAGEM
-    const messageOptions = typeof message === 'string' ? { text: message } : message;
+    const messageOptions =
+      typeof message === 'string' ? { text: message } : message;
     const sendOptions = {};
     if (options.quotedMessage) {
       sendOptions.quoted = options.quotedMessage;
     }
 
-    const sentMessage = await sock.sendMessage(jid, messageOptions, sendOptions);
+    const sentMessage = await sock.sendMessage(
+      jid,
+      messageOptions,
+      sendOptions
+    );
 
     // 9. VOLTAR ONLINE
     await delay(200 + Math.random() * 300);
@@ -1973,12 +2035,17 @@ async function sendMessageWithAdvancedHumanBehavior(
         totalTime: Math.round(readingTime + thinkingDelay + totalTypingTime),
         wordCount,
         messageLength,
-        chunksUsed: naturalPauses && wordCount > 5 ? Math.ceil(wordCount / (Math.random() * 8 + 3)) : 1,
+        chunksUsed:
+          naturalPauses && wordCount > 5
+            ? Math.ceil(wordCount / (Math.random() * 8 + 3))
+            : 1,
         typoSimulated: typoSimulation && Math.random() < 0.15,
-      }
+      },
     };
   } catch (error) {
-    logger.error(`Erro ao enviar mensagem com comportamento avançado: ${error.message}`);
+    logger.error(
+      `Erro ao enviar mensagem com comportamento avançado: ${error.message}`
+    );
     throw error;
   }
 }
@@ -1991,19 +2058,51 @@ app.post('/api/session/:sessionId/smart-reply', async (req, res) => {
       message,
       replyToMessage = null,
       readingSpeed = 150, // palavras por minuto
-      typingSpeed = 40,   // palavras por minuto
+      typingSpeed = 40, // palavras por minuto
       thinkingTime = true,
       naturalPauses = true,
       typoSimulation = false,
       emotionalDelay = true,
       contextAwareness = true,
       quotedMessageId = null,
+      // Parâmetros em português
+      para,
+      mensagem,
+      mensagemResposta,
+      velocidadeLeitura,
+      velocidadeDigitacao,
+      tempoReflexao,
+      pausasNaturais,
+      simularErros,
+      delayEmocional,
+      conscienciaContexto,
+      idMensagemCitada,
     } = req.body;
 
-    if (!to || !message) {
+    // Mapear parâmetros em português para inglês (priorizar português se fornecido)
+    const finalTo = para || to;
+    const finalMessage = mensagem || message;
+    const finalReplyToMessage = mensagemResposta || replyToMessage;
+    const finalReadingSpeed = velocidadeLeitura || readingSpeed;
+    const finalTypingSpeed = velocidadeDigitacao || typingSpeed;
+    const finalThinkingTime =
+      tempoReflexao !== undefined ? tempoReflexao : thinkingTime;
+    const finalNaturalPauses =
+      pausasNaturais !== undefined ? pausasNaturais : naturalPauses;
+    const finalTypoSimulation =
+      simularErros !== undefined ? simularErros : typoSimulation;
+    const finalEmotionalDelay =
+      delayEmocional !== undefined ? delayEmocional : emotionalDelay;
+    const finalContextAwareness =
+      conscienciaContexto !== undefined
+        ? conscienciaContexto
+        : contextAwareness;
+    const finalQuotedMessageId = idMensagemCitada || quotedMessageId;
+
+    if (!finalTo || !finalMessage) {
       return res.status(400).json({
         success: false,
-        message: 'Campos "to" e "message" são obrigatórios',
+        message: 'Campos "to"/"para" e "message"/"mensagem" são obrigatórios',
       });
     }
 
@@ -2015,12 +2114,12 @@ app.post('/api/session/:sessionId/smart-reply', async (req, res) => {
       });
     }
 
-    const jid = to.includes('@') ? to : `${to}@s.whatsapp.net`;
+    const jid = finalTo.includes('@') ? finalTo : `${finalTo}@s.whatsapp.net`;
 
     // Buscar mensagem citada se fornecida
     let quotedMessage = null;
-    if (quotedMessageId) {
-      const originalMessage = getMessageById(sessionId, quotedMessageId);
+    if (finalQuotedMessageId) {
+      const originalMessage = getMessageById(sessionId, finalQuotedMessageId);
       if (originalMessage) {
         quotedMessage = originalMessage.message;
       }
@@ -2028,14 +2127,14 @@ app.post('/api/session/:sessionId/smart-reply', async (req, res) => {
 
     // Preparar opções para comportamento humano avançado
     const behaviorOptions = {
-      readingSpeed,
-      typingSpeed,
-      thinkingTime,
-      naturalPauses,
-      typoSimulation,
-      emotionalDelay,
-      contextAwareness,
-      replyToMessage,
+      readingSpeed: finalReadingSpeed,
+      typingSpeed: finalTypingSpeed,
+      thinkingTime: finalThinkingTime,
+      naturalPauses: finalNaturalPauses,
+      typoSimulation: finalTypoSimulation,
+      emotionalDelay: finalEmotionalDelay,
+      contextAwareness: finalContextAwareness,
+      replyToMessage: finalReplyToMessage,
       quotedMessage,
     };
 
@@ -2043,7 +2142,7 @@ app.post('/api/session/:sessionId/smart-reply', async (req, res) => {
     const result = await sendMessageWithAdvancedHumanBehavior(
       session.sock,
       jid,
-      { text: message },
+      { text: finalMessage },
       behaviorOptions
     );
 
@@ -2053,17 +2152,17 @@ app.post('/api/session/:sessionId/smart-reply', async (req, res) => {
       messageId: result.sentMessage.key.id,
       behaviorStats: result.behaviorStats,
       messageData: {
-        to: jid,
-        sentAt: new Date().toISOString(),
-        messageType: 'text',
-        content: message,
-        quotedMessageId: quotedMessageId || null,
-        status: 'sent',
+        para: jid,
+        enviadoEm: new Date().toISOString(),
+        tipoMensagem: 'texto',
+        conteudo: finalMessage,
+        idMensagemCitada: finalQuotedMessageId || null,
+        status: 'enviado',
       },
-      sessionInfo: {
+      infoSessao: {
         sessionId,
-        isConnected: session.isConnected,
-        user: session.sock.user,
+        conectado: session.isConnected,
+        usuario: session.sock.user,
       },
     });
   } catch (error) {

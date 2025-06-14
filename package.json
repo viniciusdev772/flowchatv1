@@ -2,10 +2,11 @@
   "name": "baileys-multi-session-api",
   "version": "1.0.0",
   "description": "API avançada do WhatsApp com Baileys, multi-sessões e comportamento humano para prevenção de banimentos",
-  "main": "app.js",
+  "main": "main.js",
   "scripts": {
-    "start": "node app.js",
-    "dev": "nodemon app.js",
+    "start": "node main.js",
+    "dev": "nodemon --ext js --watch . --ignore node_modules --ignore uploads --ignore downloads --ignore auth_sessions main.js",
+    "monitor": "nodemon --ext js --watch . --ignore node_modules --ignore uploads --ignore downloads --ignore auth_sessions main.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
@@ -33,5 +34,8 @@
     "sharp": "^0.32.6",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.10"
   }
 }
