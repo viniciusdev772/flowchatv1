@@ -2846,13 +2846,8 @@ app.use((error, req, res, next) => {
   });
 });
 
-// Inicializar servidor
-app.listen(PORT, async () => {
-  logger.info(`API Baileys rodando na porta ${PORT}`);
-  logger.info(
-    `Acesse http://localhost:${PORT}/api/baileys/info para ver informações da API`
-  );
-
+// Função de inicialização (chamada pelo main.js)
+async function initializeApp() {
   // Criar diretórios necessários
   const dirs = ['./auth_sessions', './uploads', './downloads'];
   dirs.forEach((dir) => {
@@ -2867,7 +2862,7 @@ app.listen(PORT, async () => {
   logger.info('Carregando sessões existentes...');
   await loadExistingSessions();
   logger.info('Carregamento de sessões concluído!');
-});
+}
 
 // Limpeza ao fechar aplicação
 process.on('SIGINT', async () => {
@@ -2887,4 +2882,4 @@ process.on('SIGINT', async () => {
   process.exit(0);
 });
 
-module.exports = { app, getSessions };
+module.exports = { app, getSessions, initializeApp };

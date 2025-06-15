@@ -4,9 +4,8 @@
   "description": "API avançada do WhatsApp com Baileys, multi-sessões e comportamento humano para prevenção de banimentos",
   "main": "main.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon --ext js --watch src --watch server.js --ignore node_modules --ignore uploads --ignore downloads --ignore auth_sessions server.js",
-    "dev:baileys": "nodemon --ext js --watch src --watch main.js --ignore node_modules --ignore uploads --ignore downloads --ignore auth_sessions main.js",
+    "start": "node main.js",
+    "dev": "nodemon --ext js --watch src --watch main.js --ignore node_modules --ignore uploads --ignore downloads --ignore auth_sessions main.js",
     "frontend": "cd frontend && npx vite",
     "frontend:build": "cd frontend && npx vite build",
     "frontend:preview": "cd frontend && npx vite preview",
