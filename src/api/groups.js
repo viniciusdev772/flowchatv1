@@ -1,9 +1,18 @@
 const express = require('express');
 const router = express.Router();
 
-// Middleware para verificar se a sessão existe e está conectada
+// Middleware para verificar se a sessão existe, está conectada e pertence ao usuário
 const checkSession = (req, res, next) => {
   const { sessionId } = req.params;
+  const userId = req.user?.id || req.user?._id;
+  
+  // Check if user is authenticated
+  if (!userId) {
+    return res.status(401).json({
+      success: false,
+      message: 'Usuário não autenticado'
+    });
+  }
   
   // Acessar o objeto global sessions diretamente
   const sessions = global.whatsappSessions;
@@ -15,14 +24,24 @@ const checkSession = (req, res, next) => {
     });
   }
   
-  if (!sessions.get(sessionId).isConnected) {
+  const session = sessions.get(sessionId);
+  
+  // Check session ownership
+  if (session.userId && session.userId.toString() !== userId.toString()) {
+    return res.status(403).json({
+      success: false,
+      message: 'Acesso negado: você não possui permissão para acessar esta sessão'
+    });
+  }
+  
+  if (!session.isConnected) {
     return res.status(400).json({
       success: false,
       message: 'Sessão não está conectada'
     });
   }
   
-  req.session = sessions.get(sessionId);
+  req.session = session;
   next();
 };
 

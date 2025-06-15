@@ -711,6 +711,8 @@ const swaggerUiOptions = {
  *       - Mensagens
  *     summary: Responder uma mensagem específica
  *     description: Envia uma resposta citando uma mensagem específica pelo seu ID
+ *     security:
+ *       - ApiKeyAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -786,6 +788,8 @@ const swaggerUiOptions = {
  *       - Simulação de correção de erros de digitação
  *       - Delays emocionais baseados no conteúdo
  *       - Tempos proporcionais ao tamanho da mensagem
+ *     security:
+ *       - ApiKeyAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -940,6 +944,8 @@ const swaggerUiOptions = {
  *       - Controles de Chat
  *     summary: Controlar status de digitação
  *     description: Ativa ou desativa o indicador de "digitando" para um chat específico
+ *     security:
+ *       - ApiKeyAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -989,6 +995,8 @@ const swaggerUiOptions = {
  *       - Controles de Chat
  *     summary: Marcar mensagem como lida
  *     description: Marca uma mensagem específica como lida (visualizada)
+ *     security:
+ *       - ApiKeyAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -1039,6 +1047,8 @@ const swaggerUiOptions = {
  *       - Histórico e Mídia
  *     summary: Listar mensagens armazenadas
  *     description: Retorna o histórico de mensagens armazenadas para uma sessão
+ *     security:
+ *       - ApiKeyAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -1103,6 +1113,8 @@ const swaggerUiOptions = {
  *       - Histórico e Mídia
  *     summary: Baixar mídia de uma mensagem
  *     description: Baixa o arquivo de mídia de uma mensagem específica e salva no servidor
+ *     security:
+ *       - ApiKeyAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -1225,6 +1237,8 @@ const swaggerUiOptions = {
  *         }
  *       }
  *       ```
+ *     security:
+ *       - ApiKeyAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -1282,6 +1296,8 @@ const swaggerUiOptions = {
  *       - Webhooks
  *     summary: Obter configuração do webhook
  *     description: Retorna a URL do webhook configurada para a sessão
+ *     security:
+ *       - ApiKeyAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -1316,6 +1332,8 @@ const swaggerUiOptions = {
  *       - Webhooks
  *     summary: Remover webhook
  *     description: Remove a configuração de webhook da sessão
+ *     security:
+ *       - ApiKeyAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -1360,6 +1378,8 @@ const swaggerUiOptions = {
  *       - Webhooks
  *     summary: Listar webhooks da sessão
  *     description: Retorna todos os webhooks configurados para uma sessão (máximo 3)
+ *     security:
+ *       - ApiKeyAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -1427,6 +1447,8 @@ const swaggerUiOptions = {
  *       - Webhooks
  *     summary: Adicionar novo webhook
  *     description: Adiciona um novo webhook à sessão (máximo 3 por sessão)
+ *     security:
+ *       - ApiKeyAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -1534,6 +1556,8 @@ const swaggerUiOptions = {
  *       - Webhooks
  *     summary: Obter webhook específico
  *     description: Retorna informações de um webhook específico
+ *     security:
+ *       - ApiKeyAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -1600,6 +1624,8 @@ const swaggerUiOptions = {
  *       - Webhooks
  *     summary: Atualizar webhook
  *     description: Atualiza as configurações de um webhook específico
+ *     security:
+ *       - ApiKeyAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -1677,6 +1703,8 @@ const swaggerUiOptions = {
  *       - Webhooks
  *     summary: Remover webhook específico
  *     description: Remove um webhook específico da sessão
+ *     security:
+ *       - ApiKeyAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -1726,6 +1754,8 @@ const swaggerUiOptions = {
  *       - Webhooks
  *     summary: Ativar/desativar webhook
  *     description: Alterna o status ativo/inativo de um webhook
+ *     security:
+ *       - ApiKeyAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -1775,6 +1805,8 @@ const swaggerUiOptions = {
  *       - Webhooks
  *     summary: Testar webhook
  *     description: Envia um payload de teste para verificar se o webhook está funcionando
+ *     security:
+ *       - ApiKeyAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -1887,6 +1919,8 @@ const swaggerUiOptions = {
  *       - Informações
  *     summary: Informações da API
  *     description: Retorna informações detalhadas sobre a API, features disponíveis e endpoints
+ *     security:
+ *       - ApiKeyAuth: []
  *     responses:
  *       200:
  *         description: Informações da API
@@ -1942,6 +1976,8 @@ const swaggerUiOptions = {
  *       - Grupos
  *     summary: Criar novo grupo
  *     description: Cria um novo grupo do WhatsApp com os participantes especificados
+ *     security:
+ *       - ApiKeyAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -2030,6 +2066,8 @@ const swaggerUiOptions = {
  *       - Grupos
  *     summary: Obter informações do grupo
  *     description: Retorna informações detalhadas sobre um grupo específico
+ *     security:
+ *       - ApiKeyAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -2074,6 +2112,8 @@ const swaggerUiOptions = {
  *       - Grupos
  *     summary: Adicionar participantes ao grupo
  *     description: Adiciona novos participantes a um grupo existente
+ *     security:
+ *       - ApiKeyAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -2141,6 +2181,8 @@ const swaggerUiOptions = {
  *       - Grupos
  *     summary: Remover participantes do grupo
  *     description: Remove participantes de um grupo existente
+ *     security:
+ *       - ApiKeyAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -2208,6 +2250,8 @@ const swaggerUiOptions = {
  *       - Grupos
  *     summary: Promover participantes a admin
  *     description: Promove participantes do grupo para administradores
+ *     security:
+ *       - ApiKeyAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -2275,6 +2319,8 @@ const swaggerUiOptions = {
  *       - Grupos
  *     summary: Despromover admins
  *     description: Remove privilégios de administrador de participantes do grupo
+ *     security:
+ *       - ApiKeyAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -2342,6 +2388,8 @@ const swaggerUiOptions = {
  *       - Grupos
  *     summary: Atualizar nome do grupo
  *     description: Altera o nome/assunto do grupo
+ *     security:
+ *       - ApiKeyAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -2403,6 +2451,8 @@ const swaggerUiOptions = {
  *       - Grupos
  *     summary: Atualizar descrição do grupo
  *     description: Altera a descrição do grupo
+ *     security:
+ *       - ApiKeyAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -2463,6 +2513,8 @@ const swaggerUiOptions = {
  *       - Grupos
  *     summary: Configurar permissões do grupo
  *     description: Configura quem pode enviar mensagens e editar informações do grupo
+ *     security:
+ *       - ApiKeyAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -2530,6 +2582,8 @@ const swaggerUiOptions = {
  *       - Grupos
  *     summary: Sair do grupo
  *     description: Remove a sessão atual do grupo especificado
+ *     security:
+ *       - ApiKeyAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -2575,6 +2629,8 @@ const swaggerUiOptions = {
  *       - Grupos
  *     summary: Listar grupos
  *     description: Retorna uma lista de todos os grupos da sessão
+ *     security:
+ *       - ApiKeyAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -2633,6 +2689,8 @@ const swaggerUiOptions = {
  *       - Grupos
  *     summary: Obter código de convite do grupo
  *     description: Retorna o código de convite do grupo para compartilhar
+ *     security:
+ *       - ApiKeyAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -2681,6 +2739,8 @@ const swaggerUiOptions = {
  *       - Grupos
  *     summary: Revogar código de convite do grupo
  *     description: Revoga o código de convite atual do grupo e gera um novo
+ *     security:
+ *       - ApiKeyAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId

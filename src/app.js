@@ -15,6 +15,7 @@ const swaggerUi = require('swagger-ui-express');
 const { swaggerSpec, swaggerUiOptions } = require('./config/swagger');
 const QRCode = require('qrcode');
 const crypto = require('crypto');
+const database = require('./config/database');
 
 // Polyfill para fetch em versões antigas do Node.js
 let fetch;
@@ -95,6 +96,52 @@ global.whatsappSessions = sessions;
 // Exportar função para acessar sessões (usado pelo groups.js)
 function getSessions() {
   return sessions;
+}
+
+// Function to get sessions for a specific user
+function getUserSessions(userId) {
+  const userSessions = new Map();
+  for (const [sessionId, sessionData] of sessions.entries()) {
+    if (sessionData.userId === userId) {
+      userSessions.set(sessionId, sessionData);
+    }
+  }
+  return userSessions;
+}
+
+// Function to check if user owns a session
+function isUserSessionOwner(sessionId, userId) {
+  const session = sessions.get(sessionId);
+  return session && session.userId === userId;
+}
+
+// Middleware to check session ownership
+function checkSessionOwnership(req, res, next) {
+  const { sessionId } = req.params;
+  const userId = req.user?.id || req.user?._id;
+
+  if (!userId) {
+    return res.status(401).json({
+      success: false,
+      message: 'Usuário não autenticado'
+    });
+  }
+
+  if (!sessionId) {
+    return res.status(400).json({
+      success: false,
+      message: 'sessionId é obrigatório'
+    });
+  }
+
+  if (!isUserSessionOwner(sessionId, userId)) {
+    return res.status(403).json({
+      success: false,
+      message: 'Acesso negado: você não possui permissão para acessar esta sessão'
+    });
+  }
+
+  next();
 }
 
 // Funções utilitárias para gerenciar webhooks
@@ -365,9 +412,10 @@ function queueMessage(sessionId, sock, jid, message, quotedMessage = null) {
   });
 }
 
-// Função para salvar dados da sessão em arquivo
-function saveSessionData(sessionId, sessionData) {
+// Função para salvar dados da sessão em arquivo e MongoDB
+async function saveSessionData(sessionId, sessionData) {
   try {
+    // Save to file (existing functionality)
     const sessionFile = `./auth_sessions/${sessionId}/session_data.json`;
     const dataToSave = {
       sessionId,
@@ -378,8 +426,30 @@ function saveSessionData(sessionId, sessionData) {
       lastError: sessionData.lastError,
       lastDisconnectTime: sessionData.lastDisconnectTime,
       user: sessionData.sock?.user || null,
+      userId: sessionData.userId, // Include userId
     };
     fs.writeFileSync(sessionFile, JSON.stringify(dataToSave, null, 2));
+
+    // Save to MongoDB if connected
+    const db = database.getDb();
+    if (db) {
+      try {
+        const sessions = db.collection('whatsapp_sessions');
+        await sessions.updateOne(
+          { sessionId },
+          {
+            $set: {
+              ...dataToSave,
+              updatedAt: new Date()
+            }
+          },
+          { upsert: true }
+        );
+        logger.info(`Session ${sessionId} saved to MongoDB`);
+      } catch (dbError) {
+        logger.warn(`Failed to save session to MongoDB: ${dbError.message}`);
+      }
+    }
   } catch (error) {
     logger.error(
       `Erro ao salvar dados da sessão ${sessionId}: ${error.message}`
@@ -1071,7 +1141,7 @@ async function createWhatsAppSession(sessionId, userId = null) {
           sessionData.connectedAt = new Date();
 
           // Salvar dados da sessão
-          saveSessionData(sessionId, sessionData);
+          await saveSessionData(sessionId, sessionData);
         }
         logger.info(`Sessão ${sessionId} conectada com sucesso`);
       } else if (connection === 'connecting') {
@@ -1109,14 +1179,19 @@ async function createWhatsAppSession(sessionId, userId = null) {
     });
 
     // Armazenar sessão
-    sessions.set(sessionId, {
+    const sessionData = {
       sock,
       qrCode,
       isConnected,
       connectionState,
       createdAt: new Date(),
       userId: userId, // Associate session with user
-    });
+    };
+    
+    sessions.set(sessionId, sessionData);
+
+    // Save initial session data to MongoDB
+    await saveSessionData(sessionId, sessionData);
 
     return {
       success: true,
@@ -1270,7 +1345,7 @@ app.post('/api/baileys/session/create', async (req, res) => {
   }
 });
 
-app.post('/api/baileys/session/:sessionId/regenerate-qr', async (req, res) => {
+app.post('/api/baileys/session/:sessionId/regenerate-qr', checkSessionOwnership, async (req, res) => {
   try {
     const { sessionId } = req.params;
     const session = sessions.get(sessionId);
@@ -1325,7 +1400,7 @@ app.post('/api/baileys/session/:sessionId/regenerate-qr', async (req, res) => {
   }
 });
 
-app.get('/api/baileys/session/:sessionId/status', (req, res) => {
+app.get('/api/baileys/session/:sessionId/status', checkSessionOwnership, (req, res) => {
   try {
     const { sessionId } = req.params;
     const session = sessions.get(sessionId);
@@ -1403,7 +1478,7 @@ app.get('/api/baileys/sessions', (req, res) => {
   }
 });
 
-app.post('/api/baileys/session/:sessionId/send-message', async (req, res) => {
+app.post('/api/baileys/session/:sessionId/send-message', checkSessionOwnership, async (req, res) => {
   try {
     const { sessionId } = req.params;
     const { to, message, quotedMessageId } = req.body;
@@ -1464,6 +1539,7 @@ app.post('/api/baileys/session/:sessionId/send-message', async (req, res) => {
 
 app.post(
   '/api/baileys/session/:sessionId/send-media',
+  checkSessionOwnership,
   upload.single('media'),
   async (req, res) => {
     try {
@@ -1564,7 +1640,7 @@ app.post(
   }
 );
 
-app.post('/api/baileys/session/:sessionId/download-media', async (req, res) => {
+app.post('/api/baileys/session/:sessionId/download-media', checkSessionOwnership, async (req, res) => {
   try {
     const { sessionId } = req.params;
     const { messageId } = req.body;
@@ -1660,7 +1736,7 @@ app.post('/api/baileys/session/:sessionId/download-media', async (req, res) => {
   }
 });
 
-app.post('/api/baileys/session/:sessionId/mark-read', async (req, res) => {
+app.post('/api/baileys/session/:sessionId/mark-read', checkSessionOwnership, async (req, res) => {
   try {
     const { sessionId } = req.params;
     const { jid, messageId } = req.body;
@@ -1693,7 +1769,7 @@ app.post('/api/baileys/session/:sessionId/mark-read', async (req, res) => {
   }
 });
 
-app.post('/api/baileys/session/:sessionId/typing', async (req, res) => {
+app.post('/api/baileys/session/:sessionId/typing', checkSessionOwnership, async (req, res) => {
   try {
     const { sessionId } = req.params;
     const { jid, isTyping = true } = req.body;
@@ -1722,7 +1798,7 @@ app.post('/api/baileys/session/:sessionId/typing', async (req, res) => {
   }
 });
 
-app.post('/api/baileys/session/:sessionId/reply-message', async (req, res) => {
+app.post('/api/baileys/session/:sessionId/reply-message', checkSessionOwnership, async (req, res) => {
   try {
     const { sessionId } = req.params;
     const { messageId, reply } = req.body;
@@ -1795,7 +1871,7 @@ app.post('/api/baileys/session/:sessionId/reply-message', async (req, res) => {
   }
 });
 
-app.get('/api/baileys/session/:sessionId/messages', async (req, res) => {
+app.get('/api/baileys/session/:sessionId/messages', checkSessionOwnership, async (req, res) => {
   try {
     const { sessionId } = req.params;
     const { limit = 50 } = req.query;
@@ -1903,7 +1979,7 @@ app.get('/api/baileys/session/:sessionId/messages', async (req, res) => {
   }
 });
 
-app.post('/api/baileys/session/:sessionId/webhook', async (req, res) => {
+app.post('/api/baileys/session/:sessionId/webhook', checkSessionOwnership, async (req, res) => {
   try {
     const { sessionId } = req.params;
     const { webhookUrl } = req.body;
@@ -1969,7 +2045,7 @@ app.post('/api/baileys/session/:sessionId/webhook', async (req, res) => {
   }
 });
 
-app.get('/api/baileys/session/:sessionId/webhook', (req, res) => {
+app.get('/api/baileys/session/:sessionId/webhook', checkSessionOwnership, (req, res) => {
   try {
     const { sessionId } = req.params;
 
@@ -2013,7 +2089,7 @@ app.get('/api/baileys/session/:sessionId/webhook', (req, res) => {
   }
 });
 
-app.delete('/api/baileys/session/:sessionId/webhook', (req, res) => {
+app.delete('/api/baileys/session/:sessionId/webhook', checkSessionOwnership, (req, res) => {
   try {
     const { sessionId } = req.params;
 
@@ -2063,7 +2139,7 @@ app.delete('/api/baileys/session/:sessionId/webhook', (req, res) => {
 // ========================================
 
 // Listar todos os webhooks de uma sessão
-app.get('/api/baileys/session/:sessionId/webhooks', (req, res) => {
+app.get('/api/baileys/session/:sessionId/webhooks', checkSessionOwnership, (req, res) => {
   try {
     const { sessionId } = req.params;
 
@@ -2094,7 +2170,7 @@ app.get('/api/baileys/session/:sessionId/webhooks', (req, res) => {
 });
 
 // Adicionar novo webhook à sessão
-app.post('/api/baileys/session/:sessionId/webhooks', async (req, res) => {
+app.post('/api/baileys/session/:sessionId/webhooks', checkSessionOwnership, async (req, res) => {
   try {
     const { sessionId } = req.params;
     const { name, url, active, priority, events } = req.body;
@@ -2149,7 +2225,7 @@ app.post('/api/baileys/session/:sessionId/webhooks', async (req, res) => {
 });
 
 // Obter webhook específico
-app.get('/api/baileys/session/:sessionId/webhooks/:webhookId', (req, res) => {
+app.get('/api/baileys/session/:sessionId/webhooks/:webhookId', checkSessionOwnership, (req, res) => {
   try {
     const { sessionId, webhookId } = req.params;
 
@@ -2187,7 +2263,7 @@ app.get('/api/baileys/session/:sessionId/webhooks/:webhookId', (req, res) => {
 });
 
 // Atualizar webhook específico
-app.put('/api/baileys/session/:sessionId/webhooks/:webhookId', (req, res) => {
+app.put('/api/baileys/session/:sessionId/webhooks/:webhookId', checkSessionOwnership, (req, res) => {
   try {
     const { sessionId, webhookId } = req.params;
     const { name, url, active, priority, events } = req.body;
@@ -2237,7 +2313,7 @@ app.put('/api/baileys/session/:sessionId/webhooks/:webhookId', (req, res) => {
 });
 
 // Remover webhook específico
-app.delete('/api/baileys/session/:sessionId/webhooks/:webhookId', (req, res) => {
+app.delete('/api/baileys/session/:sessionId/webhooks/:webhookId', checkSessionOwnership, (req, res) => {
   try {
     const { sessionId, webhookId } = req.params;
 
@@ -2268,7 +2344,7 @@ app.delete('/api/baileys/session/:sessionId/webhooks/:webhookId', (req, res) => 
 });
 
 // Ativar/desativar webhook específico
-app.patch('/api/baileys/session/:sessionId/webhooks/:webhookId/toggle', (req, res) => {
+app.patch('/api/baileys/session/:sessionId/webhooks/:webhookId/toggle', checkSessionOwnership, (req, res) => {
   try {
     const { sessionId, webhookId } = req.params;
 
@@ -2311,7 +2387,7 @@ app.patch('/api/baileys/session/:sessionId/webhooks/:webhookId/toggle', (req, re
 });
 
 // Testar webhook específico
-app.post('/api/baileys/session/:sessionId/webhooks/:webhookId/test', async (req, res) => {
+app.post('/api/baileys/session/:sessionId/webhooks/:webhookId/test', checkSessionOwnership, async (req, res) => {
   try {
     const { sessionId, webhookId } = req.params;
 
@@ -2610,7 +2686,7 @@ async function sendMessageWithAdvancedHumanBehavior(
   }
 }
 
-app.post('/api/baileys/session/:sessionId/smart-reply', async (req, res) => {
+app.post('/api/baileys/session/:sessionId/smart-reply', checkSessionOwnership, async (req, res) => {
   try {
     const { sessionId } = req.params;
     const {
@@ -2734,7 +2810,7 @@ app.post('/api/baileys/session/:sessionId/smart-reply', async (req, res) => {
   }
 });
 
-app.delete('/api/baileys/session/:sessionId', async (req, res) => {
+app.delete('/api/baileys/session/:sessionId', checkSessionOwnership, async (req, res) => {
   try {
     const { sessionId } = req.params;
 
