@@ -67,15 +67,20 @@ class Database {
   }
 
   getDb() {
-    if (!this.db) {
-      throw new Error('Database not connected. Call connect() first.');
-    }
-    return this.db;
+    return this.db; // Return null if not connected, let caller handle
+  }
+  
+  isConnected() {
+    return this.db !== null;
   }
 
   // Helper method to get a collection
   getCollection(name) {
-    return this.getDb().collection(name);
+    const db = this.getDb();
+    if (!db) {
+      throw new Error('Database not connected');
+    }
+    return db.collection(name);
   }
 }
 

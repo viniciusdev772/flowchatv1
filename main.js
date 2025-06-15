@@ -10,6 +10,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const rateLimit = require('express-rate-limit');
+const cookieParser = require('cookie-parser');
 require('dotenv').config();
 
 const database = require('./src/config/database');
@@ -47,6 +48,9 @@ class Server {
     // Body parsing
     this.app.use(express.json({ limit: '10mb' }));
     this.app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+    // Cookie parsing with signature
+    this.app.use(cookieParser(process.env.COOKIE_SECRET || 'your-cookie-secret-key'));
 
     // Global rate limiting
     const globalLimiter = rateLimit({

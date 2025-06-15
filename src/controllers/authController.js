@@ -90,6 +90,15 @@ class AuthController {
           { expiresIn: process.env.JWT_EXPIRES_IN }
         );
 
+        // Set secure HTTP-only cookie
+        res.cookie('authToken', token, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'strict',
+          maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+          signed: true
+        });
+
         // Remove password from response
         delete userData.password;
         userData._id = result.insertedId;
@@ -98,8 +107,7 @@ class AuthController {
           success: true,
           message: 'User registered successfully',
           data: {
-            user: userData,
-            token
+            user: userData
           }
         });
 
@@ -116,6 +124,15 @@ class AuthController {
             { expiresIn: process.env.JWT_EXPIRES_IN }
           );
 
+          // Set secure HTTP-only cookie
+          res.cookie('authToken', token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+            signed: true
+          });
+
           const userData = {
             _id: mockUserId,
             name: name.trim(),
@@ -131,7 +148,7 @@ class AuthController {
           return res.status(201).json({
             success: true,
             message: 'User registered successfully (development mode)',
-            data: { user: userData, token }
+            data: { user: userData }
           });
         }
         throw dbError;
@@ -207,6 +224,16 @@ class AuthController {
           { expiresIn }
         );
 
+        // Set secure HTTP-only cookie
+        const cookieMaxAge = remember ? 30 * 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000; // 30 days or 7 days
+        res.cookie('authToken', token, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'strict',
+          maxAge: cookieMaxAge,
+          signed: true
+        });
+
         // Remove password from response
         delete user.password;
 
@@ -214,8 +241,7 @@ class AuthController {
           success: true,
           message: 'Login successful',
           data: {
-            user,
-            token
+            user
           }
         });
 
@@ -233,6 +259,16 @@ class AuthController {
             { expiresIn }
           );
 
+          // Set secure HTTP-only cookie
+          const cookieMaxAge = remember ? 30 * 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000; // 30 days or 7 days
+          res.cookie('authToken', token, {
+            httpOnly: true,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'strict',
+            maxAge: cookieMaxAge,
+            signed: true
+          });
+
           const userData = {
             _id: mockUserId,
             name: 'Development User',
@@ -248,7 +284,7 @@ class AuthController {
           return res.json({
             success: true,
             message: 'Login successful (development mode)',
-            data: { user: userData, token }
+            data: { user: userData }
           });
         }
         throw dbError;
@@ -371,6 +407,31 @@ class AuthController {
 
     } catch (error) {
       console.error('Change password error:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Internal server error'
+      });
+    }
+  }
+
+  // Logout user
+  async logout(req, res) {
+    try {
+      // Clear the authentication cookie
+      res.clearCookie('authToken', {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        signed: true
+      });
+
+      res.json({
+        success: true,
+        message: 'Logged out successfully'
+      });
+
+    } catch (error) {
+      console.error('Logout error:', error);
       res.status(500).json({
         success: false,
         message: 'Internal server error'

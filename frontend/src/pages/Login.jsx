@@ -7,22 +7,89 @@ export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLogin, setIsLogin] = useState(true);
+  const [apiError, setApiError] = useState('');
+  const [apiSuccess, setApiSuccess] = useState('');
   const { register, handleSubmit, formState: { errors, isSubmitting }, watch, reset } = useForm();
 
   const password = watch('password');
 
   const onSubmit = async (data) => {
+    setApiError('');
+    setApiSuccess('');
+    
     try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      
       if (isLogin) {
-        console.log('Login data:', data);
-        // Add your login logic here
+        // Login API call
+        const response = await fetch(`${apiUrl}/api/management/auth/login`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include', // Include cookies in request
+          body: JSON.stringify({
+            email: data.email,
+            password: data.password,
+            remember: data.remember || false
+          }),
+        });
+
+        const result = await response.json();
+        
+        if (result.success) {
+          // Token is now stored in secure HTTP-only cookie
+          // Only store user data for UI purposes
+          sessionStorage.setItem('user', JSON.stringify(result.data.user));
+          
+          setApiSuccess('Login realizado com sucesso!');
+          console.log('User logged in:', result.data.user);
+          
+          // Redirect after a short delay
+          setTimeout(() => {
+            // Add your redirect logic here
+            // window.location.href = '/dashboard';
+          }, 1500);
+        } else {
+          setApiError(result.message || 'Erro no login');
+        }
       } else {
-        console.log('Register data:', data);
-        // Add your register logic here
+        // Register API call
+        const response = await fetch(`${apiUrl}/api/management/auth/register`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include', // Include cookies in request
+          body: JSON.stringify({
+            name: data.name,
+            email: data.email,
+            password: data.password
+          }),
+        });
+
+        const result = await response.json();
+        
+        if (result.success) {
+          // Token is now stored in secure HTTP-only cookie
+          // Only store user data for UI purposes
+          sessionStorage.setItem('user', JSON.stringify(result.data.user));
+          
+          setApiSuccess('Conta criada com sucesso!');
+          console.log('User registered:', result.data.user);
+          
+          // Redirect after a short delay
+          setTimeout(() => {
+            // Add your redirect logic here
+            // window.location.href = '/dashboard';
+          }, 1500);
+        } else {
+          setApiError(result.message || 'Erro no registro');
+        }
       }
-      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate API call
     } catch (error) {
       console.error('Auth error:', error);
+      setApiError('Erro de conexão com o servidor');
     }
   };
 
@@ -31,6 +98,8 @@ export default function Login() {
     reset(); // Clear form when switching modes
     setShowPassword(false);
     setShowConfirmPassword(false);
+    setApiError('');
+    setApiSuccess('');
   };
 
   return (
@@ -302,6 +371,54 @@ export default function Login() {
           </div>
         
           <form className="space-y-4 sm:space-y-5" onSubmit={handleSubmit(onSubmit)}>
+            {/* API Error Message */}
+            <AnimatePresence>
+              {apiError && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                  transition={{ duration: 0.3 }}
+                  className="p-3 sm:p-4 bg-red-500/10 border border-red-500/20 rounded-xl backdrop-blur-sm"
+                >
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0">
+                      <svg className="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-sm text-red-500 font-medium">{apiError}</p>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* API Success Message */}
+            <AnimatePresence>
+              {apiSuccess && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                  transition={{ duration: 0.3 }}
+                  className="p-3 sm:p-4 bg-green-500/10 border border-green-500/20 rounded-xl backdrop-blur-sm"
+                >
+                  <div className="flex items-center">
+                    <div className="flex-shrink-0">
+                      <svg className="h-5 w-5 text-green-500" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                    </div>
+                    <div className="ml-3">
+                      <p className="text-sm text-green-500 font-medium">{apiSuccess}</p>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
             <AnimatePresence mode="wait">
               <motion.div
                 key={isLogin ? 'login-form' : 'register-form'}

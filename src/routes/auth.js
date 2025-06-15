@@ -36,5 +36,6 @@ router.post('/login', loginLimiter, authController.login);
 router.get('/profile', authenticateToken, authController.getProfile);
 router.put('/profile', authenticateToken, authController.updateProfile);
 router.post('/change-password', authenticateToken, authController.changePassword);
+router.post('/logout', authController.logout);
 
 module.exports = router;
