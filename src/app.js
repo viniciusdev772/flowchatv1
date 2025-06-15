@@ -67,6 +67,9 @@ const logger = pino({
     target: 'pino-pretty',
     options: {
       colorize: true,
+      translateTime: 'SYS:standard',
+      ignore: 'pid,hostname',
+      messageFormat: '{msg}',
     },
   },
 });
@@ -2316,9 +2319,9 @@ app.use((error, req, res, next) => {
 
 // Inicializar servidor
 app.listen(PORT, async () => {
-  logger.info(`🚀 API Baileys rodando na porta ${PORT}`);
+  logger.info(`API Baileys rodando na porta ${PORT}`);
   logger.info(
-    `📱 Acesse http://localhost:${PORT}/api/info para ver informações da API`
+    `Acesse http://localhost:${PORT}/api/info para ver informações da API`
   );
 
   // Criar diretórios necessários
@@ -2329,12 +2332,12 @@ app.listen(PORT, async () => {
     }
   });
 
-  logger.info('✅ Diretórios criados e API pronta para uso!');
+  logger.info('Diretórios criados e API pronta para uso!');
 
   // Carregar sessões existentes após inicialização
-  logger.info('🔄 Carregando sessões existentes...');
+  logger.info('Carregando sessões existentes...');
   await loadExistingSessions();
-  logger.info('✅ Carregamento de sessões concluído!');
+  logger.info('Carregamento de sessões concluído!');
 });
 
 // Limpeza ao fechar aplicação
