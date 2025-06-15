@@ -10,11 +10,18 @@ import {
   DocumentTextIcon,
   LinkIcon,
   BookOpenIcon,
-  RocketLaunchIcon
+  RocketLaunchIcon,
+  BoltIcon
 } from '@heroicons/react/24/outline'
 
 function App() {
   const [activeFeature, setActiveFeature] = useState(null)
+  const [performanceMode, setPerformanceMode] = useState(() => {
+    // Detectar dispositivos menos potentes
+    const isLowEnd = navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 2
+    const isSlowConnection = navigator.connection && navigator.connection.effectiveType === 'slow-2g'
+    return isLowEnd || isSlowConnection
+  })
 
   const features = [
     {
@@ -122,8 +129,8 @@ function App() {
     <div className="min-h-screen text-white relative overflow-hidden">
       {/* Enhanced Background floating elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {/* Liquid orbs */}
-        {[...Array(8)].map((_, i) => {
+        {/* Liquid orbs - reduzidos em modo performance */}
+        {[...Array(performanceMode ? 4 : 8)].map((_, i) => {
           const colors = [
             'bg-gradient-to-r from-blue-500/20 to-cyan-500/20',
             'bg-gradient-to-r from-purple-500/20 to-pink-500/20',
@@ -140,19 +147,19 @@ function App() {
                 left: `${Math.random() * 100}%`,
                 top: `${Math.random() * 100}%`,
                 animationDelay: `${i * 0.7}s`,
-                filter: 'blur(2px)'
+                filter: performanceMode ? 'none' : 'blur(1px)'
               }}
             />
           );
         })}
         
-        {/* Mesh gradient overlay */}
-        <div className="absolute inset-0 mesh-gradient opacity-30" />
+        {/* Mesh gradient overlay - desabilitado em modo performance */}
+        {!performanceMode && <div className="absolute inset-0 mesh-gradient opacity-30" />}
       </div>
 
       {/* Header */}
       <motion.header 
-        className="glass-morphism mx-4 mt-4 mb-8"
+        className={`${performanceMode ? 'glass-ultra' : 'glass-morphism'} mx-4 mt-4 mb-8`}
         initial={{ opacity: 0, y: -50 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8 }}
@@ -186,6 +193,16 @@ function App() {
                 <PlayIcon className="w-5 h-5 mr-2" />
                 Testar API
               </motion.a>
+              <motion.button 
+                onClick={() => setPerformanceMode(!performanceMode)}
+                className={`liquid-button inline-flex items-center ${performanceMode ? 'bg-green-500/20' : 'bg-orange-500/20'}`}
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                title={performanceMode ? 'Modo Performance Ativo' : 'Ativar Modo Performance'}
+              >
+                <BoltIcon className="w-5 h-5 mr-2" />
+                {performanceMode ? 'Performance' : 'Efeitos'}
+              </motion.button>
             </div>
           </div>
         </div>
@@ -198,7 +215,7 @@ function App() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8, delay: 0.2 }}
       >
-        <h2 className="text-6xl font-bold mb-6 liquid-text-gradient glass-text-glow">
+        <h2 className={`text-6xl font-bold mb-6 ${performanceMode ? 'text-white' : 'liquid-text-gradient glass-text-glow'}`}>
           WhatsApp API
           <br />
           <span className="text-4xl">Avançada & Segura</span>
@@ -232,7 +249,7 @@ function App() {
         animate={{ opacity: 1 }}
         transition={{ duration: 0.8, delay: 0.4 }}
       >
-        <h3 className="text-4xl font-bold text-center mb-16 liquid-text-gradient">Funcionalidades Principais</h3>
+        <h3 className={`text-4xl font-bold text-center mb-16 ${performanceMode ? 'text-white' : 'liquid-text-gradient'}`}>Funcionalidades Principais</h3>
         
         <div className="grid lg:grid-cols-2 xl:grid-cols-3 gap-6">
           {features.map((feature, index) => {
@@ -369,7 +386,7 @@ function App() {
 
       {/* Footer */}
       <motion.footer 
-        className="glass-morphism mx-4 mb-4"
+        className={`${performanceMode ? 'glass-ultra' : 'glass-morphism'} mx-4 mb-4`}
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         transition={{ duration: 0.8, delay: 0.8 }}
