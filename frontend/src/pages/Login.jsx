@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { EyeIcon, EyeSlashIcon, UserIcon, EnvelopeIcon, LockClosedIcon, SparklesIcon } from '@heroicons/react/24/outline';
+import { EyeIcon, EyeSlashIcon, UserIcon, EnvelopeIcon, LockClosedIcon, ChatBubbleLeftRightIcon } from '@heroicons/react/24/outline';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function Login() {
@@ -37,16 +37,16 @@ export default function Login() {
     <div className="min-h-screen flex relative overflow-hidden">
       {/* Left Side - Visual/Branding */}
       <motion.div 
-        className="hidden lg:flex lg:w-1/2 xl:w-3/5 relative bg-gradient-to-br from-blue-600 via-purple-700 to-indigo-900 flex-col justify-center items-center p-12"
+        className="hidden lg:flex lg:w-1/2 xl:w-3/5 relative bg-gradient-to-br from-green-600 via-blue-700 to-purple-900 flex-col justify-center items-center p-12"
         initial={{ x: -100, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
         transition={{ duration: 0.8 }}
       >
         {/* Animated Background Elements */}
         <div className="absolute inset-0 overflow-hidden">
-          {/* Geometric Shapes */}
+          {/* WhatsApp Themed Shapes */}
           <motion.div
-            className="absolute top-20 left-20 w-32 h-32 bg-white/10 rounded-full"
+            className="absolute top-20 left-20 w-32 h-32 bg-green-400/20 rounded-full flex items-center justify-center"
             animate={{
               y: [0, -20, 0],
               x: [0, 10, 0],
@@ -57,9 +57,12 @@ export default function Login() {
               repeat: Infinity,
               ease: "easeInOut",
             }}
-          />
+          >
+            <ChatBubbleLeftRightIcon className="w-16 h-16 text-white/30" />
+          </motion.div>
+          
           <motion.div
-            className="absolute bottom-40 right-16 w-24 h-24 bg-yellow-400/20 rounded-lg rotate-45"
+            className="absolute bottom-40 right-16 w-24 h-24 bg-blue-400/20 rounded-2xl rotate-45 flex items-center justify-center"
             animate={{
               rotate: [45, 135, 45],
               scale: [1, 1.2, 1],
@@ -69,15 +72,47 @@ export default function Login() {
               repeat: Infinity,
               ease: "easeInOut",
             }}
-          />
+          >
+            <div className="w-12 h-12 bg-white/20 rounded-lg -rotate-45"></div>
+          </motion.div>
+          
           <motion.div
-            className="absolute top-1/3 right-1/4 w-16 h-16 bg-pink-400/30 rounded-full"
+            className="absolute top-1/3 right-1/4 w-16 h-16 bg-purple-400/30 rounded-full flex items-center justify-center"
             animate={{
               y: [0, 30, 0],
               x: [0, -15, 0],
             }}
             transition={{
               duration: 7,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
+          >
+            <div className="w-2 h-2 bg-white/50 rounded-full"></div>
+          </motion.div>
+          
+          {/* API Connection Lines */}
+          <motion.div
+            className="absolute top-32 left-1/3 w-20 h-20 border-2 border-white/10 rounded-full"
+            animate={{
+              scale: [1, 1.3, 1],
+              opacity: [0.3, 0.6, 0.3],
+            }}
+            transition={{
+              duration: 4,
+              repeat: Infinity,
+              ease: "easeInOut",
+            }}
+          />
+          
+          <motion.div
+            className="absolute bottom-32 left-1/4 w-16 h-16 border-2 border-green-400/20 rounded-lg rotate-12"
+            animate={{
+              rotate: [12, 48, 12],
+              borderColor: ['rgba(74, 222, 128, 0.2)', 'rgba(59, 130, 246, 0.2)', 'rgba(74, 222, 128, 0.2)'],
+            }}
+            transition={{
+              duration: 6,
               repeat: Infinity,
               ease: "easeInOut",
             }}
@@ -115,7 +150,7 @@ export default function Login() {
             transition={{ duration: 0.5, delay: 0.3 }}
           >
             <div className="w-20 h-20 mx-auto bg-white/20 rounded-2xl flex items-center justify-center mb-6 backdrop-blur-sm">
-              <SparklesIcon className="w-10 h-10 text-white" />
+              <ChatBubbleLeftRightIcon className="w-10 h-10 text-white" />
             </div>
           </motion.div>
           
@@ -125,10 +160,10 @@ export default function Login() {
             animate={{ y: 0, opacity: 1 }}
             transition={{ duration: 0.6, delay: 0.5 }}
           >
-            Bem-vindo ao
+            WhatsApp API
             <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 via-pink-400 to-purple-400">
-              Futuro
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-400 via-blue-400 to-purple-400">
+              Profissional
             </span>
           </motion.h1>
           
@@ -138,19 +173,56 @@ export default function Login() {
             animate={{ y: 0, opacity: 1 }}
             transition={{ duration: 0.6, delay: 0.7 }}
           >
-            Conecte-se com uma experiência única e revolucionária. 
-            Junte-se a milhares de usuários satisfeitos.
+            API completa do WhatsApp com Baileys. Multi-sessões, webhooks 
+            e prevenção de banimentos para sua aplicação.
           </motion.p>
           
           <motion.div
-            className="flex justify-center space-x-4"
+            className="flex flex-col items-center space-y-4"
             initial={{ y: 30, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ duration: 0.6, delay: 0.9 }}
           >
-            {[...Array(3)].map((_, i) => (
-              <div key={i} className="w-3 h-3 bg-white/40 rounded-full" />
-            ))}
+            {/* Features Indicators */}
+            <div className="flex justify-center space-x-6 text-center">
+              <div className="flex flex-col items-center">
+                <div className="w-8 h-8 bg-green-500/20 rounded-lg flex items-center justify-center mb-2">
+                  <div className="w-4 h-4 bg-green-400 rounded-full"></div>
+                </div>
+                <span className="text-xs text-white/70">Multi-Sessão</span>
+              </div>
+              <div className="flex flex-col items-center">
+                <div className="w-8 h-8 bg-blue-500/20 rounded-lg flex items-center justify-center mb-2">
+                  <div className="w-4 h-4 bg-blue-400 rounded-full"></div>
+                </div>
+                <span className="text-xs text-white/70">Webhooks</span>
+              </div>
+              <div className="flex flex-col items-center">
+                <div className="w-8 h-8 bg-purple-500/20 rounded-lg flex items-center justify-center mb-2">
+                  <div className="w-4 h-4 bg-purple-400 rounded-full"></div>
+                </div>
+                <span className="text-xs text-white/70">Anti-Ban</span>
+              </div>
+            </div>
+            
+            {/* Progress Dots */}
+            <div className="flex justify-center space-x-2">
+              {[...Array(3)].map((_, i) => (
+                <motion.div 
+                  key={i} 
+                  className="w-2 h-2 bg-white/40 rounded-full"
+                  animate={{
+                    scale: [1, 1.2, 1],
+                    opacity: [0.4, 0.8, 0.4],
+                  }}
+                  transition={{
+                    duration: 2,
+                    repeat: Infinity,
+                    delay: i * 0.3,
+                  }}
+                />
+              ))}
+            </div>
           </motion.div>
         </div>
       </motion.div>
@@ -163,7 +235,7 @@ export default function Login() {
         transition={{ duration: 0.8, delay: 0.2 }}
       >
         {/* Mobile Background for small screens */}
-        <div className="lg:hidden absolute inset-0 bg-gradient-to-br from-blue-600 via-purple-700 to-indigo-900 opacity-95" />
+        <div className="lg:hidden absolute inset-0 bg-gradient-to-br from-green-600 via-blue-700 to-purple-900 opacity-95" />
         
         {/* Floating Elements for Right Side */}
         <div className="hidden lg:block absolute inset-0 overflow-hidden">
@@ -204,7 +276,7 @@ export default function Login() {
               transition={{ duration: 0.5, delay: 0.3 }}
             >
               <div className="w-12 h-12 sm:w-16 sm:h-16 mx-auto bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
-                <SparklesIcon className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
+                <ChatBubbleLeftRightIcon className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
               </div>
             </motion.div>
             
@@ -221,8 +293,8 @@ export default function Login() {
                 </h2>
                 <p className="text-sm xs:text-base sm:text-lg lg:text-base xl:text-lg text-white/80 lg:text-gray-600">
                   {isLogin 
-                    ? 'Acesse sua conta para continuar sua jornada' 
-                    : 'Junte-se a nós e comece sua aventura digital'
+                    ? 'Acesse sua conta e gerencie suas APIs do WhatsApp' 
+                    : 'Crie sua conta e automatize o WhatsApp Business'
                   }
                 </p>
               </motion.div>
@@ -488,7 +560,7 @@ export default function Login() {
                     className="flex items-center justify-center"
                   >
                     <div className="animate-spin rounded-full h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 border-2 border-white border-t-transparent mr-2 sm:mr-3"></div>
-                    {isLogin ? 'Entrando...' : 'Criando conta...'}
+                    {isLogin ? 'Acessando...' : 'Configurando sua API...'}
                   </motion.div>
                 ) : (
                   <motion.span
@@ -498,7 +570,7 @@ export default function Login() {
                     exit={{ opacity: 0, y: -10 }}
                     className="relative z-10 flex items-center justify-center"
                   >
-                    {isLogin ? 'Entrar agora' : 'Criar conta'}
+                    {isLogin ? 'Acessar Dashboard' : 'Começar Agora'}
                     <motion.div 
                       className="ml-2"
                       animate={{ x: [0, 4, 0] }}
@@ -521,7 +593,7 @@ export default function Login() {
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
                 >
-                  {isLogin ? 'Cadastre-se gratuitamente' : 'Faça login'}
+                  {isLogin ? 'Criar conta da API' : 'Já tenho acesso'}
                 </motion.button>
               </p>
             </div>
