@@ -7,10 +7,10 @@
     "start": "node main.js",
     "dev": "nodemon --ext js --watch src --watch main.js --ignore node_modules --ignore uploads --ignore downloads --ignore auth_sessions main.js",
     "monitor": "nodemon --ext js --watch src --watch main.js --ignore node_modules --ignore uploads --ignore downloads --ignore auth_sessions main.js",
-    "frontend": "cd frontend && npm run dev",
-    "frontend:build": "cd frontend && npm run build",
-    "frontend:preview": "cd frontend && npm run preview",
-    "dev:full": "concurrently \"npm run dev\" \"npm run frontend\"",
+    "frontend": "cd frontend && npx vite",
+    "frontend:build": "cd frontend && npx vite build",
+    "frontend:preview": "cd frontend && npx vite preview",
+    "dev:full": "npx concurrently \"npm run dev\" \"npm run frontend\"",
     "install:frontend": "cd frontend && npm install",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -41,6 +41,7 @@
     "swagger-ui-express": "^5.0.1"
   },
   "devDependencies": {
+    "concurrently": "^9.1.2",
     "nodemon": "^3.1.10"
   }
 }
