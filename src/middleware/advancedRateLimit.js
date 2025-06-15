@@ -1,27 +1,25 @@
-const { RateLimiterMongo } = require('rate-limiter-flexible');
+const { RateLimiterMongo, RateLimiterMemory } = require('rate-limiter-flexible');
 const database = require('../config/database');
 
-class AdvancedRateLimit {  constructor() {
+class AdvancedRateLimit {
+  constructor() {
     this.limiters = {};
-    this.progressivePenalties = new Map(); // Cache em memória para performance
+    this.progressivePenalties = new Map();
     this.dbConnectionRetries = 0;
     this.maxRetries = 10;
     this.initializeLimiters();
     
-    // Aguardar conexão do MongoDB antes de carregar penalizações
-    this.waitForDBAndLoad();
-    
-    // Limpar penalizações expiradas a cada 5 minutos
+    // Periodic cleanup and sync
     setInterval(() => {
       this.cleanExpiredPenalties();
-    }, 5 * 60 * 1000);
-    
-    // Sincronizar com MongoDB a cada 1 minuto
-    setInterval(() => {
       this.syncPenaltiesToDB();
-    }, 60 * 1000);
+    }, 5 * 60 * 1000); // Every 5 minutes
+    
+    // Try to upgrade to MongoDB periodically
+    setInterval(() => {
+      this.tryUpgradeToMongoDB();
+    }, 30 * 1000); // Every 30 seconds
   }
-
   initializeLimiters() {
     // Configurações mais rigorosas para diferentes endpoints
     const limiterConfigs = {
@@ -74,32 +72,42 @@ class AdvancedRateLimit {  constructor() {
       }
     };
 
-    // Criar limiters com MongoDB quando disponível
+    // Try to create limiters with MongoDB first, fallback to memory
     Object.keys(limiterConfigs).forEach(key => {
       const config = limiterConfigs[key];
       
       try {
         const client = database.getClient();
         if (client && database.getDb()) {
-          // Usar MongoDB para persistência
+          // Use MongoDB for persistence
           this.limiters[key] = new RateLimiterMongo({
             storeClient: client,
             keyPrefix: config.keyPrefix,
             points: config.points,
             duration: config.duration,
             blockDuration: config.blockDuration,
-            execEvenly: true, // Distribuir requests uniformemente
+            execEvenly: true, // Distribute requests evenly
           });
+          console.log(`✅ Rate limiter ${key} initialized with MongoDB`);
         } else {
-          // Fallback para in-memory em desenvolvimento
-          const { RateLimiterMemory } = require('rate-limiter-flexible');
-          this.limiters[key] = new RateLimiterMemory(config);
+          throw new Error('MongoDB not available');
         }
       } catch (error) {
-        console.warn(`Rate limiter ${key} usando memória devido a erro de DB:`, error.message);
-        const { RateLimiterMemory } = require('rate-limiter-flexible');
-        this.limiters[key] = new RateLimiterMemory(config);
+        // Fallback to memory-based rate limiting
+        console.log(`⚠️  Rate limiter ${key} falling back to memory (MongoDB unavailable)`);
+        this.limiters[key] = new RateLimiterMemory({
+          keyPrefix: config.keyPrefix,
+          points: config.points,
+          duration: config.duration,
+          blockDuration: config.blockDuration,
+          execEvenly: true,
+        });
       }
+    });
+
+    // Load penalties from DB if MongoDB is available
+    this.loadPenaltiesFromDB().catch(err => {
+      console.log('📝 Progressive penalties will use memory only (MongoDB unavailable)');
     });
   }
 
@@ -150,115 +158,34 @@ class AdvancedRateLimit {  constructor() {
         });
       }
     };
-  }
-  // Middleware para login específico com penalização progressiva
+  }  // Middleware para login específico - apenas MongoDB
   loginLimit() {
     return async (req, res, next) => {
       try {
         const email = req.body.email;
         const ip = req.ip;
         
-        // Aplicar limite por email E por IP
+        // Aplicar limite por email E por IP usando apenas MongoDB
         const emailKey = `email:${email}`;
-        const ipKey = `ip:${ip}`;        // Verificar se já há penalização progressiva ativa
-        const progressiveKey = `progressive:${email}:${ip}`;
-        const currentPenalty = this.progressivePenalties.get(progressiveKey);
-        
-        if (currentPenalty && Date.now() < currentPenalty.expiry) {
-          // Usuário ainda está sob penalização progressiva
-          const remainingMs = currentPenalty.expiry - Date.now();
-          const secs = Math.round(remainingMs / 1000);
-          
-          // AUMENTAR AINDA MAIS a penalização se tentar novamente
-          const newLevel = currentPenalty.level + 1;
-          const newDuration = this.calculateProgressivePenalty(newLevel);
-          const newExpiry = Date.now() + newDuration;
-          
-          const updatedPenalty = {
-            level: newLevel,
-            expiry: newExpiry,
-            attempts: currentPenalty.attempts + 1,
-            email: email,
-            ip: ip,
-            createdAt: currentPenalty.createdAt || new Date(),
-            lastUpdated: new Date()
-          };
-
-          this.progressivePenalties.set(progressiveKey, updatedPenalty);
-          
-          // Salvar imediatamente no MongoDB
-          await this.savePenaltyToDB(progressiveKey, updatedPenalty);
-
-          console.warn(`🚨 PENALIZAÇÃO PROGRESSIVA AUMENTADA - IP: ${ip}, Email: ${email}, Nível: ${newLevel}, Tentativas: ${updatedPenalty.attempts}`);
-          
-          return res.status(429).json({
-            success: false,
-            message: `ACESSO NEGADO! Múltiplas tentativas detectadas. Penalização aumentada para ${this.formatTime(Math.round(newDuration / 1000))}. Cada nova tentativa DOBRA o tempo de bloqueio!`,
-            retryAfter: Math.round(newDuration / 1000),
-            rateLimitInfo: {
-              limit: this.limiters.login.points,
-              remaining: 0,
-              resetTime: new Date(newExpiry),
-              retryAfterSeconds: Math.round(newDuration / 1000),
-              severity: 'CRITICAL',
-              penaltyLevel: newLevel,
-              totalAttempts: updatedPenalty.attempts,
-              escalated: true,
-              persistedToDB: true
-            }
-          });
-        }
+        const ipKey = `ip:${ip}`;
 
         await Promise.all([
           this.limiters.login.consume(emailKey),
           this.limiters.login.consume(ipKey)
         ]);
-          // Se passou, limpar penalização progressiva
-        this.progressivePenalties.delete(progressiveKey);
-        await this.removePenaltyFromDB(progressiveKey);
+        
         next();
       } catch (rejRes) {
-        const email = req.body.email;
-        const ip = req.ip;
-        const progressiveKey = `progressive:${email}:${ip}`;
-          // Iniciar ou escalar penalização progressiva
-        const currentPenalty = this.progressivePenalties.get(progressiveKey) || { level: 0, attempts: 0 };
-        const newLevel = currentPenalty.level + 1;
-        const progressiveDuration = this.calculateProgressivePenalty(newLevel);
-        const progressiveExpiry = Date.now() + progressiveDuration;
-        
-        const newPenalty = {
-          level: newLevel,
-          expiry: progressiveExpiry,
-          attempts: currentPenalty.attempts + 1,
-          email: email,
-          ip: ip,
-          createdAt: currentPenalty.createdAt || new Date(),
-          lastUpdated: new Date()
-        };
-
-        this.progressivePenalties.set(progressiveKey, newPenalty);
-        
-        // Salvar imediatamente no MongoDB
-        await this.savePenaltyToDB(progressiveKey, newPenalty);
-
-        console.warn(`🚨 RATE LIMIT ATIVADO + PENALIZAÇÃO PROGRESSIVA - IP: ${ip}, Email: ${email}, Nível: ${newLevel}`);
-        
-        const secs = Math.round(progressiveDuration / 1000);
+        const secs = Math.round(rejRes.msBeforeNext / 1000) || 1;
         res.status(429).json({
           success: false,
-          message: `Muitas tentativas de login. Por segurança, o acesso foi temporariamente bloqueado. Tente novamente em ${this.formatTime(secs)}. ⚠️ ATENÇÃO: Novas tentativas aumentarão exponencialmente o tempo de bloqueio!`,
+          message: `Muitas tentativas de login. Tente novamente em ${this.formatTime(secs)}`,
           retryAfter: secs,
           rateLimitInfo: {
             limit: this.limiters.login.points,
             remaining: rejRes.remainingHits || 0,
-            resetTime: new Date(progressiveExpiry),
-            retryAfterSeconds: secs,
-            severity: 'HIGH',
-            penaltyLevel: newLevel,
-            totalAttempts: newPenalty.attempts,
-            escalated: false,
-            persistedToDB: true
+            resetTime: new Date(Date.now() + rejRes.msBeforeNext),
+            retryAfterSeconds: secs
           }
         });
       }
@@ -298,54 +225,7 @@ class AdvancedRateLimit {  constructor() {
           }
         });
       }
-    };
-  }
-  // Aguardar conexão do MongoDB e carregar penalizações
-  async waitForDBAndLoad() {
-    const maxWaitTime = 30000; // 30 segundos máximo
-    const checkInterval = 1000; // Verificar a cada 1 segundo
-    let elapsed = 0;
-
-    console.log('🔄 Aguardando conexão do MongoDB para carregar penalizações...');
-
-    const checkConnection = async () => {
-      try {
-        const db = database.getDb();
-        const client = database.getClient();
-        
-        if (db && client && client.topology && client.topology.isConnected()) {
-          console.log('✅ MongoDB conectado - carregando penalizações progressivas...');
-          await this.loadPenaltiesFromDB();
-          await this.updateLimitersWithMongo();
-          return true;
-        }
-        return false;
-      } catch (error) {
-        return false;
-      }
-    };
-
-    // Verificar imediatamente
-    if (await checkConnection()) {
-      return;
-    }
-
-    // Aguardar conexão com retry
-    const interval = setInterval(async () => {
-      elapsed += checkInterval;
-      
-      if (await checkConnection()) {
-        clearInterval(interval);
-        return;
-      }
-      
-      if (elapsed >= maxWaitTime) {
-        clearInterval(interval);
-        console.log('⚠️  Timeout aguardando MongoDB - continuando apenas com memória');
-        console.log('💡 As penalizações serão salvas quando o MongoDB estiver disponível');
-      }
-    }, checkInterval);
-  }
+    };  }
 
   // Atualizar limiters para usar MongoDB quando conectado
   async updateLimitersWithMongo() {
@@ -413,8 +293,7 @@ class AdvancedRateLimit {  constructor() {
     } catch (error) {
       console.error('Erro ao atualizar limiters com MongoDB:', error.message);
     }
-  }
-  async loadPenaltiesFromDB() {
+  }  async loadPenaltiesFromDB() {
     try {
       const db = database.getDb();
       if (!db) {
@@ -429,6 +308,11 @@ class AdvancedRateLimit {  constructor() {
       const activePenalties = await penaltiesCollection.find({
         expiry: { $gt: now }
       }).toArray();
+
+      // Initialize progressive penalties map if not exists
+      if (!this.progressivePenalties) {
+        this.progressivePenalties = new Map();
+      }
 
       // Carregar para memória
       activePenalties.forEach(penalty => {
@@ -453,12 +337,17 @@ class AdvancedRateLimit {  constructor() {
       console.error('Erro ao carregar penalizações do MongoDB:', error.message);
     }
   }
-
   // Sincronizar penalizações da memória para MongoDB
   async syncPenaltiesToDB() {
     try {
       const db = database.getDb();
       if (!db) return;
+
+      // Initialize progressive penalties map if not exists
+      if (!this.progressivePenalties) {
+        this.progressivePenalties = new Map();
+        return;
+      }
 
       const penaltiesCollection = db.collection('progressive_penalties');
       const now = Date.now();
@@ -553,8 +442,7 @@ class AdvancedRateLimit {  constructor() {
     
     const calculatedTime = baseTime * Math.pow(2, level - 1);
     return Math.min(calculatedTime, maxTime);
-  }
-  // Penalizar falhas de login com sistema progressivo
+  }  // Penalizar falhas de login com sistema progressivo
   async penalizeFailedLogin(email, ip) {
     try {
       const emailKey = `email:${email}`;
@@ -567,6 +455,12 @@ class AdvancedRateLimit {  constructor() {
     } catch (rejRes) {
       // Login falhou muitas vezes, aplicar penalidade progressiva severa
       const progressiveKey = `progressive_fail:${email}:${ip}`;
+      
+      // Initialize progressive penalties map if not exists
+      if (!this.progressivePenalties) {
+        this.progressivePenalties = new Map();
+      }
+      
       const currentPenalty = this.progressivePenalties.get(progressiveKey) || { level: 0, attempts: 0 };
       const newLevel = currentPenalty.level + 1;
       const progressiveDuration = this.calculateProgressivePenalty(newLevel) * 2; // Dobrar para falhas
@@ -589,7 +483,7 @@ class AdvancedRateLimit {  constructor() {
       console.error(`🚨 PENALIZAÇÃO SEVERA POR FALHAS - IP: ${ip}, Email: ${email}, Nível: ${newLevel}, Duração: ${this.formatTime(Math.round(progressiveDuration / 1000))}`);
       throw new Error(`Conta temporariamente bloqueada por múltiplas tentativas de login inválidas. Bloqueio de ${this.formatTime(Math.round(progressiveDuration / 1000))}`);
     }
-  }  // Resetar limite para um usuário específico (admin only)
+  }// Resetar limite para um usuário específico (admin only)
   async resetUserLimit(identifier, limiterType = 'auth') {
     try {
       if (this.limiters[limiterType]) {
@@ -635,9 +529,14 @@ class AdvancedRateLimit {  constructor() {
       console.error('Erro ao resetar limite do usuário:', error);
       return false;
     }
-  }
-  // Limpar penalizações expiradas (executar periodicamente)
+  }  // Limpar penalizações expiradas (executar periodicamente)
   async cleanExpiredPenalties() {
+    // Initialize progressive penalties map if not exists
+    if (!this.progressivePenalties) {
+      this.progressivePenalties = new Map();
+      return;
+    }
+    
     const now = Date.now();
     const expiredKeys = [];
     
@@ -668,10 +567,14 @@ class AdvancedRateLimit {  constructor() {
       }
     }
   }
-
   // Obter estatísticas das penalizações
   async getPenaltyStatistics() {
     try {
+      // Initialize progressive penalties map if not exists
+      if (!this.progressivePenalties) {
+        this.progressivePenalties = new Map();
+      }
+      
       const memoryCount = this.progressivePenalties.size;
       let dbCount = 0;
       let totalBlocked = 0;
@@ -711,7 +614,7 @@ class AdvancedRateLimit {  constructor() {
     } catch (error) {
       console.error('Erro ao obter estatísticas:', error.message);
       return {
-        memoryCount: this.progressivePenalties.size,
+        memoryCount: this.progressivePenalties ? this.progressivePenalties.size : 0,
         dbCount: 0,
         error: error.message
       };
@@ -764,6 +667,88 @@ class AdvancedRateLimit {  constructor() {
       console.error('Erro ao obter info de rate limit:', error);
       return null;
     }
+  }
+
+  // Try to upgrade rate limiters to MongoDB when it becomes available
+  async tryUpgradeToMongoDB() {
+    try {
+      const client = database.getClient();
+      if (!client || !database.getDb()) {
+        return; // MongoDB still not available
+      }
+
+      // Check if any limiters are still using memory
+      let upgraded = false;
+      for (const [key, limiter] of Object.entries(this.limiters)) {
+        if (limiter instanceof RateLimiterMemory) {
+          const config = this.getLimiterConfig(key);
+          if (config) {
+            // Upgrade to MongoDB
+            this.limiters[key] = new RateLimiterMongo({
+              storeClient: client,
+              keyPrefix: config.keyPrefix,
+              points: config.points,
+              duration: config.duration,
+              blockDuration: config.blockDuration,
+              execEvenly: true,
+            });
+            console.log(`🔄 Upgraded ${key} rate limiter to MongoDB`);
+            upgraded = true;
+          }
+        }
+      }
+
+      if (upgraded) {
+        console.log('✅ All rate limiters upgraded to MongoDB');
+        // Load penalties from DB now that MongoDB is available
+        await this.loadPenaltiesFromDB();
+      }
+    } catch (error) {
+      // Silently fail - MongoDB might not be ready yet
+    }
+  }
+
+  // Get limiter configuration
+  getLimiterConfig(key) {
+    const configs = {
+      global: {
+        keyPrefix: 'global_limit',
+        points: 20,
+        duration: 60,
+        blockDuration: 300,
+      },
+      auth: {
+        keyPrefix: 'auth_limit',
+        points: 3,
+        duration: 900,
+        blockDuration: 1800,
+      },
+      login: {
+        keyPrefix: 'login_limit',
+        points: 5,
+        duration: 3600,
+        blockDuration: 7200,
+      },
+      register: {
+        keyPrefix: 'register_limit',
+        points: 2,
+        duration: 3600,
+        blockDuration: 3600,
+      },
+      registerIP: {
+        keyPrefix: 'register_ip_limit',
+        points: 5,
+        duration: 86400,
+        blockDuration: 86400,
+      },
+      loginFail: {
+        keyPrefix: 'login_fail_limit',
+        points: 3,
+        duration: 1800,
+        blockDuration: 3600,
+      }
+    };
+    return configs[key];
   }
 }
 
