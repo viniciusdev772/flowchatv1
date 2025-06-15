@@ -48,13 +48,57 @@ router.post('/create-with-token', authenticateToken, async (req, res) => {
       });
     }
 
-    // Get the actual token string (we need to reconstruct it)
-    // Since we only store the hash, we can't get the original token
-    // We need to modify the approach - let's store tokens differently
-    return res.status(400).json({
-      success: false,
-      message: 'Sistema de tokens precisa ser atualizado para permitir uso direto'
-    });
+    // Direct approach: Call createWhatsAppSession directly since we've already validated the token ownership
+    try {
+      // Import the createWhatsAppSession function directly
+      const { createWhatsAppSession } = require('../app');
+      
+      if (!createWhatsAppSession) {
+        // Fallback: call the function directly from global scope
+        const result = await global.createWhatsAppSession?.(sessionId, userId);
+        
+        if (!result) {
+          return res.status(500).json({
+            success: false,
+            message: 'Função de criação de sessão não disponível'
+          });
+        }
+        
+        if (result.success) {
+          res.json({
+            success: true,
+            message: 'Sessão criada com sucesso',
+            sessionData: result
+          });
+        } else {
+          res.status(400).json({
+            success: false,
+            message: result.message || 'Erro ao criar sessão'
+          });
+        }
+      } else {
+        const result = await createWhatsAppSession(sessionId, userId);
+        
+        if (result.success) {
+          res.json({
+            success: true,
+            message: 'Sessão criada com sucesso',
+            sessionData: result
+          });
+        } else {
+          res.status(400).json({
+            success: false,
+            message: result.message || 'Erro ao criar sessão'
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Error creating session directly:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Erro ao criar sessão: ' + error.message
+      });
+    }
 
   } catch (error) {
     console.error('Error creating session with token:', error);

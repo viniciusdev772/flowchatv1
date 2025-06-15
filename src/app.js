@@ -1250,6 +1250,11 @@ app.post('/api/baileys/session/create', async (req, res) => {
       if (result.qrCode) {
         try {
           result.qrCodeImage = await QRCode.toDataURL(result.qrCode);
+          // Salvar a imagem na sessão também
+          const session = sessions.get(sessionId);
+          if (session) {
+            session.qrCodeImage = result.qrCodeImage;
+          }
         } catch (error) {
           logger.error(`Erro ao gerar QR code imagem: ${error.message}`);
         }
@@ -2903,4 +2908,7 @@ process.on('SIGINT', async () => {
   process.exit(0);
 });
 
-module.exports = { app, getSessions, initializeApp };
+// Disponibilizar função de criação de sessão globalmente
+global.createWhatsAppSession = createWhatsAppSession;
+
+module.exports = { app, getSessions, initializeApp, createWhatsAppSession };

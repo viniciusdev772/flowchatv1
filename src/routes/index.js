@@ -1,6 +1,7 @@
 const express = require('express');
 const authRoutes = require('./auth');
 const tokenRoutes = require('./tokens');
+const sessionRoutes = require('./sessions');
 const advancedRateLimit = require('../middleware/advancedRateLimit');
 
 const router = express.Router();
@@ -20,6 +21,9 @@ router.use('/auth', authRoutes);
 
 // Token routes
 router.use('/tokens', tokenRoutes);
+
+// Session routes
+router.use('/sessions', sessionRoutes);
 
 // Rate limit statistics endpoint (development only)
 router.get('/rate-limit-stats', async (req, res) => {
@@ -72,6 +76,10 @@ router.get('/info', (req, res) => {
           generate: 'POST /api/management/tokens/generate',
           list: 'GET /api/management/tokens/list',
           revoke: 'DELETE /api/management/tokens/:tokenId'
+        },
+        sessions: {
+          createWithToken: 'POST /api/management/sessions/create-with-token',
+          list: 'GET /api/management/sessions/list'
         },
         monitoring: {
           rateLimitStats: 'GET /api/management/rate-limit-stats (dev only)'

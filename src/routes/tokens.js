@@ -24,6 +24,11 @@ router.post('/generate', authenticateToken, async (req, res) => {
     const token = crypto.randomBytes(32).toString('hex');
     const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
     
+    // Create a simple but effective encryption using the old method that works
+    const cipher = crypto.createCipher('aes256', userId.toString() + (process.env.JWT_SECRET || 'fallback-secret'));
+    let encryptedToken = cipher.update(`baileys_${token}`, 'utf8', 'hex');
+    encryptedToken += cipher.final('hex');
+    
     // Calculate expiration date
     let expiresAt = null;
     if (expiresIn && expiresIn !== 'never') {
@@ -42,6 +47,7 @@ router.post('/generate', authenticateToken, async (req, res) => {
       userId,
       name: name.trim(),
       token: hashedToken,
+      encryptedToken: encryptedToken, // Store encrypted version for recovery
       expiresAt,
       createdAt: new Date(),
       lastUsedAt: null,

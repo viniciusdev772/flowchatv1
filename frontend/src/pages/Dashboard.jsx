@@ -195,6 +195,7 @@ export default function Dashboard() {
     fetchUserProfile();
     fetchSessions();
     fetchApiTokens();
+    fetchRealSessions();
   }, []);
 
   const getStatusColor = (status) => {
@@ -344,7 +345,7 @@ export default function Dashboard() {
 
       setCreatingSession(true);
       
-      // Find the actual token string from selected token ID
+      // Find the token info
       const tokenInfo = apiTokens.find(token => token._id === selectedToken);
       if (!tokenInfo || !tokenInfo.isActive || tokenInfo.isExpired) {
         alert('Token selecionado não está ativo ou expirado');
@@ -354,25 +355,94 @@ export default function Dashboard() {
 
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
       
-      // Note: We can't use the actual token string since it's not stored/returned
-      // For demo purposes, we'll show how it would work
-      console.log('Seria necessário usar o token:', tokenInfo.name);
-      alert(`Para criar a sessão "${sessionId}", você precisa usar o token "${tokenInfo.name}" no Swagger ou via curl:\n\ncurl -X POST '${apiUrl}/api/baileys/session/create' \\\n  -H 'Authorization: Bearer seu_token_aqui' \\\n  -H 'Content-Type: application/json' \\\n  -d '{"sessionId": "${sessionId}"}'`);
+      // Use the new management API to create session
+      const response = await fetch(`${apiUrl}/api/management/sessions/create-with-token`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          sessionId: sessionId.trim(),
+          tokenId: selectedToken
+        })
+      });
+
+      const result = await response.json();
       
-      setShowCreateSessionModal(false);
-      setSessionForm({ sessionId: '', selectedToken: '' });
+      if (response.ok && result.success) {
+        // Session created successfully
+        setShowCreateSessionModal(false);
+        setSessionForm({ sessionId: '', selectedToken: '' });
+        
+        // Show QR code if available
+        if (result.sessionData?.qrCode) {
+          setSelectedSession({
+            id: sessionId,
+            name: sessionId,
+            qrCode: result.sessionData.qrCode,
+            qrCodeImage: result.sessionData.qrCodeImage
+          });
+          setShowQRCode(true);
+        }
+        
+        // Refresh sessions list
+        fetchRealSessions();
+        
+        alert('Sessão WhatsApp criada com sucesso! ' + 
+              (result.sessionData?.qrCode ? 'QR Code gerado para escaneamento.' : ''));
+      } else {
+        alert(`Erro ao criar sessão: ${result.message}`);
+      }
       
     } catch (error) {
       console.error('Erro ao criar sessão:', error);
+      alert('Erro ao criar sessão. Verifique a conexão e tente novamente.');
     } finally {
       setCreatingSession(false);
     }
   };
 
-  const fetchSessionsWithToken = async (tokenId) => {
-    // This would fetch sessions using a specific token
-    // For now, we'll simulate this
-    console.log('Fetching sessions with token:', tokenId);
+  const fetchRealSessions = async () => {
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      const response = await fetch(`${apiUrl}/api/management/sessions/list`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success) {
+          // Transform sessions to match expected format
+          const transformedSessions = result.sessions.map(session => ({
+            id: session.sessionId,
+            name: session.sessionId,
+            status: session.isConnected ? 'connected' : 
+                   session.connectionState === 'connecting' ? 'connecting' : 'disconnected',
+            lastSeen: session.connectedAt ? 
+                     new Date(session.connectedAt).toLocaleString('pt-BR') : 
+                     session.createdAt ? new Date(session.createdAt).toLocaleString('pt-BR') : 'N/A',
+            messages: 0, // Would need to be tracked
+            groups: 0,   // Would need to be tracked
+            webhooks: 0, // Would need to be tracked
+            qrCode: session.qrCode,
+            qrCodeImage: session.qrCodeImage,
+            uptime: session.connectedAt ? 
+                   Math.floor((Date.now() - new Date(session.connectedAt).getTime()) / (1000 * 60)) + 'm' : '0m',
+            user: session.user,
+            lastError: session.lastError
+          }));
+          
+          setSessions(transformedSessions);
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao buscar sessões:', error);
+    }
   };
 
   if (isLoading) {
@@ -1029,11 +1099,30 @@ export default function Dashboard() {
               onClick={(e) => e.stopPropagation()}
             >
               <h3 className="text-xl font-semibold text-white mb-4">QR Code - {selectedSession.name}</h3>
-              <div className={`w-48 h-48 mx-auto mb-4 ${performanceMode ? 'glass-performance' : 'glass-ultra'} rounded-xl flex items-center justify-center`}>
-                <QrCodeIcon className="w-24 h-24 text-white/50" />
+              <div className={`w-64 h-64 mx-auto mb-4 ${performanceMode ? 'glass-performance' : 'glass-ultra'} rounded-xl flex items-center justify-center p-4`}>
+                {selectedSession.qrCodeImage ? (
+                  <img 
+                    src={selectedSession.qrCodeImage} 
+                    alt="QR Code WhatsApp"
+                    className="w-full h-full object-contain rounded-lg"
+                  />
+                ) : selectedSession.qrCode ? (
+                  <div className="text-center">
+                    <QrCodeIcon className="w-16 h-16 text-white/50 mx-auto mb-2" />
+                    <p className="text-white/70 text-sm">QR Code disponível (aguardando imagem)</p>
+                  </div>
+                ) : (
+                  <div className="text-center">
+                    <QrCodeIcon className="w-16 h-16 text-white/30 mx-auto mb-2" />
+                    <p className="text-white/50 text-sm">Gerando QR Code...</p>
+                  </div>
+                )}
               </div>
-              <p className="text-white/70 mb-6">
-                Escaneie este QR Code com o WhatsApp Web para conectar a sessão.
+              <p className="text-white/70 mb-6 text-center">
+                {selectedSession.qrCode || selectedSession.qrCodeImage ? 
+                  'Escaneie este QR Code com o WhatsApp Web para conectar a sessão.' :
+                  'Aguarde a geração do QR Code...'
+                }
               </p>
               <motion.button
                 onClick={() => setShowQRCode(false)}
