@@ -20,55 +20,54 @@ class AdvancedRateLimit {
       this.tryUpgradeToMongoDB();
     }, 30 * 1000); // Every 30 seconds
   }
-  initializeLimiters() {
-    // Configurações mais rigorosas para diferentes endpoints
+  initializeLimiters() {    // Configurações mais amigáveis para diferentes endpoints
     const limiterConfigs = {
-      // Rate limiting global - muito restritivo
+      // Rate limiting global - moderado
       global: {
         keyPrefix: 'global_limit',
-        points: 20, // Apenas 20 requests
+        points: 100, // 100 requests
         duration: 60, // Por minuto
+        blockDuration: 60, // Bloqueado por 1 minuto
+      },
+
+      // Rate limiting para autenticação - moderado
+      auth: {
+        keyPrefix: 'auth_limit',
+        points: 20, // 20 tentativas
+        duration: 300, // Em 5 minutos
         blockDuration: 300, // Bloqueado por 5 minutos
       },
 
-      // Rate limiting para autenticação - extremamente restritivo
-      auth: {
-        keyPrefix: 'auth_limit',
-        points: 3, // Apenas 3 tentativas
-        duration: 900, // Em 15 minutos
-        blockDuration: 1800, // Bloqueado por 30 minutos
-      },
-
-      // Rate limiting para login - muito cruel
+      // Rate limiting para login - amigável
       login: {
         keyPrefix: 'login_limit',
-        points: 5, // 5 tentativas de login
-        duration: 3600, // Por hora
-        blockDuration: 7200, // Bloqueado por 2 horas
+        points: 15, // 15 tentativas de login
+        duration: 600, // Em 10 minutos
+        blockDuration: 300, // Bloqueado por 5 minutos
       },
 
-      // Rate limiting para registro - restritivo
+      // Rate limiting para registro - moderado
       register: {
         keyPrefix: 'register_limit',
-        points: 2, // Apenas 2 registros
+        points: 10, // 10 registros
         duration: 3600, // Por hora
-        blockDuration: 3600, // Bloqueado por 1 hora
+        blockDuration: 600, // Bloqueado por 10 minutos
       },
 
-      // Rate limiting por IP para registro - anti-spam
+      // Rate limiting por IP para registro - amigável
       registerIP: {
         keyPrefix: 'register_ip_limit',
-        points: 5, // 5 registros por IP
+        points: 20, // 20 registros por IP
         duration: 86400, // Por dia
-        blockDuration: 86400, // Bloqueado por 1 dia
+        blockDuration: 3600, // Bloqueado por 1 hora
       },
 
-      // Rate limiting severo para falhas de login
+      // Rate limiting para falhas de login - amigável
       loginFail: {
         keyPrefix: 'login_fail_limit',
-        points: 3, // 3 falhas
-        duration: 1800, // Em 30 minutos
-        blockDuration: 3600, // Bloqueado por 1 hora
+        points: 10, // 10 falhas
+        duration: 600, // Em 10 minutos
+        blockDuration: 300, // Bloqueado por 5 minutos
       }
     };
 
@@ -273,9 +272,7 @@ class AdvancedRateLimit {
           duration: 1800,
           blockDuration: 3600,
         }
-      };
-
-      // Atualizar apenas se ainda não estão usando MongoDB
+      };        // Atualizar apenas se ainda não estão usando MongoDB
       for (const [key, config] of Object.entries(limiterConfigs)) {
         if (this.limiters[key] && !this.limiters[key].storeClient) {
           this.limiters[key] = new RateLimiterMongo({
@@ -425,24 +422,21 @@ class AdvancedRateLimit {
     } catch (error) {
       console.error('Erro ao remover penalização do MongoDB:', error.message);
     }
-  }
-  calculateProgressivePenalty(level) {
-    // Fórmula: 2 horas * (2^level)
-    // Nível 1: 2 horas
-    // Nível 2: 4 horas  
-    // Nível 3: 8 horas
-    // Nível 4: 16 horas
-    // Nível 5: 32 horas (1.3 dias)
-    // Nível 6: 64 horas (2.6 dias)
-    // Nível 7: 128 horas (5.3 dias)
-    // Máximo: 7 dias
+  }  calculateProgressivePenalty(level) {
+    // Fórmula mais amigável: 5 minutos * level
+    // Nível 1: 5 minutos
+    // Nível 2: 10 minutos  
+    // Nível 3: 15 minutos
+    // Nível 4: 20 minutos
+    // Nível 5: 25 minutos
+    // Máximo: 30 minutos
     
-    const baseTime = 2 * 60 * 60 * 1000; // 2 horas em ms
-    const maxTime = 7 * 24 * 60 * 60 * 1000; // 7 dias em ms
+    const baseTime = 5 * 60 * 1000; // 5 minutos em ms
+    const maxTime = 30 * 60 * 1000; // 30 minutos em ms
     
-    const calculatedTime = baseTime * Math.pow(2, level - 1);
+    const calculatedTime = baseTime * level;
     return Math.min(calculatedTime, maxTime);
-  }  // Penalizar falhas de login com sistema progressivo
+  }// Penalizar falhas de login com sistema progressivo
   async penalizeFailedLogin(email, ip) {
     try {
       const emailKey = `email:${email}`;
@@ -452,8 +446,7 @@ class AdvancedRateLimit {
         this.limiters.loginFail.consume(emailKey),
         this.limiters.loginFail.consume(ipKey)
       ]);
-    } catch (rejRes) {
-      // Login falhou muitas vezes, aplicar penalidade progressiva severa
+    } catch (rejRes) {      // Login falhou muitas vezes, aplicar penalidade progressiva moderada
       const progressiveKey = `progressive_fail:${email}:${ip}`;
       
       // Initialize progressive penalties map if not exists
@@ -463,7 +456,7 @@ class AdvancedRateLimit {
       
       const currentPenalty = this.progressivePenalties.get(progressiveKey) || { level: 0, attempts: 0 };
       const newLevel = currentPenalty.level + 1;
-      const progressiveDuration = this.calculateProgressivePenalty(newLevel) * 2; // Dobrar para falhas
+      const progressiveDuration = this.calculateProgressivePenalty(newLevel); // Sem dobrar
       
       const newPenalty = {
         level: newLevel,
@@ -480,8 +473,8 @@ class AdvancedRateLimit {
       // Salvar imediatamente no MongoDB
       await this.savePenaltyToDB(progressiveKey, newPenalty);
 
-      console.error(`🚨 PENALIZAÇÃO SEVERA POR FALHAS - IP: ${ip}, Email: ${email}, Nível: ${newLevel}, Duração: ${this.formatTime(Math.round(progressiveDuration / 1000))}`);
-      throw new Error(`Conta temporariamente bloqueada por múltiplas tentativas de login inválidas. Bloqueio de ${this.formatTime(Math.round(progressiveDuration / 1000))}`);
+      console.warn(`⚠️  Penalização por falhas - IP: ${ip}, Email: ${email}, Nível: ${newLevel}, Duração: ${this.formatTime(Math.round(progressiveDuration / 1000))}`);
+      throw new Error(`Muitas tentativas de login inválidas. Tente novamente em ${this.formatTime(Math.round(progressiveDuration / 1000))}`);
     }
   }// Resetar limite para um usuário específico (admin only)
   async resetUserLimit(identifier, limiterType = 'auth') {
@@ -707,48 +700,105 @@ class AdvancedRateLimit {
       // Silently fail - MongoDB might not be ready yet
     }
   }
-
   // Get limiter configuration
   getLimiterConfig(key) {
     const configs = {
       global: {
         keyPrefix: 'global_limit',
-        points: 20,
+        points: 100,
         duration: 60,
-        blockDuration: 300,
+        blockDuration: 60,
       },
       auth: {
         keyPrefix: 'auth_limit',
-        points: 3,
-        duration: 900,
-        blockDuration: 1800,
+        points: 20,
+        duration: 300,
+        blockDuration: 300,
       },
       login: {
         keyPrefix: 'login_limit',
-        points: 5,
-        duration: 3600,
-        blockDuration: 7200,
+        points: 15,
+        duration: 600,
+        blockDuration: 300,
       },
       register: {
         keyPrefix: 'register_limit',
-        points: 2,
+        points: 10,
         duration: 3600,
-        blockDuration: 3600,
+        blockDuration: 600,
       },
       registerIP: {
         keyPrefix: 'register_ip_limit',
-        points: 5,
+        points: 20,
         duration: 86400,
-        blockDuration: 86400,
+        blockDuration: 3600,
       },
       loginFail: {
         keyPrefix: 'login_fail_limit',
-        points: 3,
-        duration: 1800,
-        blockDuration: 3600,
+        points: 10,
+        duration: 600,
+        blockDuration: 300,
       }
     };
     return configs[key];
+  }
+
+  // Limpar TODOS os rate limits (emergência)
+  async clearAllLimits() {
+    try {
+      // Limpar limiters em memória
+      for (const [key, limiter] of Object.entries(this.limiters)) {
+        try {
+          // Reset all keys for this limiter type (this is a brute force approach)
+          console.log(`🔄 Limpando limiter: ${key}`);
+        } catch (error) {
+          console.log(`Erro ao limpar ${key}:`, error.message);
+        }
+      }
+
+      // Limpar penalizações progressivas da memória
+      if (this.progressivePenalties) {
+        this.progressivePenalties.clear();
+        console.log('🧹 Penalizações progressivas limpas da memória');
+      }
+
+      // Limpar do MongoDB se disponível
+      try {
+        const db = database.getDb();
+        if (db) {
+          // Limpar coleção de rate limits
+          const rateLimitCollections = [
+            'global_limit',
+            'auth_limit', 
+            'login_limit',
+            'register_limit',
+            'register_ip_limit',
+            'login_fail_limit'
+          ];
+
+          for (const collectionName of rateLimitCollections) {
+            try {
+              await db.collection(collectionName).deleteMany({});
+              console.log(`🗑️  Coleção ${collectionName} limpa`);
+            } catch (error) {
+              console.log(`Aviso: Não foi possível limpar ${collectionName}`);
+            }
+          }
+
+          // Limpar penalizações progressivas
+          await db.collection('progressive_penalties').deleteMany({});
+          console.log('🗑️  Penalizações progressivas limpas do MongoDB');
+        }
+      } catch (dbError) {
+        console.log('MongoDB não disponível para limpeza:', dbError.message);
+      }
+
+      console.log('✅ TODOS os rate limits foram limpos! Sistema resetado.');
+      return true;
+    } catch (error) {
+      console.error('Erro ao limpar rate limits:', error);
+      return false;
+    }
   }
 }
 
