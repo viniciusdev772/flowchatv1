@@ -1,0 +1,42 @@
+const express = require('express');
+const authRoutes = require('./auth');
+
+const router = express.Router();
+
+// Health check endpoint
+router.get('/health', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Management API is running',
+    timestamp: new Date().toISOString(),
+    version: '1.0.0'
+  });
+});
+
+// Auth routes
+router.use('/auth', authRoutes);
+
+// API info endpoint
+router.get('/info', (req, res) => {
+  res.json({
+    success: true,
+    data: {
+      name: 'Baileys Management API',
+      version: '1.0.0',
+      description: 'User management and authentication API for Baileys WhatsApp API',
+      endpoints: {
+        health: 'GET /api/management/health',
+        info: 'GET /api/management/info',
+        auth: {
+          register: 'POST /api/management/auth/register',
+          login: 'POST /api/management/auth/login',
+          profile: 'GET /api/management/auth/profile',
+          updateProfile: 'PUT /api/management/auth/profile',
+          changePassword: 'POST /api/management/auth/change-password'
+        }
+      }
+    }
+  });
+});
+
+module.exports = router;
