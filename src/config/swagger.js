@@ -338,7 +338,7 @@ const swaggerUiOptions = {
 
 /**
  * @swagger
- * /api/session/create:
+ * /api/baileys/session/create:
  *   post:
  *     tags:
  *       - Sessões
@@ -380,7 +380,7 @@ const swaggerUiOptions = {
 
 /**
  * @swagger
- * /api/session/{sessionId}/regenerate-qr:
+ * /api/baileys/session/{sessionId}/regenerate-qr:
  *   post:
  *     tags:
  *       - Sessões
@@ -417,7 +417,7 @@ const swaggerUiOptions = {
 
 /**
  * @swagger
- * /api/session/{sessionId}/status:
+ * /api/baileys/session/{sessionId}/status:
  *   get:
  *     tags:
  *       - Sessões
@@ -485,7 +485,7 @@ const swaggerUiOptions = {
 
 /**
  * @swagger
- * /api/sessions:
+ * /api/baileys/sessions:
  *   get:
  *     tags:
  *       - Sessões
@@ -513,7 +513,7 @@ const swaggerUiOptions = {
 
 /**
  * @swagger
- * /api/session/{sessionId}/send-message:
+ * /api/baileys/session/{sessionId}/send-message:
  *   post:
  *     tags:
  *       - Mensagens
@@ -597,7 +597,7 @@ const swaggerUiOptions = {
 
 /**
  * @swagger
- * /api/session/{sessionId}/send-media:
+ * /api/baileys/session/{sessionId}/send-media:
  *   post:
  *     tags:
  *       - Mensagens
@@ -685,7 +685,7 @@ const swaggerUiOptions = {
 
 /**
  * @swagger
- * /api/session/{sessionId}/reply-message:
+ * /api/baileys/session/{sessionId}/reply-message:
  *   post:
  *     tags:
  *       - Mensagens
@@ -753,7 +753,7 @@ const swaggerUiOptions = {
 
 /**
  * @swagger
- * /api/session/{sessionId}/smart-reply:
+ * /api/baileys/session/{sessionId}/smart-reply:
  *   post:
  *     tags:
  *       - Mensagens
@@ -914,7 +914,7 @@ const swaggerUiOptions = {
 
 /**
  * @swagger
- * /api/session/{sessionId}/typing:
+ * /api/baileys/session/{sessionId}/typing:
  *   post:
  *     tags:
  *       - Controles de Chat
@@ -963,7 +963,7 @@ const swaggerUiOptions = {
 
 /**
  * @swagger
- * /api/session/{sessionId}/mark-read:
+ * /api/baileys/session/{sessionId}/mark-read:
  *   post:
  *     tags:
  *       - Controles de Chat
@@ -1013,7 +1013,7 @@ const swaggerUiOptions = {
 
 /**
  * @swagger
- * /api/session/{sessionId}/messages:
+ * /api/baileys/session/{sessionId}/messages:
  *   get:
  *     tags:
  *       - Histórico e Mídia
@@ -1077,7 +1077,7 @@ const swaggerUiOptions = {
 
 /**
  * @swagger
- * /api/session/{sessionId}/download-media:
+ * /api/baileys/session/{sessionId}/download-media:
  *   post:
  *     tags:
  *       - Histórico e Mídia
@@ -1148,7 +1148,7 @@ const swaggerUiOptions = {
 
 /**
  * @swagger
- * /api/session/{sessionId}/webhook:
+ * /api/baileys/session/{sessionId}/webhook:
  *   post:
  *     tags:
  *       - Webhooks
@@ -1330,7 +1330,7 @@ const swaggerUiOptions = {
 
 /**
  * @swagger
- * /api/session/{sessionId}:
+ * /api/baileys/session/{sessionId}:
  *   delete:
  *     tags:
  *       - Sessões
@@ -1368,7 +1368,7 @@ const swaggerUiOptions = {
 
 /**
  * @swagger
- * /api/info:
+ * /api/baileys/info:
  *   get:
  *     tags:
  *       - Informações
@@ -1423,7 +1423,7 @@ const swaggerUiOptions = {
 
 /**
  * @swagger
- * /api/groups/{sessionId}/create:
+ * /api/baileys/groups/{sessionId}/create:
  *   post:
  *     tags:
  *       - Grupos
@@ -1511,7 +1511,7 @@ const swaggerUiOptions = {
 
 /**
  * @swagger
- * /api/groups/{sessionId}/{groupId}/info:
+ * /api/baileys/groups/{sessionId}/{groupId}/info:
  *   get:
  *     tags:
  *       - Grupos
@@ -1555,7 +1555,7 @@ const swaggerUiOptions = {
 
 /**
  * @swagger
- * /api/groups/{sessionId}/{groupId}/add-participants:
+ * /api/baileys/groups/{sessionId}/{groupId}/add-participants:
  *   post:
  *     tags:
  *       - Grupos
@@ -1622,7 +1622,7 @@ const swaggerUiOptions = {
 
 /**
  * @swagger
- * /api/groups/{sessionId}/{groupId}/remove-participants:
+ * /api/baileys/groups/{sessionId}/{groupId}/remove-participants:
  *   post:
  *     tags:
  *       - Grupos
@@ -1689,7 +1689,7 @@ const swaggerUiOptions = {
 
 /**
  * @swagger
- * /api/groups/{sessionId}/{groupId}/promote:
+ * /api/baileys/groups/{sessionId}/{groupId}/promote:
  *   post:
  *     tags:
  *       - Grupos
@@ -1756,7 +1756,7 @@ const swaggerUiOptions = {
 
 /**
  * @swagger
- * /api/groups/{sessionId}/{groupId}/demote:
+ * /api/baileys/groups/{sessionId}/{groupId}/demote:
  *   post:
  *     tags:
  *       - Grupos
@@ -1823,7 +1823,7 @@ const swaggerUiOptions = {
 
 /**
  * @swagger
- * /api/groups/{sessionId}/{groupId}/subject:
+ * /api/baileys/groups/{sessionId}/{groupId}/subject:
  *   put:
  *     tags:
  *       - Grupos
@@ -1884,7 +1884,7 @@ const swaggerUiOptions = {
 
 /**
  * @swagger
- * /api/groups/{sessionId}/{groupId}/description:
+ * /api/baileys/groups/{sessionId}/{groupId}/description:
  *   put:
  *     tags:
  *       - Grupos
@@ -1944,7 +1944,7 @@ const swaggerUiOptions = {
 
 /**
  * @swagger
- * /api/groups/{sessionId}/{groupId}/settings:
+ * /api/baileys/groups/{sessionId}/{groupId}/settings:
  *   put:
  *     tags:
  *       - Grupos
@@ -2011,7 +2011,7 @@ const swaggerUiOptions = {
 
 /**
  * @swagger
- * /api/groups/{sessionId}/{groupId}/leave:
+ * /api/baileys/groups/{sessionId}/{groupId}/leave:
  *   post:
  *     tags:
  *       - Grupos
@@ -2056,7 +2056,7 @@ const swaggerUiOptions = {
 
 /**
  * @swagger
- * /api/groups/{sessionId}/list:
+ * /api/baileys/groups/{sessionId}/list:
  *   get:
  *     tags:
  *       - Grupos
@@ -2114,7 +2114,7 @@ const swaggerUiOptions = {
 
 /**
  * @swagger
- * /api/groups/{sessionId}/{groupId}/invite-code:
+ * /api/baileys/groups/{sessionId}/{groupId}/invite-code:
  *   get:
  *     tags:
  *       - Grupos
@@ -2162,7 +2162,7 @@ const swaggerUiOptions = {
 
 /**
  * @swagger
- * /api/groups/{sessionId}/{groupId}/revoke-invite:
+ * /api/baileys/groups/{sessionId}/{groupId}/revoke-invite:
  *   post:
  *     tags:
  *       - Grupos

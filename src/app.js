@@ -1077,7 +1077,7 @@ async function downloadMedia(sock, message, filename) {
   }
 }
 
-app.post('/api/session/create', async (req, res) => {
+app.post('/api/baileys/session/create', async (req, res) => {
   try {
     const { sessionId } = req.body;
 
@@ -1125,7 +1125,7 @@ app.post('/api/session/create', async (req, res) => {
   }
 });
 
-app.post('/api/session/:sessionId/regenerate-qr', async (req, res) => {
+app.post('/api/baileys/session/:sessionId/regenerate-qr', async (req, res) => {
   try {
     const { sessionId } = req.params;
     const session = sessions.get(sessionId);
@@ -1180,7 +1180,7 @@ app.post('/api/session/:sessionId/regenerate-qr', async (req, res) => {
   }
 });
 
-app.get('/api/session/:sessionId/status', (req, res) => {
+app.get('/api/baileys/session/:sessionId/status', (req, res) => {
   try {
     const { sessionId } = req.params;
     const session = sessions.get(sessionId);
@@ -1216,7 +1216,7 @@ app.get('/api/session/:sessionId/status', (req, res) => {
   }
 });
 
-app.get('/api/sessions', (req, res) => {
+app.get('/api/baileys/sessions', (req, res) => {
   try {
     const sessionList = Array.from(sessions.entries()).map(([id, session]) => ({
       sessionId: id,
@@ -1246,7 +1246,7 @@ app.get('/api/sessions', (req, res) => {
   }
 });
 
-app.post('/api/session/:sessionId/send-message', async (req, res) => {
+app.post('/api/baileys/session/:sessionId/send-message', async (req, res) => {
   try {
     const { sessionId } = req.params;
     const { to, message, quotedMessageId } = req.body;
@@ -1306,7 +1306,7 @@ app.post('/api/session/:sessionId/send-message', async (req, res) => {
 });
 
 app.post(
-  '/api/session/:sessionId/send-media',
+  '/api/baileys/session/:sessionId/send-media',
   upload.single('media'),
   async (req, res) => {
     try {
@@ -1407,7 +1407,7 @@ app.post(
   }
 );
 
-app.post('/api/session/:sessionId/download-media', async (req, res) => {
+app.post('/api/baileys/session/:sessionId/download-media', async (req, res) => {
   try {
     const { sessionId } = req.params;
     const { messageId } = req.body;
@@ -1503,7 +1503,7 @@ app.post('/api/session/:sessionId/download-media', async (req, res) => {
   }
 });
 
-app.post('/api/session/:sessionId/mark-read', async (req, res) => {
+app.post('/api/baileys/session/:sessionId/mark-read', async (req, res) => {
   try {
     const { sessionId } = req.params;
     const { jid, messageId } = req.body;
@@ -1536,7 +1536,7 @@ app.post('/api/session/:sessionId/mark-read', async (req, res) => {
   }
 });
 
-app.post('/api/session/:sessionId/typing', async (req, res) => {
+app.post('/api/baileys/session/:sessionId/typing', async (req, res) => {
   try {
     const { sessionId } = req.params;
     const { jid, isTyping = true } = req.body;
@@ -1565,7 +1565,7 @@ app.post('/api/session/:sessionId/typing', async (req, res) => {
   }
 });
 
-app.post('/api/session/:sessionId/reply-message', async (req, res) => {
+app.post('/api/baileys/session/:sessionId/reply-message', async (req, res) => {
   try {
     const { sessionId } = req.params;
     const { messageId, reply } = req.body;
@@ -1638,7 +1638,7 @@ app.post('/api/session/:sessionId/reply-message', async (req, res) => {
   }
 });
 
-app.get('/api/session/:sessionId/messages', async (req, res) => {
+app.get('/api/baileys/session/:sessionId/messages', async (req, res) => {
   try {
     const { sessionId } = req.params;
     const { limit = 50 } = req.query;
@@ -1746,7 +1746,7 @@ app.get('/api/session/:sessionId/messages', async (req, res) => {
   }
 });
 
-app.post('/api/session/:sessionId/webhook', async (req, res) => {
+app.post('/api/baileys/session/:sessionId/webhook', async (req, res) => {
   try {
     const { sessionId } = req.params;
     const { webhookUrl } = req.body;
@@ -1794,7 +1794,7 @@ app.post('/api/session/:sessionId/webhook', async (req, res) => {
   }
 });
 
-app.get('/api/session/:sessionId/webhook', (req, res) => {
+app.get('/api/baileys/session/:sessionId/webhook', (req, res) => {
   try {
     const { sessionId } = req.params;
 
@@ -1828,7 +1828,7 @@ app.get('/api/session/:sessionId/webhook', (req, res) => {
   }
 });
 
-app.delete('/api/session/:sessionId/webhook', (req, res) => {
+app.delete('/api/baileys/session/:sessionId/webhook', (req, res) => {
   try {
     const { sessionId } = req.params;
 
@@ -2064,7 +2064,7 @@ async function sendMessageWithAdvancedHumanBehavior(
   }
 }
 
-app.post('/api/session/:sessionId/smart-reply', async (req, res) => {
+app.post('/api/baileys/session/:sessionId/smart-reply', async (req, res) => {
   try {
     const { sessionId } = req.params;
     const {
@@ -2188,7 +2188,7 @@ app.post('/api/session/:sessionId/smart-reply', async (req, res) => {
   }
 });
 
-app.delete('/api/session/:sessionId', async (req, res) => {
+app.delete('/api/baileys/session/:sessionId', async (req, res) => {
   try {
     const { sessionId } = req.params;
 
@@ -2224,7 +2224,7 @@ app.delete('/api/session/:sessionId', async (req, res) => {
   }
 });
 
-app.get('/api/info', (req, res) => {
+app.get('/api/baileys/info', (req, res) => {
   res.json({
     name: 'Baileys Multi-Session API',
     version: '1.0.0',
@@ -2251,61 +2251,61 @@ app.get('/api/info', (req, res) => {
     activeSessions: sessions.size,
     endpoints: {
       // Gerenciamento de Sessões
-      'POST /api/session/create': 'Criar nova sessão',
-      'GET /api/session/:id/status': 'Status da sessão',
-      'GET /api/sessions': 'Listar todas as sessões',
-      'DELETE /api/session/:id': 'Deletar sessão',
+      'POST /api/baileys/session/create': 'Criar nova sessão',
+      'GET /api/baileys/session/:id/status': 'Status da sessão',
+      'GET /api/baileys/sessions': 'Listar todas as sessões',
+      'DELETE /api/baileys/session/:id': 'Deletar sessão',
 
       // QR Code
-      'GET /api/session/:id/qr': 'Obter QR Code (JSON)',
-      'GET /api/session/:id/qr-image': 'Obter QR Code (Imagem PNG)',
-      'POST /api/session/:id/regenerate-qr': 'Regenerar QR Code',
+      'GET /api/baileys/session/:id/qr': 'Obter QR Code (JSON)',
+      'GET /api/baileys/session/:id/qr-image': 'Obter QR Code (Imagem PNG)',
+      'POST /api/baileys/session/:id/regenerate-qr': 'Regenerar QR Code',
 
       // Envio de Mensagens
-      'POST /api/session/:id/send-message': 'Enviar mensagem de texto',
-      'POST /api/session/:id/send-media':
+      'POST /api/baileys/session/:id/send-message': 'Enviar mensagem de texto',
+      'POST /api/baileys/session/:id/send-media':
         'Enviar mídia (imagem/vídeo/áudio/documento)',
-      'POST /api/session/:id/reply-message': 'Responder mensagem por ID',
-      'POST /api/session/:id/smart-reply':
+      'POST /api/baileys/session/:id/reply-message': 'Responder mensagem por ID',
+      'POST /api/baileys/session/:id/smart-reply':
         'Resposta inteligente com comportamento humano',
 
       // Controles de Chat
-      'POST /api/session/:id/typing': 'Controlar status de digitação',
-      'POST /api/session/:id/mark-read': 'Marcar mensagem como lida',
+      'POST /api/baileys/session/:id/typing': 'Controlar status de digitação',
+      'POST /api/baileys/session/:id/mark-read': 'Marcar mensagem como lida',
 
       // Histórico e Mídia
-      'GET /api/session/:id/messages': 'Listar mensagens armazenadas',
-      'POST /api/session/:id/download-media': 'Baixar mídia das mensagens',
+      'GET /api/baileys/session/:id/messages': 'Listar mensagens armazenadas',
+      'POST /api/baileys/session/:id/download-media': 'Baixar mídia das mensagens',
 
       // Webhooks
-      'POST /api/session/:id/webhook': 'Configurar webhook para eventos',
-      'GET /api/session/:id/webhook': 'Obter configuração do webhook',
-      'DELETE /api/session/:id/webhook': 'Remover webhook',
+      'POST /api/baileys/session/:id/webhook': 'Configurar webhook para eventos',
+      'GET /api/baileys/session/:id/webhook': 'Obter configuração do webhook',
+      'DELETE /api/baileys/session/:id/webhook': 'Remover webhook',
 
       // Grupos
-      'POST /api/groups/:sessionId/create': 'Criar novo grupo',
-      'GET /api/groups/:sessionId/:groupId/info': 'Obter informações do grupo',
-      'POST /api/groups/:sessionId/:groupId/add-participants': 'Adicionar participantes',
-      'POST /api/groups/:sessionId/:groupId/remove-participants': 'Remover participantes',
-      'POST /api/groups/:sessionId/:groupId/promote': 'Promover participantes a admin',
-      'POST /api/groups/:sessionId/:groupId/demote': 'Despromover admins',
-      'PUT /api/groups/:sessionId/:groupId/subject': 'Atualizar nome do grupo',
-      'PUT /api/groups/:sessionId/:groupId/description': 'Atualizar descrição do grupo',
-      'PUT /api/groups/:sessionId/:groupId/settings': 'Configurar permissões do grupo',
-      'POST /api/groups/:sessionId/:groupId/leave': 'Sair do grupo',
-      'GET /api/groups/:sessionId/list': 'Listar grupos',
-      'GET /api/groups/:sessionId/:groupId/invite-code': 'Obter código de convite',
-      'POST /api/groups/:sessionId/:groupId/revoke-invite': 'Revogar código de convite',
+      'POST /api/baileys/groups/:sessionId/create': 'Criar novo grupo',
+      'GET /api/baileys/groups/:sessionId/:groupId/info': 'Obter informações do grupo',
+      'POST /api/baileys/groups/:sessionId/:groupId/add-participants': 'Adicionar participantes',
+      'POST /api/baileys/groups/:sessionId/:groupId/remove-participants': 'Remover participantes',
+      'POST /api/baileys/groups/:sessionId/:groupId/promote': 'Promover participantes a admin',
+      'POST /api/baileys/groups/:sessionId/:groupId/demote': 'Despromover admins',
+      'PUT /api/baileys/groups/:sessionId/:groupId/subject': 'Atualizar nome do grupo',
+      'PUT /api/baileys/groups/:sessionId/:groupId/description': 'Atualizar descrição do grupo',
+      'PUT /api/baileys/groups/:sessionId/:groupId/settings': 'Configurar permissões do grupo',
+      'POST /api/baileys/groups/:sessionId/:groupId/leave': 'Sair do grupo',
+      'GET /api/baileys/groups/:sessionId/list': 'Listar grupos',
+      'GET /api/baileys/groups/:sessionId/:groupId/invite-code': 'Obter código de convite',
+      'POST /api/baileys/groups/:sessionId/:groupId/revoke-invite': 'Revogar código de convite',
 
       // Informações
-      'GET /api/info': 'Informações da API',
+      'GET /api/baileys/info': 'Informações da API',
       'GET /': 'Redireciona para documentação Swagger',
     },
   });
 });
 
 // Usar rotas de grupos
-app.use('/api/groups', groupsRouter);
+app.use('/api/baileys/groups', groupsRouter);
 
 // Middleware de tratamento de erros
 app.use((error, req, res, next) => {
@@ -2321,7 +2321,7 @@ app.use((error, req, res, next) => {
 app.listen(PORT, async () => {
   logger.info(`API Baileys rodando na porta ${PORT}`);
   logger.info(
-    `Acesse http://localhost:${PORT}/api/info para ver informações da API`
+    `Acesse http://localhost:${PORT}/api/baileys/info para ver informações da API`
   );
 
   // Criar diretórios necessários

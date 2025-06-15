@@ -55,19 +55,19 @@ npm run monitor
 - Controle de digitação e leitura
 
 ### 👥 Grupos (NOVO!)
-- **Criar grupo** - `POST /api/groups/{sessionId}/create`
-- **Obter informações** - `GET /api/groups/{sessionId}/{groupId}/info`
-- **Adicionar participantes** - `POST /api/groups/{sessionId}/{groupId}/add-participants`
-- **Remover/banir participantes** - `POST /api/groups/{sessionId}/{groupId}/remove-participants`
-- **Promover a admin** - `POST /api/groups/{sessionId}/{groupId}/promote`
-- **Despromover admin** - `POST /api/groups/{sessionId}/{groupId}/demote`
-- **Atualizar nome** - `PUT /api/groups/{sessionId}/{groupId}/subject`
-- **Atualizar descrição** - `PUT /api/groups/{sessionId}/{groupId}/description`
-- **Configurar permissões** - `PUT /api/groups/{sessionId}/{groupId}/settings`
-- **Sair do grupo** - `POST /api/groups/{sessionId}/{groupId}/leave`
-- **Listar grupos** - `GET /api/groups/{sessionId}/list`
-- **Código de convite** - `GET /api/groups/{sessionId}/{groupId}/invite-code`
-- **Revogar convite** - `POST /api/groups/{sessionId}/{groupId}/revoke-invite`
+- **Criar grupo** - `POST /api/baileys/groups/{sessionId}/create`
+- **Obter informações** - `GET /api/baileys/groups/{sessionId}/{groupId}/info`
+- **Adicionar participantes** - `POST /api/baileys/groups/{sessionId}/{groupId}/add-participants`
+- **Remover/banir participantes** - `POST /api/baileys/groups/{sessionId}/{groupId}/remove-participants`
+- **Promover a admin** - `POST /api/baileys/groups/{sessionId}/{groupId}/promote`
+- **Despromover admin** - `POST /api/baileys/groups/{sessionId}/{groupId}/demote`
+- **Atualizar nome** - `PUT /api/baileys/groups/{sessionId}/{groupId}/subject`
+- **Atualizar descrição** - `PUT /api/baileys/groups/{sessionId}/{groupId}/description`
+- **Configurar permissões** - `PUT /api/baileys/groups/{sessionId}/{groupId}/settings`
+- **Sair do grupo** - `POST /api/baileys/groups/{sessionId}/{groupId}/leave`
+- **Listar grupos** - `GET /api/baileys/groups/{sessionId}/list`
+- **Código de convite** - `GET /api/baileys/groups/{sessionId}/{groupId}/invite-code`
+- **Revogar convite** - `POST /api/baileys/groups/{sessionId}/{groupId}/revoke-invite`
 
 ### 🔗 Webhooks
 - Eventos em tempo real
@@ -84,7 +84,7 @@ npm run monitor
 
 Acesse a documentação completa em:
 - **Swagger UI**: http://localhost:3000/api-docs
-- **API Info**: http://localhost:3000/api/info
+- **API Info**: http://localhost:3000/api/baileys/info
 
 ## 🏃‍♂️ Início Rápido
 
@@ -102,7 +102,7 @@ npm run dev
 
 3. **Crie uma sessão**:
 ```bash
-curl -X POST http://localhost:3000/api/session/create \
+curl -X POST http://localhost:3000/api/baileys/session/create \
   -H "Content-Type: application/json" \
   -d '{"sessionId": "minha-sessao"}'
 ```
@@ -111,7 +111,7 @@ curl -X POST http://localhost:3000/api/session/create \
 
 5. **Crie um grupo**:
 ```bash
-curl -X POST http://localhost:3000/api/groups/minha-sessao/create \
+curl -X POST http://localhost:3000/api/baileys/groups/minha-sessao/create \
   -H "Content-Type: application/json" \
   -d '{
     "groupName": "Meu Grupo Teste",
