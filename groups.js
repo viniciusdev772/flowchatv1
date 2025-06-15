@@ -1,0 +1,499 @@
+const express = require('express');
+const router = express.Router();
+
+// Middleware para verificar se a sessão existe e está conectada
+const checkSession = (req, res, next) => {
+  const { sessionId } = req.params;
+  
+  // Acessar o objeto global sessions diretamente
+  const sessions = global.whatsappSessions;
+  
+  if (!sessions || !sessions.has(sessionId)) {
+    return res.status(404).json({
+      success: false,
+      message: 'Sessão não encontrada'
+    });
+  }
+  
+  if (!sessions.get(sessionId).isConnected) {
+    return res.status(400).json({
+      success: false,
+      message: 'Sessão não está conectada'
+    });
+  }
+  
+  req.session = sessions.get(sessionId);
+  next();
+};
+
+// Função auxiliar para formatar JID do grupo
+const formatGroupJid = (groupId) => {
+  if (groupId.includes('@g.us')) {
+    return groupId;
+  }
+  return `${groupId}@g.us`;
+};
+
+// Função auxiliar para formatar JID do usuário
+const formatUserJid = (userId) => {
+  if (userId.includes('@s.whatsapp.net')) {
+    return userId;
+  }
+  return `${userId}@s.whatsapp.net`;
+};
+
+// Criar grupo
+router.post('/:sessionId/create', checkSession, async (req, res) => {
+  try {
+    const { groupName, participants, description } = req.body;
+    
+    if (!groupName || !Array.isArray(participants) || participants.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Nome do grupo e lista de participantes são obrigatórios'
+      });
+    }
+    
+    // Formatar JIDs dos participantes
+    const formattedParticipants = participants.map(formatUserJid);
+    
+    // Criar o grupo
+    const groupInfo = await req.session.sock.groupCreate(groupName, formattedParticipants);
+    
+    // Adicionar descrição se fornecida
+    if (description && description.trim()) {
+      await req.session.sock.groupUpdateDescription(groupInfo.id, description);
+    }
+    
+    res.json({
+      success: true,
+      message: 'Grupo criado com sucesso',
+      groupInfo: {
+        id: groupInfo.id,
+        subject: groupInfo.subject,
+        participants: formattedParticipants,
+        description: description || null,
+        createdAt: new Date().toISOString()
+      }
+    });
+    
+  } catch (error) {
+    console.error('Erro ao criar grupo:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno ao criar grupo',
+      error: error.message
+    });
+  }
+});
+
+// Obter informações do grupo
+router.get('/:sessionId/:groupId/info', checkSession, async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    const formattedGroupId = formatGroupJid(groupId);
+    
+    // Obter metadados do grupo
+    const groupMetadata = await req.session.sock.groupMetadata(formattedGroupId);
+    
+    res.json({
+      success: true,
+      groupInfo: {
+        id: groupMetadata.id,
+        subject: groupMetadata.subject,
+        description: groupMetadata.desc || null,
+        owner: groupMetadata.owner,
+        creation: groupMetadata.creation,
+        size: groupMetadata.size,
+        participants: groupMetadata.participants.map(p => ({
+          id: p.id,
+          isAdmin: p.admin === 'admin',
+          isSuperAdmin: p.admin === 'superadmin'
+        })),
+        settings: {
+          announce: groupMetadata.announce,
+          restrict: groupMetadata.restrict
+        }
+      }
+    });
+    
+  } catch (error) {
+    console.error('Erro ao obter informações do grupo:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno ao obter informações do grupo',
+      error: error.message
+    });
+  }
+});
+
+// Adicionar participantes ao grupo
+router.post('/:sessionId/:groupId/add-participants', checkSession, async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    const { participants } = req.body;
+    
+    if (!Array.isArray(participants) || participants.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Lista de participantes é obrigatória'
+      });
+    }
+    
+    const formattedGroupId = formatGroupJid(groupId);
+    const formattedParticipants = participants.map(formatUserJid);
+    
+    // Adicionar participantes
+    const result = await req.session.sock.groupParticipantsUpdate(
+      formattedGroupId,
+      formattedParticipants,
+      'add'
+    );
+    
+    res.json({
+      success: true,
+      message: 'Participantes adicionados com sucesso',
+      results: result,
+      addedParticipants: formattedParticipants
+    });
+    
+  } catch (error) {
+    console.error('Erro ao adicionar participantes:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno ao adicionar participantes',
+      error: error.message
+    });
+  }
+});
+
+// Remover participantes do grupo
+router.post('/:sessionId/:groupId/remove-participants', checkSession, async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    const { participants } = req.body;
+    
+    if (!Array.isArray(participants) || participants.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Lista de participantes é obrigatória'
+      });
+    }
+    
+    const formattedGroupId = formatGroupJid(groupId);
+    const formattedParticipants = participants.map(formatUserJid);
+    
+    // Remover participantes
+    const result = await req.session.sock.groupParticipantsUpdate(
+      formattedGroupId,
+      formattedParticipants,
+      'remove'
+    );
+    
+    res.json({
+      success: true,
+      message: 'Participantes removidos com sucesso',
+      results: result,
+      removedParticipants: formattedParticipants
+    });
+    
+  } catch (error) {
+    console.error('Erro ao remover participantes:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno ao remover participantes',
+      error: error.message
+    });
+  }
+});
+
+// Promover participantes a admin
+router.post('/:sessionId/:groupId/promote', checkSession, async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    const { participants } = req.body;
+    
+    if (!Array.isArray(participants) || participants.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Lista de participantes é obrigatória'
+      });
+    }
+    
+    const formattedGroupId = formatGroupJid(groupId);
+    const formattedParticipants = participants.map(formatUserJid);
+    
+    // Promover participantes
+    const result = await req.session.sock.groupParticipantsUpdate(
+      formattedGroupId,
+      formattedParticipants,
+      'promote'
+    );
+    
+    res.json({
+      success: true,
+      message: 'Participantes promovidos a admin com sucesso',
+      results: result,
+      promotedParticipants: formattedParticipants
+    });
+    
+  } catch (error) {
+    console.error('Erro ao promover participantes:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno ao promover participantes',
+      error: error.message
+    });
+  }
+});
+
+// Despromover admins
+router.post('/:sessionId/:groupId/demote', checkSession, async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    const { participants } = req.body;
+    
+    if (!Array.isArray(participants) || participants.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Lista de participantes é obrigatória'
+      });
+    }
+    
+    const formattedGroupId = formatGroupJid(groupId);
+    const formattedParticipants = participants.map(formatUserJid);
+    
+    // Despromover participantes
+    const result = await req.session.sock.groupParticipantsUpdate(
+      formattedGroupId,
+      formattedParticipants,
+      'demote'
+    );
+    
+    res.json({
+      success: true,
+      message: 'Admins despromovidos com sucesso',
+      results: result,
+      demotedParticipants: formattedParticipants
+    });
+    
+  } catch (error) {
+    console.error('Erro ao despromover participantes:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno ao despromover participantes',
+      error: error.message
+    });
+  }
+});
+
+// Atualizar nome do grupo
+router.put('/:sessionId/:groupId/subject', checkSession, async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    const { subject } = req.body;
+    
+    if (!subject || subject.trim().length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Nome do grupo é obrigatório'
+      });
+    }
+    
+    const formattedGroupId = formatGroupJid(groupId);
+    
+    // Atualizar nome do grupo
+    await req.session.sock.groupUpdateSubject(formattedGroupId, subject.trim());
+    
+    res.json({
+      success: true,
+      message: 'Nome do grupo atualizado com sucesso',
+      newSubject: subject.trim()
+    });
+    
+  } catch (error) {
+    console.error('Erro ao atualizar nome do grupo:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno ao atualizar nome do grupo',
+      error: error.message
+    });
+  }
+});
+
+// Atualizar descrição do grupo
+router.put('/:sessionId/:groupId/description', checkSession, async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    const { description } = req.body;
+    
+    const formattedGroupId = formatGroupJid(groupId);
+    
+    // Atualizar descrição do grupo
+    await req.session.sock.groupUpdateDescription(formattedGroupId, description || '');
+    
+    res.json({
+      success: true,
+      message: 'Descrição do grupo atualizada com sucesso',
+      newDescription: description || null
+    });
+    
+  } catch (error) {
+    console.error('Erro ao atualizar descrição do grupo:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno ao atualizar descrição do grupo',
+      error: error.message
+    });
+  }
+});
+
+// Configurar permissões do grupo
+router.put('/:sessionId/:groupId/settings', checkSession, async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    const { onlyAdminsCanSend, onlyAdminsCanEditInfo } = req.body;
+    
+    const formattedGroupId = formatGroupJid(groupId);
+    
+    // Configurar se apenas admins podem enviar mensagens
+    if (typeof onlyAdminsCanSend === 'boolean') {
+      await req.session.sock.groupSettingUpdate(
+        formattedGroupId,
+        onlyAdminsCanSend ? 'announcement' : 'not_announcement'
+      );
+    }
+    
+    // Configurar se apenas admins podem editar informações do grupo
+    if (typeof onlyAdminsCanEditInfo === 'boolean') {
+      await req.session.sock.groupSettingUpdate(
+        formattedGroupId,
+        onlyAdminsCanEditInfo ? 'locked' : 'unlocked'
+      );
+    }
+    
+    res.json({
+      success: true,
+      message: 'Configurações do grupo atualizadas com sucesso',
+      settings: {
+        onlyAdminsCanSend: onlyAdminsCanSend,
+        onlyAdminsCanEditInfo: onlyAdminsCanEditInfo
+      }
+    });
+    
+  } catch (error) {
+    console.error('Erro ao atualizar configurações do grupo:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno ao atualizar configurações do grupo',
+      error: error.message
+    });
+  }
+});
+
+// Sair do grupo
+router.post('/:sessionId/:groupId/leave', checkSession, async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    const formattedGroupId = formatGroupJid(groupId);
+    
+    // Sair do grupo
+    await req.session.sock.groupLeave(formattedGroupId);
+    
+    res.json({
+      success: true,
+      message: 'Saiu do grupo com sucesso'
+    });
+    
+  } catch (error) {
+    console.error('Erro ao sair do grupo:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno ao sair do grupo',
+      error: error.message
+    });
+  }
+});
+
+// Listar grupos
+router.get('/:sessionId/list', checkSession, async (req, res) => {
+  try {
+    // Obter todos os chats
+    const chats = await req.session.sock.chatListGroupsOnly();
+    
+    const groups = chats.map(chat => ({
+      id: chat.id,
+      name: chat.name || chat.subject,
+      unreadCount: chat.unreadCount || 0,
+      lastMessageTime: chat.conversationTimestamp,
+      participants: chat.size || 0
+    }));
+    
+    res.json({
+      success: true,
+      groups: groups,
+      total: groups.length
+    });
+    
+  } catch (error) {
+    console.error('Erro ao listar grupos:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno ao listar grupos',
+      error: error.message
+    });
+  }
+});
+
+// Obter código de convite do grupo
+router.get('/:sessionId/:groupId/invite-code', checkSession, async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    const formattedGroupId = formatGroupJid(groupId);
+    
+    // Obter código de convite
+    const inviteCode = await req.session.sock.groupInviteCode(formattedGroupId);
+    
+    res.json({
+      success: true,
+      inviteCode: inviteCode,
+      inviteLink: `https://chat.whatsapp.com/${inviteCode}`
+    });
+    
+  } catch (error) {
+    console.error('Erro ao obter código de convite:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno ao obter código de convite',
+      error: error.message
+    });
+  }
+});
+
+// Revogar código de convite do grupo
+router.post('/:sessionId/:groupId/revoke-invite', checkSession, async (req, res) => {
+  try {
+    const { groupId } = req.params;
+    const formattedGroupId = formatGroupJid(groupId);
+    
+    // Revogar código de convite
+    const newInviteCode = await req.session.sock.groupRevokeInvite(formattedGroupId);
+    
+    res.json({
+      success: true,
+      message: 'Código de convite revogado com sucesso',
+      newInviteCode: newInviteCode,
+      newInviteLink: `https://chat.whatsapp.com/${newInviteCode}`
+    });
+    
+  } catch (error) {
+    console.error('Erro ao revogar código de convite:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno ao revogar código de convite',
+      error: error.message
+    });
+  }
+});
+
+module.exports = router;

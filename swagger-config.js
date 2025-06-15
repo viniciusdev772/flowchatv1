@@ -24,6 +24,10 @@ const swaggerOptions = {
         description: 'Envio e controle de mensagens',
       },
       {
+        name: 'Grupos',
+        description: 'Gerenciamento de grupos do WhatsApp',
+      },
+      {
         name: 'Informações',
         description: 'Informações da API e documentação',
       },
@@ -119,6 +123,69 @@ const swaggerOptions = {
               type: 'string',
               enum: ['text', 'image', 'document', 'audio'],
               description: 'Tipo da mensagem',
+            },
+          },
+        },
+        Group: {
+          type: 'object',
+          properties: {
+            id: {
+              type: 'string',
+              description: 'ID único do grupo',
+            },
+            subject: {
+              type: 'string',
+              description: 'Nome/assunto do grupo',
+            },
+            description: {
+              type: 'string',
+              description: 'Descrição do grupo',
+              nullable: true,
+            },
+            owner: {
+              type: 'string',
+              description: 'ID do criador do grupo',
+            },
+            creation: {
+              type: 'integer',
+              description: 'Timestamp de criação do grupo',
+            },
+            size: {
+              type: 'integer',
+              description: 'Número de participantes',
+            },
+            participants: {
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: {
+                  id: {
+                    type: 'string',
+                    description: 'ID do participante',
+                  },
+                  isAdmin: {
+                    type: 'boolean',
+                    description: 'Se o participante é admin',
+                  },
+                  isSuperAdmin: {
+                    type: 'boolean',
+                    description: 'Se o participante é super admin',
+                  },
+                },
+              },
+            },
+            settings: {
+              type: 'object',
+              properties: {
+                announce: {
+                  type: 'boolean',
+                  description: 'Se apenas admins podem enviar mensagens',
+                },
+                restrict: {
+                  type: 'boolean',
+                  description: 'Se apenas admins podem editar informações',
+                },
+              },
             },
           },
         },
@@ -1348,6 +1415,800 @@ const swaggerUiOptions = {
  *     responses:
  *       302:
  *         description: Redirecionamento para /api-docs
+ */
+
+// ========================================
+// DOCUMENTAÇÃO DAS ROTAS DE GRUPOS
+// ========================================
+
+/**
+ * @swagger
+ * /api/groups/{sessionId}/create:
+ *   post:
+ *     tags:
+ *       - Grupos
+ *     summary: Criar novo grupo
+ *     description: Cria um novo grupo do WhatsApp com os participantes especificados
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID da sessão
+ *         example: "minha-sessao-1"
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - groupName
+ *               - participants
+ *             properties:
+ *               groupName:
+ *                 type: string
+ *                 description: Nome do grupo
+ *                 example: "Meu Grupo Novo"
+ *               participants:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: Lista de números dos participantes
+ *                 example: ["5511999999999", "5511888888888"]
+ *               description:
+ *                 type: string
+ *                 description: Descrição do grupo (opcional)
+ *                 example: "Grupo para discussões importantes"
+ *     responses:
+ *       200:
+ *         description: Grupo criado com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Grupo criado com sucesso"
+ *                 groupInfo:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                       example: "120363043716731234@g.us"
+ *                     subject:
+ *                       type: string
+ *                       example: "Meu Grupo Novo"
+ *                     participants:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                       example: ["5511999999999@s.whatsapp.net"]
+ *                     description:
+ *                       type: string
+ *                       nullable: true
+ *                     createdAt:
+ *                       type: string
+ *                       format: date-time
+ *       400:
+ *         description: Dados inválidos
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ *       404:
+ *         description: Sessão não encontrada
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ */
+
+/**
+ * @swagger
+ * /api/groups/{sessionId}/{groupId}/info:
+ *   get:
+ *     tags:
+ *       - Grupos
+ *     summary: Obter informações do grupo
+ *     description: Retorna informações detalhadas sobre um grupo específico
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID da sessão
+ *         example: "minha-sessao-1"
+ *       - in: path
+ *         name: groupId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID do grupo
+ *         example: "120363043716731234@g.us"
+ *     responses:
+ *       200:
+ *         description: Informações do grupo obtidas com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 groupInfo:
+ *                   $ref: '#/components/schemas/Group'
+ *       404:
+ *         description: Sessão ou grupo não encontrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ */
+
+/**
+ * @swagger
+ * /api/groups/{sessionId}/{groupId}/add-participants:
+ *   post:
+ *     tags:
+ *       - Grupos
+ *     summary: Adicionar participantes ao grupo
+ *     description: Adiciona novos participantes a um grupo existente
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID da sessão
+ *         example: "minha-sessao-1"
+ *       - in: path
+ *         name: groupId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID do grupo
+ *         example: "120363043716731234@g.us"
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - participants
+ *             properties:
+ *               participants:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: Lista de números dos participantes a adicionar
+ *                 example: ["5511999999999", "5511888888888"]
+ *     responses:
+ *       200:
+ *         description: Participantes adicionados com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Participantes adicionados com sucesso"
+ *                 results:
+ *                   type: array
+ *                   description: Resultados da operação para cada participante
+ *                 addedParticipants:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *       400:
+ *         description: Dados inválidos
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ */
+
+/**
+ * @swagger
+ * /api/groups/{sessionId}/{groupId}/remove-participants:
+ *   post:
+ *     tags:
+ *       - Grupos
+ *     summary: Remover participantes do grupo
+ *     description: Remove participantes de um grupo existente
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID da sessão
+ *         example: "minha-sessao-1"
+ *       - in: path
+ *         name: groupId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID do grupo
+ *         example: "120363043716731234@g.us"
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - participants
+ *             properties:
+ *               participants:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: Lista de números dos participantes a remover
+ *                 example: ["5511999999999", "5511888888888"]
+ *     responses:
+ *       200:
+ *         description: Participantes removidos com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Participantes removidos com sucesso"
+ *                 results:
+ *                   type: array
+ *                   description: Resultados da operação para cada participante
+ *                 removedParticipants:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *       400:
+ *         description: Dados inválidos
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ */
+
+/**
+ * @swagger
+ * /api/groups/{sessionId}/{groupId}/promote:
+ *   post:
+ *     tags:
+ *       - Grupos
+ *     summary: Promover participantes a admin
+ *     description: Promove participantes do grupo para administradores
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID da sessão
+ *         example: "minha-sessao-1"
+ *       - in: path
+ *         name: groupId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID do grupo
+ *         example: "120363043716731234@g.us"
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - participants
+ *             properties:
+ *               participants:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: Lista de números dos participantes a promover
+ *                 example: ["5511999999999", "5511888888888"]
+ *     responses:
+ *       200:
+ *         description: Participantes promovidos com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Participantes promovidos a admin com sucesso"
+ *                 results:
+ *                   type: array
+ *                   description: Resultados da operação para cada participante
+ *                 promotedParticipants:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *       400:
+ *         description: Dados inválidos
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ */
+
+/**
+ * @swagger
+ * /api/groups/{sessionId}/{groupId}/demote:
+ *   post:
+ *     tags:
+ *       - Grupos
+ *     summary: Despromover admins
+ *     description: Remove privilégios de administrador de participantes do grupo
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID da sessão
+ *         example: "minha-sessao-1"
+ *       - in: path
+ *         name: groupId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID do grupo
+ *         example: "120363043716731234@g.us"
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - participants
+ *             properties:
+ *               participants:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: Lista de números dos participantes a despromover
+ *                 example: ["5511999999999", "5511888888888"]
+ *     responses:
+ *       200:
+ *         description: Admins despromovidos com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Admins despromovidos com sucesso"
+ *                 results:
+ *                   type: array
+ *                   description: Resultados da operação para cada participante
+ *                 demotedParticipants:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *       400:
+ *         description: Dados inválidos
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ */
+
+/**
+ * @swagger
+ * /api/groups/{sessionId}/{groupId}/subject:
+ *   put:
+ *     tags:
+ *       - Grupos
+ *     summary: Atualizar nome do grupo
+ *     description: Altera o nome/assunto do grupo
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID da sessão
+ *         example: "minha-sessao-1"
+ *       - in: path
+ *         name: groupId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID do grupo
+ *         example: "120363043716731234@g.us"
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - subject
+ *             properties:
+ *               subject:
+ *                 type: string
+ *                 description: Novo nome do grupo
+ *                 example: "Novo Nome do Grupo"
+ *     responses:
+ *       200:
+ *         description: Nome do grupo atualizado com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Nome do grupo atualizado com sucesso"
+ *                 newSubject:
+ *                   type: string
+ *                   example: "Novo Nome do Grupo"
+ *       400:
+ *         description: Dados inválidos
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ */
+
+/**
+ * @swagger
+ * /api/groups/{sessionId}/{groupId}/description:
+ *   put:
+ *     tags:
+ *       - Grupos
+ *     summary: Atualizar descrição do grupo
+ *     description: Altera a descrição do grupo
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID da sessão
+ *         example: "minha-sessao-1"
+ *       - in: path
+ *         name: groupId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID do grupo
+ *         example: "120363043716731234@g.us"
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               description:
+ *                 type: string
+ *                 description: Nova descrição do grupo (deixe vazio para remover)
+ *                 example: "Nova descrição do grupo"
+ *     responses:
+ *       200:
+ *         description: Descrição do grupo atualizada com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Descrição do grupo atualizada com sucesso"
+ *                 newDescription:
+ *                   type: string
+ *                   nullable: true
+ *                   example: "Nova descrição do grupo"
+ *       400:
+ *         description: Dados inválidos
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ */
+
+/**
+ * @swagger
+ * /api/groups/{sessionId}/{groupId}/settings:
+ *   put:
+ *     tags:
+ *       - Grupos
+ *     summary: Configurar permissões do grupo
+ *     description: Configura quem pode enviar mensagens e editar informações do grupo
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID da sessão
+ *         example: "minha-sessao-1"
+ *       - in: path
+ *         name: groupId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID do grupo
+ *         example: "120363043716731234@g.us"
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               onlyAdminsCanSend:
+ *                 type: boolean
+ *                 description: Se apenas admins podem enviar mensagens
+ *                 example: true
+ *               onlyAdminsCanEditInfo:
+ *                 type: boolean
+ *                 description: Se apenas admins podem editar informações do grupo
+ *                 example: true
+ *     responses:
+ *       200:
+ *         description: Configurações do grupo atualizadas com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Configurações do grupo atualizadas com sucesso"
+ *                 settings:
+ *                   type: object
+ *                   properties:
+ *                     onlyAdminsCanSend:
+ *                       type: boolean
+ *                     onlyAdminsCanEditInfo:
+ *                       type: boolean
+ *       400:
+ *         description: Dados inválidos
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ */
+
+/**
+ * @swagger
+ * /api/groups/{sessionId}/{groupId}/leave:
+ *   post:
+ *     tags:
+ *       - Grupos
+ *     summary: Sair do grupo
+ *     description: Remove a sessão atual do grupo especificado
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID da sessão
+ *         example: "minha-sessao-1"
+ *       - in: path
+ *         name: groupId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID do grupo
+ *         example: "120363043716731234@g.us"
+ *     responses:
+ *       200:
+ *         description: Saiu do grupo com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Saiu do grupo com sucesso"
+ *       400:
+ *         description: Erro ao sair do grupo
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ */
+
+/**
+ * @swagger
+ * /api/groups/{sessionId}/list:
+ *   get:
+ *     tags:
+ *       - Grupos
+ *     summary: Listar grupos
+ *     description: Retorna uma lista de todos os grupos da sessão
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID da sessão
+ *         example: "minha-sessao-1"
+ *     responses:
+ *       200:
+ *         description: Lista de grupos obtida com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 groups:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                         example: "120363043716731234@g.us"
+ *                       name:
+ *                         type: string
+ *                         example: "Meu Grupo"
+ *                       unreadCount:
+ *                         type: integer
+ *                         example: 0
+ *                       lastMessageTime:
+ *                         type: integer
+ *                         description: Timestamp da última mensagem
+ *                       participants:
+ *                         type: integer
+ *                         description: Número de participantes
+ *                 total:
+ *                   type: integer
+ *                   example: 5
+ *       404:
+ *         description: Sessão não encontrada
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ */
+
+/**
+ * @swagger
+ * /api/groups/{sessionId}/{groupId}/invite-code:
+ *   get:
+ *     tags:
+ *       - Grupos
+ *     summary: Obter código de convite do grupo
+ *     description: Retorna o código de convite do grupo para compartilhar
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID da sessão
+ *         example: "minha-sessao-1"
+ *       - in: path
+ *         name: groupId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID do grupo
+ *         example: "120363043716731234@g.us"
+ *     responses:
+ *       200:
+ *         description: Código de convite obtido com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 inviteCode:
+ *                   type: string
+ *                   example: "ABCDEFGHIJKLMNOPqrstuvwxyz123456"
+ *                 inviteLink:
+ *                   type: string
+ *                   example: "https://chat.whatsapp.com/ABCDEFGHIJKLMNOPqrstuvwxyz123456"
+ *       400:
+ *         description: Erro ao obter código de convite
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ */
+
+/**
+ * @swagger
+ * /api/groups/{sessionId}/{groupId}/revoke-invite:
+ *   post:
+ *     tags:
+ *       - Grupos
+ *     summary: Revogar código de convite do grupo
+ *     description: Revoga o código de convite atual do grupo e gera um novo
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID da sessão
+ *         example: "minha-sessao-1"
+ *       - in: path
+ *         name: groupId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID do grupo
+ *         example: "120363043716731234@g.us"
+ *     responses:
+ *       200:
+ *         description: Código de convite revogado com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Código de convite revogado com sucesso"
+ *                 newInviteCode:
+ *                   type: string
+ *                   example: "ZYXWVUTSRQPONMLKJIHGFEDCBAzyxwvu"
+ *                 newInviteLink:
+ *                   type: string
+ *                   example: "https://chat.whatsapp.com/ZYXWVUTSRQPONMLKJIHGFEDCBAzyxwvu"
+ *       400:
+ *         description: Erro ao revogar código de convite
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
  */
 
 module.exports = {

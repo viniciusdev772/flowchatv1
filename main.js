@@ -79,6 +79,17 @@ const reconnectionAttempts = new Map(); // Controle de tentativas de reconexão
 const messageStore = new Map(); // Armazenamento de mensagens para reply por ID
 const webhooks = new Map(); // URLs de webhook por sessão
 
+// Disponibilizar sessions globalmente para o groups.js
+global.whatsappSessions = sessions;
+
+// Exportar função para acessar sessões (usado pelo groups.js)
+function getSessions() {
+  return sessions;
+}
+
+// Importar rotas de grupos
+const groupsRouter = require('./groups');
+
 // Configurações de comportamento humano
 const HUMAN_BEHAVIOR = {
   MIN_TYPING_TIME: 1000, // Tempo mínimo digitando (1s)
@@ -2268,12 +2279,30 @@ app.get('/api/info', (req, res) => {
       'GET /api/session/:id/webhook': 'Obter configuração do webhook',
       'DELETE /api/session/:id/webhook': 'Remover webhook',
 
+      // Grupos
+      'POST /api/groups/:sessionId/create': 'Criar novo grupo',
+      'GET /api/groups/:sessionId/:groupId/info': 'Obter informações do grupo',
+      'POST /api/groups/:sessionId/:groupId/add-participants': 'Adicionar participantes',
+      'POST /api/groups/:sessionId/:groupId/remove-participants': 'Remover participantes',
+      'POST /api/groups/:sessionId/:groupId/promote': 'Promover participantes a admin',
+      'POST /api/groups/:sessionId/:groupId/demote': 'Despromover admins',
+      'PUT /api/groups/:sessionId/:groupId/subject': 'Atualizar nome do grupo',
+      'PUT /api/groups/:sessionId/:groupId/description': 'Atualizar descrição do grupo',
+      'PUT /api/groups/:sessionId/:groupId/settings': 'Configurar permissões do grupo',
+      'POST /api/groups/:sessionId/:groupId/leave': 'Sair do grupo',
+      'GET /api/groups/:sessionId/list': 'Listar grupos',
+      'GET /api/groups/:sessionId/:groupId/invite-code': 'Obter código de convite',
+      'POST /api/groups/:sessionId/:groupId/revoke-invite': 'Revogar código de convite',
+
       // Informações
       'GET /api/info': 'Informações da API',
       'GET /': 'Redireciona para documentação Swagger',
     },
   });
 });
+
+// Usar rotas de grupos
+app.use('/api/groups', groupsRouter);
 
 // Middleware de tratamento de erros
 app.use((error, req, res, next) => {
@@ -2326,4 +2355,4 @@ process.on('SIGINT', async () => {
   process.exit(0);
 });
 
-module.exports = app;
+module.exports = { app, getSessions };
