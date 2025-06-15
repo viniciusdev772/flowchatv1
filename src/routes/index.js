@@ -1,5 +1,6 @@
 const express = require('express');
 const authRoutes = require('./auth');
+const advancedRateLimit = require('../middleware/advancedRateLimit');
 
 const router = express.Router();
 
@@ -15,6 +16,35 @@ router.get('/health', (req, res) => {
 
 // Auth routes
 router.use('/auth', authRoutes);
+
+// Rate limit statistics endpoint (development only)
+router.get('/rate-limit-stats', async (req, res) => {
+  try {
+    if (process.env.NODE_ENV === 'production') {
+      return res.status(403).json({
+        success: false,
+        message: 'Endpoint disponível apenas em desenvolvimento'
+      });
+    }
+
+    const stats = await advancedRateLimit.getPenaltyStatistics();
+    
+    res.json({
+      success: true,
+      data: {
+        statistics: stats,
+        message: 'Estatísticas de penalizações progressivas',
+        timestamp: new Date().toISOString()
+      }
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao obter estatísticas',
+      error: error.message
+    });
+  }
+});
 
 // API info endpoint
 router.get('/info', (req, res) => {
@@ -33,6 +63,9 @@ router.get('/info', (req, res) => {
           profile: 'GET /api/management/auth/profile',
           updateProfile: 'PUT /api/management/auth/profile',
           changePassword: 'POST /api/management/auth/change-password'
+        },
+        monitoring: {
+          rateLimitStats: 'GET /api/management/rate-limit-stats (dev only)'
         }
       }
     }

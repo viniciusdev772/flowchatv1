@@ -10,6 +10,8 @@ export default function Login() {
   const [apiError, setApiError] = useState('');
   const [apiSuccess, setApiSuccess] = useState('');
   const [csrfToken, setCsrfToken] = useState('');
+  const [csrfLoading, setCsrfLoading] = useState(true);
+  const [rateLimitStats, setRateLimitStats] = useState(null);
   const { register, handleSubmit, formState: { errors, isSubmitting }, watch, reset } = useForm();
 
   const password = watch('password');
@@ -17,6 +19,7 @@ export default function Login() {
   // Obter token CSRF ao carregar a página
   useEffect(() => {
     const fetchCSRFToken = async () => {
+      setCsrfLoading(true);
       try {
         const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
         const response = await fetch(`${apiUrl}/api/management/auth/csrf-token`, {
@@ -27,18 +30,58 @@ export default function Login() {
         if (response.ok) {
           const result = await response.json();
           setCsrfToken(result.csrfToken);
+          console.log('✅ Token CSRF obtido com sucesso');
+        } else {
+          console.error('Erro ao obter token CSRF:', response.status);
+          setApiError('Erro ao inicializar segurança da página');
         }
       } catch (error) {
-        console.warn('Não foi possível obter token CSRF:', error);
+        console.error('Não foi possível obter token CSRF:', error);
+        setApiError('Erro de conexão com o servidor');
+      } finally {
+        setCsrfLoading(false);
+      }
+    };
+
+    // Função para buscar estatísticas de rate limiting (apenas em dev)
+    const fetchRateLimitStats = async () => {
+      if (!import.meta.env.DEV) return;
+      
+      try {
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+        const response = await fetch(`${apiUrl}/api/management/rate-limit-stats`, {
+          method: 'GET',
+          credentials: 'include'
+        });
+        
+        if (response.ok) {
+          const result = await response.json();
+          setRateLimitStats(result.data.statistics);
+        }
+      } catch (error) {
+        console.log('Rate limit stats não disponíveis');
       }
     };
 
     fetchCSRFToken();
+    fetchRateLimitStats();
+    
+    // Atualizar stats a cada 30 segundos em desenvolvimento
+    if (import.meta.env.DEV) {
+      const interval = setInterval(fetchRateLimitStats, 30000);
+      return () => clearInterval(interval);
+    }
   }, []);
 
   const onSubmit = async (data) => {
     setApiError('');
     setApiSuccess('');
+    
+    // Verificar se temos o token CSRF antes de tentar fazer login
+    if (!csrfToken) {
+      setApiError('Token de segurança não encontrado. Recarregue a página.');
+      return;
+    }
     
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -72,6 +115,7 @@ export default function Login() {
           // Atualizar token CSRF se fornecido
           if (result.newCsrfToken) {
             setCsrfToken(result.newCsrfToken);
+            console.log('🔄 Token CSRF atualizado');
           }
           
           // Redirect after a short delay
@@ -80,7 +124,38 @@ export default function Login() {
             // window.location.href = '/dashboard';
           }, 1500);
         } else {
-          setApiError(result.message || 'Erro no login');
+          // Tratamento especial para rate limiting progressivo
+          if (result.rateLimitInfo) {
+            const { rateLimitInfo } = result;
+            let message = result.message;
+            
+            // Adicionar indicador de persistência
+            if (rateLimitInfo.persistedToDB) {
+              message += ' 💾 [Bloqueio salvo permanentemente]';
+            }
+            
+            if (rateLimitInfo.escalated) {
+              setApiError(`🚨 BLOQUEIO ESCALADO! Penalização aumentada para o nível ${rateLimitInfo.penaltyLevel}. Tentativas totais: ${rateLimitInfo.totalAttempts}. ${message}`);
+            } else if (rateLimitInfo.penaltyLevel > 0) {
+              setApiError(`⚠️ SISTEMA DE PENALIZAÇÃO ATIVO! Nível ${rateLimitInfo.penaltyLevel}. ${message}`);
+            } else {
+              setApiError(message);
+            }
+            
+            // Mostrar informações detalhadas no console
+            console.warn('Rate Limit Info:', rateLimitInfo);
+          } else {
+            setApiError(result.message || 'Erro no login');
+          }
+          
+          // Se erro de CSRF, tentar recarregar o token
+          if (result.error && (result.error.includes('CSRF') || result.error.includes('SECURITY'))) {
+            console.log('🔄 Tentando recarregar token CSRF...');
+            // Recarregar a página para obter novo token CSRF
+            setTimeout(() => {
+              window.location.reload();
+            }, 2000);
+          }
         }
       } else {
         // Register API call
@@ -111,6 +186,7 @@ export default function Login() {
           // Atualizar token CSRF se fornecido
           if (result.newCsrfToken) {
             setCsrfToken(result.newCsrfToken);
+            console.log('🔄 Token CSRF atualizado');
           }
           
           // Redirect after a short delay
@@ -120,16 +196,35 @@ export default function Login() {
           }, 1500);
         } else {
           setApiError(result.message || 'Erro no registro');
+          
+          // Se erro de CSRF, tentar recarregar o token
+          if (result.error && (result.error.includes('CSRF') || result.error.includes('SECURITY'))) {
+            console.log('🔄 Tentando recarregar token CSRF...');
+            // Recarregar a página para obter novo token CSRF
+            setTimeout(() => {
+              window.location.reload();
+            }, 2000);
+          }
         }
       }
     } catch (error) {
       console.error('Auth error:', error);
       
-      // Verificar se é erro de rate limiting
-      if (error.message && error.message.includes('429')) {
-        setApiError('Muitas tentativas. Aguarde alguns minutos antes de tentar novamente.');
-      } else {
-        setApiError('Erro de conexão com o servidor');
+      // Verificar se é erro de network/fetch
+      if (error.name === 'TypeError' && error.message.includes('fetch')) {
+        setApiError('🔌 Erro de conexão com o servidor. Verifique se o backend está rodando.');
+      } 
+      // Verificar se é erro de CORS
+      else if (error.message && error.message.toLowerCase().includes('cors')) {
+        setApiError('🌐 Erro de CORS. Verifique a configuração do servidor.');
+      }
+      // Verificar se a resposta tem status 429 (rate limiting)
+      else if (error.response && error.response.status === 429) {
+        setApiError('🚨 Muitas tentativas detectadas. Sistema de proteção ativado.');
+      }
+      // Erro genérico
+      else {
+        setApiError('❌ Erro de conexão com o servidor. Tente novamente.');
       }
     }
   };
@@ -141,10 +236,63 @@ export default function Login() {
     setShowConfirmPassword(false);
     setApiError('');
     setApiSuccess('');
+    
+    // Se não tem token CSRF, tentar recarregar
+    if (!csrfToken && !csrfLoading) {
+      setCsrfLoading(true);
+      const fetchCSRFToken = async () => {
+        try {
+          const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+          const response = await fetch(`${apiUrl}/api/management/auth/csrf-token`, {
+            method: 'GET',
+            credentials: 'include'
+          });
+          
+          if (response.ok) {
+            const result = await response.json();
+            setCsrfToken(result.csrfToken);
+            console.log('✅ Token CSRF recarregado ao trocar modo');
+          }
+        } catch (error) {
+          console.error('Erro ao recarregar token CSRF:', error);
+        } finally {
+          setCsrfLoading(false);
+        }
+      };
+      fetchCSRFToken();
+    }
   };
 
   return (
     <div className="min-h-screen flex relative overflow-hidden">
+      {/* CSRF Status Indicator (Development) */}
+      {import.meta.env.DEV && (
+        <div className="fixed top-4 right-4 z-50 space-y-2">
+          <div className="bg-black/80 text-white px-3 py-2 rounded-lg text-xs font-mono">
+            CSRF: {csrfLoading ? (
+              <span className="text-yellow-400">Carregando...</span>
+            ) : csrfToken ? (
+              <span className="text-green-400">✓ Ativo</span>
+            ) : (
+              <span className="text-red-400">✗ Erro</span>
+            )}
+          </div>
+          
+          {rateLimitStats && (
+            <div className="bg-black/80 text-white px-3 py-2 rounded-lg text-xs font-mono">
+              <div className="text-yellow-400 font-bold">Rate Limits:</div>
+              <div>Memória: {rateLimitStats.memoryCount}</div>
+              <div>MongoDB: {rateLimitStats.dbCount}</div>
+              <div>Bloqueados: {rateLimitStats.totalBlocked}</div>
+              <div>Nível Max: {rateLimitStats.highestLevel}</div>
+              <div className={rateLimitStats.isMongoConnected ? 'text-green-400' : 'text-red-400'}>
+                DB: {rateLimitStats.isMongoConnected ? '✓' : '✗'}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+      
       {/* Left Side - Visual/Branding */}
       <motion.div 
         className="hidden lg:flex lg:w-1/2 xl:w-3/5 relative bg-gradient-to-br from-green-600 via-blue-700 to-purple-900 flex-col justify-center items-center p-12"
@@ -420,16 +568,44 @@ export default function Login() {
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: -10, scale: 0.95 }}
                   transition={{ duration: 0.3 }}
-                  className="p-3 sm:p-4 bg-red-500/10 border border-red-500/20 rounded-xl backdrop-blur-sm"
+                  className={`p-3 sm:p-4 rounded-xl backdrop-blur-sm border ${
+                    apiError.includes('🚨') || apiError.includes('BLOQUEIO') || apiError.includes('PENALIZAÇÃO')
+                      ? 'bg-red-600/20 border-red-500/40 shadow-red-500/20 shadow-lg'
+                      : 'bg-red-500/10 border-red-500/20'
+                  }`}
                 >
-                  <div className="flex items-center">
+                  <div className="flex items-start">
                     <div className="flex-shrink-0">
-                      <svg className="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                      </svg>
+                      {apiError.includes('🚨') || apiError.includes('BLOQUEIO') ? (
+                        <motion.div
+                          animate={{ 
+                            scale: [1, 1.2, 1],
+                            rotate: [0, 5, -5, 0]
+                          }}
+                          transition={{ 
+                            duration: 0.5, 
+                            repeat: Infinity,
+                            repeatType: "reverse"
+                          }}
+                        >
+                          <svg className="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                            <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                          </svg>
+                        </motion.div>
+                      ) : (
+                        <svg className="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
+                          <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                        </svg>
+                      )}
                     </div>
                     <div className="ml-3">
-                      <p className="text-sm text-red-500 font-medium">{apiError}</p>
+                      <p className={`text-sm font-medium ${
+                        apiError.includes('🚨') || apiError.includes('BLOQUEIO') || apiError.includes('PENALIZAÇÃO')
+                          ? 'text-red-400'
+                          : 'text-red-500'
+                      }`}>
+                        {apiError}
+                      </p>
                     </div>
                   </div>
                 </motion.div>
@@ -702,14 +878,25 @@ export default function Login() {
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               type="submit"
-              disabled={isSubmitting}
+              disabled={isSubmitting || csrfLoading || !csrfToken}
               className="relative w-full py-3 sm:py-4 px-4 sm:px-6 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-xl sm:rounded-2xl shadow-2xl hover:shadow-blue-500/25 focus:outline-none focus:ring-4 focus:ring-blue-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 text-sm sm:text-base lg:text-lg overflow-hidden group"
             >
               {/* Enhanced shimmer effect */}
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
               
               <AnimatePresence mode="wait">
-                {isSubmitting ? (
+                {csrfLoading ? (
+                  <motion.div 
+                    key="csrf-loading"
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.8 }}
+                    className="flex items-center justify-center"
+                  >
+                    <div className="animate-spin rounded-full h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 border-2 border-white border-t-transparent mr-2 sm:mr-3"></div>
+                    Inicializando segurança...
+                  </motion.div>
+                ) : isSubmitting ? (
                   <motion.div 
                     key="loading"
                     initial={{ opacity: 0, scale: 0.8 }}
@@ -720,6 +907,16 @@ export default function Login() {
                     <div className="animate-spin rounded-full h-4 w-4 sm:h-5 sm:w-5 lg:h-6 lg:w-6 border-2 border-white border-t-transparent mr-2 sm:mr-3"></div>
                     {isLogin ? 'Acessando...' : 'Configurando sua API...'}
                   </motion.div>
+                ) : !csrfToken ? (
+                  <motion.span
+                    key="csrf-error"
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -10 }}
+                    className="relative z-10 flex items-center justify-center"
+                  >
+                    ⚠️ Erro de segurança - Recarregue a página
+                  </motion.span>
                 ) : (
                   <motion.span
                     key="text"
