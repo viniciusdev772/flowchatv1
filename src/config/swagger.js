@@ -41,10 +41,10 @@ const swaggerOptions = {
     components: {
       securitySchemes: {
         ApiKeyAuth: {
-          type: 'apiKey',
-          in: 'header',
-          name: 'Authorization',
-          description: 'Token de API do usuário (formato: Bearer baileys_xxxxx)'
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'Token',
+          description: 'Token de API do usuário. Use o formato: Bearer baileys_xxxxx'
         }
       },
       schemas: {

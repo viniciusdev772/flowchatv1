@@ -50,6 +50,8 @@ export default function Dashboard() {
   const [apiTokens, setApiTokens] = useState([]);
   const [showTokenModal, setShowTokenModal] = useState(false);
   const [newToken, setNewToken] = useState(null);
+  const [showCreateTokenModal, setShowCreateTokenModal] = useState(false);
+  const [tokenForm, setTokenForm] = useState({ name: '', expiresIn: 'never' });
   
   // Performance mode - detecta dispositivos menos potentes
   const [performanceMode, setPerformanceMode] = useState(() => {
@@ -65,6 +67,9 @@ export default function Dashboard() {
   const [showQRCode, setShowQRCode] = useState(false);
   const [showUserProfile, setShowUserProfile] = useState(false);
   const [selectedSession, setSelectedSession] = useState(null);
+  const [showCreateSessionModal, setShowCreateSessionModal] = useState(false);
+  const [sessionForm, setSessionForm] = useState({ sessionId: '', selectedToken: '' });
+  const [creatingSession, setCreatingSession] = useState(false);
 
   // Carregar dados reais do usuário da API
   useEffect(() => {
@@ -242,8 +247,14 @@ export default function Dashboard() {
     }
   };
 
-  const generateApiToken = async (tokenName, expiresIn) => {
+  const generateApiToken = async () => {
     try {
+      const { name, expiresIn } = tokenForm;
+      
+      if (!name.trim()) {
+        return; // Validation handled by disabled button
+      }
+
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
       const response = await fetch(`${apiUrl}/api/management/tokens/generate`, {
         method: 'POST',
@@ -252,7 +263,7 @@ export default function Dashboard() {
           'Content-Type': 'application/json'
         },
         body: JSON.stringify({
-          name: tokenName,
+          name: name.trim(),
           expiresIn: expiresIn
         })
       });
@@ -262,6 +273,8 @@ export default function Dashboard() {
         if (result.success) {
           setNewToken(result.token);
           setShowTokenModal(true);
+          setShowCreateTokenModal(false);
+          setTokenForm({ name: '', expiresIn: 'never' });
           // Reload tokens list
           const tokensResponse = await fetch(`${apiUrl}/api/management/tokens/list`, {
             method: 'GET',
@@ -319,6 +332,47 @@ export default function Dashboard() {
     navigator.clipboard.writeText(text).then(() => {
       // Could add a toast notification here
     });
+  };
+
+  const createWhatsAppSession = async () => {
+    try {
+      const { sessionId, selectedToken } = sessionForm;
+      
+      if (!sessionId.trim() || !selectedToken) {
+        return;
+      }
+
+      setCreatingSession(true);
+      
+      // Find the actual token string from selected token ID
+      const tokenInfo = apiTokens.find(token => token._id === selectedToken);
+      if (!tokenInfo || !tokenInfo.isActive || tokenInfo.isExpired) {
+        alert('Token selecionado não está ativo ou expirado');
+        setCreatingSession(false);
+        return;
+      }
+
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      
+      // Note: We can't use the actual token string since it's not stored/returned
+      // For demo purposes, we'll show how it would work
+      console.log('Seria necessário usar o token:', tokenInfo.name);
+      alert(`Para criar a sessão "${sessionId}", você precisa usar o token "${tokenInfo.name}" no Swagger ou via curl:\n\ncurl -X POST '${apiUrl}/api/baileys/session/create' \\\n  -H 'Authorization: Bearer seu_token_aqui' \\\n  -H 'Content-Type: application/json' \\\n  -d '{"sessionId": "${sessionId}"}'`);
+      
+      setShowCreateSessionModal(false);
+      setSessionForm({ sessionId: '', selectedToken: '' });
+      
+    } catch (error) {
+      console.error('Erro ao criar sessão:', error);
+    } finally {
+      setCreatingSession(false);
+    }
+  };
+
+  const fetchSessionsWithToken = async (tokenId) => {
+    // This would fetch sessions using a specific token
+    // For now, we'll simulate this
+    console.log('Fetching sessions with token:', tokenId);
   };
 
   if (isLoading) {
@@ -630,7 +684,7 @@ export default function Dashboard() {
                 <div className="flex items-center justify-between">
                   <h2 className="text-2xl font-bold text-white">Gerenciar Sessões</h2>
                   <motion.button
-                    onClick={() => setShowNewSession(true)}
+                    onClick={() => setShowCreateSessionModal(true)}
                     className="liquid-button inline-flex items-center"
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
@@ -721,13 +775,7 @@ export default function Dashboard() {
                 <div className="flex items-center justify-between">
                   <h2 className="text-2xl font-bold text-white">Tokens de API</h2>
                   <motion.button
-                    onClick={() => {
-                      const name = prompt('Nome do token:');
-                      if (name) {
-                        const expires = prompt('Expira em quantos dias? (deixe vazio para nunca expirar):');
-                        generateApiToken(name, expires || 'never');
-                      }
-                    }}
+                    onClick={() => setShowCreateTokenModal(true)}
                     className="liquid-button inline-flex items-center"
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
@@ -741,10 +789,44 @@ export default function Dashboard() {
                   <div className="mb-6">
                     <h3 className="text-lg font-semibold text-white mb-2">Como usar os tokens de API</h3>
                     <p className="text-white/70 mb-4">
-                      Use seus tokens para autenticar nas rotas do WhatsApp API. Inclua o token no header Authorization:
+                      Use seus tokens para criar e gerenciar sessões WhatsApp. Há duas formas principais:
                     </p>
-                    <div className={`${performanceMode ? 'glass-performance' : 'glass-ultra'} p-4 rounded-xl font-mono text-sm`}>
-                      <div className="text-white/80">Authorization: Bearer seu_token_aqui</div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      <div className={`${performanceMode ? 'glass-performance' : 'glass-ultra'} p-4 rounded-xl`}>
+                        <h4 className="text-white font-semibold mb-2 flex items-center">
+                          <DocumentTextIcon className="w-4 h-4 mr-2 text-blue-400" />
+                          Via Swagger
+                        </h4>
+                        <p className="text-white/70 text-sm mb-2">Acesse /api-docs e use o botão "Authorize"</p>
+                        <div className="font-mono text-xs text-green-400">
+                          Bearer baileys_xxxxx
+                        </div>
+                      </div>
+                      
+                      <div className={`${performanceMode ? 'glass-performance' : 'glass-ultra'} p-4 rounded-xl`}>
+                        <h4 className="text-white font-semibold mb-2 flex items-center">
+                          <ClipboardDocumentIcon className="w-4 h-4 mr-2 text-purple-400" />
+                          Via cURL
+                        </h4>
+                        <p className="text-white/70 text-sm mb-2">Use o botão 📋 do token</p>
+                        <div className="font-mono text-xs text-purple-400">
+                          curl -H "Authorization: Bearer..."
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="flex justify-center">
+                      <motion.a
+                        href="/api-docs"
+                        target="_blank"
+                        className="liquid-button inline-flex items-center text-sm"
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                      >
+                        <DocumentTextIcon className="w-4 h-4 mr-2" />
+                        Abrir Swagger Documentation
+                      </motion.a>
                     </div>
                   </div>
 
@@ -754,13 +836,7 @@ export default function Dashboard() {
                       <h3 className="text-lg font-semibold text-white mb-2">Nenhum token criado</h3>
                       <p className="text-white/70 mb-6">Crie seu primeiro token de API para começar a usar o WhatsApp Bot</p>
                       <motion.button
-                        onClick={() => {
-                          const name = prompt('Nome do token:');
-                          if (name) {
-                            const expires = prompt('Expira em quantos dias? (deixe vazio para nunca expirar):');
-                            generateApiToken(name, expires || 'never');
-                          }
-                        }}
+                        onClick={() => setShowCreateTokenModal(true)}
                         className="liquid-button inline-flex items-center"
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
@@ -817,6 +893,25 @@ export default function Dashboard() {
                             </div>
                             
                             <div className="flex items-center space-x-2">
+                              <motion.button
+                                onClick={() => {
+                                  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+                                  const curlCommand = `curl -X POST '${apiUrl}/api/baileys/session/create' \\
+  -H 'Authorization: Bearer seu_token_${token.name.toLowerCase().replace(/\s+/g, '_')}' \\
+  -H 'Content-Type: application/json' \\
+  -d '{"sessionId": "minha-sessao-1"}'`;
+                                  
+                                  navigator.clipboard.writeText(curlCommand).then(() => {
+                                    alert('Comando curl copiado! Cole no terminal para criar uma sessão.\n\nLembre-se de substituir "seu_token_..." pelo token real gerado.');
+                                  });
+                                }}
+                                className="p-2 rounded-lg bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-colors"
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                title="Copiar comando curl"
+                              >
+                                <ClipboardDocumentIcon className="w-4 h-4" />
+                              </motion.button>
                               <motion.button
                                 onClick={() => revokeApiToken(token._id)}
                                 className="p-2 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors"
@@ -1225,6 +1320,225 @@ export default function Dashboard() {
                   Fechar
                 </motion.button>
               </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {showCreateTokenModal && (
+          <motion.div
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => {
+              setShowCreateTokenModal(false);
+              setTokenForm({ name: '', expiresIn: 'never' });
+            }}
+          >
+            <motion.div
+              className={`${performanceMode ? 'glass-performance' : 'glass-card'} p-6 max-w-md w-full mx-4 rounded-xl`}
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-xl font-semibold text-white mb-6">Criar Token de API</h3>
+              
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-white/80 mb-2">
+                    Nome do Token *
+                  </label>
+                  <input
+                    type="text"
+                    value={tokenForm.name}
+                    onChange={(e) => setTokenForm(prev => ({ ...prev, name: e.target.value }))}
+                    className={`w-full px-4 py-3 ${performanceMode ? 'glass-performance' : 'glass-ultra'} rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-500 focus:outline-none`}
+                    placeholder="Ex: API Principal, Bot Vendas, Sistema..."
+                    maxLength={50}
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-white/80 mb-2">
+                    Prazo de Expiração
+                  </label>
+                  <select
+                    value={tokenForm.expiresIn}
+                    onChange={(e) => setTokenForm(prev => ({ ...prev, expiresIn: e.target.value }))}
+                    className={`w-full px-4 py-3 ${performanceMode ? 'glass-performance' : 'glass-ultra'} rounded-xl text-white bg-transparent focus:ring-2 focus:ring-blue-500 focus:outline-none`}
+                  >
+                    <option value="never" className="bg-slate-800">Nunca expira</option>
+                    <option value="7" className="bg-slate-800">7 dias</option>
+                    <option value="30" className="bg-slate-800">30 dias</option>
+                    <option value="90" className="bg-slate-800">90 dias</option>
+                    <option value="365" className="bg-slate-800">1 ano</option>
+                  </select>
+                </div>
+
+                <div className={`${performanceMode ? 'glass-performance' : 'glass-ultra'} p-4 rounded-xl`}>
+                  <div className="flex items-center space-x-2 mb-2">
+                    <KeyIcon className="w-4 h-4 text-blue-400" />
+                    <span className="text-sm font-medium text-blue-400">Informações Importantes</span>
+                  </div>
+                  <ul className="text-xs text-white/70 space-y-1">
+                    <li>• O token será mostrado apenas uma vez após a criação</li>
+                    <li>• Guarde-o em local seguro</li>
+                    <li>• Use no header: Authorization: Bearer seu_token</li>
+                    <li>• Você pode revogar o token a qualquer momento</li>
+                  </ul>
+                </div>
+              </div>
+
+              <div className="flex space-x-3 mt-6">
+                <motion.button
+                  onClick={() => {
+                    setShowCreateTokenModal(false);
+                    setTokenForm({ name: '', expiresIn: 'never' });
+                  }}
+                  className={`flex-1 px-4 py-3 ${performanceMode ? 'glass-performance' : 'glass-ultra'} rounded-xl text-white/70 hover:text-white transition-colors`}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  Cancelar
+                </motion.button>
+                <motion.button
+                  onClick={generateApiToken}
+                  disabled={!tokenForm.name.trim()}
+                  className={`flex-1 liquid-button ${!tokenForm.name.trim() ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  whileHover={tokenForm.name.trim() ? { scale: 1.02 } : {}}
+                  whileTap={tokenForm.name.trim() ? { scale: 0.98 } : {}}
+                >
+                  <KeyIcon className="w-4 h-4 mr-2" />
+                  Criar Token
+                </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {showCreateSessionModal && (
+          <motion.div
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => {
+              setShowCreateSessionModal(false);
+              setSessionForm({ sessionId: '', selectedToken: '' });
+            }}
+          >
+            <motion.div
+              className={`${performanceMode ? 'glass-performance' : 'glass-card'} p-6 max-w-lg w-full mx-4 rounded-xl`}
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-xl font-semibold text-white mb-6">Criar Sessão WhatsApp</h3>
+              
+              {apiTokens.length === 0 ? (
+                <div className="text-center py-8">
+                  <KeyIcon className="w-16 h-16 text-white/30 mx-auto mb-4" />
+                  <h4 className="text-lg font-semibold text-white mb-2">Nenhum Token Disponível</h4>
+                  <p className="text-white/70 mb-6">
+                    Você precisa criar um token de API primeiro para gerenciar sessões WhatsApp.
+                  </p>
+                  <motion.button
+                    onClick={() => {
+                      setShowCreateSessionModal(false);
+                      setShowCreateTokenModal(true);
+                    }}
+                    className="liquid-button inline-flex items-center"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <KeyIcon className="w-4 h-4 mr-2" />
+                    Criar Token Primeiro
+                  </motion.button>
+                </div>
+              ) : (
+                <>
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-white/80 mb-2">
+                        ID da Sessão *
+                      </label>
+                      <input
+                        type="text"
+                        value={sessionForm.sessionId}
+                        onChange={(e) => setSessionForm(prev => ({ ...prev, sessionId: e.target.value }))}
+                        className={`w-full px-4 py-3 ${performanceMode ? 'glass-performance' : 'glass-ultra'} rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-500 focus:outline-none`}
+                        placeholder="Ex: vendas-bot, suporte-cliente, marketing..."
+                        maxLength={30}
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-white/80 mb-2">
+                        Token de API
+                      </label>
+                      <select
+                        value={sessionForm.selectedToken}
+                        onChange={(e) => setSessionForm(prev => ({ ...prev, selectedToken: e.target.value }))}
+                        className={`w-full px-4 py-3 ${performanceMode ? 'glass-performance' : 'glass-ultra'} rounded-xl text-white bg-transparent focus:ring-2 focus:ring-blue-500 focus:outline-none`}
+                      >
+                        <option value="" className="bg-slate-800">Selecione um token</option>
+                        {apiTokens.filter(token => token.isActive && !token.isExpired).map(token => (
+                          <option key={token._id} value={token._id} className="bg-slate-800">
+                            {token.name} {token.expiresAt ? `(expira em ${new Date(token.expiresAt).toLocaleDateString('pt-BR')})` : '(nunca expira)'}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div className={`${performanceMode ? 'glass-performance' : 'glass-ultra'} p-4 rounded-xl`}>
+                      <div className="flex items-center space-x-2 mb-2">
+                        <ExclamationTriangleIcon className="w-4 h-4 text-yellow-400" />
+                        <span className="text-sm font-medium text-yellow-400">Como Usar</span>
+                      </div>
+                      <div className="text-xs text-white/70 space-y-1">
+                        <p>• Após criar, use o token no Swagger (/api-docs) ou via curl</p>
+                        <p>• A sessão gerará um QR Code para escaneamento</p>
+                        <p>• Use o botão 📋 do token para copiar comando curl pronto</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="flex space-x-3 mt-6">
+                    <motion.button
+                      onClick={() => {
+                        setShowCreateSessionModal(false);
+                        setSessionForm({ sessionId: '', selectedToken: '' });
+                      }}
+                      className={`flex-1 px-4 py-3 ${performanceMode ? 'glass-performance' : 'glass-ultra'} rounded-xl text-white/70 hover:text-white transition-colors`}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      Cancelar
+                    </motion.button>
+                    <motion.button
+                      onClick={createWhatsAppSession}
+                      disabled={!sessionForm.sessionId.trim() || !sessionForm.selectedToken || creatingSession}
+                      className={`flex-1 liquid-button ${(!sessionForm.sessionId.trim() || !sessionForm.selectedToken || creatingSession) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      whileHover={(!sessionForm.sessionId.trim() || !sessionForm.selectedToken || creatingSession) ? {} : { scale: 1.02 }}
+                      whileTap={(!sessionForm.sessionId.trim() || !sessionForm.selectedToken || creatingSession) ? {} : { scale: 0.98 }}
+                    >
+                      {creatingSession ? (
+                        <>
+                          <div className="w-4 h-4 mr-2 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                          Criando...
+                        </>
+                      ) : (
+                        <>
+                          <PhoneIcon className="w-4 h-4 mr-2" />
+                          Criar Sessão
+                        </>
+                      )}
+                    </motion.button>
+                  </div>
+                </>
+              )}
             </motion.div>
           </motion.div>
         )}
