@@ -15,6 +15,7 @@ import {
   BoltIcon
 } from '@heroicons/react/24/outline'
 import Login from './pages/Login'
+import Dashboard from './pages/Dashboard'
 
 function Home() {
   const [activeFeature, setActiveFeature] = useState(null)
@@ -481,6 +482,7 @@ function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/dashboard" element={<Dashboard />} />
       </Routes>
     </Router>
   )

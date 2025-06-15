@@ -120,8 +120,7 @@ export default function Login() {
           
           // Redirect after a short delay
           setTimeout(() => {
-            // Add your redirect logic here
-            // window.location.href = '/dashboard';
+            window.location.href = '/dashboard';
           }, 1500);
         } else {
           // Tratamento especial para rate limiting progressivo
@@ -191,8 +190,7 @@ export default function Login() {
           
           // Redirect after a short delay
           setTimeout(() => {
-            // Add your redirect logic here
-            // window.location.href = '/dashboard';
+            window.location.href = '/dashboard';
           }, 1500);
         } else {
           setApiError(result.message || 'Erro no registro');
