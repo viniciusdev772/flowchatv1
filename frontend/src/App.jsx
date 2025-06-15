@@ -1,3 +1,4 @@
+import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
 import { useState } from 'react'
 import { 
@@ -13,8 +14,9 @@ import {
   RocketLaunchIcon,
   BoltIcon
 } from '@heroicons/react/24/outline'
+import Login from './pages/Login'
 
-function App() {
+function Home() {
   const [activeFeature, setActiveFeature] = useState(null)
   const [performanceMode, setPerformanceMode] = useState(() => {
     // Detectar dispositivos menos potentes
@@ -193,6 +195,15 @@ function App() {
                 <PlayIcon className="w-5 h-5 mr-2" />
                 Testar API
               </motion.a>
+              <Link to="/login">
+                <motion.button 
+                  className="liquid-button inline-flex items-center"
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
+                >
+                  Login
+                </motion.button>
+              </Link>
               <motion.button 
                 onClick={() => setPerformanceMode(!performanceMode)}
                 className={`liquid-button inline-flex items-center ${performanceMode ? 'bg-green-500/20' : 'bg-orange-500/20'}`}
@@ -461,6 +472,17 @@ function App() {
         </motion.button>
       </motion.div>
     </div>
+  )
+}
+
+function App() {
+  return (
+    <Router>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/login" element={<Login />} />
+      </Routes>
+    </Router>
   )
 }
 
