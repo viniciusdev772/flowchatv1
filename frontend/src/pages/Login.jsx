@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { EyeIcon, EyeSlashIcon, UserIcon, EnvelopeIcon, LockClosedIcon, ChatBubbleLeftRightIcon } from '@heroicons/react/24/outline';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -9,9 +9,32 @@ export default function Login() {
   const [isLogin, setIsLogin] = useState(true);
   const [apiError, setApiError] = useState('');
   const [apiSuccess, setApiSuccess] = useState('');
+  const [csrfToken, setCsrfToken] = useState('');
   const { register, handleSubmit, formState: { errors, isSubmitting }, watch, reset } = useForm();
 
   const password = watch('password');
+
+  // Obter token CSRF ao carregar a página
+  useEffect(() => {
+    const fetchCSRFToken = async () => {
+      try {
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+        const response = await fetch(`${apiUrl}/api/management/auth/csrf-token`, {
+          method: 'GET',
+          credentials: 'include'
+        });
+        
+        if (response.ok) {
+          const result = await response.json();
+          setCsrfToken(result.csrfToken);
+        }
+      } catch (error) {
+        console.warn('Não foi possível obter token CSRF:', error);
+      }
+    };
+
+    fetchCSRFToken();
+  }, []);
 
   const onSubmit = async (data) => {
     setApiError('');
@@ -26,6 +49,7 @@ export default function Login() {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'X-CSRF-Token': csrfToken
           },
           credentials: 'include', // Include cookies in request
           body: JSON.stringify({
@@ -45,6 +69,11 @@ export default function Login() {
           setApiSuccess('Login realizado com sucesso!');
           console.log('User logged in:', result.data.user);
           
+          // Atualizar token CSRF se fornecido
+          if (result.newCsrfToken) {
+            setCsrfToken(result.newCsrfToken);
+          }
+          
           // Redirect after a short delay
           setTimeout(() => {
             // Add your redirect logic here
@@ -59,6 +88,7 @@ export default function Login() {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'X-CSRF-Token': csrfToken
           },
           credentials: 'include', // Include cookies in request
           body: JSON.stringify({
@@ -78,6 +108,11 @@ export default function Login() {
           setApiSuccess('Conta criada com sucesso!');
           console.log('User registered:', result.data.user);
           
+          // Atualizar token CSRF se fornecido
+          if (result.newCsrfToken) {
+            setCsrfToken(result.newCsrfToken);
+          }
+          
           // Redirect after a short delay
           setTimeout(() => {
             // Add your redirect logic here
@@ -89,7 +124,13 @@ export default function Login() {
       }
     } catch (error) {
       console.error('Auth error:', error);
-      setApiError('Erro de conexão com o servidor');
+      
+      // Verificar se é erro de rate limiting
+      if (error.message && error.message.includes('429')) {
+        setApiError('Muitas tentativas. Aguarde alguns minutos antes de tentar novamente.');
+      } else {
+        setApiError('Erro de conexão com o servidor');
+      }
     }
   };
 

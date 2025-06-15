@@ -69,6 +69,10 @@ class Database {
   getDb() {
     return this.db; // Return null if not connected, let caller handle
   }
+
+  getClient() {
+    return this.client; // Return client for session store
+  }
   
   isConnected() {
     return this.db !== null;

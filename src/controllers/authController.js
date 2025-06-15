@@ -2,6 +2,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { ObjectId } = require('mongodb');
 const database = require('../config/database');
+const advancedRateLimit = require('../middleware/advancedRateLimit');
 
 class AuthController {
   // Register new user
@@ -13,14 +14,14 @@ class AuthController {
       if (!name || !email || !password) {
         return res.status(400).json({
           success: false,
-          message: 'Name, email and password are required'
+          message: 'Nome, email e senha são obrigatórios'
         });
       }
 
       if (password.length < 6) {
         return res.status(400).json({
           success: false,
-          message: 'Password must be at least 6 characters long'
+          message: 'A senha deve ter pelo menos 6 caracteres'
         });
       }
 
@@ -28,7 +29,7 @@ class AuthController {
       if (!emailRegex.test(email)) {
         return res.status(400).json({
           success: false,
-          message: 'Invalid email format'
+          message: 'Formato de email inválido'
         });
       }
 
@@ -46,7 +47,7 @@ class AuthController {
         if (existingUser) {
           return res.status(409).json({
             success: false,
-            message: 'User already exists with this email'
+            message: 'Já existe um usuário cadastrado com este email'
           });
         }
 
@@ -105,7 +106,7 @@ class AuthController {
 
         res.status(201).json({
           success: true,
-          message: 'User registered successfully',
+          message: 'Usuário cadastrado com sucesso',
           data: {
             user: userData
           }
@@ -147,7 +148,7 @@ class AuthController {
 
           return res.status(201).json({
             success: true,
-            message: 'User registered successfully (development mode)',
+            message: 'Usuário cadastrado com sucesso (modo desenvolvimento)',
             data: { user: userData }
           });
         }
@@ -158,7 +159,7 @@ class AuthController {
       console.error('Registration error:', error);
       res.status(500).json({
         success: false,
-        message: 'Internal server error'
+        message: 'Erro interno do servidor'
       });
     }
   }
@@ -172,7 +173,7 @@ class AuthController {
       if (!email || !password) {
         return res.status(400).json({
           success: false,
-          message: 'Email and password are required'
+          message: 'Email e senha são obrigatórios'
         });
       }
 
@@ -190,23 +191,33 @@ class AuthController {
         if (!user) {
           return res.status(401).json({
             success: false,
-            message: 'Invalid credentials'
+            message: 'Credenciais inválidas'
           });
         }
 
         if (!user.active) {
           return res.status(401).json({
             success: false,
-            message: 'Account is deactivated'
+            message: 'Conta desativada'
           });
         }
 
         // Check password
         const isPasswordValid = await bcrypt.compare(password, user.password);
         if (!isPasswordValid) {
+          // Penalizar falha de login
+          try {
+            await advancedRateLimit.penalizeFailedLogin(email, req.ip);
+          } catch (penaltyError) {
+            return res.status(429).json({
+              success: false,
+              message: 'Conta temporariamente bloqueada devido a múltiplas tentativas de login incorretas'
+            });
+          }
+          
           return res.status(401).json({
             success: false,
-            message: 'Invalid credentials'
+            message: 'Credenciais inválidas'
           });
         }
 
@@ -239,7 +250,7 @@ class AuthController {
 
         res.json({
           success: true,
-          message: 'Login successful',
+          message: 'Login realizado com sucesso',
           data: {
             user
           }
@@ -283,7 +294,7 @@ class AuthController {
 
           return res.json({
             success: true,
-            message: 'Login successful (development mode)',
+            message: 'Login realizado com sucesso (modo desenvolvimento)',
             data: { user: userData }
           });
         }
@@ -294,7 +305,7 @@ class AuthController {
       console.error('Login error:', error);
       res.status(500).json({
         success: false,
-        message: 'Internal server error'
+        message: 'Erro interno do servidor'
       });
     }
   }
@@ -312,7 +323,7 @@ class AuthController {
       console.error('Get profile error:', error);
       res.status(500).json({
         success: false,
-        message: 'Internal server error'
+        message: 'Erro interno do servidor'
       });
     }
   }
@@ -344,7 +355,7 @@ class AuthController {
 
       res.json({
         success: true,
-        message: 'Profile updated successfully',
+        message: 'Perfil atualizado com sucesso',
         data: {
           user: updatedUser
         }
@@ -354,7 +365,7 @@ class AuthController {
       console.error('Update profile error:', error);
       res.status(500).json({
         success: false,
-        message: 'Internal server error'
+        message: 'Erro interno do servidor'
       });
     }
   }
@@ -367,14 +378,14 @@ class AuthController {
       if (!currentPassword || !newPassword) {
         return res.status(400).json({
           success: false,
-          message: 'Current password and new password are required'
+          message: 'Senha atual e nova senha são obrigatórias'
         });
       }
 
       if (newPassword.length < 6) {
         return res.status(400).json({
           success: false,
-          message: 'New password must be at least 6 characters long'
+          message: 'A nova senha deve ter pelo menos 6 caracteres'
         });
       }
 
@@ -386,7 +397,7 @@ class AuthController {
       if (!isCurrentPasswordValid) {
         return res.status(400).json({
           success: false,
-          message: 'Current password is incorrect'
+          message: 'Senha atual incorreta'
         });
       }
 
@@ -402,14 +413,14 @@ class AuthController {
 
       res.json({
         success: true,
-        message: 'Password changed successfully'
+        message: 'Senha alterada com sucesso'
       });
 
     } catch (error) {
       console.error('Change password error:', error);
       res.status(500).json({
         success: false,
-        message: 'Internal server error'
+        message: 'Erro interno do servidor'
       });
     }
   }
@@ -427,14 +438,14 @@ class AuthController {
 
       res.json({
         success: true,
-        message: 'Logged out successfully'
+        message: 'Logout realizado com sucesso'
       });
 
     } catch (error) {
       console.error('Logout error:', error);
       res.status(500).json({
         success: false,
-        message: 'Internal server error'
+        message: 'Erro interno do servidor'
       });
     }
   }

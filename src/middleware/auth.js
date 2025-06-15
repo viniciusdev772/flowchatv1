@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const { ObjectId } = require('mongodb');
 const database = require('../config/database');
 
 const authenticateToken = async (req, res, next) => {
@@ -29,8 +30,19 @@ const authenticateToken = async (req, res, next) => {
 
       // Get user from database
       const users = database.getCollection('users');
+      
+      // Verificar se userId é um ObjectId válido
+      let userId = decoded.userId;
+      try {
+        if (typeof userId === 'string' && userId.length === 24) {
+          userId = new ObjectId(userId);
+        }
+      } catch (error) {
+        // Se não conseguir converter, usar string mesmo
+      }
+      
       const user = await users.findOne(
-        { _id: decoded.userId },
+        { _id: userId },
         { projection: { password: 0 } } // Exclude password
       );
 

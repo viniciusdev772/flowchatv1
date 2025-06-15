@@ -9,8 +9,9 @@ const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
-const rateLimit = require('express-rate-limit');
 const cookieParser = require('cookie-parser');
+const session = require('express-session');
+const MongoStore = require('connect-mongo');
 require('dotenv').config();
 
 const database = require('./src/config/database');
@@ -52,19 +53,40 @@ class Server {
     // Cookie parsing with signature
     this.app.use(cookieParser(process.env.COOKIE_SECRET || 'your-cookie-secret-key'));
 
-    // Global rate limiting
-    const globalLimiter = rateLimit({
-      windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15 minutes
-      max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100, // limit each IP to 100 requests per windowMs
-      message: {
-        success: false,
-        message: 'Too many requests from this IP, please try again later'
+    // Session configuration
+    const sessionConfig = {
+      secret: process.env.SESSION_SECRET || 'your-session-secret-key',
+      resave: false,
+      saveUninitialized: false,
+      cookie: {
+        secure: process.env.NODE_ENV === 'production',
+        httpOnly: true,
+        maxAge: 24 * 60 * 60 * 1000, // 24 hours
+        sameSite: 'strict'
       },
-      standardHeaders: true,
-      legacyHeaders: false
-    });
+      name: 'sessionId' // Hide default session name
+    };
 
-    this.app.use(globalLimiter);
+    // Add MongoDB store if database is available
+    try {
+      const client = database.getClient();
+      if (database.getDb() && client) {
+        sessionConfig.store = MongoStore.create({
+          client: client,
+          dbName: process.env.DB_NAME,
+          collectionName: 'sessions',
+          ttl: 24 * 60 * 60 // 24 hours
+        });
+        console.log('✅ Using MongoDB for session storage');
+      } else {
+        console.log('⚠️  Using memory store for sessions (development mode)');
+      }
+    } catch (error) {
+      console.log('⚠️  MongoDB session store failed, using memory store:', error.message);
+    }
+
+    this.app.use(session(sessionConfig));
+
 
     // Request timestamp middleware
     this.app.use((req, res, next) => {
