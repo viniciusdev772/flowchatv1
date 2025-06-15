@@ -17,6 +17,7 @@ require('dotenv').config();
 const database = require('./src/config/database');
 const managementRoutes = require('./src/routes');
 const { app: baileysApp, initializeApp } = require('./src/app');
+const apiTokenAuth = require('./src/middleware/apiTokenAuth');
 
 class Server {
   constructor() {
@@ -111,6 +112,9 @@ class Server {
 
     // Management API routes
     this.app.use('/api/management', managementRoutes);
+
+    // Apply API token authentication to Baileys routes
+    this.app.use('/api/baileys', apiTokenAuth);
 
     // Mount Baileys app routes
     this.app.use('/', baileysApp);

@@ -881,7 +881,7 @@ async function extractMessageData(message, sock = null) {
 }
 
 // Criar sessão do WhatsApp
-async function createWhatsAppSession(sessionId) {
+async function createWhatsAppSession(sessionId, userId = null) {
   try {
     if (sessions.has(sessionId)) {
       return { success: false, message: 'Sessão já existe' };
@@ -1115,6 +1115,7 @@ async function createWhatsAppSession(sessionId) {
       isConnected,
       connectionState,
       createdAt: new Date(),
+      userId: userId, // Associate session with user
     });
 
     return {
@@ -1211,6 +1212,7 @@ async function downloadMedia(sock, message, filename) {
 app.post('/api/baileys/session/create', async (req, res) => {
   try {
     const { sessionId } = req.body;
+    const userId = req.user?.id || req.user?._id; // Get user ID from API token middleware
 
     if (!sessionId) {
       return res.status(400).json({
@@ -1219,7 +1221,14 @@ app.post('/api/baileys/session/create', async (req, res) => {
       });
     }
 
-    const result = await createWhatsAppSession(sessionId);
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Usuário não autenticado',
+      });
+    }
+
+    const result = await createWhatsAppSession(sessionId, userId);
 
     // Sempre retornar o QR code quando criar uma nova sessão
     if (result.success) {
@@ -1349,15 +1358,27 @@ app.get('/api/baileys/session/:sessionId/status', (req, res) => {
 
 app.get('/api/baileys/sessions', (req, res) => {
   try {
-    const sessionList = Array.from(sessions.entries()).map(([id, session]) => ({
-      sessionId: id,
-      isConnected: session.isConnected,
-      connectionState: session.connectionState || 'unknown',
-      createdAt: session.createdAt,
-      connectedAt: session.connectedAt || null,
-      lastError: session.lastError || null,
-      user: session.sock.user || null,
-      hasQrCode: !!session.qrCode,
+    const userId = req.user?.id || req.user?._id; // Get user ID from API token middleware
+    
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Usuário não autenticado',
+      });
+    }
+
+    // Filter sessions by userId
+    const sessionList = Array.from(sessions.entries())
+      .filter(([id, session]) => session.userId && session.userId.toString() === userId.toString())
+      .map(([id, session]) => ({
+        sessionId: id,
+        isConnected: session.isConnected,
+        connectionState: session.connectionState || 'unknown',
+        createdAt: session.createdAt,
+        connectedAt: session.connectedAt || null,
+        lastError: session.lastError || null,
+        user: session.sock.user || null,
+        hasQrCode: !!session.qrCode,
       webhookUrl: webhooks.get(id) || null,
       messageCount: messageStore.get(id)?.size || 0,
       queueLength: sessionQueues.get(id)?.messages?.length || 0,

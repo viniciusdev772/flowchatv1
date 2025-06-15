@@ -39,6 +39,14 @@ const swaggerOptions = {
       },
     ],
     components: {
+      securitySchemes: {
+        ApiKeyAuth: {
+          type: 'apiKey',
+          in: 'header',
+          name: 'Authorization',
+          description: 'Token de API do usuário (formato: Bearer baileys_xxxxx)'
+        }
+      },
       schemas: {
         Session: {
           type: 'object',
@@ -344,6 +352,8 @@ const swaggerUiOptions = {
  *       - Sessões
  *     summary: Criar nova sessão do WhatsApp
  *     description: Cria uma nova sessão do WhatsApp e retorna QR code para autenticação
+ *     security:
+ *       - ApiKeyAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -386,6 +396,8 @@ const swaggerUiOptions = {
  *       - Sessões
  *     summary: Regenerar QR Code da sessão
  *     description: Regenera o QR code para uma sessão existente que não está conectada
+ *     security:
+ *       - ApiKeyAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -423,6 +435,8 @@ const swaggerUiOptions = {
  *       - Sessões
  *     summary: Obter status da sessão
  *     description: Retorna informações detalhadas sobre o status de uma sessão específica
+ *     security:
+ *       - ApiKeyAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -491,6 +505,8 @@ const swaggerUiOptions = {
  *       - Sessões
  *     summary: Listar todas as sessões
  *     description: Retorna uma lista com todas as sessões ativas e seus status
+ *     security:
+ *       - ApiKeyAuth: []
  *     responses:
  *       200:
  *         description: Lista de sessões obtida com sucesso
@@ -519,6 +535,8 @@ const swaggerUiOptions = {
  *       - Mensagens
  *     summary: Enviar mensagem de texto
  *     description: Envia uma mensagem de texto para um número específico com comportamento humano simulado
+ *     security:
+ *       - ApiKeyAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -603,6 +621,8 @@ const swaggerUiOptions = {
  *       - Mensagens
  *     summary: Enviar mídia (imagem, vídeo, áudio, documento)
  *     description: Envia arquivos de mídia para um número específico
+ *     security:
+ *       - ApiKeyAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -1827,6 +1847,8 @@ const swaggerUiOptions = {
  *       - Sessões
  *     summary: Deletar sessão
  *     description: Remove uma sessão do WhatsApp e fecha todas as conexões associadas
+ *     security:
+ *       - ApiKeyAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId

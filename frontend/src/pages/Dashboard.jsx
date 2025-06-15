@@ -27,7 +27,10 @@ import {
   ClockIcon,
   ServerIcon,
   EyeIcon,
-  WrenchScrewdriverIcon
+  WrenchScrewdriverIcon,
+  KeyIcon,
+  ClipboardDocumentIcon,
+  CalendarIcon
 } from '@heroicons/react/24/outline';
 
 export default function Dashboard() {
@@ -44,6 +47,9 @@ export default function Dashboard() {
   });
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState(null);
+  const [apiTokens, setApiTokens] = useState([]);
+  const [showTokenModal, setShowTokenModal] = useState(false);
+  const [newToken, setNewToken] = useState(null);
   
   // Performance mode - detecta dispositivos menos potentes
   const [performanceMode, setPerformanceMode] = useState(() => {
@@ -124,54 +130,66 @@ export default function Dashboard() {
 
     const fetchSessions = async () => {
       try {
-        // Simular carregamento de sessões (substituir por API real quando disponível)
-        setTimeout(() => {
-          setSessions([
-            {
-              id: 'main-session',
-              name: 'Sessão Principal',
-              status: 'connected',
-              lastSeen: '2 minutos atrás',
-              messages: 245,
-              groups: 12,
-              webhooks: 2,
-              qrCode: null,
-              uptime: '2h 15m'
-            },
-            {
-              id: 'support-session',
-              name: 'Suporte Cliente',
-              status: 'connecting',
-              lastSeen: '15 minutos atrás',
-              messages: 89,
-              groups: 5,
-              webhooks: 1,
-              qrCode: 'data:image/png;base64,...',
-              uptime: '45m'
-            },
-            {
-              id: 'marketing-session',
-              name: 'Marketing',
-              status: 'disconnected',
-              lastSeen: '1 hora atrás',
-              messages: 156,
-              groups: 8,
-              webhooks: 0,
-              qrCode: null,
-              uptime: '0m'
+        // First try to get user tokens to use for API requests
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+        const tokensResponse = await fetch(`${apiUrl}/api/management/tokens/list`, {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+
+        let apiToken = null;
+        if (tokensResponse.ok) {
+          const tokensResult = await tokensResponse.json();
+          if (tokensResult.success && tokensResult.tokens.length > 0) {
+            // Use the first active token for API requests
+            const activeToken = tokensResult.tokens.find(token => token.isActive && !token.isExpired);
+            if (activeToken) {
+              // We have the token info but not the actual token string
+              // For now, we'll use mock data until user creates their first session
+              console.log('User has API tokens but needs to use them for session management');
             }
-          ]);
-          setIsLoading(false);
-        }, 800);
+          }
+        }
+
+        // If no active token, show empty state
+        setSessions([]);
+        setIsLoading(false);
       } catch (error) {
         console.error('Erro ao carregar sessões:', error);
+        setSessions([]);
         setIsLoading(false);
       }
     };
 
-    // Executar ambas as funções
+    const fetchApiTokens = async () => {
+      try {
+        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+        const response = await fetch(`${apiUrl}/api/management/tokens/list`, {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success) {
+            setApiTokens(result.tokens || []);
+          }
+        }
+      } catch (error) {
+        console.error('Erro ao carregar tokens:', error);
+      }
+    };
+
+    // Executar todas as funções
     fetchUserProfile();
     fetchSessions();
+    fetchApiTokens();
   }, []);
 
   const getStatusColor = (status) => {
@@ -195,6 +213,7 @@ export default function Dashboard() {
   const tabs = [
     { id: 'overview', name: 'Visão Geral', icon: ChartBarIcon },
     { id: 'sessions', name: 'Sessões', icon: PhoneIcon },
+    { id: 'tokens', name: 'Tokens API', icon: KeyIcon },
     { id: 'messages', name: 'Mensagens', icon: ChatBubbleLeftRightIcon },
     { id: 'groups', name: 'Grupos', icon: UserGroupIcon },
     { id: 'webhooks', name: 'Webhooks', icon: BellIcon },
@@ -221,6 +240,85 @@ export default function Dashboard() {
       sessionStorage.removeItem('user');
       window.location.href = '/login';
     }
+  };
+
+  const generateApiToken = async (tokenName, expiresIn) => {
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      const response = await fetch(`${apiUrl}/api/management/tokens/generate`, {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          name: tokenName,
+          expiresIn: expiresIn
+        })
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success) {
+          setNewToken(result.token);
+          setShowTokenModal(true);
+          // Reload tokens list
+          const tokensResponse = await fetch(`${apiUrl}/api/management/tokens/list`, {
+            method: 'GET',
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          });
+          if (tokensResponse.ok) {
+            const tokensResult = await tokensResponse.json();
+            if (tokensResult.success) {
+              setApiTokens(tokensResult.tokens || []);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao gerar token:', error);
+    }
+  };
+
+  const revokeApiToken = async (tokenId) => {
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      const response = await fetch(`${apiUrl}/api/management/tokens/${tokenId}`, {
+        method: 'DELETE',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        // Reload tokens list
+        const tokensResponse = await fetch(`${apiUrl}/api/management/tokens/list`, {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        });
+        if (tokensResponse.ok) {
+          const tokensResult = await tokensResponse.json();
+          if (tokensResult.success) {
+            setApiTokens(tokensResult.tokens || []);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao revogar token:', error);
+    }
+  };
+
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text).then(() => {
+      // Could add a toast notification here
+    });
   };
 
   if (isLoading) {
@@ -611,8 +709,135 @@ export default function Dashboard() {
               </motion.div>
             )}
 
+            {activeTab === 'tokens' && (
+              <motion.div
+                key="tokens"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                transition={{ duration: 0.3 }}
+                className="space-y-6"
+              >
+                <div className="flex items-center justify-between">
+                  <h2 className="text-2xl font-bold text-white">Tokens de API</h2>
+                  <motion.button
+                    onClick={() => {
+                      const name = prompt('Nome do token:');
+                      if (name) {
+                        const expires = prompt('Expira em quantos dias? (deixe vazio para nunca expirar):');
+                        generateApiToken(name, expires || 'never');
+                      }
+                    }}
+                    className="liquid-button inline-flex items-center"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <PlusIcon className="w-5 h-5 mr-2" />
+                    Gerar Token
+                  </motion.button>
+                </div>
+
+                <div className={`${performanceMode ? 'glass-performance' : 'glass-card'} p-6 rounded-xl`}>
+                  <div className="mb-6">
+                    <h3 className="text-lg font-semibold text-white mb-2">Como usar os tokens de API</h3>
+                    <p className="text-white/70 mb-4">
+                      Use seus tokens para autenticar nas rotas do WhatsApp API. Inclua o token no header Authorization:
+                    </p>
+                    <div className={`${performanceMode ? 'glass-performance' : 'glass-ultra'} p-4 rounded-xl font-mono text-sm`}>
+                      <div className="text-white/80">Authorization: Bearer seu_token_aqui</div>
+                    </div>
+                  </div>
+
+                  {apiTokens.length === 0 ? (
+                    <div className="text-center py-12">
+                      <KeyIcon className="w-16 h-16 text-white/30 mx-auto mb-4" />
+                      <h3 className="text-lg font-semibold text-white mb-2">Nenhum token criado</h3>
+                      <p className="text-white/70 mb-6">Crie seu primeiro token de API para começar a usar o WhatsApp Bot</p>
+                      <motion.button
+                        onClick={() => {
+                          const name = prompt('Nome do token:');
+                          if (name) {
+                            const expires = prompt('Expira em quantos dias? (deixe vazio para nunca expirar):');
+                            generateApiToken(name, expires || 'never');
+                          }
+                        }}
+                        className="liquid-button inline-flex items-center"
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                      >
+                        <PlusIcon className="w-5 h-5 mr-2" />
+                        Criar Primeiro Token
+                      </motion.button>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {apiTokens.map((token) => (
+                        <motion.div
+                          key={token._id}
+                          className={`${performanceMode ? 'glass-performance' : 'glass-ultra'} p-4 rounded-xl`}
+                          whileHover={{ scale: 1.01 }}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center space-x-3 mb-2">
+                                <h4 className="text-lg font-semibold text-white">{token.name}</h4>
+                                <span className={`px-2 py-1 rounded-full text-xs ${
+                                  token.isActive 
+                                    ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                                    : 'bg-red-500/20 text-red-400 border border-red-500/30'
+                                }`}>
+                                  {token.isActive ? 'Ativo' : 'Inativo'}
+                                </span>
+                                {token.isExpired && (
+                                  <span className="px-2 py-1 rounded-full text-xs bg-orange-500/20 text-orange-400 border border-orange-500/30">
+                                    Expirado
+                                  </span>
+                                )}
+                              </div>
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                                <div>
+                                  <span className="text-white/60">Criado em:</span>
+                                  <div className="text-white">
+                                    {new Date(token.createdAt).toLocaleDateString('pt-BR')}
+                                  </div>
+                                </div>
+                                <div>
+                                  <span className="text-white/60">Expira em:</span>
+                                  <div className="text-white">
+                                    {token.expiresAt ? new Date(token.expiresAt).toLocaleDateString('pt-BR') : 'Nunca'}
+                                  </div>
+                                </div>
+                                <div>
+                                  <span className="text-white/60">Último uso:</span>
+                                  <div className="text-white">
+                                    {token.lastUsedAt ? new Date(token.lastUsedAt).toLocaleDateString('pt-BR') : 'Nunca'}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                            
+                            <div className="flex items-center space-x-2">
+                              <motion.button
+                                onClick={() => revokeApiToken(token._id)}
+                                className="p-2 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors"
+                                whileHover={{ scale: 1.05 }}
+                                whileTap={{ scale: 0.95 }}
+                                title="Revogar token"
+                              >
+                                <TrashIcon className="w-4 h-4" />
+                              </motion.button>
+                            </div>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+
             {/* Placeholder para outras abas */}
-            {activeTab !== 'overview' && activeTab !== 'sessions' && (
+            {activeTab !== 'overview' && activeTab !== 'sessions' && activeTab !== 'tokens' && (
               <motion.div
                 key={activeTab}
                 initial={{ opacity: 0, x: 20 }}
@@ -910,6 +1135,90 @@ export default function Dashboard() {
                 <motion.button
                   onClick={() => setShowUserProfile(false)}
                   className="liquid-button w-full"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  Fechar
+                </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {showTokenModal && newToken && (
+          <motion.div
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => {
+              setShowTokenModal(false);
+              setNewToken(null);
+            }}
+          >
+            <motion.div
+              className={`${performanceMode ? 'glass-performance' : 'glass-card'} p-6 max-w-2xl w-full mx-4 rounded-xl`}
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-xl font-semibold text-white mb-4">Token de API Gerado</h3>
+              
+              <div className="mb-6">
+                <div className="bg-yellow-500/20 border border-yellow-500/30 rounded-xl p-4 mb-4">
+                  <div className="flex items-center space-x-2 mb-2">
+                    <ExclamationTriangleIcon className="w-5 h-5 text-yellow-400" />
+                    <span className="text-yellow-400 font-semibold">IMPORTANTE</span>
+                  </div>
+                  <p className="text-yellow-200 text-sm">
+                    Este token será mostrado apenas uma vez. Certifique-se de copiá-lo e guardá-lo em local seguro.
+                  </p>
+                </div>
+
+                <label className="block text-sm font-medium text-white/80 mb-2">Seu Token de API:</label>
+                <div className={`${performanceMode ? 'glass-performance' : 'glass-ultra'} p-4 rounded-xl`}>
+                  <div className="flex items-center justify-between">
+                    <code className="text-green-400 font-mono text-sm break-all mr-4">{newToken}</code>
+                    <motion.button
+                      onClick={() => copyToClipboard(newToken)}
+                      className="p-2 rounded-lg bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-colors flex-shrink-0"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
+                      title="Copiar token"
+                    >
+                      <ClipboardDocumentIcon className="w-4 h-4" />
+                    </motion.button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mb-6">
+                <h4 className="text-lg font-semibold text-white mb-2">Como usar</h4>
+                <p className="text-white/70 mb-4">
+                  Inclua este token no header Authorization de suas requisições para as rotas do WhatsApp API:
+                </p>
+                <div className={`${performanceMode ? 'glass-performance' : 'glass-ultra'} p-4 rounded-xl font-mono text-sm`}>
+                  <div className="text-white/80">Authorization: Bearer {newToken}</div>
+                </div>
+              </div>
+
+              <div className="flex space-x-3">
+                <motion.button
+                  onClick={() => copyToClipboard(newToken)}
+                  className="flex-1 liquid-button inline-flex items-center justify-center"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <ClipboardDocumentIcon className="w-5 h-5 mr-2" />
+                  Copiar Token
+                </motion.button>
+                <motion.button
+                  onClick={() => {
+                    setShowTokenModal(false);
+                    setNewToken(null);
+                  }}
+                  className={`px-4 py-3 ${performanceMode ? 'glass-performance' : 'glass-ultra'} rounded-xl text-white/70 hover:text-white transition-colors`}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                 >
