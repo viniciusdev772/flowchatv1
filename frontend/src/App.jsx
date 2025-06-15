@@ -8,7 +8,9 @@ import {
   CogIcon,
   PlayIcon,
   DocumentTextIcon,
-  LinkIcon
+  LinkIcon,
+  BookOpenIcon,
+  RocketLaunchIcon
 } from '@heroicons/react/24/outline'
 
 function App() {
@@ -18,77 +20,134 @@ function App() {
     {
       id: 'sessions',
       title: 'Multi-Sessões',
-      description: 'Gerencie múltiplas conexões WhatsApp simultaneamente',
+      description: 'Gerencie múltiplas conexões WhatsApp simultaneamente com QR Code',
       icon: PhoneIcon,
+      color: 'from-blue-500 to-cyan-500',
       endpoints: [
         'POST /api/baileys/session/create',
-        'GET /api/baileys/session/:id/qr',
-        'GET /api/baileys/session/:id/status',
-        'DELETE /api/baileys/session/:id'
+        'POST /api/baileys/session/{sessionId}/regenerate-qr',
+        'GET /api/baileys/session/{sessionId}/status',
+        'GET /api/baileys/sessions',
+        'DELETE /api/baileys/session/{sessionId}'
       ]
     },
     {
       id: 'messages',
       title: 'Mensagens Inteligentes',
-      description: 'Envio com comportamento humano e prevenção de banimentos',
+      description: 'Envio com comportamento humano simulado e prevenção de banimentos',
       icon: ChatBubbleLeftRightIcon,
+      color: 'from-green-500 to-emerald-500',
       endpoints: [
-        'POST /api/baileys/session/:id/send-message',
-        'POST /api/baileys/session/:id/send-media',
-        'POST /api/baileys/session/:id/reply',
-        'POST /api/baileys/session/:id/send-bulk'
+        'POST /api/baileys/session/{sessionId}/send-message',
+        'POST /api/baileys/session/{sessionId}/send-media',
+        'POST /api/baileys/session/{sessionId}/reply-message',
+        'POST /api/baileys/session/{sessionId}/smart-reply',
+        'POST /api/baileys/session/{sessionId}/typing',
+        'POST /api/baileys/session/{sessionId}/mark-read'
       ]
     },
     {
       id: 'groups',
       title: 'Gerenciamento de Grupos',
-      description: 'Controle completo de grupos: criar, gerenciar membros e permissões',
+      description: 'Controle completo: criar, gerenciar membros, permissões e convites',
       icon: UserGroupIcon,
+      color: 'from-purple-500 to-pink-500',
       endpoints: [
-        'POST /api/baileys/groups/:id/create',
-        'POST /api/baileys/groups/:id/:groupId/add-participants',
-        'POST /api/baileys/groups/:id/:groupId/promote',
-        'GET /api/baileys/groups/:id/list'
+        'POST /api/baileys/groups/{sessionId}/create',
+        'GET /api/baileys/groups/{sessionId}/{groupId}/info',
+        'POST /api/baileys/groups/{sessionId}/{groupId}/add-participants',
+        'POST /api/baileys/groups/{sessionId}/{groupId}/remove-participants',
+        'POST /api/baileys/groups/{sessionId}/{groupId}/promote',
+        'POST /api/baileys/groups/{sessionId}/{groupId}/demote',
+        'PUT /api/baileys/groups/{sessionId}/{groupId}/subject',
+        'PUT /api/baileys/groups/{sessionId}/{groupId}/description',
+        'PUT /api/baileys/groups/{sessionId}/{groupId}/settings',
+        'POST /api/baileys/groups/{sessionId}/{groupId}/leave',
+        'GET /api/baileys/groups/{sessionId}/list',
+        'GET /api/baileys/groups/{sessionId}/{groupId}/invite-code',
+        'POST /api/baileys/groups/{sessionId}/{groupId}/revoke-invite'
       ]
     },
     {
       id: 'webhooks',
-      title: 'Sistema de Webhooks',
-      description: 'Até 3 webhooks por sessão com eventos em tempo real',
+      title: 'Sistema de Webhooks Avançado',
+      description: 'Até 3 webhooks por sessão com eventos em tempo real e mídia em Base64',
       icon: BellIcon,
+      color: 'from-orange-500 to-red-500',
       endpoints: [
-        'GET /api/baileys/session/:id/webhooks',
-        'POST /api/baileys/session/:id/webhooks',
-        'PUT /api/baileys/session/:id/webhooks/:webhookId',
-        'DELETE /api/baileys/session/:id/webhooks/:webhookId'
+        'GET /api/baileys/session/{sessionId}/webhooks',
+        'POST /api/baileys/session/{sessionId}/webhooks',
+        'GET /api/baileys/session/{sessionId}/webhooks/{webhookId}',
+        'PUT /api/baileys/session/{sessionId}/webhooks/{webhookId}',
+        'DELETE /api/baileys/session/{sessionId}/webhooks/{webhookId}',
+        'PATCH /api/baileys/session/{sessionId}/webhooks/{webhookId}/toggle',
+        'POST /api/baileys/session/{sessionId}/webhooks/{webhookId}/test',
+        'POST /api/baileys/session/{sessionId}/webhook',
+        'GET /api/baileys/session/{sessionId}/webhook',
+        'DELETE /api/baileys/session/{sessionId}/webhook'
+      ]
+    },
+    {
+      id: 'media',
+      title: 'Histórico e Mídia',
+      description: 'Gerenciamento de mensagens armazenadas e download de arquivos',
+      icon: DocumentTextIcon,
+      color: 'from-indigo-500 to-blue-500',
+      endpoints: [
+        'GET /api/baileys/session/{sessionId}/messages',
+        'POST /api/baileys/session/{sessionId}/download-media'
+      ]
+    },
+    {
+      id: 'info',
+      title: 'Informações da API',
+      description: 'Documentação completa e informações do sistema',
+      icon: CogIcon,
+      color: 'from-gray-500 to-slate-600',
+      endpoints: [
+        'GET /api/baileys/info',
+        'GET /'
       ]
     }
   ]
 
   const stats = [
-    { label: 'API Endpoints', value: '50+' },
-    { label: 'Sessões Simultâneas', value: 'Ilimitadas' },
-    { label: 'Webhooks por Sessão', value: '3' },
-    { label: 'Taxa de Prevenção', value: '99.9%' }
+    { label: 'API Endpoints', value: '50+', color: 'text-blue-300' },
+    { label: 'Sessões Simultâneas', value: 'Ilimitadas', color: 'text-green-300' },
+    { label: 'Webhooks por Sessão', value: '3', color: 'text-purple-300' },
+    { label: 'Taxa de Prevenção', value: '99.9%', color: 'text-cyan-300' }
   ]
 
   return (
     <div className="min-h-screen text-white relative overflow-hidden">
-      {/* Background floating elements */}
+      {/* Enhanced Background floating elements */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {[...Array(6)].map((_, i) => (
-          <div
-            key={i}
-            className={`absolute rounded-full bg-white/5 floating-element`}
-            style={{
-              width: `${Math.random() * 200 + 100}px`,
-              height: `${Math.random() * 200 + 100}px`,
-              left: `${Math.random() * 100}%`,
-              top: `${Math.random() * 100}%`,
-              animationDelay: `${i * 0.5}s`
-            }}
-          />
-        ))}
+        {/* Liquid orbs */}
+        {[...Array(8)].map((_, i) => {
+          const colors = [
+            'bg-gradient-to-r from-blue-500/20 to-cyan-500/20',
+            'bg-gradient-to-r from-purple-500/20 to-pink-500/20',
+            'bg-gradient-to-r from-green-500/20 to-emerald-500/20',
+            'bg-gradient-to-r from-orange-500/20 to-red-500/20'
+          ];
+          return (
+            <div
+              key={i}
+              className={`absolute rounded-full floating-element ${colors[i % colors.length]}`}
+              style={{
+                width: `${Math.random() * 300 + 150}px`,
+                height: `${Math.random() * 300 + 150}px`,
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 100}%`,
+                animationDelay: `${i * 0.7}s`,
+                filter: 'blur(2px)'
+              }}
+            />
+          );
+        })}
+        
+        {/* Mesh gradient overlay */}
+        <div className="absolute inset-0 mesh-gradient opacity-30" />
       </div>
 
       {/* Header */}
@@ -107,22 +166,26 @@ function App() {
               <h1 className="text-2xl font-bold">Baileys Multi-Session API</h1>
             </div>
             <div className="flex space-x-4">
-              <motion.button 
-                className="liquid-button"
+              <motion.a 
+                href="/api-docs" 
+                target="_blank"
+                className="liquid-button inline-flex items-center"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
-                <DocumentTextIcon className="w-5 h-5 inline mr-2" />
+                <DocumentTextIcon className="w-5 h-5 mr-2" />
                 Documentação
-              </motion.button>
-              <motion.button 
-                className="liquid-button"
+              </motion.a>
+              <motion.a 
+                href="/api-docs" 
+                target="_blank"
+                className="liquid-button inline-flex items-center"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
-                <PlayIcon className="w-5 h-5 inline mr-2" />
+                <PlayIcon className="w-5 h-5 mr-2" />
                 Testar API
-              </motion.button>
+              </motion.a>
             </div>
           </div>
         </div>
@@ -135,7 +198,7 @@ function App() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.8, delay: 0.2 }}
       >
-        <h2 className="text-6xl font-bold mb-6 bg-gradient-to-r from-white to-blue-200 bg-clip-text text-transparent">
+        <h2 className="text-6xl font-bold mb-6 liquid-text-gradient glass-text-glow">
           WhatsApp API
           <br />
           <span className="text-4xl">Avançada & Segura</span>
@@ -155,7 +218,7 @@ function App() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: 0.1 * index }}
             >
-              <div className="text-3xl font-bold text-blue-300 mb-2">{stat.value}</div>
+              <div className={`text-3xl font-bold ${stat.color} mb-2`}>{stat.value}</div>
               <div className="text-white/70">{stat.label}</div>
             </motion.div>
           ))}
@@ -169,9 +232,9 @@ function App() {
         animate={{ opacity: 1 }}
         transition={{ duration: 0.8, delay: 0.4 }}
       >
-        <h3 className="text-4xl font-bold text-center mb-16">Funcionalidades Principais</h3>
+        <h3 className="text-4xl font-bold text-center mb-16 liquid-text-gradient">Funcionalidades Principais</h3>
         
-        <div className="grid md:grid-cols-2 gap-8">
+        <div className="grid lg:grid-cols-2 xl:grid-cols-3 gap-6">
           {features.map((feature, index) => {
             const Icon = feature.icon
             return (
@@ -187,7 +250,7 @@ function App() {
                 onClick={() => setActiveFeature(activeFeature === feature.id ? null : feature.id)}
               >
                 <div className="flex items-start mb-4">
-                  <div className="w-12 h-12 rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center mr-4">
+                  <div className={`w-12 h-12 rounded-lg bg-gradient-to-r ${feature.color} flex items-center justify-center mr-4 shadow-lg`}>
                     <Icon className="w-6 h-6 text-white" />
                   </div>
                   <div className="flex-1">
@@ -203,13 +266,35 @@ function App() {
                   className="overflow-hidden"
                 >
                   <div className="mt-4 pt-4 border-t border-white/20">
-                    <h5 className="text-sm font-medium text-blue-300 mb-3">Endpoints principais:</h5>
-                    <div className="space-y-2">
-                      {feature.endpoints.map((endpoint, i) => (
-                        <div key={i} className="glass-shimmer rounded-lg bg-black/20 p-3">
-                          <code className="text-sm text-green-300">{endpoint}</code>
-                        </div>
-                      ))}
+                    <h5 className="text-sm font-medium text-blue-300 mb-3 flex items-center">
+                      <div className="w-2 h-2 rounded-full bg-blue-400 mr-2 animate-pulse"></div>
+                      Endpoints disponíveis ({feature.endpoints.length}):
+                    </h5>
+                    <div className="space-y-3 max-h-64 overflow-y-auto pr-2">
+                      {feature.endpoints.map((endpoint, i) => {
+                        const [method, path] = endpoint.split(' ');
+                        const methodColors = {
+                          'GET': 'text-green-400 bg-green-500/10 border-green-500/30',
+                          'POST': 'text-blue-400 bg-blue-500/10 border-blue-500/30',
+                          'PUT': 'text-yellow-400 bg-yellow-500/10 border-yellow-500/30',
+                          'DELETE': 'text-red-400 bg-red-500/10 border-red-500/30',
+                          'PATCH': 'text-purple-400 bg-purple-500/10 border-purple-500/30'
+                        };
+                        return (
+                          <motion.div 
+                            key={i} 
+                            className="endpoint-card flex items-center space-x-3"
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ duration: 0.3, delay: i * 0.05 }}
+                          >
+                            <span className={`px-2 py-1 rounded text-xs font-bold border ${methodColors[method] || 'text-gray-400 bg-gray-500/10 border-gray-500/30'}`}>
+                              {method}
+                            </span>
+                            <code className="text-sm text-cyan-300 flex-1">{path}</code>
+                          </motion.div>
+                        );
+                      })}
                     </div>
                   </div>
                 </motion.div>
@@ -255,20 +340,29 @@ function App() {
             </div>
           </div>
 
-          <div className="mt-12 p-6 bg-black/20 rounded-lg">
-            <h5 className="text-lg font-semibold mb-4 flex items-center">
+          <div className="mt-12 glass-ultra p-6 rounded-2xl">
+            <h5 className="text-lg font-semibold mb-4 flex items-center liquid-text-gradient">
               <CogIcon className="w-5 h-5 mr-2" />
-              Exemplo de uso:
+              Exemplo de uso rápido:
             </h5>
-            <pre className="text-green-300 text-sm overflow-x-auto">
+            <div className="space-y-4">
+              <div className="glass-shimmer p-4 rounded-lg">
+                <div className="text-xs text-blue-300 mb-2 font-medium">1. Criar sessão</div>
+                <pre className="text-green-300 text-sm overflow-x-auto">
 {`curl -X POST http://localhost:3000/api/baileys/session/create \\
   -H "Content-Type: application/json" \\
-  -d '{"sessionId": "minha-sessao"}'
-
-curl -X POST http://localhost:3000/api/baileys/session/minha-sessao/send-message \\
+  -d '{"sessionId": "minha-sessao"}'`}
+                </pre>
+              </div>
+              <div className="glass-shimmer p-4 rounded-lg">
+                <div className="text-xs text-purple-300 mb-2 font-medium">2. Enviar mensagem</div>
+                <pre className="text-green-300 text-sm overflow-x-auto">
+{`curl -X POST http://localhost:3000/api/baileys/session/minha-sessao/send-message \\
   -H "Content-Type: application/json" \\
-  -d '{"number": "5511999999999", "message": "Olá! Mensagem enviada via API"}'`}
-            </pre>
+  -d '{"to": "5511999999999", "message": "Olá! API funcionando!"}'`}
+                </pre>
+              </div>
+            </div>
           </div>
         </div>
       </motion.section>
@@ -282,28 +376,73 @@ curl -X POST http://localhost:3000/api/baileys/session/minha-sessao/send-message
       >
         <div className="container mx-auto px-6 py-8 text-center">
           <div className="flex items-center justify-center space-x-6">
-            <motion.button 
-              className="liquid-button"
+            <motion.a 
+              href="https://github.com/" 
+              target="_blank"
+              className="liquid-button inline-flex items-center"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
-              <LinkIcon className="w-5 h-5 inline mr-2" />
+              <LinkIcon className="w-5 h-5 mr-2" />
               GitHub
-            </motion.button>
-            <motion.button 
-              className="liquid-button"
+            </motion.a>
+            <motion.a 
+              href="/api-docs" 
+              target="_blank"
+              className="liquid-button inline-flex items-center"
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
             >
-              <DocumentTextIcon className="w-5 h-5 inline mr-2" />
+              <DocumentTextIcon className="w-5 h-5 mr-2" />
               Swagger Docs
-            </motion.button>
+            </motion.a>
           </div>
           <p className="text-white/60 mt-6">
             Baileys Multi-Session API - Desenvolvido com ❤️ para automação WhatsApp segura
           </p>
         </div>
       </motion.footer>
+
+      {/* Floating Action Button for API Docs */}
+      <motion.div
+        className="fixed bottom-8 right-8 z-50"
+        initial={{ scale: 0, rotate: -180 }}
+        animate={{ scale: 1, rotate: 0 }}
+        transition={{ duration: 0.5, delay: 1 }}
+      >
+        <motion.a
+          href="/api-docs"
+          target="_blank"
+          className="glass-ultra w-16 h-16 rounded-full flex items-center justify-center text-white shadow-lg group"
+          whileHover={{ scale: 1.1, rotate: 5 }}
+          whileTap={{ scale: 0.9 }}
+        >
+          <BookOpenIcon className="w-8 h-8 group-hover:scale-110 transition-transform" />
+          <div className="absolute -top-12 right-0 bg-black/80 text-white px-3 py-1 rounded-lg text-sm opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+            Abrir Documentação
+          </div>
+        </motion.a>
+      </motion.div>
+
+      {/* Quick API Test Button */}
+      <motion.div
+        className="fixed bottom-28 right-8 z-50"
+        initial={{ scale: 0, rotate: 180 }}
+        animate={{ scale: 1, rotate: 0 }}
+        transition={{ duration: 0.5, delay: 1.2 }}
+      >
+        <motion.button
+          onClick={() => window.open('/api-docs', '_blank')}
+          className="glass-ultra w-14 h-14 rounded-full flex items-center justify-center text-cyan-300 shadow-lg group"
+          whileHover={{ scale: 1.1, rotate: -5 }}
+          whileTap={{ scale: 0.9 }}
+        >
+          <RocketLaunchIcon className="w-6 h-6 group-hover:scale-110 transition-transform" />
+          <div className="absolute -top-12 right-0 bg-black/80 text-white px-3 py-1 rounded-lg text-sm opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+            Testar API
+          </div>
+        </motion.button>
+      </motion.div>
     </div>
   )
 }
