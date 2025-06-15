@@ -192,7 +192,7 @@ const swaggerOptions = {
       },
     },
   },
-  apis: ['./swagger-config.js'], // Documentação definida neste próprio arquivo
+  apis: ['./src/config/swagger.js'], // Documentação definida neste próprio arquivo
 };
 
 // Gerar spec do Swagger

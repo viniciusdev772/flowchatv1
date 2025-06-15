@@ -5,8 +5,8 @@
   "main": "main.js",
   "scripts": {
     "start": "node main.js",
-    "dev": "nodemon --ext js --watch . --ignore node_modules --ignore uploads --ignore downloads --ignore auth_sessions main.js",
-    "monitor": "nodemon --ext js --watch . --ignore node_modules --ignore uploads --ignore downloads --ignore auth_sessions main.js",
+    "dev": "nodemon --ext js --watch src --watch main.js --ignore node_modules --ignore uploads --ignore downloads --ignore auth_sessions main.js",
+    "monitor": "nodemon --ext js --watch src --watch main.js --ignore node_modules --ignore uploads --ignore downloads --ignore auth_sessions main.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
