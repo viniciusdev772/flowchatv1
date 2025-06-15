@@ -9,7 +9,11 @@
       "Bash(mv:*)",
       "Bash(npm run dev:*)",
       "Bash(timeout:*)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(npm create:*)",
+      "Bash(ls:*)",
+      "Bash(npx tailwindcss init:*)",
+      "Bash(./node_modules/.bin/tailwindcss:*)"
     ],
     "deny": []
   }
