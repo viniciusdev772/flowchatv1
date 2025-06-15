@@ -17,17 +17,15 @@ router.post('/generate', authenticateToken, async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Nome do token é obrigatório'
-      });
-    }
+      });    }
 
     // Generate secure token
     const token = crypto.randomBytes(32).toString('hex');
-    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
     
-    // Create a simple but effective encryption using the old method that works
-    const cipher = crypto.createCipher('aes256', userId.toString() + (process.env.JWT_SECRET || 'fallback-secret'));
-    let encryptedToken = cipher.update(`baileys_${token}`, 'utf8', 'hex');
-    encryptedToken += cipher.final('hex');
+    // Create secure encrypted token using crypto.randomBytes and hash
+    const tokenPayload = `baileys_${token}_${userId}_${Date.now()}`;
+    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+    const finalEncryptedToken = crypto.createHash('sha256').update(tokenPayload + (process.env.JWT_SECRET || 'fallback-secret')).digest('hex');
     
     // Calculate expiration date
     let expiresAt = null;
@@ -43,11 +41,11 @@ router.post('/generate', authenticateToken, async (req, res) => {
       expiresAt.setDate(expiresAt.getDate() + days);
     }
 
-    const tokenData = {
+    const tokenRecord = {
       userId,
       name: name.trim(),
       token: hashedToken,
-      encryptedToken: encryptedToken, // Store encrypted version for recovery
+      encryptedToken: finalEncryptedToken, // Store encrypted version for recovery
       expiresAt,
       createdAt: new Date(),
       lastUsedAt: null,
@@ -57,7 +55,7 @@ router.post('/generate', authenticateToken, async (req, res) => {
     // Save to database if available
     const db = database.getDb();
     if (db) {
-      await db.collection('api_tokens').insertOne(tokenData);
+      await db.collection('api_tokens').insertOne(tokenRecord);
     }
 
     // Return the unhashed token (only time it's shown)
@@ -65,10 +63,9 @@ router.post('/generate', authenticateToken, async (req, res) => {
       success: true,
       message: 'Token de API gerado com sucesso',
       token: `baileys_${token}`,
-      tokenInfo: {
-        name: tokenData.name,
-        expiresAt: tokenData.expiresAt,
-        createdAt: tokenData.createdAt
+      tokenInfo: {        name: tokenRecord.name,
+        expiresAt: tokenRecord.expiresAt,
+        createdAt: tokenRecord.createdAt
       }
     });
 

@@ -46,54 +46,56 @@ router.post('/create-with-token', authenticateToken, async (req, res) => {
         success: false,
         message: 'Token expirado'
       });
+    }    // Get the user info from token for creating session
+    const userForSession = await db.collection('users').findOne({
+      _id: tokenDoc.userId
+    });
+
+    if (!userForSession) {
+      return res.status(404).json({
+        success: false,
+        message: 'Usuário do token não encontrado'
+      });
     }
 
-    // Direct approach: Call createWhatsAppSession directly since we've already validated the token ownership
+    // Call the original Baileys session creation logic directly
+    // We simulate the original API call by accessing the global createWhatsAppSession function
     try {
-      // Import the createWhatsAppSession function directly
-      const { createWhatsAppSession } = require('../app');
+      // Access the global createWhatsAppSession function
+      const createWhatsAppSession = global.createWhatsAppSession;
       
       if (!createWhatsAppSession) {
-        // Fallback: call the function directly from global scope
-        const result = await global.createWhatsAppSession?.(sessionId, userId);
-        
-        if (!result) {
-          return res.status(500).json({
-            success: false,
-            message: 'Função de criação de sessão não disponível'
-          });
-        }
-        
-        if (result.success) {
-          res.json({
-            success: true,
-            message: 'Sessão criada com sucesso',
-            sessionData: result
-          });
-        } else {
-          res.status(400).json({
-            success: false,
-            message: result.message || 'Erro ao criar sessão'
-          });
-        }
-      } else {
-        const result = await createWhatsAppSession(sessionId, userId);
-        
-        if (result.success) {
-          res.json({
-            success: true,
-            message: 'Sessão criada com sucesso',
-            sessionData: result
-          });
-        } else {
-          res.status(400).json({
-            success: false,
-            message: result.message || 'Erro ao criar sessão'
-          });
-        }
+        return res.status(500).json({
+          success: false,
+          message: 'Função de criação de sessão não disponível'
+        });
       }
-    } catch (error) {
-      console.error('Error creating session directly:', error);
+
+      // Call with the token owner's user ID
+      const result = await createWhatsAppSession(sessionId, tokenDoc.userId);
+      
+      // Update token last used timestamp
+      await db.collection('api_tokens').updateOne(
+        { _id: tokenDoc._id },
+        { $set: { lastUsedAt: new Date() } }
+      );
+
+      if (result.success) {
+        // Generate QR code image if QR code exists (same logic as original API)
+        if (result.qrCode && !result.qrCodeImage) {
+          try {
+            const QRCode = require('qrcode');
+            result.qrCodeImage = await QRCode.toDataURL(result.qrCode);
+          } catch (error) {
+            console.warn('Erro ao gerar QR code imagem:', error.message);
+          }
+        }
+        
+        res.json(result);
+      } else {
+        res.status(400).json(result);
+      }
+    } catch (error) {      console.error('Error creating session:', error);
       res.status(500).json({
         success: false,
         message: 'Erro ao criar sessão: ' + error.message
