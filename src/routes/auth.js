@@ -31,11 +31,11 @@ router.post('/login', [
   csrfProtection.refreshToken()
 ], authController.login);
 
-// Protected routes
-router.get('/profile', [
+// Protected routes - profile otimizado (sem rate limit duplo)
+router.get('/profile', 
   authenticateToken,
-  advancedRateLimit.authLimit()
-], authController.getProfile);
+  authController.getProfile
+);
 
 router.put('/profile', [
   authenticateToken,

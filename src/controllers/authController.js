@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const { ObjectId } = require('mongodb');
 const database = require('../config/database');
 const advancedRateLimit = require('../middleware/advancedRateLimit');
+const { clearUserCache } = require('../middleware/auth');
 
 class AuthController {
   // Register new user
@@ -310,22 +311,16 @@ class AuthController {
     }
   }
 
-  // Get current user profile
-  async getProfile(req, res) {
-    try {
-      res.json({
-        success: true,
-        data: {
-          user: req.user
-        }
-      });
-    } catch (error) {
-      console.error('Get profile error:', error);
-      res.status(500).json({
-        success: false,
-        message: 'Erro interno do servidor'
-      });
-    }
+  // Get current user profile (otimizado)
+  getProfile(req, res) {
+    // Resposta imediata sem try-catch desnecessário
+    // req.user já foi validado e carregado no middleware authenticateToken
+    res.json({
+      success: true,
+      data: {
+        user: req.user
+      }
+    });
   }
 
   // Update user profile
@@ -352,6 +347,9 @@ class AuthController {
         { _id: new ObjectId(req.user._id) },
         { projection: { password: 0 } }
       );
+
+      // Limpar cache do usuário para forçar reload
+      clearUserCache(req.user._id);
 
       res.json({
         success: true,

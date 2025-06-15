@@ -2,6 +2,20 @@ const jwt = require('jsonwebtoken');
 const { ObjectId } = require('mongodb');
 const database = require('../config/database');
 
+// Cache para usuários autenticados (5 minutos)
+const userCache = new Map();
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
+
+// Limpar cache expirado a cada minuto
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, value] of userCache.entries()) {
+    if (now - value.timestamp > CACHE_TTL) {
+      userCache.delete(key);
+    }
+  }
+}, 60000);
+
 const authenticateToken = async (req, res, next) => {
   try {
     // Try to get token from signed cookies first, then from Authorization header
@@ -20,6 +34,15 @@ const authenticateToken = async (req, res, next) => {
     }
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const userId = decoded.userId;
+    const cacheKey = `user:${userId}`;
+    
+    // Verificar cache primeiro
+    const cachedUser = userCache.get(cacheKey);
+    if (cachedUser && (Date.now() - cachedUser.timestamp) < CACHE_TTL) {
+      req.user = cachedUser.data;
+      return next();
+    }
     
     // Check if database is available
     try {
@@ -28,22 +51,32 @@ const authenticateToken = async (req, res, next) => {
         throw new Error('Database not available');
       }
 
-      // Get user from database
+      // Get user from database with minimal projection
       const users = database.getCollection('users');
       
       // Verificar se userId é um ObjectId válido
-      let userId = decoded.userId;
+      let userIdObj = userId;
       try {
         if (typeof userId === 'string' && userId.length === 24) {
-          userId = new ObjectId(userId);
+          userIdObj = new ObjectId(userId);
         }
       } catch (error) {
         // Se não conseguir converter, usar string mesmo
       }
       
       const user = await users.findOne(
-        { _id: userId },
-        { projection: { password: 0 } } // Exclude password
+        { _id: userIdObj },
+        { 
+          projection: { 
+            password: 0,
+            // Campos desnecessários para autenticação
+            createdAt: 0,
+            updatedAt: 0,
+            'settings.notifications': 0,
+            'settings.darkMode': 0,
+            'settings.language': 0
+          }
+        }
       );
 
       if (!user) {
@@ -60,18 +93,33 @@ const authenticateToken = async (req, res, next) => {
         });
       }
 
+      // Cache o usuário
+      userCache.set(cacheKey, {
+        data: user,
+        timestamp: Date.now()
+      });
+      
       req.user = user;
     } catch (dbError) {
       // In development mode without database, create a mock user
       if (process.env.NODE_ENV === 'development') {
-        console.log('⚠️  Using mock user for development');
-        req.user = {
-          _id: decoded.userId,
+        const mockUser = {
+          _id: userId,
           name: 'Development User',
           email: 'dev@example.com',
           role: 'user',
-          active: true
+          active: true,
+          profile: { avatar: null, phone: null, company: null },
+          stats: { totalSessions: 0, activeConnections: 0, messagesCount: 0 }
         };
+        
+        // Cache mock user também
+        userCache.set(cacheKey, {
+          data: mockUser,
+          timestamp: Date.now()
+        });
+        
+        req.user = mockUser;
       } else {
         throw dbError;
       }
@@ -113,7 +161,20 @@ const requireRole = (roles) => {
   };
 };
 
+// Função para limpar cache de usuário específico (útil para updates)
+const clearUserCache = (userId) => {
+  const cacheKey = `user:${userId}`;
+  userCache.delete(cacheKey);
+};
+
+// Função para limpar todo o cache
+const clearAllCache = () => {
+  userCache.clear();
+};
+
 module.exports = {
   authenticateToken,
-  requireRole
+  requireRole,
+  clearUserCache,
+  clearAllCache
 };

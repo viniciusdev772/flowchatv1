@@ -16,7 +16,8 @@
       "Bash(./node_modules/.bin/tailwindcss:*)",
       "Bash(npm run frontend:*)",
       "Bash(npm uninstall:*)",
-      "Bash(curl:*)"
+      "Bash(curl:*)",
+      "Bash(npm test)"
     ],
     "deny": []
   }
