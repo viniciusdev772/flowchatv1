@@ -1328,6 +1328,497 @@ const swaggerUiOptions = {
  *               $ref: '#/components/schemas/ApiResponse'
  */
 
+// ========================================
+// DOCUMENTAÇÃO DOS NOVOS ENDPOINTS DE WEBHOOKS (MÚLTIPLOS)
+// ========================================
+
+/**
+ * @swagger
+ * /api/baileys/session/{sessionId}/webhooks:
+ *   get:
+ *     tags:
+ *       - Webhooks
+ *     summary: Listar webhooks da sessão
+ *     description: Retorna todos os webhooks configurados para uma sessão (máximo 3)
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID da sessão
+ *         example: "minha-sessao-1"
+ *     responses:
+ *       200:
+ *         description: Lista de webhooks obtida com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 sessionId:
+ *                   type: string
+ *                   example: "minha-sessao-1"
+ *                 webhooks:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                         example: "webhook-123-456"
+ *                       name:
+ *                         type: string
+ *                         example: "Principal"
+ *                       url:
+ *                         type: string
+ *                         example: "https://meusite.com/webhook"
+ *                       active:
+ *                         type: boolean
+ *                         example: true
+ *                       priority:
+ *                         type: integer
+ *                         example: 1
+ *                       events:
+ *                         type: array
+ *                         items:
+ *                           type: string
+ *                         example: ["*"]
+ *                       createdAt:
+ *                         type: string
+ *                         format: date-time
+ *                 total:
+ *                   type: integer
+ *                   example: 2
+ *                 limit:
+ *                   type: integer
+ *                   example: 3
+ *       404:
+ *         description: Sessão não encontrada
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ *   post:
+ *     tags:
+ *       - Webhooks
+ *     summary: Adicionar novo webhook
+ *     description: Adiciona um novo webhook à sessão (máximo 3 por sessão)
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID da sessão
+ *         example: "minha-sessao-1"
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - url
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 description: Nome do webhook
+ *                 example: "Principal"
+ *               url:
+ *                 type: string
+ *                 format: uri
+ *                 description: URL do webhook
+ *                 example: "https://meusite.com/webhook"
+ *               active:
+ *                 type: boolean
+ *                 description: Se o webhook está ativo
+ *                 default: true
+ *               priority:
+ *                 type: integer
+ *                 description: Prioridade de envio (1-3)
+ *                 minimum: 1
+ *                 maximum: 3
+ *               events:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: Eventos para escutar
+ *                 example: ["message.upsert", "connection.update"]
+ *                 default: ["*"]
+ *     responses:
+ *       200:
+ *         description: Webhook adicionado com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Webhook adicionado com sucesso"
+ *                 webhook:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                       example: "webhook-123-456"
+ *                     name:
+ *                       type: string
+ *                       example: "Principal"
+ *                     url:
+ *                       type: string
+ *                       example: "https://meusite.com/webhook"
+ *                     active:
+ *                       type: boolean
+ *                       example: true
+ *                     priority:
+ *                       type: integer
+ *                       example: 1
+ *                     events:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                       example: ["*"]
+ *                     createdAt:
+ *                       type: string
+ *                       format: date-time
+ *                 sessionId:
+ *                   type: string
+ *                   example: "minha-sessao-1"
+ *       400:
+ *         description: Dados inválidos ou limite de webhooks excedido
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ *       404:
+ *         description: Sessão não encontrada
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ */
+
+/**
+ * @swagger
+ * /api/baileys/session/{sessionId}/webhooks/{webhookId}:
+ *   get:
+ *     tags:
+ *       - Webhooks
+ *     summary: Obter webhook específico
+ *     description: Retorna informações de um webhook específico
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID da sessão
+ *         example: "minha-sessao-1"
+ *       - in: path
+ *         name: webhookId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID do webhook
+ *         example: "webhook-123-456"
+ *     responses:
+ *       200:
+ *         description: Webhook encontrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 webhook:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                       example: "webhook-123-456"
+ *                     name:
+ *                       type: string
+ *                       example: "Principal"
+ *                     url:
+ *                       type: string
+ *                       example: "https://meusite.com/webhook"
+ *                     active:
+ *                       type: boolean
+ *                       example: true
+ *                     priority:
+ *                       type: integer
+ *                       example: 1
+ *                     events:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                       example: ["*"]
+ *                     createdAt:
+ *                       type: string
+ *                       format: date-time
+ *                 sessionId:
+ *                   type: string
+ *                   example: "minha-sessao-1"
+ *       404:
+ *         description: Sessão ou webhook não encontrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ *   put:
+ *     tags:
+ *       - Webhooks
+ *     summary: Atualizar webhook
+ *     description: Atualiza as configurações de um webhook específico
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID da sessão
+ *         example: "minha-sessao-1"
+ *       - in: path
+ *         name: webhookId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID do webhook
+ *         example: "webhook-123-456"
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 description: Nome do webhook
+ *               url:
+ *                 type: string
+ *                 format: uri
+ *                 description: URL do webhook
+ *               active:
+ *                 type: boolean
+ *                 description: Se o webhook está ativo
+ *               priority:
+ *                 type: integer
+ *                 description: Prioridade de envio (1-3)
+ *                 minimum: 1
+ *                 maximum: 3
+ *               events:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: Eventos para escutar
+ *     responses:
+ *       200:
+ *         description: Webhook atualizado com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Webhook atualizado com sucesso"
+ *                 webhook:
+ *                   type: object
+ *                 sessionId:
+ *                   type: string
+ *       400:
+ *         description: Dados inválidos
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ *       404:
+ *         description: Sessão ou webhook não encontrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ *   delete:
+ *     tags:
+ *       - Webhooks
+ *     summary: Remover webhook específico
+ *     description: Remove um webhook específico da sessão
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID da sessão
+ *         example: "minha-sessao-1"
+ *       - in: path
+ *         name: webhookId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID do webhook
+ *         example: "webhook-123-456"
+ *     responses:
+ *       200:
+ *         description: Webhook removido com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Webhook removido com sucesso"
+ *                 webhook:
+ *                   type: object
+ *                 sessionId:
+ *                   type: string
+ *       404:
+ *         description: Sessão ou webhook não encontrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ */
+
+/**
+ * @swagger
+ * /api/baileys/session/{sessionId}/webhooks/{webhookId}/toggle:
+ *   patch:
+ *     tags:
+ *       - Webhooks
+ *     summary: Ativar/desativar webhook
+ *     description: Alterna o status ativo/inativo de um webhook
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID da sessão
+ *         example: "minha-sessao-1"
+ *       - in: path
+ *         name: webhookId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID do webhook
+ *         example: "webhook-123-456"
+ *     responses:
+ *       200:
+ *         description: Status do webhook alterado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Webhook ativado com sucesso"
+ *                 webhook:
+ *                   type: object
+ *                 sessionId:
+ *                   type: string
+ *       404:
+ *         description: Sessão ou webhook não encontrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ */
+
+/**
+ * @swagger
+ * /api/baileys/session/{sessionId}/webhooks/{webhookId}/test:
+ *   post:
+ *     tags:
+ *       - Webhooks
+ *     summary: Testar webhook
+ *     description: Envia um payload de teste para verificar se o webhook está funcionando
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID da sessão
+ *         example: "minha-sessao-1"
+ *       - in: path
+ *         name: webhookId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID do webhook
+ *         example: "webhook-123-456"
+ *     responses:
+ *       200:
+ *         description: Teste do webhook executado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Teste do webhook enviado"
+ *                 webhook:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                     name:
+ *                       type: string
+ *                     url:
+ *                       type: string
+ *                 testResult:
+ *                   type: object
+ *                   properties:
+ *                     success:
+ *                       type: boolean
+ *                       example: true
+ *                     status:
+ *                       type: integer
+ *                       example: 200
+ *                     statusText:
+ *                       type: string
+ *                       example: "OK"
+ *                     response:
+ *                       type: string
+ *                       description: Resposta do webhook (limitada a 500 caracteres)
+ *                     timestamp:
+ *                       type: string
+ *                       format: date-time
+ *       404:
+ *         description: Sessão ou webhook não encontrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ */
+
 /**
  * @swagger
  * /api/baileys/session/{sessionId}:

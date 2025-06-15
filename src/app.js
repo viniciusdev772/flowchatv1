@@ -80,7 +80,14 @@ const sessionQueues = new Map(); // Filas de mensagens para cada sessão
 const messageRateLimit = new Map(); // Rate limiting por sessão
 const reconnectionAttempts = new Map(); // Controle de tentativas de reconexão
 const messageStore = new Map(); // Armazenamento de mensagens para reply por ID
-const webhooks = new Map(); // URLs de webhook por sessão
+const webhooks = new Map(); // Múltiplos webhooks por sessão (máximo 3)
+
+// Estrutura de webhook:
+// webhooks.set('sessionId', [
+//   { id: 'webhook1', name: 'Principal', url: 'https://...', active: true, createdAt: '...', priority: 1 },
+//   { id: 'webhook2', name: 'Backup', url: 'https://...', active: true, createdAt: '...', priority: 2 },
+//   { id: 'webhook3', name: 'Analytics', url: 'https://...', active: false, createdAt: '...', priority: 3 }
+// ])
 
 // Disponibilizar sessions globalmente para o groups.js
 global.whatsappSessions = sessions;
@@ -88,6 +95,91 @@ global.whatsappSessions = sessions;
 // Exportar função para acessar sessões (usado pelo groups.js)
 function getSessions() {
   return sessions;
+}
+
+// Funções utilitárias para gerenciar webhooks
+function getSessionWebhooks(sessionId) {
+  return webhooks.get(sessionId) || [];
+}
+
+function addWebhookToSession(sessionId, webhookData) {
+  const sessionWebhooks = getSessionWebhooks(sessionId);
+  
+  // Validar limite máximo de 3 webhooks
+  if (sessionWebhooks.length >= 3) {
+    throw new Error('Máximo de 3 webhooks permitidos por sessão');
+  }
+  
+  // Validar se o nome já existe
+  if (sessionWebhooks.some(w => w.name === webhookData.name)) {
+    throw new Error('Nome do webhook já existe nesta sessão');
+  }
+  
+  const newWebhook = {
+    id: crypto.randomUUID(),
+    name: webhookData.name || `Webhook ${sessionWebhooks.length + 1}`,
+    url: webhookData.url,
+    active: webhookData.active !== false, // true por padrão
+    createdAt: new Date().toISOString(),
+    priority: webhookData.priority || (sessionWebhooks.length + 1),
+    events: webhookData.events || ['*'] // eventos para escutar, '*' = todos
+  };
+  
+  sessionWebhooks.push(newWebhook);
+  webhooks.set(sessionId, sessionWebhooks);
+  
+  return newWebhook;
+}
+
+function removeWebhookFromSession(sessionId, webhookId) {
+  const sessionWebhooks = getSessionWebhooks(sessionId);
+  const webhookIndex = sessionWebhooks.findIndex(w => w.id === webhookId);
+  
+  if (webhookIndex === -1) {
+    throw new Error('Webhook não encontrado');
+  }
+  
+  const removedWebhook = sessionWebhooks.splice(webhookIndex, 1)[0];
+  webhooks.set(sessionId, sessionWebhooks);
+  
+  return removedWebhook;
+}
+
+function updateWebhookInSession(sessionId, webhookId, updateData) {
+  const sessionWebhooks = getSessionWebhooks(sessionId);
+  const webhook = sessionWebhooks.find(w => w.id === webhookId);
+  
+  if (!webhook) {
+    throw new Error('Webhook não encontrado');
+  }
+  
+  // Validar se o novo nome já existe (se está sendo alterado)
+  if (updateData.name && updateData.name !== webhook.name) {
+    if (sessionWebhooks.some(w => w.name === updateData.name && w.id !== webhookId)) {
+      throw new Error('Nome do webhook já existe nesta sessão');
+    }
+  }
+  
+  // Atualizar campos permitidos
+  if (updateData.name !== undefined) webhook.name = updateData.name;
+  if (updateData.url !== undefined) webhook.url = updateData.url;
+  if (updateData.active !== undefined) webhook.active = updateData.active;
+  if (updateData.priority !== undefined) webhook.priority = updateData.priority;
+  if (updateData.events !== undefined) webhook.events = updateData.events;
+  
+  webhook.updatedAt = new Date().toISOString();
+  
+  webhooks.set(sessionId, sessionWebhooks);
+  
+  return webhook;
+}
+
+function getActiveWebhooks(sessionId, eventType = null) {
+  const sessionWebhooks = getSessionWebhooks(sessionId);
+  return sessionWebhooks
+    .filter(w => w.active)
+    .filter(w => !eventType || w.events.includes('*') || w.events.includes(eventType))
+    .sort((a, b) => a.priority - b.priority);
 }
 
 // Importar rotas de grupos
@@ -460,8 +552,9 @@ async function getContactOrGroupInfo(jid, sock) {
 // Função para enviar webhook
 async function sendWebhook(sessionId, eventType, data) {
   try {
-    const webhookUrl = webhooks.get(sessionId);
-    if (!webhookUrl) return;
+    // Obter webhooks ativos para este evento
+    const activeWebhooks = getActiveWebhooks(sessionId, eventType);
+    if (activeWebhooks.length === 0) return;
 
     // Enriquecer dados com informações de contato/grupo se disponível
     let enrichedData = { ...data };
@@ -514,25 +607,63 @@ async function sendWebhook(sessionId, eventType, data) {
       data: enrichedData,
     };
 
-    const response = await fetch(webhookUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'User-Agent': 'Baileys-API-Webhook/1.0.0',
-      },
-      body: JSON.stringify(payload),
+    // Enviar para todos os webhooks ativos em paralelo
+    const webhookPromises = activeWebhooks.map(async (webhook) => {
+      try {
+        const webhookPayload = {
+          ...payload,
+          webhook: {
+            id: webhook.id,
+            name: webhook.name,
+            priority: webhook.priority
+          }
+        };
+
+        const response = await fetch(webhook.url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'User-Agent': 'Baileys-API-Webhook/1.0.0',
+            'X-Webhook-ID': webhook.id,
+            'X-Webhook-Name': webhook.name,
+            'X-Webhook-Priority': webhook.priority.toString()
+          },
+          body: JSON.stringify(webhookPayload),
+          timeout: 15000, // 15 segundos timeout
+        });
+
+        if (!response.ok) {
+          logger.warn(
+            `Webhook ${webhook.name} (${webhook.id}) failed for session ${sessionId}: ${response.status} ${response.statusText}`
+          );
+          return { success: false, webhook: webhook.id, error: `${response.status} ${response.statusText}` };
+        } else {
+          logger.info(`Webhook ${webhook.name} sent successfully for session ${sessionId}`);
+          return { success: true, webhook: webhook.id };
+        }
+      } catch (error) {
+        logger.error(
+          `Error sending webhook ${webhook.name} (${webhook.id}) for session ${sessionId}: ${error.message}`
+        );
+        return { success: false, webhook: webhook.id, error: error.message };
+      }
     });
 
-    if (!response.ok) {
-      logger.warn(
-        `Webhook failed for session ${sessionId}: ${response.status} ${response.statusText}`
-      );
+    // Aguardar todos os webhooks (máximo 15 segundos cada)
+    const results = await Promise.allSettled(webhookPromises);
+    
+    const successCount = results.filter(r => r.status === 'fulfilled' && r.value.success).length;
+    const totalCount = activeWebhooks.length;
+    
+    if (successCount > 0) {
+      logger.info(`Webhooks sent: ${successCount}/${totalCount} successful for session ${sessionId} event ${eventType}`);
     } else {
-      logger.info(`Webhook sent successfully for session ${sessionId}`);
+      logger.warn(`All webhooks failed for session ${sessionId} event ${eventType}`);
     }
+
   } catch (error) {
     logger.error(
-      `Error sending webhook for session ${sessionId}: ${error.message}`
+      `Error in sendWebhook for session ${sessionId}: ${error.message}`
     );
   }
 }
@@ -1776,14 +1907,32 @@ app.post('/api/baileys/session/:sessionId/webhook', async (req, res) => {
       });
     }
 
-    // Configurar webhook
-    webhooks.set(sessionId, webhookUrl);
+    // COMPATIBILIDADE: Remover webhook "Principal" existente se houver
+    const sessionWebhooks = getSessionWebhooks(sessionId);
+    const existingPrincipal = sessionWebhooks.find(w => w.name === 'Principal');
+    if (existingPrincipal) {
+      removeWebhookFromSession(sessionId, existingPrincipal.id);
+    }
+
+    // Adicionar novo webhook como "Principal" (endpoint legado)
+    const newWebhook = addWebhookToSession(sessionId, {
+      name: 'Principal',
+      url: webhookUrl,
+      active: true,
+      priority: 1,
+      events: ['*']
+    });
 
     res.json({
       success: true,
       message: 'Webhook configurado com sucesso',
       webhookUrl,
       sessionId,
+      webhookInfo: {
+        id: newWebhook.id,
+        name: newWebhook.name,
+        note: 'Endpoint legado - use /webhooks para gerenciamento completo'
+      }
     });
   } catch (error) {
     logger.error(`Erro ao configurar webhook: ${error.message}`);
@@ -1806,8 +1955,11 @@ app.get('/api/baileys/session/:sessionId/webhook', (req, res) => {
       });
     }
 
-    const webhookUrl = webhooks.get(sessionId);
-    if (!webhookUrl) {
+    // COMPATIBILIDADE: Buscar webhook "Principal" ou o primeiro ativo
+    const sessionWebhooks = getSessionWebhooks(sessionId);
+    const principalWebhook = sessionWebhooks.find(w => w.name === 'Principal') || sessionWebhooks.find(w => w.active);
+    
+    if (!principalWebhook) {
       return res.status(404).json({
         success: false,
         message: 'Webhook não configurado para esta sessão',
@@ -1816,8 +1968,15 @@ app.get('/api/baileys/session/:sessionId/webhook', (req, res) => {
 
     res.json({
       success: true,
-      webhookUrl,
+      webhookUrl: principalWebhook.url,
       sessionId,
+      webhookInfo: {
+        id: principalWebhook.id,
+        name: principalWebhook.name,
+        active: principalWebhook.active,
+        priority: principalWebhook.priority,
+        note: 'Endpoint legado - use /webhooks para informações completas'
+      }
     });
   } catch (error) {
     logger.error(`Erro ao obter webhook: ${error.message}`);
@@ -1840,15 +1999,376 @@ app.delete('/api/baileys/session/:sessionId/webhook', (req, res) => {
       });
     }
 
-    webhooks.delete(sessionId);
+    // COMPATIBILIDADE: Remover webhook "Principal" ou o primeiro ativo
+    const sessionWebhooks = getSessionWebhooks(sessionId);
+    const principalWebhook = sessionWebhooks.find(w => w.name === 'Principal') || sessionWebhooks.find(w => w.active);
+    
+    if (!principalWebhook) {
+      return res.status(404).json({
+        success: false,
+        message: 'Nenhum webhook encontrado para remover',
+      });
+    }
+
+    const removedWebhook = removeWebhookFromSession(sessionId, principalWebhook.id);
 
     res.json({
       success: true,
       message: 'Webhook removido com sucesso',
       sessionId,
+      removedWebhook: {
+        id: removedWebhook.id,
+        name: removedWebhook.name,
+        url: removedWebhook.url,
+        note: 'Endpoint legado - use /webhooks/:id para remoção específica'
+      }
     });
   } catch (error) {
     logger.error(`Erro ao remover webhook: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+// ========================================
+// NOVOS ENDPOINTS PARA MÚLTIPLOS WEBHOOKS
+// ========================================
+
+// Listar todos os webhooks de uma sessão
+app.get('/api/baileys/session/:sessionId/webhooks', (req, res) => {
+  try {
+    const { sessionId } = req.params;
+
+    const session = sessions.get(sessionId);
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        message: 'Sessão não encontrada',
+      });
+    }
+
+    const sessionWebhooks = getSessionWebhooks(sessionId);
+
+    res.json({
+      success: true,
+      sessionId,
+      webhooks: sessionWebhooks,
+      total: sessionWebhooks.length,
+      limit: 3
+    });
+  } catch (error) {
+    logger.error(`Erro ao listar webhooks: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+// Adicionar novo webhook à sessão
+app.post('/api/baileys/session/:sessionId/webhooks', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const { name, url, active, priority, events } = req.body;
+
+    const session = sessions.get(sessionId);
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        message: 'Sessão não encontrada',
+      });
+    }
+
+    if (!url) {
+      return res.status(400).json({
+        success: false,
+        message: 'URL do webhook é obrigatória',
+      });
+    }
+
+    // Validar URL
+    try {
+      new URL(url);
+    } catch {
+      return res.status(400).json({
+        success: false,
+        message: 'URL inválida',
+      });
+    }
+
+    const newWebhook = addWebhookToSession(sessionId, {
+      name,
+      url,
+      active,
+      priority,
+      events
+    });
+
+    res.json({
+      success: true,
+      message: 'Webhook adicionado com sucesso',
+      webhook: newWebhook,
+      sessionId
+    });
+
+  } catch (error) {
+    logger.error(`Erro ao adicionar webhook: ${error.message}`);
+    res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+// Obter webhook específico
+app.get('/api/baileys/session/:sessionId/webhooks/:webhookId', (req, res) => {
+  try {
+    const { sessionId, webhookId } = req.params;
+
+    const session = sessions.get(sessionId);
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        message: 'Sessão não encontrada',
+      });
+    }
+
+    const sessionWebhooks = getSessionWebhooks(sessionId);
+    const webhook = sessionWebhooks.find(w => w.id === webhookId);
+
+    if (!webhook) {
+      return res.status(404).json({
+        success: false,
+        message: 'Webhook não encontrado',
+      });
+    }
+
+    res.json({
+      success: true,
+      webhook,
+      sessionId
+    });
+
+  } catch (error) {
+    logger.error(`Erro ao obter webhook: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+// Atualizar webhook específico
+app.put('/api/baileys/session/:sessionId/webhooks/:webhookId', (req, res) => {
+  try {
+    const { sessionId, webhookId } = req.params;
+    const { name, url, active, priority, events } = req.body;
+
+    const session = sessions.get(sessionId);
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        message: 'Sessão não encontrada',
+      });
+    }
+
+    // Validar URL se fornecida
+    if (url) {
+      try {
+        new URL(url);
+      } catch {
+        return res.status(400).json({
+          success: false,
+          message: 'URL inválida',
+        });
+      }
+    }
+
+    const updatedWebhook = updateWebhookInSession(sessionId, webhookId, {
+      name,
+      url,
+      active,
+      priority,
+      events
+    });
+
+    res.json({
+      success: true,
+      message: 'Webhook atualizado com sucesso',
+      webhook: updatedWebhook,
+      sessionId
+    });
+
+  } catch (error) {
+    logger.error(`Erro ao atualizar webhook: ${error.message}`);
+    res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+// Remover webhook específico
+app.delete('/api/baileys/session/:sessionId/webhooks/:webhookId', (req, res) => {
+  try {
+    const { sessionId, webhookId } = req.params;
+
+    const session = sessions.get(sessionId);
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        message: 'Sessão não encontrada',
+      });
+    }
+
+    const removedWebhook = removeWebhookFromSession(sessionId, webhookId);
+
+    res.json({
+      success: true,
+      message: 'Webhook removido com sucesso',
+      webhook: removedWebhook,
+      sessionId
+    });
+
+  } catch (error) {
+    logger.error(`Erro ao remover webhook: ${error.message}`);
+    res.status(400).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+// Ativar/desativar webhook específico
+app.patch('/api/baileys/session/:sessionId/webhooks/:webhookId/toggle', (req, res) => {
+  try {
+    const { sessionId, webhookId } = req.params;
+
+    const session = sessions.get(sessionId);
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        message: 'Sessão não encontrada',
+      });
+    }
+
+    const sessionWebhooks = getSessionWebhooks(sessionId);
+    const webhook = sessionWebhooks.find(w => w.id === webhookId);
+
+    if (!webhook) {
+      return res.status(404).json({
+        success: false,
+        message: 'Webhook não encontrado',
+      });
+    }
+
+    webhook.active = !webhook.active;
+    webhook.updatedAt = new Date().toISOString();
+    webhooks.set(sessionId, sessionWebhooks);
+
+    res.json({
+      success: true,
+      message: `Webhook ${webhook.active ? 'ativado' : 'desativado'} com sucesso`,
+      webhook,
+      sessionId
+    });
+
+  } catch (error) {
+    logger.error(`Erro ao alternar webhook: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+// Testar webhook específico
+app.post('/api/baileys/session/:sessionId/webhooks/:webhookId/test', async (req, res) => {
+  try {
+    const { sessionId, webhookId } = req.params;
+
+    const session = sessions.get(sessionId);
+    if (!session) {
+      return res.status(404).json({
+        success: false,
+        message: 'Sessão não encontrada',
+      });
+    }
+
+    const sessionWebhooks = getSessionWebhooks(sessionId);
+    const webhook = sessionWebhooks.find(w => w.id === webhookId);
+
+    if (!webhook) {
+      return res.status(404).json({
+        success: false,
+        message: 'Webhook não encontrado',
+      });
+    }
+
+    // Enviar payload de teste
+    const testPayload = {
+      sessionId,
+      eventType: 'webhook.test',
+      timestamp: new Date().toISOString(),
+      data: {
+        message: 'Este é um teste do webhook',
+        webhookId: webhook.id,
+        webhookName: webhook.name
+      }
+    };
+
+    try {
+      const response = await fetch(webhook.url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'User-Agent': 'Baileys-Webhook/1.0',
+        },
+        body: JSON.stringify(testPayload),
+        timeout: 10000, // 10 segundos
+      });
+
+      const success = response.ok;
+      const responseText = await response.text();
+
+      res.json({
+        success: true,
+        message: 'Teste do webhook enviado',
+        webhook: {
+          id: webhook.id,
+          name: webhook.name,
+          url: webhook.url
+        },
+        testResult: {
+          success,
+          status: response.status,
+          statusText: response.statusText,
+          response: responseText.substring(0, 500), // Limitar resposta
+          timestamp: new Date().toISOString()
+        }
+      });
+
+    } catch (fetchError) {
+      res.json({
+        success: true,
+        message: 'Teste do webhook enviado',
+        webhook: {
+          id: webhook.id,
+          name: webhook.name,
+          url: webhook.url
+        },
+        testResult: {
+          success: false,
+          error: fetchError.message,
+          timestamp: new Date().toISOString()
+        }
+      });
+    }
+
+  } catch (error) {
+    logger.error(`Erro ao testar webhook: ${error.message}`);
     res.status(500).json({
       success: false,
       message: error.message,
@@ -2277,10 +2797,19 @@ app.get('/api/baileys/info', (req, res) => {
       'GET /api/baileys/session/:id/messages': 'Listar mensagens armazenadas',
       'POST /api/baileys/session/:id/download-media': 'Baixar mídia das mensagens',
 
-      // Webhooks
-      'POST /api/baileys/session/:id/webhook': 'Configurar webhook para eventos',
-      'GET /api/baileys/session/:id/webhook': 'Obter configuração do webhook',
-      'DELETE /api/baileys/session/:id/webhook': 'Remover webhook',
+      // Webhooks (Legado)
+      'POST /api/baileys/session/:id/webhook': 'Configurar webhook principal (legado)',
+      'GET /api/baileys/session/:id/webhook': 'Obter webhook principal (legado)',
+      'DELETE /api/baileys/session/:id/webhook': 'Remover webhook principal (legado)',
+
+      // Webhooks (Múltiplos - Sistema Avançado)
+      'GET /api/baileys/session/:id/webhooks': 'Listar todos os webhooks (máx 3)',
+      'POST /api/baileys/session/:id/webhooks': 'Adicionar novo webhook',
+      'GET /api/baileys/session/:id/webhooks/:webhookId': 'Obter webhook específico',
+      'PUT /api/baileys/session/:id/webhooks/:webhookId': 'Atualizar webhook',
+      'DELETE /api/baileys/session/:id/webhooks/:webhookId': 'Remover webhook específico',
+      'PATCH /api/baileys/session/:id/webhooks/:webhookId/toggle': 'Ativar/desativar webhook',
+      'POST /api/baileys/session/:id/webhooks/:webhookId/test': 'Testar webhook',
 
       // Grupos
       'POST /api/baileys/groups/:sessionId/create': 'Criar novo grupo',

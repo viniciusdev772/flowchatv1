@@ -69,10 +69,14 @@ npm run monitor
 - **Código de convite** - `GET /api/baileys/groups/{sessionId}/{groupId}/invite-code`
 - **Revogar convite** - `POST /api/baileys/groups/{sessionId}/{groupId}/revoke-invite`
 
-### 🔗 Webhooks
-- Eventos em tempo real
+### 🔗 Webhooks (NOVO! Sistema Múltiplo)
+- **Até 3 webhooks por sessão** com prioridades
+- Eventos em tempo real para todos os webhooks ativos
 - Mídia automática em Base64
 - Metadados enriquecidos
+- Controle individual (ativar/desativar/testar)
+- Sistema de eventos customizável
+- Retrocompatibilidade com endpoints legados
 
 ### 🛡️ Segurança
 - Rate limiting inteligente
