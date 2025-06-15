@@ -31,14 +31,13 @@ class Server {
     // Security headers
     this.app.use(helmet({
       crossOriginResourcePolicy: { policy: "cross-origin" }
-    }));
-
-    // CORS configuration
+    }));    // CORS configuration
     this.app.use(cors({
       origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
       credentials: true,
-      methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-      allowedHeaders: ['Content-Type', 'Authorization']
+      methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token', 'csrf-token'],
+      exposedHeaders: ['X-CSRF-Token', 'X-New-CSRF-Token']
     }));
 
     // Request logging
