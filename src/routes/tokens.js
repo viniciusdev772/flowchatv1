@@ -150,4 +150,53 @@ router.delete('/:tokenId', authenticateToken, async (req, res) => {
   }
 });
 
+// Get full token by ID (for internal API use)
+router.get('/:tokenId/full', authenticateToken, async (req, res) => {
+  try {
+    const { tokenId } = req.params;
+    const userId = req.user._id;
+    
+    const db = database.getDb();
+    if (!db) {
+      return res.status(503).json({
+        success: false,
+        message: 'Banco de dados não disponível'
+      });
+    }
+
+    const token = await db.collection('api_tokens').findOne({
+      _id: new ObjectId(tokenId),
+      userId,
+      isActive: true
+    });
+
+    if (!token) {
+      return res.status(404).json({
+        success: false,
+        message: 'Token não encontrado'
+      });
+    }
+
+    // Check if token is expired
+    if (token.expiresAt && new Date() > token.expiresAt) {
+      return res.status(401).json({
+        success: false,
+        message: 'Token expirado'
+      });
+    }
+
+    res.json({
+      success: true,
+      token: token.token // Return the full token
+    });
+
+  } catch (error) {
+    console.error('Error getting full token:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno do servidor'
+    });
+  }
+});
+
 module.exports = router;

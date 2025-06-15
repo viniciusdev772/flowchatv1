@@ -340,7 +340,6 @@ export default function Dashboard() {
       // Could add a toast notification here
     });
   };
-
   const createWhatsAppSession = async () => {
     try {
       const { sessionId, selectedToken } = sessionForm;
@@ -361,16 +360,38 @@ export default function Dashboard() {
 
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
       
-      // Use the new management API to create session
-      const response = await fetch(`${apiUrl}/api/management/sessions/create-with-token`, {
-        method: 'POST',
+      // Get the full token from the database
+      const tokenResponse = await fetch(`${apiUrl}/api/management/tokens/${selectedToken}/full`, {
+        method: 'GET',
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json'
+        }
+      });
+
+      if (!tokenResponse.ok) {
+        alert('Erro ao obter token para criação da sessão');
+        setCreatingSession(false);
+        return;
+      }
+
+      const tokenResult = await tokenResponse.json();
+      if (!tokenResult.success || !tokenResult.token) {
+        alert('Token não encontrado ou inválido');
+        setCreatingSession(false);
+        return;
+      }
+
+      // Use the Baileys API directly to create session
+      const response = await fetch(`${apiUrl}/api/baileys/session/create`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${tokenResult.token}`,
+          'accept': 'application/json'
         },
         body: JSON.stringify({
-          sessionId: sessionId.trim(),
-          tokenId: selectedToken
+          sessionId: sessionId.trim()
         })
       });
 
@@ -382,12 +403,12 @@ export default function Dashboard() {
         setSessionForm({ sessionId: '', selectedToken: '' });
         
         // Show QR code if available
-        if (result.sessionData?.qrCode) {
+        if (result.qrCode) {
           setSelectedSession({
             id: sessionId,
             name: sessionId,
-            qrCode: result.sessionData.qrCode,
-            qrCodeImage: result.sessionData.qrCodeImage
+            qrCode: result.qrCode,
+            qrCodeImage: result.qrCodeImage
           });
           setShowQRCode(true);
         }
@@ -396,7 +417,7 @@ export default function Dashboard() {
         fetchRealSessions();
         
         alert('Sessão WhatsApp criada com sucesso! ' + 
-              (result.sessionData?.qrCode ? 'QR Code gerado para escaneamento.' : ''));
+              (result.qrCode ? 'QR Code gerado para escaneamento.' : ''));
       } else {
         alert(`Erro ao criar sessão: ${result.message}`);
       }
