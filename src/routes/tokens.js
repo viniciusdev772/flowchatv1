@@ -17,15 +17,11 @@ router.post('/generate', authenticateToken, async (req, res) => {
       return res.status(400).json({
         success: false,
         message: 'Nome do token é obrigatório'
-      });    }
-
-    // Generate secure token
+      });    }    // Generate secure token
     const token = crypto.randomBytes(32).toString('hex');
     
-    // Create secure encrypted token using crypto.randomBytes and hash
-    const tokenPayload = `baileys_${token}_${userId}_${Date.now()}`;
-    const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
-    const finalEncryptedToken = crypto.createHash('sha256').update(tokenPayload + (process.env.JWT_SECRET || 'fallback-secret')).digest('hex');
+    // Store token without encryption (as requested)
+    const fullToken = `baileys_${token}`;
     
     // Calculate expiration date
     let expiresAt = null;
@@ -39,13 +35,10 @@ router.post('/generate', authenticateToken, async (req, res) => {
       }
       expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + days);
-    }
-
-    const tokenRecord = {
+    }    const tokenRecord = {
       userId,
       name: name.trim(),
-      token: hashedToken,
-      encryptedToken: finalEncryptedToken, // Store encrypted version for recovery
+      token: fullToken, // Store the complete token without encryption
       expiresAt,
       createdAt: new Date(),
       lastUsedAt: null,
@@ -56,13 +49,11 @@ router.post('/generate', authenticateToken, async (req, res) => {
     const db = database.getDb();
     if (db) {
       await db.collection('api_tokens').insertOne(tokenRecord);
-    }
-
-    // Return the unhashed token (only time it's shown)
+    }    // Return the token (same as stored in DB)
     res.json({
       success: true,
       message: 'Token de API gerado com sucesso',
-      token: `baileys_${token}`,
+      token: fullToken,
       tokenInfo: {        name: tokenRecord.name,
         expiresAt: tokenRecord.expiresAt,
         createdAt: tokenRecord.createdAt

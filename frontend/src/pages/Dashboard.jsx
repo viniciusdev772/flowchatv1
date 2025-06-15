@@ -189,13 +189,19 @@ export default function Dashboard() {
       } catch (error) {
         console.error('Erro ao carregar tokens:', error);
       }
-    };
-
-    // Executar todas as funções
+    };    // Executar todas as funções
     fetchUserProfile();
     fetchSessions();
     fetchApiTokens();
     fetchRealSessions();
+
+    // Auto-refresh das sessões a cada 10 segundos para capturar novos QR codes
+    const interval = setInterval(() => {
+      fetchRealSessions();
+    }, 10000);
+
+    // Cleanup do interval
+    return () => clearInterval(interval);
   }, []);
 
   const getStatusColor = (status) => {
@@ -800,8 +806,7 @@ export default function Dashboard() {
                             <div className="text-sm text-white/70">Webhooks: <span className="text-white font-medium">{session.webhooks}</span></div>
                           </div>
 
-                          <div className="flex flex-col space-y-2">
-                            {session.status === 'connecting' && (
+                          <div className="flex flex-col space-y-2">                            {(session.status === 'connecting' || session.qrCode || session.qrCodeImage) && (
                               <motion.button
                                 onClick={() => {
                                   setSelectedSession(session);
@@ -812,7 +817,7 @@ export default function Dashboard() {
                                 whileTap={{ scale: 0.95 }}
                               >
                                 <QrCodeIcon className="w-4 h-4 mr-2" />
-                                QR Code
+                                {session.qrCode || session.qrCodeImage ? 'Ver QR Code' : 'QR Code'}
                               </motion.button>
                             )}
                             
@@ -1098,8 +1103,7 @@ export default function Dashboard() {
               exit={{ scale: 0.9, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 className="text-xl font-semibold text-white mb-4">QR Code - {selectedSession.name}</h3>
-              <div className={`w-64 h-64 mx-auto mb-4 ${performanceMode ? 'glass-performance' : 'glass-ultra'} rounded-xl flex items-center justify-center p-4`}>
+              <h3 className="text-xl font-semibold text-white mb-4">QR Code - {selectedSession.name}</h3>              <div className={`w-64 h-64 mx-auto mb-4 ${performanceMode ? 'glass-performance' : 'glass-ultra'} rounded-xl flex items-center justify-center p-4`}>
                 {selectedSession.qrCodeImage ? (
                   <img 
                     src={selectedSession.qrCodeImage} 
@@ -1107,9 +1111,14 @@ export default function Dashboard() {
                     className="w-full h-full object-contain rounded-lg"
                   />
                 ) : selectedSession.qrCode ? (
-                  <div className="text-center">
+                  <div className="text-center w-full">
                     <QrCodeIcon className="w-16 h-16 text-white/50 mx-auto mb-2" />
-                    <p className="text-white/70 text-sm">QR Code disponível (aguardando imagem)</p>
+                    <p className="text-white/70 text-xs mb-2">QR Code Text:</p>
+                    <div className="bg-black/20 rounded p-2 max-h-32 overflow-y-auto">
+                      <code className="text-white/90 text-xs break-all">
+                        {selectedSession.qrCode}
+                      </code>
+                    </div>
                   </div>
                 ) : (
                   <div className="text-center">
@@ -1117,21 +1126,32 @@ export default function Dashboard() {
                     <p className="text-white/50 text-sm">Gerando QR Code...</p>
                   </div>
                 )}
-              </div>
-              <p className="text-white/70 mb-6 text-center">
+              </div>              <p className="text-white/70 mb-6 text-center">
                 {selectedSession.qrCode || selectedSession.qrCodeImage ? 
                   'Escaneie este QR Code com o WhatsApp Web para conectar a sessão.' :
                   'Aguarde a geração do QR Code...'
                 }
               </p>
-              <motion.button
-                onClick={() => setShowQRCode(false)}
-                className="liquid-button w-full"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                Fechar
-              </motion.button>
+              <div className="flex gap-2">
+                {selectedSession.qrCode && (
+                  <motion.button
+                    onClick={() => copyToClipboard(selectedSession.qrCode)}
+                    className="liquid-button flex-1 text-sm"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    Copiar QR Code
+                  </motion.button>
+                )}
+                <motion.button
+                  onClick={() => setShowQRCode(false)}
+                  className="liquid-button flex-1"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  Fechar
+                </motion.button>
+              </div>
             </motion.div>
           </motion.div>
         )}

@@ -1,4 +1,3 @@
-const crypto = require('crypto');
 const database = require('../config/database');
 
 /**
@@ -13,9 +12,7 @@ const apiTokenAuth = async (req, res, next) => {
         success: false,
         message: 'Token de API requerido'
       });
-    }
-
-    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+    }    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
     
     // Check if token starts with baileys_ prefix
     if (!token.startsWith('baileys_')) {
@@ -25,11 +22,7 @@ const apiTokenAuth = async (req, res, next) => {
       });
     }
 
-    // Extract the actual token (remove baileys_ prefix)
-    const actualToken = token.substring(8);
-    
-    // Hash the token to compare with stored hash
-    const hashedToken = crypto.createHash('sha256').update(actualToken).digest('hex');
+    // Use token directly without hashing (as requested)
     
     const db = database.getDb();
     if (!db) {
@@ -37,11 +30,9 @@ const apiTokenAuth = async (req, res, next) => {
         success: false,
         message: 'Banco de dados não disponível'
       });
-    }
-
-    // Find the token in database
+    }    // Find the token in database (direct comparison without hashing)
     const tokenDoc = await db.collection('api_tokens').findOne({
-      token: hashedToken,
+      token: token,
       isActive: true
     });
 
