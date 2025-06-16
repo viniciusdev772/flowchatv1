@@ -1065,6 +1065,14 @@ async function createWhatsAppSession(sessionId, userId = null) {
           sessionData.qrCode = qr;
           sessionData.isConnected = false;
           sessionData.connectionState = 'qr_generated';
+          
+          // Generate QR code image
+          try {
+            const QRCode = require('qrcode');
+            sessionData.qrCodeImage = await QRCode.toDataURL(qr);
+          } catch (error) {
+            logger.error(`Erro ao gerar QR code imagem: ${error.message}`);
+          }
         }
         logger.info(`QR Code gerado para sessão ${sessionId}`);
       }
@@ -1133,13 +1141,17 @@ async function createWhatsAppSession(sessionId, userId = null) {
                 // Aguardar um pouco antes de limpar para dar tempo de finalizar processos
                 await delay(1000);
 
+                // Preserve userId before deleting session
+                const currentSession = sessions.get(sessionId);
+                const userId = currentSession?.userId || null;
+
                 // Limpar sessão anterior antes de reconectar
                 sessions.delete(sessionId);
                 sessionQueues.delete(sessionId);
                 messageRateLimit.delete(sessionId);
 
-                // Criar nova sessão
-                await createWhatsAppSession(sessionId);
+                // Criar nova sessão preservando userId
+                await createWhatsAppSession(sessionId, userId);
               } catch (error) {
                 logger.error(
                   `Erro na reconexão da sessão ${sessionId}: ${error.message}`
@@ -1427,6 +1439,9 @@ app.post('/api/baileys/session/:sessionId/regenerate-qr', checkSessionOwnership,
       });
     }
 
+    // Preserve userId from current session
+    const userId = session.userId;
+
     // Fechar sessão atual e criar nova
     try {
       if (session.sock) {
@@ -1442,8 +1457,8 @@ app.post('/api/baileys/session/:sessionId/regenerate-qr', checkSessionOwnership,
     messageRateLimit.delete(sessionId);
     reconnectionAttempts.delete(sessionId);
 
-    // Criar nova sessão
-    const result = await createWhatsAppSession(sessionId);
+    // Criar nova sessão preservando userId
+    const result = await createWhatsAppSession(sessionId, userId);
 
     if (result.success && result.qrCode) {
       try {

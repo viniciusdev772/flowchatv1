@@ -48,6 +48,7 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState(null);
   const [apiTokens, setApiTokens] = useState([]);
+  const [userSessions, setUserSessions] = useState([]);
   const [showTokenModal, setShowTokenModal] = useState(false);
   const [newToken, setNewToken] = useState(null);
   const [showCreateTokenModal, setShowCreateTokenModal] = useState(false);
@@ -136,12 +137,6 @@ export default function Dashboard() {
       }
     };
 
-    const fetchSessions = async () => {
-      // This function is now replaced by fetchRealSessions
-      // We'll call fetchRealSessions directly to load actual sessions
-      await fetchRealSessions();
-      setIsLoading(false);
-    };
 
     const fetchApiTokens = async () => {
       try {
@@ -158,24 +153,30 @@ export default function Dashboard() {
           const result = await response.json();
           if (result.success) {
             setApiTokens(result.tokens || []);
+            setUserSessions(result.sessions || []); // Store sessions with QR codes
           }
         }
       } catch (error) {
         console.error('Erro ao carregar tokens:', error);
       }
     };    // Executar todas as funções
-    fetchUserProfile();
-    fetchSessions();
-    fetchApiTokens();
-    fetchRealSessions();
+    const initializeData = async () => {
+      await fetchUserProfile();
+      await fetchApiTokens(); // Load tokens first to get userSessions
+      await fetchRealSessions(); // Then load all sessions including userSessions
+      setIsLoading(false); // Set loading to false after everything is loaded
+    };
+    
+    initializeData();
 
     // Auto-refresh das sessões com intervalo baseado no performance mode
     const refreshInterval = performanceMode ? 30000 : 15000; // 30s em modo performance, 15s normal
     
-    const interval = setInterval(() => {
+    const interval = setInterval(async () => {
       // Só atualiza se a página estiver visível para economizar recursos
       if (!document.hidden) {
-        fetchRealSessions();
+        await fetchApiTokens(); // Refresh tokens to get updated userSessions
+        await fetchRealSessions(); // Then refresh all sessions
       }
     }, refreshInterval);
 
@@ -273,6 +274,7 @@ export default function Dashboard() {
             const tokensResult = await tokensResponse.json();
             if (tokensResult.success) {
               setApiTokens(tokensResult.tokens || []);
+              setUserSessions(tokensResult.sessions || []);
             }
           }
         }
@@ -306,6 +308,7 @@ export default function Dashboard() {
           const tokensResult = await tokensResponse.json();
           if (tokensResult.success) {
             setApiTokens(tokensResult.tokens || []);
+            setUserSessions(tokensResult.sessions || []);
           }
         }
       }
@@ -484,12 +487,25 @@ export default function Dashboard() {
         }
       }
 
-      // Merge and transform sessions from both sources
-      const allSessions = [...baileysSessionsData, ...managementSessionsData];
+      // Also include userSessions data (from tokens API with QR codes)
+      const userSessionsData = userSessions || [];
+      
+      // Debug logs
+      console.log('📱 Sessions data:', {
+        baileysSessionsData: baileysSessionsData.length,
+        managementSessionsData: managementSessionsData.length,
+        userSessionsData: userSessionsData.length,
+        userSessions: userSessions,
+        managementSessions: managementSessionsData
+      });
+      
+      // Merge and transform sessions from all sources
+      // Prioritize managementSessionsData as it has QR code data
+      const allSessions = [...baileysSessionsData, ...managementSessionsData, ...userSessionsData];
       const uniqueSessions = allSessions.reduce((acc, session) => {
         const sessionId = session.sessionId || session.id;
         if (!acc.find(s => s.id === sessionId)) {
-          acc.push({
+          const sessionData = {
             id: sessionId,
             name: sessionId,
             status: session.isConnected ? 'connected' : 
@@ -500,13 +516,25 @@ export default function Dashboard() {
             messages: session.messageCount || 0,
             groups: 0,   // Would need to be tracked
             webhooks: 0, // Would need to be tracked
-            qrCode: session.qrCode,
-            qrCodeImage: session.qrCodeImage,
+            qrCode: session.qrCode, // From sessions API
+            qrCodeImage: session.qrCodeImage, // From sessions API
             uptime: session.connectedAt ? 
                    Math.floor((Date.now() - new Date(session.connectedAt).getTime()) / (1000 * 60)) + 'm' : '0m',
             user: session.user,
             lastError: session.lastError
-          });
+          };
+          
+          // Debug log for QR code data
+          if (sessionId === 'ddeed') {
+            console.log('🔍 Session ddeed data:', {
+              sessionData,
+              originalSession: session,
+              hasQrCode: !!session.qrCode,
+              hasQrCodeImage: !!session.qrCodeImage
+            });
+          }
+          
+          acc.push(sessionData);
         }
         return acc;
       }, []);
@@ -898,10 +926,18 @@ export default function Dashboard() {
                             <div className="text-sm text-white/70">Webhooks: <span className="text-white font-medium">{session.webhooks}</span></div>
                           </div>
 
-                          <div className="flex flex-col space-y-2">                            {(session.status === 'connecting' || session.qrCode || session.qrCodeImage) && (
+                          <div className="flex flex-col space-y-2">
+                            {/* Always show QR Code button if there's QR data or if disconnected (likely has QR) */}
+                            {(session.qrCode || session.qrCodeImage || session.status === 'disconnected' || session.status === 'connecting') && (
                               <motion.button
                                 onClick={() => {
-                                  setSelectedSession(session);
+                                  console.log('🔍 Session clicked:', session); // Debug log
+                                  setSelectedSession({
+                                    id: session.id,
+                                    name: session.name,
+                                    qrCode: session.qrCode,
+                                    qrCodeImage: session.qrCodeImage
+                                  });
                                   setShowQRCode(true);
                                 }}
                                 className="liquid-button inline-flex items-center text-sm"
@@ -923,6 +959,22 @@ export default function Dashboard() {
                             </motion.button>
                           </div>
                         </div>
+                        
+                        {/* QR Code Preview */}
+                        {session.qrCodeImage && (
+                          <div className="mt-4 pt-4 border-t border-white/10">
+                            <div className="flex items-center justify-between">
+                              <div className="text-sm text-white/70">QR Code disponível para escaneamento:</div>
+                              <div className="w-20 h-20 bg-white/10 rounded-lg p-1">
+                                <img 
+                                  src={session.qrCodeImage} 
+                                  alt={`QR Code - ${session.name}`}
+                                  className="w-full h-full object-contain rounded"
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </motion.div>
                   ))}
@@ -1195,7 +1247,9 @@ export default function Dashboard() {
               exit={{ scale: 0.9, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 className="text-xl font-semibold text-white mb-4">QR Code - {selectedSession.name}</h3>              <div className={`w-64 h-64 mx-auto mb-4 ${performanceMode ? 'glass-performance' : 'glass-ultra'} rounded-xl flex items-center justify-center p-4`}>
+              <h3 className="text-xl font-semibold text-white mb-4">QR Code - {selectedSession.name}</h3>
+              {console.log('🔍 Modal selectedSession:', selectedSession)} {/* Debug log */}
+              <div className={`w-64 h-64 mx-auto mb-4 ${performanceMode ? 'glass-performance' : 'glass-ultra'} rounded-xl flex items-center justify-center p-4`}>
                 {selectedSession.qrCodeImage ? (
                   <img 
                     src={selectedSession.qrCodeImage} 

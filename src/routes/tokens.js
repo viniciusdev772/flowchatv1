@@ -3,6 +3,7 @@ const crypto = require('crypto');
 const database = require('../config/database');
 const { authenticateToken } = require('../middleware/auth');
 const { ObjectId } = require('mongodb');
+const { getSessions } = require('../app');
 
 const router = express.Router();
 
@@ -88,6 +89,23 @@ router.get('/list', authenticateToken, async (req, res) => {
       .sort({ createdAt: -1 })
       .toArray();
 
+    // Get sessions for this user to include QR codes
+    const sessions = getSessions();
+    const userSessions = [];
+    
+    for (const [sessionId, sessionData] of sessions.entries()) {
+      if (sessionData.userId && sessionData.userId.toString() === userId.toString()) {
+        userSessions.push({
+          sessionId,
+          qrCode: sessionData.qrCode,
+          qrCodeImage: sessionData.qrCodeImage,
+          isConnected: sessionData.isConnected,
+          connectionState: sessionData.connectionState,
+          createdAt: sessionData.createdAt
+        });
+      }
+    }
+
     res.json({
       success: true,
       tokens: tokens.map(token => ({
@@ -98,7 +116,8 @@ router.get('/list', authenticateToken, async (req, res) => {
         lastUsedAt: token.lastUsedAt,
         isActive: token.isActive,
         isExpired: token.expiresAt && new Date() > token.expiresAt
-      }))
+      })),
+      sessions: userSessions
     });
 
   } catch (error) {
