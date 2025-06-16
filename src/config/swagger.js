@@ -529,6 +529,36 @@ const swaggerUiOptions = {
 
 /**
  * @swagger
+ * /api/baileys/sessions/cleanup-orphaned:
+ *   post:
+ *     tags:
+ *       - Sessões
+ *     summary: Limpar sessões órfãs
+ *     description: Remove sessões que não estão associadas a nenhum usuário (userId null)
+ *     security:
+ *       - ApiKeyAuth: []
+ *     responses:
+ *       200:
+ *         description: Limpeza de sessões órfãs concluída
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Limpeza de sessões órfãs concluída"
+ *       401:
+ *         description: Usuário não autenticado
+ *       500:
+ *         description: Erro interno do servidor
+ */
+
+/**
+ * @swagger
  * /api/baileys/session/{sessionId}/send-message:
  *   post:
  *     tags:

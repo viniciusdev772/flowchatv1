@@ -473,27 +473,47 @@ async function loadExistingSessions() {
 
     for (const sessionId of sessionDirs) {
       try {
-        const sessionDataFile = path.join(
-          authDir,
-          sessionId,
-          'session_data.json'
-        );
-
-        // Verificar se há dados salvos da sessão
-        if (fs.existsSync(sessionDataFile)) {
-          const savedData = JSON.parse(
-            fs.readFileSync(sessionDataFile, 'utf8')
+        let userId = null;
+        
+        // Try to load userId from MongoDB first
+        const db = database.getDb();
+        if (db) {
+          try {
+            const existingSession = await db.collection('whatsapp_sessions').findOne({ sessionId });
+            if (existingSession && existingSession.userId) {
+              userId = existingSession.userId;
+              logger.info(`Recuperando sessão ${sessionId} para usuário ${userId}...`);
+            }
+          } catch (dbError) {
+            logger.warn(`Erro ao buscar userId no MongoDB para sessão ${sessionId}: ${dbError.message}`);
+          }
+        }
+        
+        // Only recover session if we have a valid userId or if no database is available
+        if (userId || !database.getDb()) {
+          const sessionDataFile = path.join(
+            authDir,
+            sessionId,
+            'session_data.json'
           );
-          logger.info(`Recuperando sessão ${sessionId}...`);
 
-          // Tentar recriar a sessão
-          await createWhatsAppSession(sessionId);
+          // Verificar se há dados salvos da sessão
+          if (fs.existsSync(sessionDataFile)) {
+            const savedData = JSON.parse(
+              fs.readFileSync(sessionDataFile, 'utf8')
+            );
+            
+            // Recover session with proper userId
+            await createWhatsAppSession(sessionId, userId);
+          } else {
+            // Se não há dados salvos, mas existe diretório de auth, tentar criar sessão
+            logger.info(
+              `Criando nova sessão para diretório existente: ${sessionId}`
+            );
+            await createWhatsAppSession(sessionId, userId);
+          }
         } else {
-          // Se não há dados salvos, mas existe diretório de auth, tentar criar sessão
-          logger.info(
-            `Criando nova sessão para diretório existente: ${sessionId}`
-          );
-          await createWhatsAppSession(sessionId);
+          logger.warn(`Skipping recovery of session ${sessionId} - no userId found in database. Session will need to be recreated by user.`);
         }
       } catch (error) {
         logger.error(`Erro ao recuperar sessão ${sessionId}: ${error.message}`);
@@ -501,6 +521,49 @@ async function loadExistingSessions() {
     }
   } catch (error) {
     logger.error(`Erro ao carregar sessões existentes: ${error.message}`);
+  }
+}
+
+// Função para limpar sessões órfãs (sem userId)
+async function cleanupOrphanedSessions() {
+  try {
+    const db = database.getDb();
+    if (!db) {
+      return;
+    }
+
+    // Find sessions with null userId
+    const orphanedSessions = await db.collection('whatsapp_sessions').find({ 
+      userId: null 
+    }).toArray();
+
+    if (orphanedSessions.length > 0) {
+      logger.info(`Encontradas ${orphanedSessions.length} sessões órfãs (sem userId)`);
+      
+      for (const session of orphanedSessions) {
+        const sessionId = session.sessionId;
+        
+        // Remove from memory if exists
+        if (sessions.has(sessionId)) {
+          const sessionData = sessions.get(sessionId);
+          if (sessionData.sock) {
+            try {
+              await sessionData.sock.logout();
+            } catch (error) {
+              // Ignore logout errors
+            }
+          }
+          sessions.delete(sessionId);
+          logger.info(`Removida sessão órfã ${sessionId} da memória`);
+        }
+        
+        // Remove from database
+        await db.collection('whatsapp_sessions').deleteOne({ sessionId });
+        logger.info(`Removida sessão órfã ${sessionId} do banco de dados`);
+      }
+    }
+  } catch (error) {
+    logger.error(`Erro ao limpar sessões órfãs: ${error.message}`);
   }
 }
 
@@ -1471,6 +1534,37 @@ app.get('/api/baileys/sessions', (req, res) => {
       total: sessionList.length,
     });
   } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
+// Endpoint para limpar sessões órfãs (sem userId) - apenas para administradores
+app.post('/api/baileys/sessions/cleanup-orphaned', async (req, res) => {
+  try {
+    const userId = req.user?.id || req.user?._id;
+    
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Usuário não autenticado',
+      });
+    }
+
+    // Check if user is admin (you might want to add role checking here)
+    // For now, allow any authenticated user to run cleanup on their orphaned sessions
+    
+    logger.info(`Usuário ${userId} solicitou limpeza de sessões órfãs`);
+    await cleanupOrphanedSessions();
+    
+    res.json({
+      success: true,
+      message: 'Limpeza de sessões órfãs concluída',
+    });
+  } catch (error) {
+    logger.error(`Erro na limpeza de sessões órfãs: ${error.message}`);
     res.status(500).json({
       success: false,
       message: error.message,
@@ -2963,6 +3057,11 @@ async function initializeApp() {
   // Carregar sessões existentes após inicialização
   logger.info('Carregando sessões existentes...');
   await loadExistingSessions();
+  
+  // Limpar sessões órfãs (sem userId)
+  logger.info('Limpando sessões órfãs...');
+  await cleanupOrphanedSessions();
+  
   logger.info('Carregamento de sessões concluído!');
 }
 
