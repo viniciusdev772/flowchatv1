@@ -71,6 +71,8 @@ export default function Dashboard() {
   const [showQRCode, setShowQRCode] = useState(false);
   const [showUserProfile, setShowUserProfile] = useState(false);
   const [selectedSession, setSelectedSession] = useState(null);
+  const [qrCodeData, setQrCodeData] = useState(null);
+  const [loadingQrCode, setLoadingQrCode] = useState(false);
   const [showCreateSessionModal, setShowCreateSessionModal] = useState(false);
   const [sessionForm, setSessionForm] = useState({ sessionId: '', selectedToken: '' });
   const [creatingSession, setCreatingSession] = useState(false);
@@ -322,6 +324,117 @@ export default function Dashboard() {
       // Could add a toast notification here
     });
   };
+
+  const fetchQRCodeForSession = async (sessionId) => {
+    setLoadingQrCode(true);
+    setQrCodeData(null);
+    
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      
+      // Try management API first
+      const managementResponse = await fetch(`${apiUrl}/api/management/sessions/list`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (managementResponse.ok) {
+        const managementResult = await managementResponse.json();
+        if (managementResult.success) {
+          const sessionData = managementResult.sessions.find(s => s.sessionId === sessionId);
+          if (sessionData && (sessionData.qrCode || sessionData.qrCodeImage)) {
+            setQrCodeData({
+              qrCode: sessionData.qrCode,
+              qrCodeImage: sessionData.qrCodeImage,
+              hasQrCode: sessionData.hasQrCode
+            });
+            setLoadingQrCode(false);
+            return;
+          }
+        }
+      }
+
+      // Try to get an active API token and use Baileys API as fallback
+      const tokensResponse = await fetch(`${apiUrl}/api/management/tokens/list`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (tokensResponse.ok) {
+        const tokensResult = await tokensResponse.json();
+        if (tokensResult.success && tokensResult.tokens.length > 0) {
+          const activeToken = tokensResult.tokens.find(token => token.isActive && !token.isExpired);
+          
+          if (activeToken) {
+            // Get the full token
+            const tokenResponse = await fetch(`${apiUrl}/api/management/tokens/${activeToken._id}/full`, {
+              method: 'GET',
+              credentials: 'include',
+              headers: {
+                'Content-Type': 'application/json'
+              }
+            });
+
+            if (tokenResponse.ok) {
+              const tokenResult = await tokenResponse.json();
+              if (tokenResult.success && tokenResult.token) {
+                // Get session status from Baileys API
+                const statusResponse = await fetch(`${apiUrl}/api/baileys/session/${sessionId}/status`, {
+                  method: 'GET',
+                  headers: {
+                    'Authorization': `Bearer ${tokenResult.token}`,
+                    'Content-Type': 'application/json'
+                  }
+                });
+
+                if (statusResponse.ok) {
+                  const statusResult = await statusResponse.json();
+                  if (statusResult.success && statusResult.hasQrCode) {
+                    // Try to regenerate QR if no current QR code
+                    const regenerateResponse = await fetch(`${apiUrl}/api/baileys/session/${sessionId}/regenerate-qr`, {
+                      method: 'POST',
+                      headers: {
+                        'Authorization': `Bearer ${tokenResult.token}`,
+                        'Content-Type': 'application/json'
+                      }
+                    });
+
+                    if (regenerateResponse.ok) {
+                      const regenerateResult = await regenerateResponse.json();
+                      if (regenerateResult.success) {
+                        setQrCodeData({
+                          qrCode: regenerateResult.qrCode,
+                          qrCodeImage: regenerateResult.qrCodeImage,
+                          hasQrCode: true
+                        });
+                        setLoadingQrCode(false);
+                        return;
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
+      // If no QR code found
+      setQrCodeData({ hasQrCode: false });
+      setLoadingQrCode(false);
+      
+    } catch (error) {
+      console.error('Erro ao buscar QR Code:', error);
+      setQrCodeData({ hasQrCode: false });
+      setLoadingQrCode(false);
+    }
+  };
   const createWhatsAppSession = async () => {
     try {
       const { sessionId, selectedToken } = sessionForm;
@@ -507,38 +620,35 @@ export default function Dashboard() {
         if (!acc.find(s => s.id === sessionId)) {
           const sessionData = {
             id: sessionId,
-            name: sessionId,
+            name: session.name || sessionId,
             status: session.isConnected ? 'connected' : 
-                   session.connectionState === 'connecting' ? 'connecting' : 'disconnected',
+                   session.connectionState === 'connecting' || session.connectionState === 'qr_generated' ? 'connecting' : 'disconnected',
             lastSeen: session.connectedAt ? 
                      new Date(session.connectedAt).toLocaleString('pt-BR') : 
                      session.createdAt ? new Date(session.createdAt).toLocaleString('pt-BR') : 'N/A',
-            messages: session.messageCount || 0,
-            groups: 0,   // Would need to be tracked
-            webhooks: 0, // Would need to be tracked
-            qrCode: session.qrCode, // From sessions API
-            qrCodeImage: session.qrCodeImage, // From sessions API
+            messages: session.messageCount || session.messages || 0,
+            groups: session.groups || 0,
+            webhooks: session.webhooks || 0,
+            qrCode: session.qrCode || '',
+            qrCodeImage: session.qrCodeImage || '',
             uptime: session.connectedAt ? 
                    Math.floor((Date.now() - new Date(session.connectedAt).getTime()) / (1000 * 60)) + 'm' : '0m',
             user: session.user,
             lastError: session.lastError
           };
-          
           // Debug log for QR code data
           if (sessionId === 'ddeed') {
             console.log('🔍 Session ddeed data:', {
               sessionData,
               originalSession: session,
-              hasQrCode: !!session.qrCode,
-              hasQrCodeImage: !!session.qrCodeImage
+              hasQrCode: !!sessionData.qrCode,
+              hasQrCodeImage: !!sessionData.qrCodeImage
             });
           }
-          
           acc.push(sessionData);
         }
         return acc;
       }, []);
-      
       setSessions(uniqueSessions);
       
       // Update stats based on sessions
@@ -930,15 +1040,13 @@ export default function Dashboard() {
                             {/* Always show QR Code button if there's QR data or if disconnected (likely has QR) */}
                             {(session.qrCode || session.qrCodeImage || session.status === 'disconnected' || session.status === 'connecting') && (
                               <motion.button
-                                onClick={() => {
-                                  console.log('🔍 Session clicked:', session); // Debug log
+                                onClick={async () => {
                                   setSelectedSession({
                                     id: session.id,
-                                    name: session.name,
-                                    qrCode: session.qrCode,
-                                    qrCodeImage: session.qrCodeImage
+                                    name: session.name
                                   });
                                   setShowQRCode(true);
+                                  await fetchQRCodeForSession(session.id);
                                 }}
                                 className="liquid-button inline-flex items-center text-sm"
                                 whileHover={performanceMode ? {} : { scale: 1.05 }}
@@ -1238,7 +1346,11 @@ export default function Dashboard() {
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={() => setShowQRCode(false)}
+            onClick={() => {
+              setShowQRCode(false);
+              setQrCodeData(null);
+              setSelectedSession(null);
+            }}
           >
             <motion.div
               className={`${performanceMode ? 'glass-performance' : 'glass-card'} p-6 max-w-md w-full mx-4 text-center rounded-xl`}
@@ -1248,40 +1360,53 @@ export default function Dashboard() {
               onClick={(e) => e.stopPropagation()}
             >
               <h3 className="text-xl font-semibold text-white mb-4">QR Code - {selectedSession.name}</h3>
-              {console.log('🔍 Modal selectedSession:', selectedSession)} {/* Debug log */}
               <div className={`w-64 h-64 mx-auto mb-4 ${performanceMode ? 'glass-performance' : 'glass-ultra'} rounded-xl flex items-center justify-center p-4`}>
-                {selectedSession.qrCodeImage ? (
+                {loadingQrCode ? (
+                  <div className="text-center">
+                    <div className="w-16 h-16 mx-auto mb-2 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"></div>
+                    <p className="text-white/50 text-sm">Carregando QR Code...</p>
+                  </div>
+                ) : qrCodeData?.qrCodeImage ? (
                   <img 
-                    src={selectedSession.qrCodeImage} 
+                    src={qrCodeData.qrCodeImage} 
                     alt="QR Code WhatsApp"
                     className="w-full h-full object-contain rounded-lg"
                   />
-                ) : selectedSession.qrCode ? (
+                ) : qrCodeData?.qrCode ? (
                   <div className="text-center w-full">
                     <QrCodeIcon className="w-16 h-16 text-white/50 mx-auto mb-2" />
                     <p className="text-white/70 text-xs mb-2">QR Code Text:</p>
                     <div className="bg-black/20 rounded p-2 max-h-32 overflow-y-auto">
                       <code className="text-white/90 text-xs break-all">
-                        {selectedSession.qrCode}
+                        {qrCodeData.qrCode}
                       </code>
                     </div>
+                  </div>
+                ) : qrCodeData?.hasQrCode === false ? (
+                  <div className="text-center">
+                    <QrCodeIcon className="w-16 h-16 text-red-400/50 mx-auto mb-2" />
+                    <p className="text-red-400 text-sm">QR Code não disponível</p>
+                    <p className="text-white/40 text-xs mt-2">Sessão pode já estar conectada</p>
                   </div>
                 ) : (
                   <div className="text-center">
                     <QrCodeIcon className="w-16 h-16 text-white/30 mx-auto mb-2" />
                     <p className="text-white/50 text-sm">Gerando QR Code...</p>
+                    <p className="text-white/40 text-xs mt-2">Aguarde a geração do QR Code...</p>
                   </div>
                 )}
               </div>              <p className="text-white/70 mb-6 text-center">
-                {selectedSession.qrCode || selectedSession.qrCodeImage ? 
+                {qrCodeData?.qrCode || qrCodeData?.qrCodeImage ? 
                   'Escaneie este QR Code com o WhatsApp Web para conectar a sessão.' :
-                  'Aguarde a geração do QR Code...'
+                  qrCodeData?.hasQrCode === false ?
+                    'QR Code não está disponível. A sessão pode já estar conectada ou há um problema na geração.' :
+                    'Aguarde a geração do QR Code...'
                 }
               </p>
               <div className="flex gap-2">
-                {selectedSession.qrCode && (
+                {qrCodeData?.qrCode && (
                   <motion.button
-                    onClick={() => copyToClipboard(selectedSession.qrCode)}
+                    onClick={() => copyToClipboard(qrCodeData.qrCode)}
                     className="liquid-button flex-1 text-sm"
                     whileHover={performanceMode ? {} : { scale: 1.02 }}
                     whileTap={performanceMode ? {} : { scale: 0.98 }}
@@ -1290,7 +1415,11 @@ export default function Dashboard() {
                   </motion.button>
                 )}
                 <motion.button
-                  onClick={() => setShowQRCode(false)}
+                  onClick={() => {
+                    setShowQRCode(false);
+                    setQrCodeData(null);
+                    setSelectedSession(null);
+                  }}
                   className="liquid-button flex-1"
                   whileHover={performanceMode ? {} : { scale: 1.02 }}
                   whileTap={performanceMode ? {} : { scale: 0.98 }}
