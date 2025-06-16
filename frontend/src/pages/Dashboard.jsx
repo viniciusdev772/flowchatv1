@@ -32,6 +32,7 @@ import {
   ClipboardDocumentIcon,
   CalendarIcon
 } from '@heroicons/react/24/outline';
+import WebhookManager from '../components/WebhookManager';
 
 export default function Dashboard() {
   // Estado principal
@@ -76,6 +77,10 @@ export default function Dashboard() {
   const [showCreateSessionModal, setShowCreateSessionModal] = useState(false);
   const [sessionForm, setSessionForm] = useState({ sessionId: '', selectedToken: '' });
   const [creatingSession, setCreatingSession] = useState(false);
+  
+  // Webhook management state
+  const [showWebhookManager, setShowWebhookManager] = useState(false);
+  const [selectedSessionForWebhooks, setSelectedSessionForWebhooks] = useState(null);
 
   // Carregar dados reais do usuário da API
   useEffect(() => {
@@ -1258,8 +1263,92 @@ export default function Dashboard() {
               </motion.div>
             )}
 
+            {/* Webhooks Tab */}
+            {activeTab === 'webhooks' && (
+              <motion.div
+                key="webhooks"
+                initial={{ opacity: 0, x: performanceMode ? 0 : 10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: performanceMode ? 0 : -10 }}
+                transition={{ duration: performanceMode ? 0.1 : 0.2 }}
+                className="space-y-6"
+              >
+                <div className={`${performanceMode ? 'glass-performance' : 'glass-card'} p-6 rounded-xl`}>
+                  <div className="flex items-center justify-between mb-6">
+                    <div className="flex items-center">
+                      <BellIcon className="w-8 h-8 text-blue-400 mr-3" />
+                      <div>
+                        <h2 className="text-2xl font-semibold text-white">Gerenciar Webhooks</h2>
+                        <p className="text-white/70">Configure webhooks para receber eventos em tempo real</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {userSessions.length === 0 ? (
+                    <div className="text-center py-12">
+                      <BellIcon className="w-16 h-16 text-white/30 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-white mb-2">Nenhuma sessão disponível</h3>
+                      <p className="text-white/70">Crie uma sessão primeiro para configurar webhooks</p>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {userSessions.map((session) => (
+                        <motion.div
+                          key={session.sessionId}
+                          className={`${performanceMode ? 'glass-performance' : 'glass-ultra'} p-6 rounded-xl hover:shadow-lg transition-all cursor-pointer`}
+                          whileHover={performanceMode ? {} : { scale: 1.02 }}
+                          whileTap={performanceMode ? {} : { scale: 0.98 }}
+                          onClick={() => {
+                            setSelectedSessionForWebhooks(session.sessionId);
+                            setShowWebhookManager(true);
+                          }}
+                        >
+                          <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center">
+                              <PhoneIcon className="w-6 h-6 text-blue-400 mr-3" />
+                              <h3 className="text-lg font-semibold text-white">{session.sessionId}</h3>
+                            </div>
+                            <div className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(session.status || 'disconnected')}`}>
+                              {getStatusIcon(session.status || 'disconnected')}
+                            </div>
+                          </div>
+                          
+                          <div className="space-y-2 text-sm text-white/70">
+                            <div className="flex justify-between">
+                              <span>Status:</span>
+                              <span className="text-white">{session.status || 'Desconectado'}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span>Webhooks:</span>
+                              <span className="text-blue-400">Configurar</span>
+                            </div>
+                          </div>
+                          
+                          <div className="mt-4 pt-4 border-t border-white/10">
+                            <motion.button
+                              className="w-full flex items-center justify-center px-4 py-2 bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30 transition-colors"
+                              whileHover={performanceMode ? {} : { scale: 1.05 }}
+                              whileTap={performanceMode ? {} : { scale: 0.95 }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedSessionForWebhooks(session.sessionId);
+                                setShowWebhookManager(true);
+                              }}
+                            >
+                              <BellIcon className="w-4 h-4 mr-2" />
+                              Gerenciar Webhooks
+                            </motion.button>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
+
             {/* Placeholder para outras abas */}
-            {activeTab !== 'overview' && activeTab !== 'sessions' && activeTab !== 'tokens' && (
+            {activeTab !== 'overview' && activeTab !== 'sessions' && activeTab !== 'tokens' && activeTab !== 'webhooks' && (
               <motion.div
                 key={activeTab}
                 initial={{ opacity: 0, x: performanceMode ? 0 : 10 }}
@@ -1925,6 +2014,18 @@ export default function Dashboard() {
               )}
             </motion.div>
           </motion.div>
+        )}
+
+        {/* Webhook Manager Modal */}
+        {showWebhookManager && selectedSessionForWebhooks && (
+          <WebhookManager
+            sessionId={selectedSessionForWebhooks}
+            tokenId={apiTokens.length > 0 ? apiTokens[0]._id : ''}
+            onClose={() => {
+              setShowWebhookManager(false);
+              setSelectedSessionForWebhooks(null);
+            }}
+          />
         )}
       </AnimatePresence>
     </div>
