@@ -55,11 +55,14 @@ export default function Dashboard() {
   
   // Performance mode - detecta dispositivos menos potentes
   const [performanceMode, setPerformanceMode] = useState(() => {
-    const isLowEnd = navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 2;
+    const isLowEnd = navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4;
     const isSlowConnection = navigator.connection && 
-      (navigator.connection.effectiveType === 'slow-2g' || navigator.connection.effectiveType === '2g');
+      (navigator.connection.effectiveType === 'slow-2g' || 
+       navigator.connection.effectiveType === '2g' || 
+       navigator.connection.effectiveType === '3g');
     const isOldBrowser = !CSS.supports('backdrop-filter', 'blur(1px)');
-    return isLowEnd || isSlowConnection || isOldBrowser;
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    return isLowEnd || isSlowConnection || isOldBrowser || isMobile;
   });
 
   // Modal states
@@ -134,39 +137,10 @@ export default function Dashboard() {
     };
 
     const fetchSessions = async () => {
-      try {
-        // First try to get user tokens to use for API requests
-        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-        const tokensResponse = await fetch(`${apiUrl}/api/management/tokens/list`, {
-          method: 'GET',
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        });
-
-        let apiToken = null;
-        if (tokensResponse.ok) {
-          const tokensResult = await tokensResponse.json();
-          if (tokensResult.success && tokensResult.tokens.length > 0) {
-            // Use the first active token for API requests
-            const activeToken = tokensResult.tokens.find(token => token.isActive && !token.isExpired);
-            if (activeToken) {
-              // We have the token info but not the actual token string
-              // For now, we'll use mock data until user creates their first session
-              console.log('User has API tokens but needs to use them for session management');
-            }
-          }
-        }
-
-        // If no active token, show empty state
-        setSessions([]);
-        setIsLoading(false);
-      } catch (error) {
-        console.error('Erro ao carregar sessões:', error);
-        setSessions([]);
-        setIsLoading(false);
-      }
+      // This function is now replaced by fetchRealSessions
+      // We'll call fetchRealSessions directly to load actual sessions
+      await fetchRealSessions();
+      setIsLoading(false);
     };
 
     const fetchApiTokens = async () => {
@@ -195,10 +169,15 @@ export default function Dashboard() {
     fetchApiTokens();
     fetchRealSessions();
 
-    // Auto-refresh das sessões a cada 10 segundos para capturar novos QR codes
+    // Auto-refresh das sessões com intervalo baseado no performance mode
+    const refreshInterval = performanceMode ? 30000 : 15000; // 30s em modo performance, 15s normal
+    
     const interval = setInterval(() => {
-      fetchRealSessions();
-    }, 10000);
+      // Só atualiza se a página estiver visível para economizar recursos
+      if (!document.hidden) {
+        fetchRealSessions();
+      }
+    }, refreshInterval);
 
     // Cleanup do interval
     return () => clearInterval(interval);
@@ -433,6 +412,62 @@ export default function Dashboard() {
   const fetchRealSessions = async () => {
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      
+      // Try to fetch from the Baileys API directly (requires token) first
+      const tokensResponse = await fetch(`${apiUrl}/api/management/tokens/list`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      let baileysSessionsData = [];
+      
+      if (tokensResponse.ok) {
+        const tokensResult = await tokensResponse.json();
+        if (tokensResult.success && tokensResult.tokens.length > 0) {
+          // Get first active token to fetch Baileys sessions
+          const activeToken = tokensResult.tokens.find(token => token.isActive && !token.isExpired);
+          if (activeToken) {
+            try {
+              // Get the full token to make Baileys API request
+              const tokenResponse = await fetch(`${apiUrl}/api/management/tokens/${activeToken._id}/full`, {
+                method: 'GET',
+                credentials: 'include',
+                headers: {
+                  'Content-Type': 'application/json'
+                }
+              });
+
+              if (tokenResponse.ok) {
+                const tokenResult = await tokenResponse.json();
+                if (tokenResult.success && tokenResult.token) {
+                  // Fetch sessions from Baileys API
+                  const baileysResponse = await fetch(`${apiUrl}/api/baileys/sessions`, {
+                    method: 'GET',
+                    headers: {
+                      'Authorization': `Bearer ${tokenResult.token}`,
+                      'Content-Type': 'application/json'
+                    }
+                  });
+
+                  if (baileysResponse.ok) {
+                    const baileysResult = await baileysResponse.json();
+                    if (baileysResult.success) {
+                      baileysSessionsData = baileysResult.sessions || [];
+                    }
+                  }
+                }
+              }
+            } catch (error) {
+              console.log('Error fetching from Baileys API:', error);
+            }
+          }
+        }
+      }
+
+      // Also try the management API sessions endpoint as fallback
       const response = await fetch(`${apiUrl}/api/management/sessions/list`, {
         method: 'GET',
         credentials: 'include',
@@ -441,19 +476,28 @@ export default function Dashboard() {
         }
       });
 
+      let managementSessionsData = [];
       if (response.ok) {
         const result = await response.json();
         if (result.success) {
-          // Transform sessions to match expected format
-          const transformedSessions = result.sessions.map(session => ({
-            id: session.sessionId,
-            name: session.sessionId,
+          managementSessionsData = result.sessions || [];
+        }
+      }
+
+      // Merge and transform sessions from both sources
+      const allSessions = [...baileysSessionsData, ...managementSessionsData];
+      const uniqueSessions = allSessions.reduce((acc, session) => {
+        const sessionId = session.sessionId || session.id;
+        if (!acc.find(s => s.id === sessionId)) {
+          acc.push({
+            id: sessionId,
+            name: sessionId,
             status: session.isConnected ? 'connected' : 
                    session.connectionState === 'connecting' ? 'connecting' : 'disconnected',
             lastSeen: session.connectedAt ? 
                      new Date(session.connectedAt).toLocaleString('pt-BR') : 
                      session.createdAt ? new Date(session.createdAt).toLocaleString('pt-BR') : 'N/A',
-            messages: 0, // Would need to be tracked
+            messages: session.messageCount || 0,
             groups: 0,   // Would need to be tracked
             webhooks: 0, // Would need to be tracked
             qrCode: session.qrCode,
@@ -462,11 +506,20 @@ export default function Dashboard() {
                    Math.floor((Date.now() - new Date(session.connectedAt).getTime()) / (1000 * 60)) + 'm' : '0m',
             user: session.user,
             lastError: session.lastError
-          }));
-          
-          setSessions(transformedSessions);
+          });
         }
-      }
+        return acc;
+      }, []);
+      
+      setSessions(uniqueSessions);
+      
+      // Update stats based on sessions
+      setStats(prev => ({
+        ...prev,
+        totalSessions: uniqueSessions.length,
+        activeSessions: uniqueSessions.filter(s => s.status === 'connected').length
+      }));
+      
     } catch (error) {
       console.error('Erro ao buscar sessões:', error);
     }
@@ -496,28 +549,27 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
-      {/* Floating Elements Background - reduzidos em modo performance */}
+      {/* Floating Elements Background - removidos em modo performance */}
       {!performanceMode && (
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          {[...Array(4)].map((_, i) => (
+          {[...Array(2)].map((_, i) => (
             <motion.div
               key={i}
-              className="absolute rounded-full bg-gradient-to-r from-blue-500/8 to-purple-500/8"
+              className="absolute rounded-full bg-gradient-to-r from-blue-500/5 to-purple-500/5"
               style={{
-                width: `${Math.random() * 150 + 80}px`,
-                height: `${Math.random() * 150 + 80}px`,
-                left: `${Math.random() * 100}%`,
-                top: `${Math.random() * 100}%`,
+                width: `${100 + i * 50}px`,
+                height: `${100 + i * 50}px`,
+                left: `${25 + i * 50}%`,
+                top: `${25 + i * 50}%`,
               }}
               animate={{
-                y: [0, -15, 0],
-                x: [0, 8, 0],
-                opacity: [0.2, 0.4, 0.2],
+                y: [0, -10, 0],
+                opacity: [0.1, 0.2, 0.1],
               }}
               transition={{
-                duration: 10 + i * 2,
+                duration: 15 + i * 5,
                 repeat: Infinity,
-                ease: "easeInOut",
+                ease: "linear",
               }}
             />
           ))}
@@ -527,9 +579,9 @@ export default function Dashboard() {
       {/* Header */}
       <motion.header
         className={`${performanceMode ? 'glass-performance' : 'glass-morphism'} mx-4 mt-4 mb-6`}
-        initial={{ opacity: 0, y: -20 }}
+        initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
+        transition={{ duration: performanceMode ? 0.2 : 0.4 }}
       >
         <div className="px-6 py-4">
           <div className="flex items-center justify-between">
@@ -552,8 +604,8 @@ export default function Dashboard() {
                     ? 'bg-green-500/20 text-green-400 border border-green-500/30' 
                     : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
                 }`}
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+                whileHover={performanceMode ? {} : { scale: 1.02 }}
+                whileTap={performanceMode ? {} : { scale: 0.98 }}
                 title={performanceMode ? 'Modo Performance Ativo' : 'Ativar Modo Performance'}
               >
                 {performanceMode ? '🚀 Performance' : '✨ Efeitos'}
@@ -585,8 +637,8 @@ export default function Dashboard() {
                 <motion.div 
                   className="relative cursor-pointer"
                   onClick={() => setShowUserProfile(true)}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
+                  whileHover={performanceMode ? {} : { scale: 1.05 }}
+                  whileTap={performanceMode ? {} : { scale: 0.95 }}
                 >
                   {user?.profile?.avatar ? (
                     <img 
@@ -608,8 +660,8 @@ export default function Dashboard() {
                 <motion.button
                   onClick={handleLogout}
                   className="p-2 rounded-lg hover:bg-white/10 transition-colors"
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
+                  whileHover={performanceMode ? {} : { scale: 1.05 }}
+                  whileTap={performanceMode ? {} : { scale: 0.95 }}
                   title="Sair"
                 >
                   <ArrowRightOnRectangleIcon className="w-5 h-5 text-white/70" />
@@ -624,9 +676,9 @@ export default function Dashboard() {
         {/* Sidebar Navigation */}
         <motion.nav
           className={`w-64 ${performanceMode ? 'glass-performance' : 'glass-morphism'} mx-4 mb-4 p-4`}
-          initial={{ opacity: 0, x: -20 }}
+          initial={{ opacity: 0, x: -10 }}
           animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: 0.6, delay: 0.1 }}
+          transition={{ duration: performanceMode ? 0.2 : 0.4, delay: performanceMode ? 0 : 0.1 }}
         >
           <div className="space-y-2">
             {tabs.map((tab) => {
@@ -640,8 +692,8 @@ export default function Dashboard() {
                       ? 'bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-white border border-blue-500/30'
                       : 'text-white/70 hover:text-white hover:bg-white/5'
                   }`}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
+                  whileHover={performanceMode ? {} : { scale: 1.01 }}
+                  whileTap={performanceMode ? {} : { scale: 0.99 }}
                 >
                   <Icon className="w-5 h-5" />
                   <span className="font-medium">{tab.name}</span>
@@ -673,18 +725,18 @@ export default function Dashboard() {
         {/* Main Content */}
         <motion.main
           className="flex-1 mr-4 mb-4"
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.2 }}
+          transition={{ duration: performanceMode ? 0.2 : 0.4, delay: performanceMode ? 0 : 0.1 }}
         >
           <AnimatePresence mode="wait">
             {activeTab === 'overview' && (
               <motion.div
                 key="overview"
-                initial={{ opacity: 0, x: 20 }}
+                initial={{ opacity: 0, x: performanceMode ? 0 : 10 }}
                 animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.3 }}
+                exit={{ opacity: 0, x: performanceMode ? 0 : -10 }}
+                transition={{ duration: performanceMode ? 0.1 : 0.2 }}
                 className="space-y-6"
               >
                 {/* Stats Cards */}
@@ -700,10 +752,10 @@ export default function Dashboard() {
                       <motion.div
                         key={stat.label}
                         className={`${performanceMode ? 'glass-performance' : 'glass-card'} p-6 rounded-xl`}
-                        initial={{ opacity: 0, y: 20 }}
+                        initial={{ opacity: 0, y: performanceMode ? 0 : 10 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.5, delay: index * 0.1 }}
-                        whileHover={{ scale: 1.02 }}
+                        transition={{ duration: performanceMode ? 0.1 : 0.3, delay: performanceMode ? 0 : index * 0.05 }}
+                        whileHover={performanceMode ? {} : { scale: 1.01 }}
                       >
                         <div className="flex items-center justify-between">
                           <div>
@@ -726,8 +778,8 @@ export default function Dashboard() {
                     <motion.button
                       onClick={() => setActiveTab('sessions')}
                       className="liquid-button inline-flex items-center text-sm"
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
+                      whileHover={performanceMode ? {} : { scale: 1.05 }}
+                      whileTap={performanceMode ? {} : { scale: 0.95 }}
                     >
                       <EyeIcon className="w-4 h-4 mr-2" />
                       Ver Todas
@@ -735,12 +787,30 @@ export default function Dashboard() {
                   </div>
                   
                   <div className="space-y-4">
-                    {sessions.slice(0, 3).map((session) => (
-                      <motion.div
-                        key={session.id}
-                        className={`flex items-center justify-between p-4 ${performanceMode ? 'glass-performance' : 'glass-ultra'} rounded-xl`}
-                        whileHover={{ scale: 1.01 }}
-                      >
+                    {sessions.length === 0 ? (
+                      <div className="text-center py-8">
+                        <PhoneIcon className="w-12 h-12 text-white/30 mx-auto mb-4" />
+                        <h4 className="text-lg font-semibold text-white mb-2">Nenhuma Sessão Ativa</h4>
+                        <p className="text-white/70 mb-4">
+                          Crie sua primeira sessão WhatsApp para começar a enviar mensagens
+                        </p>
+                        <motion.button
+                          onClick={() => setActiveTab('sessions')}
+                          className="liquid-button inline-flex items-center text-sm"
+                          whileHover={performanceMode ? {} : { scale: 1.02 }}
+                          whileTap={performanceMode ? {} : { scale: 0.98 }}
+                        >
+                          <PlusIcon className="w-4 h-4 mr-2" />
+                          Criar Primeira Sessão
+                        </motion.button>
+                      </div>
+                    ) : (
+                      sessions.slice(0, 3).map((session) => (
+                        <motion.div
+                          key={session.id}
+                          className={`flex items-center justify-between p-4 ${performanceMode ? 'glass-performance' : 'glass-ultra'} rounded-xl`}
+                          whileHover={performanceMode ? {} : { scale: 1.005 }}
+                        >
                         <div className="flex items-center space-x-4">
                           <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
                             <PhoneIcon className="w-5 h-5 text-white" />
@@ -763,7 +833,8 @@ export default function Dashboard() {
                           </div>
                         </div>
                       </motion.div>
-                    ))}
+                      ))
+                    )}
                   </div>
                 </div>
               </motion.div>
@@ -772,10 +843,10 @@ export default function Dashboard() {
             {activeTab === 'sessions' && (
               <motion.div
                 key="sessions"
-                initial={{ opacity: 0, x: 20 }}
+                initial={{ opacity: 0, x: performanceMode ? 0 : 10 }}
                 animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.3 }}
+                exit={{ opacity: 0, x: performanceMode ? 0 : -10 }}
+                transition={{ duration: performanceMode ? 0.1 : 0.2 }}
                 className="space-y-6"
               >
                 <div className="flex items-center justify-between">
@@ -783,8 +854,8 @@ export default function Dashboard() {
                   <motion.button
                     onClick={() => setShowCreateSessionModal(true)}
                     className="liquid-button inline-flex items-center"
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
+                    whileHover={performanceMode ? {} : { scale: 1.05 }}
+                    whileTap={performanceMode ? {} : { scale: 0.95 }}
                   >
                     <PlusIcon className="w-5 h-5 mr-2" />
                     Nova Sessão
@@ -796,9 +867,9 @@ export default function Dashboard() {
                     <motion.div
                       key={session.id}
                       className={`${performanceMode ? 'glass-performance' : 'glass-card'} p-6 rounded-xl`}
-                      initial={{ opacity: 0, y: 20 }}
+                      initial={{ opacity: 0, y: performanceMode ? 0 : 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      whileHover={{ scale: 1.01 }}
+                      whileHover={performanceMode ? {} : { scale: 1.005 }}
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-4">
@@ -834,8 +905,8 @@ export default function Dashboard() {
                                   setShowQRCode(true);
                                 }}
                                 className="liquid-button inline-flex items-center text-sm"
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
+                                whileHover={performanceMode ? {} : { scale: 1.05 }}
+                                whileTap={performanceMode ? {} : { scale: 0.95 }}
                               >
                                 <QrCodeIcon className="w-4 h-4 mr-2" />
                                 {session.qrCode || session.qrCodeImage ? 'Ver QR Code' : 'QR Code'}
@@ -844,8 +915,8 @@ export default function Dashboard() {
                             
                             <motion.button
                               className="liquid-button inline-flex items-center text-sm"
-                              whileHover={{ scale: 1.05 }}
-                              whileTap={{ scale: 0.95 }}
+                              whileHover={performanceMode ? {} : { scale: 1.05 }}
+                              whileTap={performanceMode ? {} : { scale: 0.95 }}
                             >
                               <WrenchScrewdriverIcon className="w-4 h-4 mr-2" />
                               Configurar
@@ -862,10 +933,10 @@ export default function Dashboard() {
             {activeTab === 'tokens' && (
               <motion.div
                 key="tokens"
-                initial={{ opacity: 0, x: 20 }}
+                initial={{ opacity: 0, x: performanceMode ? 0 : 10 }}
                 animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.3 }}
+                exit={{ opacity: 0, x: performanceMode ? 0 : -10 }}
+                transition={{ duration: performanceMode ? 0.1 : 0.2 }}
                 className="space-y-6"
               >
                 <div className="flex items-center justify-between">
@@ -873,8 +944,8 @@ export default function Dashboard() {
                   <motion.button
                     onClick={() => setShowCreateTokenModal(true)}
                     className="liquid-button inline-flex items-center"
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
+                    whileHover={performanceMode ? {} : { scale: 1.05 }}
+                    whileTap={performanceMode ? {} : { scale: 0.95 }}
                   >
                     <PlusIcon className="w-5 h-5 mr-2" />
                     Gerar Token
@@ -917,8 +988,8 @@ export default function Dashboard() {
                         href="/api-docs"
                         target="_blank"
                         className="liquid-button inline-flex items-center text-sm"
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
+                        whileHover={performanceMode ? {} : { scale: 1.05 }}
+                        whileTap={performanceMode ? {} : { scale: 0.95 }}
                       >
                         <DocumentTextIcon className="w-4 h-4 mr-2" />
                         Abrir Swagger Documentation
@@ -934,8 +1005,8 @@ export default function Dashboard() {
                       <motion.button
                         onClick={() => setShowCreateTokenModal(true)}
                         className="liquid-button inline-flex items-center"
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
+                        whileHover={performanceMode ? {} : { scale: 1.05 }}
+                        whileTap={performanceMode ? {} : { scale: 0.95 }}
                       >
                         <PlusIcon className="w-5 h-5 mr-2" />
                         Criar Primeiro Token
@@ -947,7 +1018,7 @@ export default function Dashboard() {
                         <motion.div
                           key={token._id}
                           className={`${performanceMode ? 'glass-performance' : 'glass-ultra'} p-4 rounded-xl`}
-                          whileHover={{ scale: 1.01 }}
+                          whileHover={performanceMode ? {} : { scale: 1.01 }}
                         >
                           <div className="flex items-center justify-between">
                             <div className="flex-1">
@@ -1002,8 +1073,8 @@ export default function Dashboard() {
                                   });
                                 }}
                                 className="p-2 rounded-lg bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-colors"
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
+                                whileHover={performanceMode ? {} : { scale: 1.05 }}
+                                whileTap={performanceMode ? {} : { scale: 0.95 }}
                                 title="Copiar comando curl"
                               >
                                 <ClipboardDocumentIcon className="w-4 h-4" />
@@ -1011,8 +1082,8 @@ export default function Dashboard() {
                               <motion.button
                                 onClick={() => revokeApiToken(token._id)}
                                 className="p-2 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors"
-                                whileHover={{ scale: 1.05 }}
-                                whileTap={{ scale: 0.95 }}
+                                whileHover={performanceMode ? {} : { scale: 1.05 }}
+                                whileTap={performanceMode ? {} : { scale: 0.95 }}
                                 title="Revogar token"
                               >
                                 <TrashIcon className="w-4 h-4" />
@@ -1031,10 +1102,10 @@ export default function Dashboard() {
             {activeTab !== 'overview' && activeTab !== 'sessions' && activeTab !== 'tokens' && (
               <motion.div
                 key={activeTab}
-                initial={{ opacity: 0, x: 20 }}
+                initial={{ opacity: 0, x: performanceMode ? 0 : 10 }}
                 animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -20 }}
-                transition={{ duration: 0.3 }}
+                exit={{ opacity: 0, x: performanceMode ? 0 : -10 }}
+                transition={{ duration: performanceMode ? 0.1 : 0.2 }}
                 className={`${performanceMode ? 'glass-performance' : 'glass-card'} p-8 text-center rounded-xl`}
               >
                 <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-full flex items-center justify-center">
@@ -1091,15 +1162,15 @@ export default function Dashboard() {
                   <motion.button
                     onClick={() => setShowNewSession(false)}
                     className={`flex-1 px-4 py-3 ${performanceMode ? 'glass-performance' : 'glass-ultra'} rounded-xl text-white/70 hover:text-white transition-colors`}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
+                    whileHover={performanceMode ? {} : { scale: 1.02 }}
+                    whileTap={performanceMode ? {} : { scale: 0.98 }}
                   >
                     Cancelar
                   </motion.button>
                   <motion.button
                     className="flex-1 liquid-button"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
+                    whileHover={performanceMode ? {} : { scale: 1.02 }}
+                    whileTap={performanceMode ? {} : { scale: 0.98 }}
                   >
                     Criar Sessão
                   </motion.button>
@@ -1158,8 +1229,8 @@ export default function Dashboard() {
                   <motion.button
                     onClick={() => copyToClipboard(selectedSession.qrCode)}
                     className="liquid-button flex-1 text-sm"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
+                    whileHover={performanceMode ? {} : { scale: 1.02 }}
+                    whileTap={performanceMode ? {} : { scale: 0.98 }}
                   >
                     Copiar QR Code
                   </motion.button>
@@ -1167,8 +1238,8 @@ export default function Dashboard() {
                 <motion.button
                   onClick={() => setShowQRCode(false)}
                   className="liquid-button flex-1"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
+                  whileHover={performanceMode ? {} : { scale: 1.02 }}
+                  whileTap={performanceMode ? {} : { scale: 0.98 }}
                 >
                   Fechar
                 </motion.button>
@@ -1360,8 +1431,8 @@ export default function Dashboard() {
                 <motion.button
                   onClick={() => setShowUserProfile(false)}
                   className="liquid-button w-full"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
+                  whileHover={performanceMode ? {} : { scale: 1.02 }}
+                  whileTap={performanceMode ? {} : { scale: 0.98 }}
                 >
                   Fechar
                 </motion.button>
@@ -1432,8 +1503,8 @@ export default function Dashboard() {
                 <motion.button
                   onClick={() => copyToClipboard(newToken)}
                   className="flex-1 liquid-button inline-flex items-center justify-center"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
+                  whileHover={performanceMode ? {} : { scale: 1.02 }}
+                  whileTap={performanceMode ? {} : { scale: 0.98 }}
                 >
                   <ClipboardDocumentIcon className="w-5 h-5 mr-2" />
                   Copiar Token
@@ -1444,8 +1515,8 @@ export default function Dashboard() {
                     setNewToken(null);
                   }}
                   className={`px-4 py-3 ${performanceMode ? 'glass-performance' : 'glass-ultra'} rounded-xl text-white/70 hover:text-white transition-colors`}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
+                  whileHover={performanceMode ? {} : { scale: 1.02 }}
+                  whileTap={performanceMode ? {} : { scale: 0.98 }}
                 >
                   Fechar
                 </motion.button>
@@ -1527,8 +1598,8 @@ export default function Dashboard() {
                     setTokenForm({ name: '', expiresIn: 'never' });
                   }}
                   className={`flex-1 px-4 py-3 ${performanceMode ? 'glass-performance' : 'glass-ultra'} rounded-xl text-white/70 hover:text-white transition-colors`}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
+                  whileHover={performanceMode ? {} : { scale: 1.02 }}
+                  whileTap={performanceMode ? {} : { scale: 0.98 }}
                 >
                   Cancelar
                 </motion.button>
@@ -1536,8 +1607,8 @@ export default function Dashboard() {
                   onClick={generateApiToken}
                   disabled={!tokenForm.name.trim()}
                   className={`flex-1 liquid-button ${!tokenForm.name.trim() ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  whileHover={tokenForm.name.trim() ? { scale: 1.02 } : {}}
-                  whileTap={tokenForm.name.trim() ? { scale: 0.98 } : {}}
+                  whileHover={tokenForm.name.trim() && !performanceMode ? { scale: 1.02 } : {}}
+                  whileTap={tokenForm.name.trim() && !performanceMode ? { scale: 0.98 } : {}}
                 >
                   <KeyIcon className="w-4 h-4 mr-2" />
                   Criar Token
@@ -1580,8 +1651,8 @@ export default function Dashboard() {
                       setShowCreateTokenModal(true);
                     }}
                     className="liquid-button inline-flex items-center"
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
+                    whileHover={performanceMode ? {} : { scale: 1.05 }}
+                    whileTap={performanceMode ? {} : { scale: 0.95 }}
                   >
                     <KeyIcon className="w-4 h-4 mr-2" />
                     Criar Token Primeiro
@@ -1651,8 +1722,8 @@ export default function Dashboard() {
                       onClick={createWhatsAppSession}
                       disabled={!sessionForm.sessionId.trim() || !sessionForm.selectedToken || creatingSession}
                       className={`flex-1 liquid-button ${(!sessionForm.sessionId.trim() || !sessionForm.selectedToken || creatingSession) ? 'opacity-50 cursor-not-allowed' : ''}`}
-                      whileHover={(!sessionForm.sessionId.trim() || !sessionForm.selectedToken || creatingSession) ? {} : { scale: 1.02 }}
-                      whileTap={(!sessionForm.sessionId.trim() || !sessionForm.selectedToken || creatingSession) ? {} : { scale: 0.98 }}
+                      whileHover={(!sessionForm.sessionId.trim() || !sessionForm.selectedToken || creatingSession || performanceMode) ? {} : { scale: 1.02 }}
+                      whileTap={(!sessionForm.sessionId.trim() || !sessionForm.selectedToken || creatingSession || performanceMode) ? {} : { scale: 0.98 }}
                     >
                       {creatingSession ? (
                         <>
