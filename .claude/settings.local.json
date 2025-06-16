@@ -18,7 +18,8 @@
       "Bash(npm uninstall:*)",
       "Bash(curl:*)",
       "Bash(npm test)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(sed:*)"
     ],
     "deny": []
   }

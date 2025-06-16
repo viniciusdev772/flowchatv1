@@ -41,7 +41,7 @@ const checkSession = (req, res, next) => {
     });
   }
   
-  req.session = session;
+  req.whatsappSession = session;
   next();
 };
 
@@ -77,11 +77,11 @@ router.post('/:sessionId/create', checkSession, async (req, res) => {
     const formattedParticipants = participants.map(formatUserJid);
     
     // Criar o grupo
-    const groupInfo = await req.session.sock.groupCreate(groupName, formattedParticipants);
+    const groupInfo = await req.whatsappSession.sock.groupCreate(groupName, formattedParticipants);
     
     // Adicionar descrição se fornecida
     if (description && description.trim()) {
-      await req.session.sock.groupUpdateDescription(groupInfo.id, description);
+      await req.whatsappSession.sock.groupUpdateDescription(groupInfo.id, description);
     }
     
     res.json({
@@ -113,7 +113,7 @@ router.get('/:sessionId/:groupId/info', checkSession, async (req, res) => {
     const formattedGroupId = formatGroupJid(groupId);
     
     // Obter metadados do grupo
-    const groupMetadata = await req.session.sock.groupMetadata(formattedGroupId);
+    const groupMetadata = await req.whatsappSession.sock.groupMetadata(formattedGroupId);
     
     res.json({
       success: true,
@@ -163,7 +163,7 @@ router.post('/:sessionId/:groupId/add-participants', checkSession, async (req, r
     const formattedParticipants = participants.map(formatUserJid);
     
     // Adicionar participantes
-    const result = await req.session.sock.groupParticipantsUpdate(
+    const result = await req.whatsappSession.sock.groupParticipantsUpdate(
       formattedGroupId,
       formattedParticipants,
       'add'
@@ -203,7 +203,7 @@ router.post('/:sessionId/:groupId/remove-participants', checkSession, async (req
     const formattedParticipants = participants.map(formatUserJid);
     
     // Remover participantes
-    const result = await req.session.sock.groupParticipantsUpdate(
+    const result = await req.whatsappSession.sock.groupParticipantsUpdate(
       formattedGroupId,
       formattedParticipants,
       'remove'
@@ -243,7 +243,7 @@ router.post('/:sessionId/:groupId/promote', checkSession, async (req, res) => {
     const formattedParticipants = participants.map(formatUserJid);
     
     // Promover participantes
-    const result = await req.session.sock.groupParticipantsUpdate(
+    const result = await req.whatsappSession.sock.groupParticipantsUpdate(
       formattedGroupId,
       formattedParticipants,
       'promote'
@@ -283,7 +283,7 @@ router.post('/:sessionId/:groupId/demote', checkSession, async (req, res) => {
     const formattedParticipants = participants.map(formatUserJid);
     
     // Despromover participantes
-    const result = await req.session.sock.groupParticipantsUpdate(
+    const result = await req.whatsappSession.sock.groupParticipantsUpdate(
       formattedGroupId,
       formattedParticipants,
       'demote'
@@ -322,7 +322,7 @@ router.put('/:sessionId/:groupId/subject', checkSession, async (req, res) => {
     const formattedGroupId = formatGroupJid(groupId);
     
     // Atualizar nome do grupo
-    await req.session.sock.groupUpdateSubject(formattedGroupId, subject.trim());
+    await req.whatsappSession.sock.groupUpdateSubject(formattedGroupId, subject.trim());
     
     res.json({
       success: true,
@@ -349,7 +349,7 @@ router.put('/:sessionId/:groupId/description', checkSession, async (req, res) =>
     const formattedGroupId = formatGroupJid(groupId);
     
     // Atualizar descrição do grupo
-    await req.session.sock.groupUpdateDescription(formattedGroupId, description || '');
+    await req.whatsappSession.sock.groupUpdateDescription(formattedGroupId, description || '');
     
     res.json({
       success: true,
@@ -377,7 +377,7 @@ router.put('/:sessionId/:groupId/settings', checkSession, async (req, res) => {
     
     // Configurar se apenas admins podem enviar mensagens
     if (typeof onlyAdminsCanSend === 'boolean') {
-      await req.session.sock.groupSettingUpdate(
+      await req.whatsappSession.sock.groupSettingUpdate(
         formattedGroupId,
         onlyAdminsCanSend ? 'announcement' : 'not_announcement'
       );
@@ -385,7 +385,7 @@ router.put('/:sessionId/:groupId/settings', checkSession, async (req, res) => {
     
     // Configurar se apenas admins podem editar informações do grupo
     if (typeof onlyAdminsCanEditInfo === 'boolean') {
-      await req.session.sock.groupSettingUpdate(
+      await req.whatsappSession.sock.groupSettingUpdate(
         formattedGroupId,
         onlyAdminsCanEditInfo ? 'locked' : 'unlocked'
       );
@@ -417,7 +417,7 @@ router.post('/:sessionId/:groupId/leave', checkSession, async (req, res) => {
     const formattedGroupId = formatGroupJid(groupId);
     
     // Sair do grupo
-    await req.session.sock.groupLeave(formattedGroupId);
+    await req.whatsappSession.sock.groupLeave(formattedGroupId);
     
     res.json({
       success: true,
@@ -437,21 +437,122 @@ router.post('/:sessionId/:groupId/leave', checkSession, async (req, res) => {
 // Listar grupos
 router.get('/:sessionId/list', checkSession, async (req, res) => {
   try {
-    // Obter todos os chats
-    const chats = await req.session.sock.chatListGroupsOnly();
+    // Get session from sessions map (global)
+    const sessions = global.whatsappSessions;
+    const sessionData = sessions.get(req.params.sessionId);
     
-    const groups = chats.map(chat => ({
-      id: chat.id,
-      name: chat.name || chat.subject,
-      unreadCount: chat.unreadCount || 0,
-      lastMessageTime: chat.conversationTimestamp,
-      participants: chat.size || 0
-    }));
+    if (!sessionData || !sessionData.sock || !sessionData.isConnected) {
+      return res.status(400).json({
+        success: false,
+        message: 'Sessão não conectada'
+      });
+    }
+
+    // Get groups from MongoDB first if available, then fallback to store
+    let groups = [];
+    
+    try {
+      const db = require('../config/database').getDb();
+      if (db) {
+        const groupsCollection = db.collection('groups');
+        const mongoGroups = await groupsCollection
+          .find({ sessionId: req.params.sessionId })
+          .sort({ lastUpdated: -1 })
+          .toArray();
+        
+        if (mongoGroups.length > 0) {
+          groups = mongoGroups.map(group => ({
+            jid: group.jid,
+            name: group.name,
+            participants: group.participants,
+            description: group.description,
+            owner: group.owner,
+            admins: group.admins || [],
+            superAdmins: group.superAdmins || [],
+            announce: group.announce || false,
+            restrict: group.restrict || false,
+            createdAt: group.createdAt,
+            lastUpdated: group.lastUpdated
+          }));
+          
+          return res.json({
+            success: true,
+            groups: groups,
+            total: groups.length,
+            source: 'mongodb'
+          });
+        }
+      }
+    } catch (error) {
+      console.warn('Failed to get groups from MongoDB:', error.message);
+    }
+
+    // Fallback: get groups from store (if supported)
+    try {
+      const store = sessionData.sock.store;
+      if (store && store.chats) {
+        const groupChats = Object.values(store.chats).filter(chat => 
+          chat.id && chat.id.endsWith('@g.us')
+        );
+
+        const groupPromises = groupChats.map(async chat => {
+          try {
+            const groupMetadata = await sessionData.sock.groupMetadata(chat.id);
+            
+            const admins = groupMetadata.participants
+              ? groupMetadata.participants.filter(p => p.admin === 'admin' || p.admin === 'superadmin').map(p => p.id)
+              : [];
+            
+            const superAdmins = groupMetadata.participants
+              ? groupMetadata.participants.filter(p => p.admin === 'superadmin').map(p => p.id)
+              : [];
+
+            return {
+              jid: chat.id,
+              name: groupMetadata.subject || 'Grupo sem nome',
+              participants: groupMetadata.participants?.length || 0,
+              description: groupMetadata.desc || null,
+              owner: groupMetadata.owner || null,
+              admins: admins,
+              superAdmins: superAdmins,
+              announce: groupMetadata.announce || false,
+              restrict: groupMetadata.restrict || false,
+              createdAt: groupMetadata.creation 
+                ? new Date(groupMetadata.creation * 1000).toISOString()
+                : null,
+              unreadCount: chat.unreadCount || 0,
+              lastMessageTime: chat.conversationTimestamp || null
+            };
+          } catch (error) {
+            console.warn(`Error getting metadata for group ${chat.id}:`, error.message);
+            return {
+              jid: chat.id,
+              name: chat.name || chat.subject || 'Grupo',
+              participants: 0,
+              description: null,
+              owner: null,
+              admins: [],
+              superAdmins: [],
+              announce: false,
+              restrict: false,
+              createdAt: null,
+              unreadCount: chat.unreadCount || 0,
+              lastMessageTime: chat.conversationTimestamp || null
+            };
+          }
+        });
+
+        groups = await Promise.all(groupPromises);
+      }
+    } catch (error) {
+      console.warn('Failed to get groups from store:', error.message);
+    }
     
     res.json({
       success: true,
       groups: groups,
-      total: groups.length
+      total: groups.length,
+      source: 'store'
     });
     
   } catch (error) {
@@ -471,7 +572,7 @@ router.get('/:sessionId/:groupId/invite-code', checkSession, async (req, res) =>
     const formattedGroupId = formatGroupJid(groupId);
     
     // Obter código de convite
-    const inviteCode = await req.session.sock.groupInviteCode(formattedGroupId);
+    const inviteCode = await req.whatsappSession.sock.groupInviteCode(formattedGroupId);
     
     res.json({
       success: true,
@@ -496,7 +597,7 @@ router.post('/:sessionId/:groupId/revoke-invite', checkSession, async (req, res)
     const formattedGroupId = formatGroupJid(groupId);
     
     // Revogar código de convite
-    const newInviteCode = await req.session.sock.groupRevokeInvite(formattedGroupId);
+    const newInviteCode = await req.whatsappSession.sock.groupRevokeInvite(formattedGroupId);
     
     res.json({
       success: true,

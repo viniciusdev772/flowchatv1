@@ -98,6 +98,56 @@ function getSessions() {
   return sessions;
 }
 
+// Function to get session data enriched with MongoDB QR code data
+async function getEnrichedSessionData(sessionId, sessionData) {
+  try {
+    // Base session data
+    const enrichedData = {
+      sessionId,
+      isConnected: sessionData.isConnected,
+      connectionState: sessionData.connectionState || 'unknown',
+      createdAt: sessionData.createdAt,
+      connectedAt: sessionData.connectedAt || null,
+      lastError: sessionData.lastError || null,
+      user: sessionData.sock?.user || null,
+      hasQrCode: !!sessionData.qrCode,
+      qrCode: sessionData.qrCode || null,
+      qrCodeImage: sessionData.qrCodeImage || null
+    };
+
+    // If no QR code in memory but session is not connected, try to load from MongoDB
+    if (!enrichedData.hasQrCode && !enrichedData.isConnected) {
+      const qrData = await loadQRCodeData(sessionId);
+      if (qrData) {
+        enrichedData.hasQrCode = true;
+        enrichedData.qrCode = qrData.qrCode;
+        enrichedData.qrCodeImage = qrData.qrCodeImage;
+        
+        // Also update the in-memory session data
+        sessionData.qrCode = qrData.qrCode;
+        sessionData.qrCodeImage = qrData.qrCodeImage;
+      }
+    }
+
+    return enrichedData;
+  } catch (error) {
+    logger.error(`Error enriching session data for ${sessionId}: ${error.message}`);
+    // Return basic data on error
+    return {
+      sessionId,
+      isConnected: sessionData.isConnected,
+      connectionState: sessionData.connectionState || 'unknown',
+      createdAt: sessionData.createdAt,
+      connectedAt: sessionData.connectedAt || null,
+      lastError: sessionData.lastError || null,
+      user: sessionData.sock?.user || null,
+      hasQrCode: !!sessionData.qrCode,
+      qrCode: sessionData.qrCode || null,
+      qrCodeImage: sessionData.qrCodeImage || null
+    };
+  }
+}
+
 // Function to get sessions for a specific user
 function getUserSessions(userId) {
   const userSessions = new Map();
@@ -112,7 +162,15 @@ function getUserSessions(userId) {
 // Function to check if user owns a session
 function isUserSessionOwner(sessionId, userId) {
   const session = sessions.get(sessionId);
-  return session && session.userId === userId;
+  if (!session || !session.userId) {
+    return false;
+  }
+  
+  // Convert both to strings for comparison (handles ObjectId vs string)
+  const sessionUserId = session.userId.toString();
+  const requestUserId = userId.toString();
+  
+  return sessionUserId === requestUserId;
 }
 
 // Middleware to check session ownership
@@ -175,6 +233,9 @@ function addWebhookToSession(sessionId, webhookData) {
   sessionWebhooks.push(newWebhook);
   webhooks.set(sessionId, sessionWebhooks);
   
+  // Save to MongoDB
+  saveWebhookData(sessionId, sessionWebhooks);
+  
   return newWebhook;
 }
 
@@ -188,6 +249,13 @@ function removeWebhookFromSession(sessionId, webhookId) {
   
   const removedWebhook = sessionWebhooks.splice(webhookIndex, 1)[0];
   webhooks.set(sessionId, sessionWebhooks);
+  
+  // Save to MongoDB
+  if (sessionWebhooks.length > 0) {
+    saveWebhookData(sessionId, sessionWebhooks);
+  } else {
+    deleteWebhookData(sessionId);
+  }
   
   return removedWebhook;
 }
@@ -217,6 +285,9 @@ function updateWebhookInSession(sessionId, webhookId, updateData) {
   webhook.updatedAt = new Date().toISOString();
   
   webhooks.set(sessionId, sessionWebhooks);
+  
+  // Save to MongoDB
+  saveWebhookData(sessionId, sessionWebhooks);
   
   return webhook;
 }
@@ -457,6 +528,289 @@ async function saveSessionData(sessionId, sessionData) {
   }
 }
 
+// Function to save QR code data to MongoDB
+async function saveQRCodeData(sessionId, qrCode, qrCodeImage) {
+  const db = database.getDb();
+  if (!db) return;
+
+  try {
+    const qrCodes = db.collection('qr_codes');
+    await qrCodes.updateOne(
+      { sessionId },
+      {
+        $set: {
+          sessionId,
+          qrCode,
+          qrCodeImage,
+          createdAt: new Date(),
+          expiresAt: new Date(Date.now() + 5 * 60 * 1000), // 5 minutes TTL
+          isActive: true
+        }
+      },
+      { upsert: true }
+    );
+    logger.info(`QR Code saved to MongoDB for session ${sessionId}`);
+  } catch (error) {
+    logger.warn(`Failed to save QR code to MongoDB: ${error.message}`);
+  }
+}
+
+// Function to load QR code data from MongoDB
+async function loadQRCodeData(sessionId) {
+  const db = database.getDb();
+  if (!db) return null;
+
+  try {
+    const qrCodes = db.collection('qr_codes');
+    const qrData = await qrCodes.findOne({ 
+      sessionId, 
+      isActive: true,
+      expiresAt: { $gt: new Date() }
+    });
+    
+    if (qrData) {
+      logger.info(`QR Code loaded from MongoDB for session ${sessionId}`);
+      return {
+        qrCode: qrData.qrCode,
+        qrCodeImage: qrData.qrCodeImage
+      };
+    }
+    
+    return null;
+  } catch (error) {
+    logger.warn(`Failed to load QR code from MongoDB: ${error.message}`);
+    return null;
+  }
+}
+
+// Function to clear QR code data when session connects
+async function clearQRCodeData(sessionId) {
+  const db = database.getDb();
+  if (!db) return;
+
+  try {
+    const qrCodes = db.collection('qr_codes');
+    await qrCodes.updateOne(
+      { sessionId },
+      { $set: { isActive: false, clearedAt: new Date() } }
+    );
+    logger.info(`QR Code cleared from MongoDB for session ${sessionId}`);
+  } catch (error) {
+    logger.warn(`Failed to clear QR code from MongoDB: ${error.message}`);
+  }
+}
+
+// Function to cleanup expired QR codes
+async function cleanupExpiredQRCodes() {
+  const db = database.getDb();
+  if (!db) return;
+
+  try {
+    const qrCodes = db.collection('qr_codes');
+    const result = await qrCodes.deleteMany({
+      expiresAt: { $lt: new Date() }
+    });
+    if (result.deletedCount > 0) {
+      logger.info(`Cleaned up ${result.deletedCount} expired QR codes`);
+    }
+  } catch (error) {
+    logger.warn(`Failed to cleanup expired QR codes: ${error.message}`);
+  }
+}
+
+// Function to save webhook configuration to MongoDB
+async function saveWebhookData(sessionId, webhookData) {
+  const db = database.getDb();
+  if (!db) return;
+
+  try {
+    const webhooksCollection = db.collection('webhooks');
+    await webhooksCollection.updateOne(
+      { sessionId },
+      {
+        $set: {
+          sessionId,
+          webhooks: webhookData,
+          updatedAt: new Date()
+        }
+      },
+      { upsert: true }
+    );
+    logger.info(`Webhook configuration saved to MongoDB for session ${sessionId}`);
+  } catch (error) {
+    logger.warn(`Failed to save webhook configuration to MongoDB: ${error.message}`);
+  }
+}
+
+// Function to load webhook configuration from MongoDB
+async function loadWebhookData(sessionId) {
+  const db = database.getDb();
+  if (!db) return null;
+
+  try {
+    const webhooksCollection = db.collection('webhooks');
+    const webhookDoc = await webhooksCollection.findOne({ sessionId });
+    
+    if (webhookDoc && webhookDoc.webhooks) {
+      logger.info(`Webhook configuration loaded from MongoDB for session ${sessionId}`);
+      return webhookDoc.webhooks;
+    }
+    
+    return null;
+  } catch (error) {
+    logger.warn(`Failed to load webhook configuration from MongoDB: ${error.message}`);
+    return null;
+  }
+}
+
+// Function to delete webhook configuration from MongoDB
+async function deleteWebhookData(sessionId) {
+  const db = database.getDb();
+  if (!db) return;
+
+  try {
+    const webhooksCollection = db.collection('webhooks');
+    await webhooksCollection.deleteOne({ sessionId });
+    logger.info(`Webhook configuration deleted from MongoDB for session ${sessionId}`);
+  } catch (error) {
+    logger.warn(`Failed to delete webhook configuration from MongoDB: ${error.message}`);
+  }
+}
+
+// Function to save message to MongoDB
+async function saveMessageToMongoDB(sessionId, messageId, messageData) {
+  const db = database.getDb();
+  if (!db) return;
+
+  try {
+    // Get session to get userId
+    const session = sessions.get(sessionId);
+    if (!session || !session.userId) {
+      return; // Skip if no user associated
+    }
+
+    // Get chat info if it's a group
+    let chatInfo = null;
+    if (messageData.jid.endsWith('@g.us') && session.sock) {
+      try {
+        chatInfo = await getContactOrGroupInfo(messageData.jid, session.sock);
+      } catch (error) {
+        logger.warn(`Failed to get group info for message: ${error.message}`);
+      }
+    }
+
+    const messagesCollection = db.collection('messages');
+    const document = {
+      sessionId,
+      messageId,
+      userId: session.userId,
+      jid: messageData.jid,
+      timestamp: messageData.timestamp,
+      message: messageData.message,
+      isFromMe: messageData.message.key.fromMe,
+      messageText: extractMessageText(messageData.message),
+      messageType: getMessageType(messageData.message),
+      chatInfo: chatInfo, // Include group info if available
+      createdAt: new Date()
+    };
+
+    await messagesCollection.updateOne(
+      { sessionId, messageId },
+      { $set: document },
+      { upsert: true }
+    );
+    
+    // Save/update group info separately if it's a group
+    if (chatInfo && chatInfo.type === 'group') {
+      await saveGroupInfoToMongoDB(sessionId, messageData.jid, chatInfo);
+    }
+    
+    logger.debug(`Message saved to MongoDB: ${sessionId}/${messageId}`);
+  } catch (error) {
+    logger.warn(`Failed to save message to MongoDB: ${error.message}`);
+  }
+}
+
+// Function to save group info to MongoDB
+async function saveGroupInfoToMongoDB(sessionId, groupJid, groupInfo) {
+  const db = database.getDb();
+  if (!db) return;
+
+  try {
+    const groupsCollection = db.collection('groups');
+    const document = {
+      sessionId,
+      jid: groupJid,
+      ...groupInfo,
+      lastUpdated: new Date()
+    };
+
+    await groupsCollection.updateOne(
+      { sessionId, jid: groupJid },
+      { $set: document },
+      { upsert: true }
+    );
+    
+    logger.debug(`Group info saved to MongoDB: ${sessionId}/${groupJid}`);
+  } catch (error) {
+    logger.warn(`Failed to save group info to MongoDB: ${error.message}`);
+  }
+}
+
+// Function to load messages from MongoDB
+async function loadMessagesFromMongoDB(sessionId, limit = 50, offset = 0) {
+  const db = database.getDb();
+  if (!db) return [];
+
+  try {
+    const messagesCollection = db.collection('messages');
+    const messages = await messagesCollection
+      .find({ sessionId })
+      .sort({ timestamp: -1 })
+      .skip(offset)
+      .limit(limit)
+      .toArray();
+
+    return messages.map(msg => ({
+      messageId: msg.messageId,
+      jid: msg.jid,
+      timestamp: msg.timestamp,
+      isFromMe: msg.isFromMe,
+      messageText: msg.messageText,
+      messageType: msg.messageType,
+      chatInfo: msg.chatInfo || null, // Include saved group/contact info
+      message: msg.message // Full message object for compatibility
+    }));
+  } catch (error) {
+    logger.warn(`Failed to load messages from MongoDB: ${error.message}`);
+    return [];
+  }
+}
+
+// Helper function to extract message text
+function extractMessageText(message) {
+  return message.message?.conversation ||
+         message.message?.extendedTextMessage?.text ||
+         message.message?.imageMessage?.caption ||
+         message.message?.videoMessage?.caption ||
+         message.message?.documentMessage?.caption ||
+         '[Media]';
+}
+
+// Helper function to get message type
+function getMessageType(message) {
+  if (message.message?.conversation) return 'text';
+  if (message.message?.extendedTextMessage) return 'text';
+  if (message.message?.imageMessage) return 'image';
+  if (message.message?.videoMessage) return 'video';
+  if (message.message?.audioMessage) return 'audio';
+  if (message.message?.documentMessage) return 'document';
+  if (message.message?.stickerMessage) return 'sticker';
+  if (message.message?.locationMessage) return 'location';
+  if (message.message?.contactMessage) return 'contact';
+  return 'unknown';
+}
+
 // Função para carregar sessões existentes na inicialização
 async function loadExistingSessions() {
   try {
@@ -505,6 +859,24 @@ async function loadExistingSessions() {
             
             // Recover session with proper userId
             await createWhatsAppSession(sessionId, userId);
+            
+            // Try to recover QR code data from MongoDB if session is not connected
+            const sessionData = sessions.get(sessionId);
+            if (sessionData && !sessionData.isConnected) {
+              const qrData = await loadQRCodeData(sessionId);
+              if (qrData) {
+                sessionData.qrCode = qrData.qrCode;
+                sessionData.qrCodeImage = qrData.qrCodeImage;
+                logger.info(`QR Code recovered from MongoDB for session ${sessionId}`);
+              }
+            }
+            
+            // Try to recover webhook configuration from MongoDB
+            const webhookData = await loadWebhookData(sessionId);
+            if (webhookData) {
+              webhooks.set(sessionId, webhookData);
+              logger.info(`Webhook configuration recovered from MongoDB for session ${sessionId}`);
+            }
           } else {
             // Se não há dados salvos, mas existe diretório de auth, tentar criar sessão
             logger.info(
@@ -575,10 +947,17 @@ function storeMessage(sessionId, messageId, message) {
     }
 
     const sessionMessages = messageStore.get(sessionId);
-    sessionMessages.set(messageId, {
+    const messageData = {
       message,
       timestamp: new Date(),
       jid: message.key.remoteJid,
+    };
+    
+    sessionMessages.set(messageId, messageData);
+
+    // Save to MongoDB asynchronously
+    saveMessageToMongoDB(sessionId, messageId, messageData).catch(error => {
+      logger.warn(`Failed to save message to MongoDB: ${error.message}`);
     });
 
     // Limitar o número de mensagens armazenadas por sessão (últimas 1000)
@@ -609,8 +988,20 @@ async function getContactOrGroupInfo(jid, sock) {
       // É um grupo - buscar metadados do grupo
       try {
         const groupMetadata = await sock.groupMetadata(jid);
+        
+        // Get admin list
+        const admins = groupMetadata.participants
+          ? groupMetadata.participants.filter(p => p.admin === 'admin' || p.admin === 'superadmin').map(p => p.id)
+          : [];
+        
+        // Get super admins
+        const superAdmins = groupMetadata.participants
+          ? groupMetadata.participants.filter(p => p.admin === 'superadmin').map(p => p.id)
+          : [];
+
         return {
           type: 'group',
+          jid: jid,
           name: groupMetadata.subject || 'Grupo sem nome',
           participants: groupMetadata.participants?.length || 0,
           description: groupMetadata.desc || null,
@@ -618,6 +1009,17 @@ async function getContactOrGroupInfo(jid, sock) {
             ? new Date(groupMetadata.creation * 1000).toISOString()
             : null,
           owner: groupMetadata.owner || null,
+          admins: admins,
+          superAdmins: superAdmins,
+          announce: groupMetadata.announce || false, // Only admins can send messages
+          restrict: groupMetadata.restrict || false, // Only admins can edit group info
+          subjectTime: groupMetadata.subjectTime 
+            ? new Date(groupMetadata.subjectTime * 1000).toISOString()
+            : null,
+          descTime: groupMetadata.descTime 
+            ? new Date(groupMetadata.descTime * 1000).toISOString()
+            : null,
+          groupInviteCode: null // We'll try to get this separately if needed
         };
       } catch (error) {
         logger.warn(
@@ -625,11 +1027,19 @@ async function getContactOrGroupInfo(jid, sock) {
         );
         return {
           type: 'group',
-          name: 'Grupo',
+          jid: jid,
+          name: `Grupo ${jid.split('@')[0]}`,
           participants: 0,
           description: null,
           createdAt: null,
           owner: null,
+          admins: [],
+          superAdmins: [],
+          announce: false,
+          restrict: false,
+          subjectTime: null,
+          descTime: null,
+          groupInviteCode: null
         };
       }
     } else if (jid.endsWith('@s.whatsapp.net')) {
@@ -1070,6 +1480,9 @@ async function createWhatsAppSession(sessionId, userId = null) {
           try {
             const QRCode = require('qrcode');
             sessionData.qrCodeImage = await QRCode.toDataURL(qr);
+            
+            // Save QR code to MongoDB for persistence
+            await saveQRCodeData(sessionId, qr, sessionData.qrCodeImage);
           } catch (error) {
             logger.error(`Erro ao gerar QR code imagem: ${error.message}`);
           }
@@ -1212,8 +1625,12 @@ async function createWhatsAppSession(sessionId, userId = null) {
           sessionData.isConnected = true;
           sessionData.connectionState = 'connected';
           sessionData.qrCode = null; // Limpar QR code quando conectado
+          sessionData.qrCodeImage = null; // Limpar imagem QR code
           sessionData.lastError = null; // Limpar erros anteriores
           sessionData.connectedAt = new Date();
+
+          // Clear QR code from MongoDB when session connects
+          await clearQRCodeData(sessionId);
 
           // Salvar dados da sessão
           await saveSessionData(sessionId, sessionData);
@@ -1983,101 +2400,139 @@ app.post('/api/baileys/session/:sessionId/reply-message', checkSessionOwnership,
 app.get('/api/baileys/session/:sessionId/messages', checkSessionOwnership, async (req, res) => {
   try {
     const { sessionId } = req.params;
-    const { limit = 50 } = req.query;
+    const { limit = 50, offset = 0, source = 'auto' } = req.query;
 
     const session = sessions.get(sessionId);
-    if (!session || !session.isConnected) {
+    if (!session) {
       return res.status(404).json({
         success: false,
-        message: 'Sessão não encontrada ou não conectada',
+        message: 'Sessão não encontrada',
       });
     }
 
-    const sessionMessages = messageStore.get(sessionId);
-    if (!sessionMessages) {
+    let messages = [];
+    let total = 0;
+
+    // Try to get messages from MongoDB first (persistent storage)
+    if (source === 'auto' || source === 'mongodb') {
+      try {
+        const mongoMessages = await loadMessagesFromMongoDB(sessionId, parseInt(limit), parseInt(offset));
+        if (mongoMessages.length > 0) {
+          messages = mongoMessages;
+          total = mongoMessages.length;
+          
+          // Get total count from MongoDB
+          const db = database.getDb();
+          if (db) {
+            const messagesCollection = db.collection('messages');
+            total = await messagesCollection.countDocuments({ sessionId });
+          }
+          
+          return res.json({
+            success: true,
+            messages,
+            total,
+            source: 'mongodb',
+            sessionId
+          });
+        }
+      } catch (error) {
+        logger.warn(`Failed to load messages from MongoDB: ${error.message}`);
+      }
+    }
+
+    // Fallback to memory store if MongoDB is unavailable or source is 'memory'
+    if (source === 'auto' || source === 'memory') {
+      const sessionMessages = messageStore.get(sessionId);
+      if (!sessionMessages) {
+        return res.json({
+          success: true,
+          messages: [],
+          total: 0,
+          source: 'memory',
+          sessionId
+        });
+      }
+
+      // Convert Map to Array and apply pagination
+      const messageEntries = Array.from(sessionMessages.entries());
+      const totalInMemory = messageEntries.length;
+      const paginatedEntries = messageEntries.slice(-parseInt(limit) - parseInt(offset), messageEntries.length - parseInt(offset));
+
+      // Get contact info for unique JIDs (only if session is connected)
+      const contactInfoCache = new Map();
+      if (session.isConnected && session.sock) {
+        const uniqueJids = [...new Set(paginatedEntries.map(([id, data]) => data.jid))];
+        
+        for (const jid of uniqueJids) {
+          try {
+            const contactInfo = await getContactOrGroupInfo(jid, session.sock);
+            contactInfoCache.set(jid, contactInfo);
+          } catch (error) {
+            logger.warn(`Failed to get contact info for ${jid}: ${error.message}`);
+          }
+        }
+      }
+
+      messages = paginatedEntries.map(([id, data]) => {
+        const message = data.message;
+        const contactInfo = contactInfoCache.get(data.jid);
+
+        const messageInfo = {
+          messageId: id,
+          jid: data.jid,
+          chatInfo: contactInfo,
+          timestamp: data.timestamp,
+          isFromMe: message.key.fromMe,
+          messageText: extractMessageText(message),
+          messageType: getMessageType(message),
+          isReply: false,
+          quotedMessage: null,
+          pushName: message.pushName || null
+        };
+
+        // Add participant info if it's a group
+        if (contactInfo && contactInfo.type === 'group' && message.key.participant) {
+          messageInfo.participant = {
+            jid: message.key.participant,
+            number: message.key.participant.split('@')[0],
+            pushName: message.pushName || null,
+          };
+        }
+
+        // Check if it's a reply
+        if (message.message?.extendedTextMessage?.contextInfo?.quotedMessage) {
+          const contextInfo = message.message.extendedTextMessage.contextInfo;
+          messageInfo.isReply = true;
+          messageInfo.quotedMessage = {
+            messageId: contextInfo.stanzaId,
+            participant: contextInfo.participant,
+            text: contextInfo.quotedMessage?.conversation ||
+                  contextInfo.quotedMessage?.extendedTextMessage?.text ||
+                  '[Mídia citada]',
+            fromMe: contextInfo.participant === message.key.remoteJid
+          };
+        }
+
+        return messageInfo;
+      });
+
       return res.json({
         success: true,
-        messages: [],
-        total: 0,
+        messages: messages.reverse(), // Most recent first
+        total: totalInMemory,
+        source: 'memory',
+        sessionId
       });
     }
 
-    // Reutilizar função global para buscar informações de contato/grupo
-
-    // Converter Map para Array e limitar resultados
-    const messageEntries = Array.from(sessionMessages.entries()).slice(-limit);
-
-    // Buscar nomes de contatos/grupos para JIDs únicos
-    const uniqueJids = [
-      ...new Set(messageEntries.map(([id, data]) => data.jid)),
-    ];
-    const contactInfoCache = new Map();
-
-    for (const jid of uniqueJids) {
-      const contactInfo = await getContactOrGroupInfo(jid, session.sock);
-      contactInfoCache.set(jid, contactInfo);
-    }
-
-    const messages = messageEntries.map(([id, data]) => {
-      const message = data.message;
-      const contactInfo = contactInfoCache.get(data.jid);
-
-      const messageInfo = {
-        messageId: id,
-        jid: data.jid,
-        chatInfo: contactInfo,
-        timestamp: data.timestamp,
-        isFromMe: message.key.fromMe,
-        messageText:
-          message.message?.conversation ||
-          message.message?.extendedTextMessage?.text ||
-          '[Mídia]',
-        isReply: false,
-        quotedMessage: null,
-        pushName: message.pushName || null, // Nome do remetente
-      };
-
-      // Adicionar informações do participante se for grupo
-      if (contactInfo.type === 'group' && message.key.participant) {
-        messageInfo.participant = {
-          jid: message.key.participant,
-          number: message.key.participant.split('@')[0],
-          pushName: message.pushName || null,
-        };
-      }
-
-      // Verificar se é uma resposta (reply)
-      if (message.message?.extendedTextMessage?.contextInfo?.quotedMessage) {
-        const contextInfo = message.message.extendedTextMessage.contextInfo;
-        messageInfo.isReply = true;
-        messageInfo.quotedMessage = {
-          messageId: contextInfo.stanzaId,
-          participant: contextInfo.participant,
-          text:
-            contextInfo.quotedMessage?.conversation ||
-            contextInfo.quotedMessage?.extendedTextMessage?.text ||
-            '[Mídia citada]',
-          fromMe:
-            contextInfo.participant === message.key.remoteJid ||
-            (contextInfo.participant &&
-              contextInfo.participant.includes(
-                message.key.remoteJid?.split('@')[0]
-              )),
-        };
-      }
-
-      return messageInfo;
-    });
-
+    // If no messages found in either source
     res.json({
       success: true,
-      messages: messages.reverse(), // Mais recentes primeiro
-      total: messages.length,
-      sessionInfo: {
-        sessionId,
-        isConnected: session.isConnected,
-        user: session.sock.user,
-      },
+      messages: [],
+      total: 0,
+      source: 'none',
+      sessionId
     });
   } catch (error) {
     logger.error(`Erro ao listar mensagens: ${error.message}`);
@@ -3077,6 +3532,49 @@ async function initializeApp() {
   logger.info('Limpando sessões órfãs...');
   await cleanupOrphanedSessions();
   
+  // Setup MongoDB collections with proper indexes
+  const db = database.getDb();
+  if (db) {
+    try {
+      // Create TTL index for QR codes collection
+      const qrCodes = db.collection('qr_codes');
+      await qrCodes.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+      
+      // Create index for webhooks collection
+      const webhooksCollection = db.collection('webhooks');
+      await webhooksCollection.createIndex({ sessionId: 1 });
+      
+      // Create indexes for messages collection
+      const messagesCollection = db.collection('messages');
+      await messagesCollection.createIndex({ sessionId: 1, timestamp: -1 });
+      await messagesCollection.createIndex({ sessionId: 1, messageId: 1 }, { unique: true });
+      await messagesCollection.createIndex({ userId: 1 });
+      
+      // Create indexes for groups collection
+      const groupsCollection = db.collection('groups');
+      await groupsCollection.createIndex({ sessionId: 1, jid: 1 }, { unique: true });
+      await groupsCollection.createIndex({ sessionId: 1 });
+      await groupsCollection.createIndex({ jid: 1 });
+      
+      logger.info('MongoDB indexes created successfully');
+    } catch (error) {
+      logger.warn(`Failed to create MongoDB indexes: ${error.message}`);
+    }
+  }
+  
+  // Initial cleanup of expired QR codes
+  logger.info('Limpando QR codes expirados...');
+  await cleanupExpiredQRCodes();
+  
+  // Setup periodic cleanup of expired QR codes (every 10 minutes)
+  setInterval(async () => {
+    try {
+      await cleanupExpiredQRCodes();
+    } catch (error) {
+      logger.error(`Erro na limpeza automática de QR codes: ${error.message}`);
+    }
+  }, 10 * 60 * 1000); // 10 minutes
+  
   logger.info('Carregamento de sessões concluído!');
 }
 
@@ -3101,4 +3599,4 @@ process.on('SIGINT', async () => {
 // Disponibilizar função de criação de sessão globalmente
 global.createWhatsAppSession = createWhatsAppSession;
 
-module.exports = { app, getSessions, initializeApp, createWhatsAppSession };
+module.exports = { app, getSessions, initializeApp, createWhatsAppSession, getEnrichedSessionData };

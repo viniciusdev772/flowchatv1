@@ -2,6 +2,7 @@ const express = require('express');
 const { authenticateToken } = require('../middleware/auth');
 const database = require('../config/database');
 const { ObjectId } = require('mongodb');
+const { getEnrichedSessionData } = require('../app');
 
 const router = express.Router();
 
@@ -22,22 +23,13 @@ router.get('/list', authenticateToken, async (req, res) => {
       });
     }
 
-    // Filter sessions by userId
+    // Filter sessions by userId and enrich with MongoDB data
     const userSessions = [];
     for (const [sessionId, sessionData] of sessions.entries()) {
       if (sessionData.userId && sessionData.userId.toString() === userId.toString()) {
-        userSessions.push({
-          sessionId,
-          isConnected: sessionData.isConnected,
-          connectionState: sessionData.connectionState || 'unknown',
-          createdAt: sessionData.createdAt,
-          connectedAt: sessionData.connectedAt || null,
-          lastError: sessionData.lastError || null,
-          user: sessionData.sock?.user || null,
-          hasQrCode: !!sessionData.qrCode,
-          qrCode: sessionData.qrCode || null,
-          qrCodeImage: sessionData.qrCodeImage || null
-        });
+        // Get enriched session data that includes QR codes from MongoDB
+        const enrichedData = await getEnrichedSessionData(sessionId, sessionData);
+        userSessions.push(enrichedData);
       }
     }
 
