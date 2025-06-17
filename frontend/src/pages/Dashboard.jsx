@@ -544,12 +544,13 @@ export default function Dashboard() {
       });
 
       let baileysSessionsData = [];
+      let activeToken = null;
       
       if (tokensResponse.ok) {
         const tokensResult = await tokensResponse.json();
         if (tokensResult.success && tokensResult.tokens.length > 0) {
           // Get first active token to fetch Baileys sessions
-          const activeToken = tokensResult.tokens.find(token => token.isActive && !token.isExpired);
+          activeToken = tokensResult.tokens.find(token => token.isActive && !token.isExpired);
           if (activeToken) {
             try {
               // Get the full token to make Baileys API request
@@ -656,15 +657,139 @@ export default function Dashboard() {
       }, []);
       setSessions(uniqueSessions);
       
-      // Update stats based on sessions
-      setStats(prev => ({
-        ...prev,
-        totalSessions: uniqueSessions.length,
-        activeSessions: uniqueSessions.filter(s => s.status === 'connected').length
-      }));
+      // Fetch detailed stats for each session if we have an active token
+      if (activeToken && uniqueSessions.length > 0) {
+        await fetchDetailedStats(uniqueSessions, activeToken);
+      } else {
+        // Update basic stats based on sessions
+        setStats(prev => ({
+          ...prev,
+          totalSessions: uniqueSessions.length,
+          activeSessions: uniqueSessions.filter(s => s.status === 'connected').length
+        }));
+      }
       
     } catch (error) {
       console.error('Erro ao buscar sessões:', error);
+    }
+  };
+
+  const fetchDetailedStats = async (sessions, activeToken) => {
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      
+      // Get the full token
+      const tokenResponse = await fetch(`${apiUrl}/api/management/tokens/${activeToken._id}/full`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!tokenResponse.ok) {
+        throw new Error('Failed to get full token');
+      }
+
+      const tokenResult = await tokenResponse.json();
+      if (!tokenResult.success || !tokenResult.token) {
+        throw new Error('Invalid token result');
+      }
+
+      const token = tokenResult.token;
+      let totalMessages = 0;
+      let totalGroups = 0;
+      let totalWebhooks = 0;
+
+      // Fetch detailed data for each session in parallel - but limit to connected sessions for better performance
+      const connectedSessions = sessions.filter(s => s.status === 'connected');
+      const sessionPromises = connectedSessions.map(async (session) => {
+        const sessionStats = {
+          messages: 0,
+          groups: 0,
+          webhooks: 0
+        };
+
+        try {
+          // Create parallel requests for this session
+          const [webhooksResponse, groupsResponse] = await Promise.all([
+            // Fetch webhooks for this session
+            fetch(`${apiUrl}/api/baileys/session/${session.id}/webhooks`, {
+              method: 'GET',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              }
+            }),
+            // Fetch groups for this session
+            fetch(`${apiUrl}/api/baileys/groups/${session.id}/list`, {
+              method: 'GET',
+              headers: {
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json'
+              }
+            })
+          ]);
+
+          // Process webhooks response
+          if (webhooksResponse.ok) {
+            const webhooksResult = await webhooksResponse.json();
+            if (webhooksResult.success) {
+              // Count all webhooks (both active and inactive) for total count
+              sessionStats.webhooks = webhooksResult.total || webhooksResult.webhooks?.length || 0;
+            }
+          }
+
+          // Process groups response
+          if (groupsResponse.ok) {
+            const groupsResult = await groupsResponse.json();
+            if (groupsResult.success) {
+              sessionStats.groups = groupsResult.total || groupsResult.groups?.length || 0;
+            }
+          }
+
+          // For messages, we'll use the messageCount from the session data
+          sessionStats.messages = session.messages || 0;
+
+        } catch (error) {
+          console.warn(`Failed to fetch detailed stats for session ${session.id}:`, error);
+        }
+
+        return sessionStats;
+      });
+
+      // Also aggregate from all sessions (including disconnected) for basic counts
+      sessions.forEach(session => {
+        totalMessages += session.messages || 0;
+      });
+
+      // Wait for all connected session data to be fetched
+      const sessionStatsArray = await Promise.all(sessionPromises);
+
+      // Aggregate totals from connected sessions
+      sessionStatsArray.forEach(stats => {
+        totalGroups += stats.groups;
+        totalWebhooks += stats.webhooks;
+      });
+
+      // Update stats with real data
+      setStats(prev => ({
+        ...prev,
+        totalSessions: sessions.length,
+        activeSessions: sessions.filter(s => s.status === 'connected').length,
+        totalMessages,
+        totalGroups,
+        activeWebhooks: totalWebhooks
+      }));
+
+    } catch (error) {
+      console.warn('Failed to fetch detailed stats:', error);
+      // Fallback to basic stats
+      setStats(prev => ({
+        ...prev,
+        totalSessions: sessions.length,
+        activeSessions: sessions.filter(s => s.status === 'connected').length
+      }));
     }
   };
 
