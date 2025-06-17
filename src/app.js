@@ -16,6 +16,7 @@ const { swaggerSpec, swaggerUiOptions } = require('./config/swagger');
 const QRCode = require('qrcode');
 const crypto = require('crypto');
 const database = require('./config/database');
+const apiTokenAuth = require('./middleware/apiTokenAuth');
 
 // Polyfill para fetch em versões antigas do Node.js
 let fetch;
@@ -204,7 +205,9 @@ function checkSessionOwnership(req, res, next) {
 
 // Funções utilitárias para gerenciar webhooks
 function getSessionWebhooks(sessionId) {
-  return webhooks.get(sessionId) || [];
+  const sessionWebhooks = webhooks.get(sessionId) || [];
+  logger.info(`Getting webhooks for session ${sessionId}: found ${sessionWebhooks.length} webhooks`);
+  return sessionWebhooks;
 }
 
 function addWebhookToSession(sessionId, webhookData) {
@@ -294,10 +297,16 @@ function updateWebhookInSession(sessionId, webhookId, updateData) {
 
 function getActiveWebhooks(sessionId, eventType = null) {
   const sessionWebhooks = getSessionWebhooks(sessionId);
-  return sessionWebhooks
+  logger.info(`Session ${sessionId} has ${sessionWebhooks.length} total webhooks`);
+  
+  const activeWebhooks = sessionWebhooks
     .filter(w => w.active)
     .filter(w => !eventType || w.events.includes('*') || w.events.includes(eventType))
     .sort((a, b) => a.priority - b.priority);
+    
+  logger.info(`Session ${sessionId} has ${activeWebhooks.length} active webhooks for event ${eventType}`);
+  
+  return activeWebhooks;
 }
 
 // Importar rotas de grupos
@@ -875,7 +884,9 @@ async function loadExistingSessions() {
             const webhookData = await loadWebhookData(sessionId);
             if (webhookData) {
               webhooks.set(sessionId, webhookData);
-              logger.info(`Webhook configuration recovered from MongoDB for session ${sessionId}`);
+              logger.info(`Webhook configuration recovered from MongoDB for session ${sessionId}: ${JSON.stringify(webhookData)}`);
+            } else {
+              logger.info(`No webhook configuration found in MongoDB for session ${sessionId}`);
             }
           } else {
             // Se não há dados salvos, mas existe diretório de auth, tentar criar sessão
@@ -1095,9 +1106,16 @@ async function getContactOrGroupInfo(jid, sock) {
 // Função para enviar webhook
 async function sendWebhook(sessionId, eventType, data) {
   try {
+    logger.info(`Attempting to send webhook for session ${sessionId}, event: ${eventType}`);
+    
     // Obter webhooks ativos para este evento
     const activeWebhooks = getActiveWebhooks(sessionId, eventType);
-    if (activeWebhooks.length === 0) return;
+    logger.info(`Found ${activeWebhooks.length} active webhooks for session ${sessionId}, event: ${eventType}`);
+    
+    if (activeWebhooks.length === 0) {
+      logger.warn(`No active webhooks found for session ${sessionId}, event: ${eventType}`);
+      return;
+    }
 
     // Enriquecer dados com informações de contato/grupo se disponível
     let enrichedData = { ...data };
@@ -1488,6 +1506,13 @@ async function createWhatsAppSession(sessionId, userId = null) {
           }
         }
         logger.info(`QR Code gerado para sessão ${sessionId}`);
+        
+        // Send webhook for QR code generation
+        await sendWebhook(sessionId, 'connection.update', {
+          connectionState: 'qr_generated',
+          qrCode: qr,
+          timestamp: new Date().toISOString()
+        });
       }
 
       if (connection === 'close') {
@@ -1517,6 +1542,15 @@ async function createWhatsAppSession(sessionId, userId = null) {
           sessionData.lastError = errorMessage;
           sessionData.lastDisconnectTime = new Date();
         }
+        
+        // Send webhook for disconnection
+        await sendWebhook(sessionId, 'connection.update', {
+          connectionState: 'disconnected',
+          timestamp: new Date().toISOString(),
+          error: errorMessage,
+          statusCode: statusCode,
+          shouldReconnect: shouldReconnect
+        });
 
         if (shouldReconnect) {
           // Log do motivo da reconexão
@@ -1636,6 +1670,13 @@ async function createWhatsAppSession(sessionId, userId = null) {
           await saveSessionData(sessionId, sessionData);
         }
         logger.info(`Sessão ${sessionId} conectada com sucesso`);
+        
+        // Send webhook for successful connection
+        await sendWebhook(sessionId, 'connection.update', {
+          connectionState: 'connected',
+          timestamp: new Date().toISOString(),
+          connectedAt: sessionData.connectedAt
+        });
       } else if (connection === 'connecting') {
         connectionState = 'connecting';
         const sessionData = sessions.get(sessionId);
@@ -1660,8 +1701,11 @@ async function createWhatsAppSession(sessionId, userId = null) {
         // Extrair dados completos da mensagem (incluindo mídia em base64 para webhooks)
         const messageData = await extractMessageData(message, sock);
 
+        // Debug: Log all webhooks in memory
+        logger.info(`Current webhooks in memory: ${JSON.stringify(Array.from(webhooks.entries()))}`);
+        
         // Enviar webhook para todas as mensagens (enviadas e recebidas)
-        await sendWebhook(sessionId, 'message.upsert', messageData);
+        await sendWebhook(sessionId, 'messages.upsert', messageData);
 
         if (!message.key.fromMe && message.message) {
           // Processar mensagem recebida
@@ -2703,7 +2747,7 @@ app.delete('/api/baileys/session/:sessionId/webhook', checkSessionOwnership, (re
 // ========================================
 
 // Listar todos os webhooks de uma sessão
-app.get('/api/baileys/session/:sessionId/webhooks', checkSessionOwnership, (req, res) => {
+app.get('/api/baileys/session/:sessionId/webhooks', apiTokenAuth, checkSessionOwnership, (req, res) => {
   try {
     const { sessionId } = req.params;
 
@@ -2734,7 +2778,7 @@ app.get('/api/baileys/session/:sessionId/webhooks', checkSessionOwnership, (req,
 });
 
 // Adicionar novo webhook à sessão
-app.post('/api/baileys/session/:sessionId/webhooks', checkSessionOwnership, async (req, res) => {
+app.post('/api/baileys/session/:sessionId/webhooks', apiTokenAuth, checkSessionOwnership, async (req, res) => {
   try {
     const { sessionId } = req.params;
     const { name, url, active, priority, events } = req.body;
@@ -2789,7 +2833,7 @@ app.post('/api/baileys/session/:sessionId/webhooks', checkSessionOwnership, asyn
 });
 
 // Obter webhook específico
-app.get('/api/baileys/session/:sessionId/webhooks/:webhookId', checkSessionOwnership, (req, res) => {
+app.get('/api/baileys/session/:sessionId/webhooks/:webhookId', apiTokenAuth, checkSessionOwnership, (req, res) => {
   try {
     const { sessionId, webhookId } = req.params;
 
@@ -2827,7 +2871,7 @@ app.get('/api/baileys/session/:sessionId/webhooks/:webhookId', checkSessionOwner
 });
 
 // Atualizar webhook específico
-app.put('/api/baileys/session/:sessionId/webhooks/:webhookId', checkSessionOwnership, (req, res) => {
+app.put('/api/baileys/session/:sessionId/webhooks/:webhookId', apiTokenAuth, checkSessionOwnership, (req, res) => {
   try {
     const { sessionId, webhookId } = req.params;
     const { name, url, active, priority, events } = req.body;
@@ -2877,7 +2921,7 @@ app.put('/api/baileys/session/:sessionId/webhooks/:webhookId', checkSessionOwner
 });
 
 // Remover webhook específico
-app.delete('/api/baileys/session/:sessionId/webhooks/:webhookId', checkSessionOwnership, (req, res) => {
+app.delete('/api/baileys/session/:sessionId/webhooks/:webhookId', apiTokenAuth, checkSessionOwnership, (req, res) => {
   try {
     const { sessionId, webhookId } = req.params;
 
@@ -2908,7 +2952,7 @@ app.delete('/api/baileys/session/:sessionId/webhooks/:webhookId', checkSessionOw
 });
 
 // Ativar/desativar webhook específico
-app.patch('/api/baileys/session/:sessionId/webhooks/:webhookId/toggle', checkSessionOwnership, (req, res) => {
+app.patch('/api/baileys/session/:sessionId/webhooks/:webhookId/toggle', apiTokenAuth, checkSessionOwnership, (req, res) => {
   try {
     const { sessionId, webhookId } = req.params;
 
@@ -2951,7 +2995,7 @@ app.patch('/api/baileys/session/:sessionId/webhooks/:webhookId/toggle', checkSes
 });
 
 // Testar webhook específico
-app.post('/api/baileys/session/:sessionId/webhooks/:webhookId/test', checkSessionOwnership, async (req, res) => {
+app.post('/api/baileys/session/:sessionId/webhooks/:webhookId/test', apiTokenAuth, checkSessionOwnership, async (req, res) => {
   try {
     const { sessionId, webhookId } = req.params;
 

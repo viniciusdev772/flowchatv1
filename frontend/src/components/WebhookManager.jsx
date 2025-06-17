@@ -25,7 +25,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
     url: '',
     active: true,
     priority: 1,
-    events: ['messages.upsert']
+    events: ['messages.upsert', 'connection.update']
   });
   const [testingWebhook, setTestingWebhook] = useState(null);
   const [testResults, setTestResults] = useState({});
@@ -230,7 +230,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
       url: '',
       active: true,
       priority: 1,
-      events: ['messages.upsert']
+      events: ['messages.upsert', 'connection.update']
     });
   };
 
@@ -241,7 +241,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
       url: webhook.url,
       active: webhook.active,
       priority: webhook.priority,
-      events: webhook.events || ['messages.upsert']
+      events: webhook.events || ['messages.upsert', 'connection.update']
     });
   };
 
@@ -524,10 +524,10 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                   <div className="bg-blue-50 p-4 rounded-2xl">
                     <div className="flex items-center mb-2">
                       <CogIcon className="h-5 w-5 text-blue-600 mr-2" />
-                      <span className="text-sm font-medium text-blue-900">Configuração Padrão</span>
+                      <span className="text-sm font-medium text-blue-900">Eventos Padrão</span>
                     </div>
                     <p className="text-xs text-blue-700">
-                      O evento 'messages.upsert' será configurado automaticamente para receber todas as mensagens.
+                      Os eventos 'messages.upsert' e 'connection.update' serão configurados automaticamente para receber mensagens e mudanças de conexão.
                     </p>
                   </div>
                 </div>
