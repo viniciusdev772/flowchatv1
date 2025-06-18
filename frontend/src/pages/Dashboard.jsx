@@ -75,12 +75,18 @@ export default function Dashboard() {
   const [qrCodeData, setQrCodeData] = useState(null);
   const [loadingQrCode, setLoadingQrCode] = useState(false);
   const [showCreateSessionModal, setShowCreateSessionModal] = useState(false);
-  const [sessionForm, setSessionForm] = useState({ sessionId: '', selectedToken: '' });
+  const [sessionForm, setSessionForm] = useState({ sessionId: '' });
   const [creatingSession, setCreatingSession] = useState(false);
   
   // Webhook management state
   const [showWebhookManager, setShowWebhookManager] = useState(false);
   const [selectedSessionForWebhooks, setSelectedSessionForWebhooks] = useState(null);
+  
+  // Session configuration state
+  const [showSessionConfig, setShowSessionConfig] = useState(false);
+  const [selectedSessionForConfig, setSelectedSessionForConfig] = useState(null);
+  const [selectedTokenForExamples, setSelectedTokenForExamples] = useState('');
+  const [fullTokenForExamples, setFullTokenForExamples] = useState('');
 
   // Carregar dados reais do usuário da API
   useEffect(() => {
@@ -442,53 +448,23 @@ export default function Dashboard() {
   };
   const createWhatsAppSession = async () => {
     try {
-      const { sessionId, selectedToken } = sessionForm;
+      const { sessionId } = sessionForm;
       
-      if (!sessionId.trim() || !selectedToken) {
+      if (!sessionId.trim()) {
+        alert('Por favor, digite um ID para a sessão');
         return;
       }
 
       setCreatingSession(true);
       
-      // Find the token info
-      const tokenInfo = apiTokens.find(token => token._id === selectedToken);
-      if (!tokenInfo || !tokenInfo.isActive || tokenInfo.isExpired) {
-        alert('Token selecionado não está ativo ou expirado');
-        setCreatingSession(false);
-        return;
-      }
-
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
       
-      // Get the full token from the database
-      const tokenResponse = await fetch(`${apiUrl}/api/management/tokens/${selectedToken}/full`, {
-        method: 'GET',
+      // Create session using web authentication (session cookies)
+      const response = await fetch(`${apiUrl}/api/baileys/session/create`, {
+        method: 'POST',
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json'
-        }
-      });
-
-      if (!tokenResponse.ok) {
-        alert('Erro ao obter token para criação da sessão');
-        setCreatingSession(false);
-        return;
-      }
-
-      const tokenResult = await tokenResponse.json();
-      if (!tokenResult.success || !tokenResult.token) {
-        alert('Token não encontrado ou inválido');
-        setCreatingSession(false);
-        return;
-      }
-
-      // Use the Baileys API directly to create session
-      const response = await fetch(`${apiUrl}/api/baileys/session/create`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${tokenResult.token}`,
-          'accept': 'application/json'
         },
         body: JSON.stringify({
           sessionId: sessionId.trim()
@@ -500,7 +476,7 @@ export default function Dashboard() {
       if (response.ok && result.success) {
         // Session created successfully
         setShowCreateSessionModal(false);
-        setSessionForm({ sessionId: '', selectedToken: '' });
+        setSessionForm({ sessionId: '' });
         
         // Show QR code if available
         if (result.qrCode) {
@@ -792,6 +768,48 @@ export default function Dashboard() {
       }));
     }
   };
+
+  // Fetch full token for API examples
+  const fetchFullTokenForExamples = async (tokenId) => {
+    if (!tokenId) {
+      setFullTokenForExamples('');
+      return;
+    }
+
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      const tokenResponse = await fetch(`${apiUrl}/api/management/tokens/${tokenId}/full`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (!tokenResponse.ok) {
+        console.error('Erro ao buscar token completo:', tokenResponse.statusText);
+        setFullTokenForExamples('baileys_erro_ao_carregar_token');
+        return;
+      }
+
+      const tokenResult = await tokenResponse.json();
+      if (!tokenResult.success || !tokenResult.token) {
+        console.error('Token inválido retornado pela API');
+        setFullTokenForExamples('baileys_token_inválido');
+        return;
+      }
+
+      setFullTokenForExamples(tokenResult.token);
+    } catch (error) {
+      console.error('Erro ao buscar token:', error);
+      setFullTokenForExamples('baileys_erro_conexão');
+    }
+  };
+
+  // Effect to fetch token when selection changes
+  useEffect(() => {
+    fetchFullTokenForExamples(selectedTokenForExamples);
+  }, [selectedTokenForExamples]);
 
   if (isLoading) {
     return (
@@ -1188,6 +1206,18 @@ export default function Dashboard() {
                             )}
                             
                             <motion.button
+                              onClick={() => {
+                                setSelectedSessionForConfig({
+                                  id: session.id,
+                                  name: session.name,
+                                  status: session.status,
+                                  messages: session.messages,
+                                  groups: session.groups,
+                                  webhooks: session.webhooks,
+                                  uptime: session.uptime
+                                });
+                                setShowSessionConfig(true);
+                              }}
                               className="liquid-button inline-flex items-center text-sm"
                               whileHover={performanceMode ? {} : { scale: 1.05 }}
                               whileTap={performanceMode ? {} : { scale: 0.95 }}
@@ -2023,7 +2053,7 @@ export default function Dashboard() {
             exit={{ opacity: 0 }}
             onClick={() => {
               setShowCreateSessionModal(false);
-              setSessionForm({ sessionId: '', selectedToken: '' });
+              setSessionForm({ sessionId: '' });
             }}
           >
             <motion.div
@@ -2035,108 +2065,67 @@ export default function Dashboard() {
             >
               <h3 className="text-xl font-semibold text-white mb-6">Criar Sessão WhatsApp</h3>
               
-              {apiTokens.length === 0 ? (
-                <div className="text-center py-8">
-                  <KeyIcon className="w-16 h-16 text-white/30 mx-auto mb-4" />
-                  <h4 className="text-lg font-semibold text-white mb-2">Nenhum Token Disponível</h4>
-                  <p className="text-white/70 mb-6">
-                    Você precisa criar um token de API primeiro para gerenciar sessões WhatsApp.
-                  </p>
-                  <motion.button
-                    onClick={() => {
-                      setShowCreateSessionModal(false);
-                      setShowCreateTokenModal(true);
-                    }}
-                    className="liquid-button inline-flex items-center"
-                    whileHover={performanceMode ? {} : { scale: 1.05 }}
-                    whileTap={performanceMode ? {} : { scale: 0.95 }}
-                  >
-                    <KeyIcon className="w-4 h-4 mr-2" />
-                    Criar Token Primeiro
-                  </motion.button>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-white/80 mb-2">
+                    ID da Sessão *
+                  </label>
+                  <input
+                    type="text"
+                    value={sessionForm.sessionId}
+                    onChange={(e) => setSessionForm(prev => ({ ...prev, sessionId: e.target.value }))}
+                    className={`w-full px-4 py-3 ${performanceMode ? 'glass-performance' : 'glass-ultra'} rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-500 focus:outline-none`}
+                    placeholder="Ex: vendas-bot, suporte-cliente, marketing..."
+                    maxLength={30}
+                  />
                 </div>
-              ) : (
-                <>
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-medium text-white/80 mb-2">
-                        ID da Sessão *
-                      </label>
-                      <input
-                        type="text"
-                        value={sessionForm.sessionId}
-                        onChange={(e) => setSessionForm(prev => ({ ...prev, sessionId: e.target.value }))}
-                        className={`w-full px-4 py-3 ${performanceMode ? 'glass-performance' : 'glass-ultra'} rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-500 focus:outline-none`}
-                        placeholder="Ex: vendas-bot, suporte-cliente, marketing..."
-                        maxLength={30}
-                      />
-                    </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-white/80 mb-2">
-                        Token de API
-                      </label>
-                      <select
-                        value={sessionForm.selectedToken}
-                        onChange={(e) => setSessionForm(prev => ({ ...prev, selectedToken: e.target.value }))}
-                        className={`w-full px-4 py-3 ${performanceMode ? 'glass-performance' : 'glass-ultra'} rounded-xl text-white bg-transparent focus:ring-2 focus:ring-blue-500 focus:outline-none`}
-                      >
-                        <option value="" className="bg-slate-800">Selecione um token</option>
-                        {apiTokens.filter(token => token.isActive && !token.isExpired).map(token => (
-                          <option key={token._id} value={token._id} className="bg-slate-800">
-                            {token.name} {token.expiresAt ? `(expira em ${new Date(token.expiresAt).toLocaleDateString('pt-BR')})` : '(nunca expira)'}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
-
-                    <div className={`${performanceMode ? 'glass-performance' : 'glass-ultra'} p-4 rounded-xl`}>
-                      <div className="flex items-center space-x-2 mb-2">
-                        <ExclamationTriangleIcon className="w-4 h-4 text-yellow-400" />
-                        <span className="text-sm font-medium text-yellow-400">Como Usar</span>
-                      </div>
-                      <div className="text-xs text-white/70 space-y-1">
-                        <p>• Após criar, use o token no Swagger (/api-docs) ou via curl</p>
-                        <p>• A sessão gerará um QR Code para escaneamento</p>
-                        <p>• Use o botão 📋 do token para copiar comando curl pronto</p>
-                      </div>
-                    </div>
+                <div className={`${performanceMode ? 'glass-performance' : 'glass-ultra'} p-4 rounded-xl`}>
+                  <div className="flex items-center space-x-2 mb-2">
+                    <ExclamationTriangleIcon className="w-4 h-4 text-blue-400" />
+                    <span className="text-sm font-medium text-blue-400">Como Usar</span>
                   </div>
-
-                  <div className="flex space-x-3 mt-6">
-                    <motion.button
-                      onClick={() => {
-                        setShowCreateSessionModal(false);
-                        setSessionForm({ sessionId: '', selectedToken: '' });
-                      }}
-                      className={`flex-1 px-4 py-3 ${performanceMode ? 'glass-performance' : 'glass-ultra'} rounded-xl text-white/70 hover:text-white transition-colors`}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                    >
-                      Cancelar
-                    </motion.button>
-                    <motion.button
-                      onClick={createWhatsAppSession}
-                      disabled={!sessionForm.sessionId.trim() || !sessionForm.selectedToken || creatingSession}
-                      className={`flex-1 liquid-button ${(!sessionForm.sessionId.trim() || !sessionForm.selectedToken || creatingSession) ? 'opacity-50 cursor-not-allowed' : ''}`}
-                      whileHover={(!sessionForm.sessionId.trim() || !sessionForm.selectedToken || creatingSession || performanceMode) ? {} : { scale: 1.02 }}
-                      whileTap={(!sessionForm.sessionId.trim() || !sessionForm.selectedToken || creatingSession || performanceMode) ? {} : { scale: 0.98 }}
-                    >
-                      {creatingSession ? (
-                        <>
-                          <div className="w-4 h-4 mr-2 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
-                          Criando...
-                        </>
-                      ) : (
-                        <>
-                          <PhoneIcon className="w-4 h-4 mr-2" />
-                          Criar Sessão
-                        </>
-                      )}
-                    </motion.button>
+                  <div className="text-xs text-white/70 space-y-1">
+                    <p>• Digite um nome único para identificar sua sessão</p>
+                    <p>• Após criar, um QR Code será gerado para escaneamento</p>
+                    <p>• Use a aba "Tokens de API" para criar tokens para automação</p>
+                    <p>• Configure webhooks na seção "Configurar" da sessão</p>
                   </div>
-                </>
-              )}
+                </div>
+              </div>
+
+              <div className="flex space-x-3 mt-6">
+                <motion.button
+                  onClick={() => {
+                    setShowCreateSessionModal(false);
+                    setSessionForm({ sessionId: '' });
+                  }}
+                  className={`flex-1 px-4 py-3 ${performanceMode ? 'glass-performance' : 'glass-ultra'} rounded-xl text-white/70 hover:text-white transition-colors`}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  Cancelar
+                </motion.button>
+                <motion.button
+                  onClick={createWhatsAppSession}
+                  disabled={!sessionForm.sessionId.trim() || creatingSession}
+                  className={`flex-1 liquid-button ${(!sessionForm.sessionId.trim() || creatingSession) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  whileHover={(!sessionForm.sessionId.trim() || creatingSession || performanceMode) ? {} : { scale: 1.02 }}
+                  whileTap={(!sessionForm.sessionId.trim() || creatingSession || performanceMode) ? {} : { scale: 0.98 }}
+                >
+                  {creatingSession ? (
+                    <>
+                      <div className="w-4 h-4 mr-2 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                      Criando...
+                    </>
+                  ) : (
+                    <>
+                      <PhoneIcon className="w-4 h-4 mr-2" />
+                      Criar Sessão
+                    </>
+                  )}
+                </motion.button>
+              </div>
             </motion.div>
           </motion.div>
         )}
@@ -2151,6 +2140,346 @@ export default function Dashboard() {
               setSelectedSessionForWebhooks(null);
             }}
           />
+        )}
+
+        {/* Session Configuration Modal */}
+        {showSessionConfig && selectedSessionForConfig && (
+          <motion.div
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => {
+              setShowSessionConfig(false);
+              setSelectedSessionForConfig(null);
+              setSelectedTokenForExamples('');
+              setFullTokenForExamples('');
+            }}
+          >
+            <motion.div
+              className={`${performanceMode ? 'glass-performance' : 'glass-card'} p-6 max-w-4xl w-full mx-4 rounded-xl max-h-[90vh] overflow-y-auto`}
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center space-x-3">
+                  <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
+                    <WrenchScrewdriverIcon className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-semibold text-white">Configurar Sessão</h3>
+                    <p className="text-white/70">{selectedSessionForConfig.name} ({selectedSessionForConfig.id})</p>
+                  </div>
+                </div>
+                <motion.button
+                  onClick={() => {
+                    setShowSessionConfig(false);
+                    setSelectedSessionForConfig(null);
+                    setSelectedTokenForExamples('');
+                    setFullTokenForExamples('');
+                  }}
+                  className="p-2 rounded-lg hover:bg-white/10 transition-colors"
+                  whileHover={performanceMode ? {} : { scale: 1.05 }}
+                  whileTap={performanceMode ? {} : { scale: 0.95 }}
+                >
+                  <XCircleIcon className="w-6 h-6 text-white/70" />
+                </motion.button>
+              </div>
+
+              {/* Session Status Overview */}
+              <div className={`${performanceMode ? 'glass-performance' : 'glass-ultra'} p-4 rounded-xl mb-6`}>
+                <h4 className="text-lg font-semibold text-white mb-4">Status da Sessão</h4>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="text-center">
+                    <div className={`w-3 h-3 rounded-full mx-auto mb-2 ${
+                      selectedSessionForConfig.status === 'connected' ? 'bg-green-400' :
+                      selectedSessionForConfig.status === 'connecting' ? 'bg-yellow-400' : 'bg-red-400'
+                    }`}></div>
+                    <div className="text-sm text-white/60">Status</div>
+                    <div className="text-sm font-medium text-white capitalize">
+                      {selectedSessionForConfig.status === 'connected' ? 'Conectado' : 
+                       selectedSessionForConfig.status === 'connecting' ? 'Conectando' : 'Desconectado'}
+                    </div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-lg font-bold text-blue-400">{selectedSessionForConfig.messages}</div>
+                    <div className="text-sm text-white/60">Mensagens</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-lg font-bold text-purple-400">{selectedSessionForConfig.groups}</div>
+                    <div className="text-sm text-white/60">Grupos</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-lg font-bold text-green-400">{selectedSessionForConfig.webhooks}</div>
+                    <div className="text-sm text-white/60">Webhooks</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Configuration Tabs */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Session Actions */}
+                <div className={`${performanceMode ? 'glass-performance' : 'glass-ultra'} p-4 rounded-xl`}>
+                  <h4 className="text-lg font-semibold text-white mb-4 flex items-center">
+                    <ServerIcon className="w-5 h-5 mr-2" />
+                    Ações da Sessão
+                  </h4>
+                  <div className="space-y-3">
+                    <motion.button
+                      onClick={() => {
+                        // Regenerar QR Code
+                        setSelectedSession({
+                          id: selectedSessionForConfig.id,
+                          name: selectedSessionForConfig.name
+                        });
+                        setShowQRCode(true);
+                        setShowSessionConfig(false);
+                      }}
+                      className="w-full liquid-button inline-flex items-center justify-center"
+                      whileHover={performanceMode ? {} : { scale: 1.02 }}
+                      whileTap={performanceMode ? {} : { scale: 0.98 }}
+                    >
+                      <QrCodeIcon className="w-4 h-4 mr-2" />
+                      Regenerar QR Code
+                    </motion.button>
+                    
+                    <motion.button
+                      onClick={() => {
+                        // Abrir webhook manager
+                        setSelectedSessionForWebhooks(selectedSessionForConfig.id);
+                        setShowWebhookManager(true);
+                        setShowSessionConfig(false);
+                      }}
+                      className="w-full liquid-button inline-flex items-center justify-center"
+                      whileHover={performanceMode ? {} : { scale: 1.02 }}
+                      whileTap={performanceMode ? {} : { scale: 0.98 }}
+                    >
+                      <LinkIcon className="w-4 h-4 mr-2" />
+                      Gerenciar Webhooks
+                    </motion.button>
+
+                    <motion.button
+                      className="w-full bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30 px-4 py-3 rounded-xl transition-all inline-flex items-center justify-center"
+                      whileHover={performanceMode ? {} : { scale: 1.02 }}
+                      whileTap={performanceMode ? {} : { scale: 0.98 }}
+                    >
+                      <TrashIcon className="w-4 h-4 mr-2" />
+                      Excluir Sessão
+                    </motion.button>
+                  </div>
+                </div>
+
+                {/* Session Information */}
+                <div className={`${performanceMode ? 'glass-performance' : 'glass-ultra'} p-4 rounded-xl`}>
+                  <h4 className="text-lg font-semibold text-white mb-4 flex items-center">
+                    <DocumentTextIcon className="w-5 h-5 mr-2" />
+                    Informações da Sessão
+                  </h4>
+                  <div className="space-y-3">
+                    <div>
+                      <div className="text-sm text-white/60">ID da Sessão</div>
+                      <div className="text-sm font-mono text-white bg-white/5 p-2 rounded border">
+                        {selectedSessionForConfig.id}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-sm text-white/60">Nome</div>
+                      <div className="text-sm text-white">{selectedSessionForConfig.name}</div>
+                    </div>
+                    <div>
+                      <div className="text-sm text-white/60">Tempo Ativo</div>
+                      <div className="text-sm text-white">{selectedSessionForConfig.uptime}</div>
+                    </div>
+                    <div>
+                      <div className="text-sm text-white/60">Última Atualização</div>
+                      <div className="text-sm text-white">{new Date().toLocaleString('pt-BR')}</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* API Usage Examples */}
+              <div className={`${performanceMode ? 'glass-performance' : 'glass-ultra'} p-4 rounded-xl mt-6`}>
+                <div className="flex items-center justify-between mb-4">
+                  <h4 className="text-lg font-semibold text-white flex items-center">
+                    <ClipboardDocumentIcon className="w-5 h-5 mr-2" />
+                    Exemplos de Uso da API
+                  </h4>
+                  <div className="flex items-center space-x-2">
+                    <KeyIcon className="w-4 h-4 text-white/60" />
+                    <select
+                      value={selectedTokenForExamples}
+                      onChange={(e) => setSelectedTokenForExamples(e.target.value)}
+                      className={`px-3 py-2 ${performanceMode ? 'glass-performance' : 'glass-ultra'} rounded-lg text-white text-sm bg-transparent focus:ring-2 focus:ring-blue-500 focus:outline-none min-w-[200px]`}
+                    >
+                      <option value="" className="bg-slate-800">Selecione um token</option>
+                      {apiTokens.filter(token => token.isActive && !token.isExpired).map(token => (
+                        <option key={token._id} value={token._id} className="bg-slate-800">
+                          {token.name} {token.expiresAt ? `(expira ${new Date(token.expiresAt).toLocaleDateString('pt-BR')})` : '(nunca expira)'}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                {selectedTokenForExamples ? (
+                  <div className="space-y-4 text-sm">
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="text-white/60">Enviar Mensagem:</div>
+                        <motion.button
+                          onClick={() => {
+                            const command = `curl -X POST "${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/baileys/session/${selectedSessionForConfig.id}/send-message" \\
+  -H "Authorization: Bearer ${fullTokenForExamples}" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "to": "5511999999999",
+    "message": "Olá! Como posso ajudar?"
+  }'`;
+                            copyToClipboard(command);
+                          }}
+                          className="text-xs text-blue-400 hover:text-blue-300 flex items-center space-x-1"
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                        >
+                          <ClipboardDocumentIcon className="w-3 h-3" />
+                          <span>Copiar</span>
+                        </motion.button>
+                      </div>
+                      <div className="font-mono text-xs text-white bg-white/5 p-3 rounded border overflow-x-auto">
+                        {`curl -X POST "${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/baileys/session/${selectedSessionForConfig.id}/send-message" \\
+  -H "Authorization: Bearer ${fullTokenForExamples}" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "to": "5511999999999",
+    "message": "Olá! Como posso ajudar?"
+  }'`}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="text-white/60">Verificar Status:</div>
+                        <motion.button
+                          onClick={() => {
+                            const command = `curl -X GET "${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/baileys/session/${selectedSessionForConfig.id}/status" \\
+  -H "Authorization: Bearer ${fullTokenForExamples}"`;
+                            copyToClipboard(command);
+                          }}
+                          className="text-xs text-blue-400 hover:text-blue-300 flex items-center space-x-1"
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                        >
+                          <ClipboardDocumentIcon className="w-3 h-3" />
+                          <span>Copiar</span>
+                        </motion.button>
+                      </div>
+                      <div className="font-mono text-xs text-white bg-white/5 p-3 rounded border overflow-x-auto">
+                        {`curl -X GET "${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/baileys/session/${selectedSessionForConfig.id}/status" \\
+  -H "Authorization: Bearer ${fullTokenForExamples}"`}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="text-white/60">Listar Grupos:</div>
+                        <motion.button
+                          onClick={() => {
+                            const command = `curl -X GET "${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/baileys/groups/${selectedSessionForConfig.id}/list" \\
+  -H "Authorization: Bearer ${fullTokenForExamples}"`;
+                            copyToClipboard(command);
+                          }}
+                          className="text-xs text-blue-400 hover:text-blue-300 flex items-center space-x-1"
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                        >
+                          <ClipboardDocumentIcon className="w-3 h-3" />
+                          <span>Copiar</span>
+                        </motion.button>
+                      </div>
+                      <div className="font-mono text-xs text-white bg-white/5 p-3 rounded border overflow-x-auto">
+                        {`curl -X GET "${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/baileys/groups/${selectedSessionForConfig.id}/list" \\
+  -H "Authorization: Bearer ${fullTokenForExamples}"`}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="text-white/60">Enviar Mídia:</div>
+                        <motion.button
+                          onClick={() => {
+                            const command = `curl -X POST "${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/baileys/session/${selectedSessionForConfig.id}/send-media" \\
+  -H "Authorization: Bearer ${fullTokenForExamples}" \\
+  -F "media=@/caminho/para/arquivo.jpg" \\
+  -F "to=5511999999999" \\
+  -F "caption=Olha essa foto!"`;
+                            copyToClipboard(command);
+                          }}
+                          className="text-xs text-blue-400 hover:text-blue-300 flex items-center space-x-1"
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                        >
+                          <ClipboardDocumentIcon className="w-3 h-3" />
+                          <span>Copiar</span>
+                        </motion.button>
+                      </div>
+                      <div className="font-mono text-xs text-white bg-white/5 p-3 rounded border overflow-x-auto">
+                        {`curl -X POST "${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/baileys/session/${selectedSessionForConfig.id}/send-media" \\
+  -H "Authorization: Bearer ${fullTokenForExamples}" \\
+  -F "media=@/caminho/para/arquivo.jpg" \\
+  -F "to=5511999999999" \\
+  -F "caption=Olha essa foto!"`}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <KeyIcon className="w-16 h-16 text-white/20 mx-auto mb-4" />
+                    <h4 className="text-lg font-semibold text-white/60 mb-2">Selecione um Token</h4>
+                    <p className="text-white/40 text-sm">
+                      Escolha um token acima para ver os exemplos personalizados com seu token real.
+                    </p>
+                  </div>
+                )}
+                <div className={`${performanceMode ? 'glass-performance' : 'glass-ultra'} p-3 rounded-xl mt-4`}>
+                  <div className="flex items-center space-x-2 mb-2">
+                    <ExclamationTriangleIcon className="w-4 h-4 text-yellow-400" />
+                    <span className="text-sm font-medium text-yellow-400">Dicas de Uso</span>
+                  </div>
+                  <div className="text-xs text-white/70 space-y-1">
+                    {selectedTokenForExamples ? (
+                      <>
+                        <p>• ✅ Token selecionado - comandos prontos para uso!</p>
+                        <p>• 📋 Use os botões "Copiar" para copiar comandos completos</p>
+                        <p>• 🔄 Troque de token no seletor acima para usar outro</p>
+                      </>
+                    ) : (
+                      <>
+                        <p>• 🔑 Selecione um token acima para ver comandos personalizados</p>
+                        <p>• ⚡ Tokens ativos são carregados automaticamente</p>
+                      </>
+                    )}
+                    <p>• 📚 Documentação completa disponível em <code className="bg-white/10 px-1 rounded">/api-docs</code></p>
+                    <p>• 🔧 Use a aba "Tokens de API" para gerenciar seus tokens</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end mt-6">
+                <motion.button
+                  onClick={() => {
+                    setShowSessionConfig(false);
+                    setSelectedSessionForConfig(null);
+                    setSelectedTokenForExamples('');
+                    setFullTokenForExamples('');
+                  }}
+                  className="liquid-button inline-flex items-center"
+                  whileHover={performanceMode ? {} : { scale: 1.05 }}
+                  whileTap={performanceMode ? {} : { scale: 0.95 }}
+                >
+                  Fechar
+                </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>

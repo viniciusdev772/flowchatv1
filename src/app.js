@@ -1820,10 +1820,24 @@ async function downloadMedia(sock, message, filename) {
   }
 }
 
-app.post('/api/baileys/session/create', async (req, res) => {
+// Dual authentication middleware for session creation
+const dualAuth = async (req, res, next) => {
+  const authHeader = req.headers.authorization;
+  
+  // If Authorization header exists and starts with 'Bearer baileys_', use API token auth
+  if (authHeader && authHeader.startsWith('Bearer baileys_')) {
+    return apiTokenAuth(req, res, next);
+  }
+  
+  // Otherwise, use web authentication (cookies/JWT)
+  const { authenticateToken } = require('./middleware/auth');
+  return authenticateToken(req, res, next);
+};
+
+app.post('/api/baileys/session/create', dualAuth, async (req, res) => {
   try {
     const { sessionId } = req.body;
-    const userId = req.user?.id || req.user?._id; // Get user ID from API token middleware
+    const userId = req.user?.id || req.user?._id; // Get user ID from authentication middleware
 
     if (!sessionId) {
       return res.status(400).json({
