@@ -56,8 +56,11 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
   useEffect(() => {
     if (token) {
       loadWebhooks();
+    } else if (!tokenLoading) {
+      // If we're not loading token and token is empty, stop loading
+      setLoading(false);
     }
-  }, [sessionId, token]);
+  }, [sessionId, token, tokenLoading]);
 
   const fetchToken = async () => {
     if (!tokenId) {
@@ -67,6 +70,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
     }
 
     try {
+      console.log('Fetching token with ID:', tokenId);
       setTokenLoading(true);
       const response = await fetch(`${apiUrl}/api/management/tokens/${tokenId}/full`, {
         method: 'GET',
@@ -76,8 +80,11 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
         }
       });
 
+      console.log('Token response status:', response.status);
+
       if (response.ok) {
         const result = await response.json();
+        console.log('Token result:', result);
         if (result.success && result.token) {
           setToken(result.token);
         } else {
@@ -85,16 +92,25 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
         }
       } else {
         console.error('Erro na requisição do token:', response.status);
+        const errorText = await response.text();
+        console.error('Token error response:', errorText);
+        
+        // If token is not found (404), it might have been deleted
+        if (response.status === 404) {
+          console.error('Token não encontrado. O token pode ter sido excluído ou não pertence ao usuário.');
+        }
       }
     } catch (error) {
       console.error('Erro ao buscar token:', error);
     } finally {
+      console.log('Setting tokenLoading to false');
       setTokenLoading(false);
     }
   };
 
   const loadWebhooks = async () => {
     try {
+      console.log('Loading webhooks for session:', sessionId, 'with token:', token ? 'present' : 'missing');
       setLoading(true);
       const response = await fetch(`${apiUrl}/api/baileys/session/${sessionId}/webhooks`, {
         method: 'GET',
@@ -104,15 +120,25 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
         }
       });
 
+      console.log('Webhooks response status:', response.status);
+      
       if (response.ok) {
         const result = await response.json();
+        console.log('Webhooks result:', result);
         if (result.success) {
           setWebhooks(result.webhooks || []);
+        } else {
+          console.error('Webhooks API returned error:', result.message);
         }
+      } else {
+        console.error('Webhooks request failed with status:', response.status);
+        const errorText = await response.text();
+        console.error('Error response:', errorText);
       }
     } catch (error) {
       console.error('Erro ao carregar webhooks:', error);
     } finally {
+      console.log('Setting loading to false');
       setLoading(false);
     }
   };
@@ -293,7 +319,11 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
             <div>
               <ExclamationTriangleIcon className="h-16 w-16 text-red-400 mx-auto mb-4" />
               <h3 className="text-lg font-medium text-white mb-2">Erro de Autenticação</h3>
-              <p className="text-white/70 mb-6">Não foi possível obter o token de acesso.</p>
+              <p className="text-white/70 mb-6">
+                Não foi possível obter o token de acesso. O token pode ter expirado ou sido excluído.
+                <br />
+                <span className="text-sm">Crie um novo token na aba "Tokens de API".</span>
+              </p>
               <button
                 onClick={onClose}
                 className="px-6 py-3 bg-red-500/20 text-red-400 rounded-xl hover:bg-red-500/30 transition-colors"
