@@ -1012,10 +1012,7 @@ export default function Dashboard() {
                 </div>
                 <motion.div 
                   className="relative cursor-pointer"
-                  onClick={() => {
-                    console.log('Profile button clicked, user:', user); // Debug log
-                    setShowUserProfile(true);
-                  }}
+                  onClick={() => setShowUserProfile(true)}
                   whileHover={performanceMode ? {} : { scale: 1.05 }}
                   whileTap={performanceMode ? {} : { scale: 0.95 }}
                 >
