@@ -38,12 +38,8 @@ class Server {
         // Allow requests with no origin (mobile apps, curl, etc.)
         if (!origin) return callback(null, true);
         
-        const allowedOrigins = [
-          'http://localhost:5173',
-          'http://localhost:3000',
-          'http://127.0.0.1:5173',
-          'http://127.0.0.1:3000'
-        ];
+        // Allow all origins
+        return callback(null, true);
         
         // Add CORS_ORIGIN from environment if it exists
         if (process.env.CORS_ORIGIN && !allowedOrigins.includes(process.env.CORS_ORIGIN)) {
