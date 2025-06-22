@@ -2509,7 +2509,7 @@ export default function Dashboard() {
         {showWebhookManager && selectedSessionForWebhooks && (
           <WebhookManager
             sessionId={selectedSessionForWebhooks}
-            tokenId={apiTokens.length > 0 ? apiTokens[0]._id : ''}
+            tokenId={apiTokens.find(token => token.isActive && !token.isExpired)?._id || ''}
             onClose={() => {
               setShowWebhookManager(false);
               setSelectedSessionForWebhooks(null);
