@@ -105,7 +105,6 @@ export default function Dashboard() {
           const result = await response.json();
           if (result.success && result.data.user) {
             const userData = result.data.user;
-            console.log('User data loaded:', userData); // Debug log
             setUser(userData);
             
             // Atualizar stats com dados reais do usuário
@@ -328,6 +327,96 @@ export default function Dashboard() {
       }
     } catch (error) {
       console.error('Erro ao revogar token:', error);
+    }
+  };
+
+  const getActiveApiToken = async () => {
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      const tokensResponse = await fetch(`${apiUrl}/api/management/tokens/list`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (tokensResponse.ok) {
+        const tokensResult = await tokensResponse.json();
+        if (tokensResult.success && tokensResult.tokens.length > 0) {
+          const activeToken = tokensResult.tokens.find(token => token.isActive && !token.isExpired);
+          
+          if (activeToken) {
+            // Get the full token
+            const tokenResponse = await fetch(`${apiUrl}/api/management/tokens/${activeToken._id}/full`, {
+              method: 'GET',
+              credentials: 'include',
+              headers: {
+                'Content-Type': 'application/json'
+              }
+            });
+
+            if (tokenResponse.ok) {
+              const tokenResult = await tokenResponse.json();
+              if (tokenResult.success && tokenResult.token) {
+                return tokenResult.token;
+              }
+            }
+          }
+        }
+      }
+      return null;
+    } catch (error) {
+      console.error('Erro ao obter token ativo:', error);
+      return null;
+    }
+  };
+
+  const handleDeleteSession = async (sessionId) => {
+    try {
+      if (!confirm('Tem certeza que deseja excluir esta sessão? Esta ação não pode ser desfeita.')) {
+        return;
+      }
+
+      // Get active API token
+      const token = await getActiveApiToken();
+      if (!token) {
+        alert('Erro: Nenhum token de API ativo encontrado. Crie um token primeiro.');
+        return;
+      }
+
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      const response = await fetch(`${apiUrl}/api/baileys/session/${sessionId}`, {
+        method: 'DELETE',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success) {
+          // Close the session config modal
+          setShowSessionConfig(false);
+          setSelectedSessionForConfig(null);
+          
+          // Reload sessions to reflect the deletion
+          await fetchRealSessions();
+          await fetchApiTokens();
+          
+          console.log('Sessão excluída com sucesso');
+        } else {
+          console.error('Erro ao excluir sessão:', result.message);
+          alert('Erro ao excluir sessão: ' + result.message);
+        }
+      } else {
+        console.error('Erro HTTP ao excluir sessão:', response.status);
+        alert('Erro ao excluir sessão. Tente novamente.');
+      }
+    } catch (error) {
+      console.error('Erro ao excluir sessão:', error);
+      alert('Erro ao excluir sessão. Verifique sua conexão e tente novamente.');
     }
   };
 
@@ -2072,7 +2161,8 @@ export default function Dashboard() {
                     </motion.button>
 
                     <motion.button
-                      className="w-full bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30 px-4 py-3 rounded-xl transition-all inline-flex items-center justify-center"
+                      onClick={() => handleDeleteSession(selectedSessionForConfig.id)}
+                      className="w-full liquid-button-danger inline-flex items-center justify-center"
                       whileHover={performanceMode ? {} : { scale: 1.02 }}
                       whileTap={performanceMode ? {} : { scale: 0.98 }}
                     >
