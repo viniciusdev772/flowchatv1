@@ -1350,7 +1350,7 @@ export default function Dashboard() {
                           enviar mensagens
                         </p>
                         <motion.button
-                          onClick={() => setActiveTab('sessions')}
+                          onClick={() => setShowCreateSessionModal(true)}
                           className="liquid-button inline-flex items-center text-sm"
                           whileHover={performanceMode ? {} : { scale: 1.02 }}
                           whileTap={performanceMode ? {} : { scale: 0.98 }}

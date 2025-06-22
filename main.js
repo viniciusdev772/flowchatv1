@@ -34,12 +34,41 @@ class Server {
       crossOriginResourcePolicy: { policy: "cross-origin" }
     }));    // CORS configuration
     this.app.use(cors({
-      origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+      origin: function (origin, callback) {
+        // Allow requests with no origin (mobile apps, curl, etc.)
+        if (!origin) return callback(null, true);
+        
+        const allowedOrigins = [
+          'http://localhost:5173',
+          'http://localhost:3000',
+          'http://127.0.0.1:5173',
+          'http://127.0.0.1:3000'
+        ];
+        
+        // Add CORS_ORIGIN from environment if it exists
+        if (process.env.CORS_ORIGIN && !allowedOrigins.includes(process.env.CORS_ORIGIN)) {
+          allowedOrigins.push(process.env.CORS_ORIGIN);
+        }
+        
+        if (allowedOrigins.includes(origin)) {
+          console.log('CORS allowed origin:', origin);
+          callback(null, true);
+        } else {
+          console.log('CORS blocked origin:', origin, 'Allowed:', allowedOrigins);
+          callback(new Error('Not allowed by CORS'));
+        }
+      },
       credentials: true,
       methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token', 'csrf-token'],
-      exposedHeaders: ['X-CSRF-Token', 'X-New-CSRF-Token']
+      exposedHeaders: ['X-CSRF-Token', 'X-New-CSRF-Token'],
+      optionsSuccessStatus: 200 // For legacy browser support
     }));
+
+    // Handle preflight OPTIONS requests explicitly
+    this.app.options('*', (req, res) => {
+      res.status(200).end();
+    });
 
     // Request logging
     if (process.env.NODE_ENV !== 'test') {
