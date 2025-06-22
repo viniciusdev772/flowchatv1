@@ -1,37 +1,31 @@
-import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
-  PhoneIcon,
-  ChatBubbleLeftRightIcon,
-  UserGroupIcon,
-  BellIcon,
-  DocumentTextIcon,
-  CogIcon,
-  PlusIcon,
-  QrCodeIcon,
-  PlayIcon,
-  PauseIcon,
-  TrashIcon,
-  CheckCircleIcon,
-  XCircleIcon,
-  ExclamationTriangleIcon,
-  SignalIcon,
-  UserIcon,
   ArrowRightOnRectangleIcon,
+  BellIcon,
   ChartBarIcon,
-  CloudIcon,
+  ChatBubbleLeftRightIcon,
+  CheckCircleIcon,
+  ClipboardDocumentIcon,
+  ClockIcon,
+  CogIcon,
+  DocumentTextIcon,
+  ExclamationTriangleIcon,
+  EyeIcon,
+  KeyIcon,
   LinkIcon,
   PaperAirplaneIcon,
+  PhoneIcon,
   PhotoIcon,
-  UsersIcon,
-  ClockIcon,
+  PlusIcon,
+  QrCodeIcon,
   ServerIcon,
-  EyeIcon,
+  TrashIcon,
+  UserGroupIcon,
+  UsersIcon,
   WrenchScrewdriverIcon,
-  KeyIcon,
-  ClipboardDocumentIcon,
-  CalendarIcon
+  XCircleIcon,
 } from '@heroicons/react/24/outline';
+import { AnimatePresence, motion } from 'framer-motion';
+import { useEffect, useState } from 'react';
 import WebhookManager from '../components/WebhookManager';
 
 export default function Dashboard() {
@@ -44,7 +38,7 @@ export default function Dashboard() {
     totalMessages: 0,
     totalGroups: 0,
     activeWebhooks: 0,
-    uptime: '0h 0m'
+    uptime: '0h 0m',
   });
   const [isLoading, setIsLoading] = useState(true);
   const [user, setUser] = useState(null);
@@ -54,16 +48,21 @@ export default function Dashboard() {
   const [newToken, setNewToken] = useState(null);
   const [showCreateTokenModal, setShowCreateTokenModal] = useState(false);
   const [tokenForm, setTokenForm] = useState({ name: '', expiresIn: 'never' });
-  
+
   // Performance mode - detecta dispositivos menos potentes
   const [performanceMode, setPerformanceMode] = useState(() => {
-    const isLowEnd = navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4;
-    const isSlowConnection = navigator.connection && 
-      (navigator.connection.effectiveType === 'slow-2g' || 
-       navigator.connection.effectiveType === '2g' || 
-       navigator.connection.effectiveType === '3g');
+    const isLowEnd =
+      navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4;
+    const isSlowConnection =
+      navigator.connection &&
+      (navigator.connection.effectiveType === 'slow-2g' ||
+        navigator.connection.effectiveType === '2g' ||
+        navigator.connection.effectiveType === '3g');
     const isOldBrowser = !CSS.supports('backdrop-filter', 'blur(1px)');
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const isMobile =
+      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+        navigator.userAgent
+      );
     return isLowEnd || isSlowConnection || isOldBrowser || isMobile;
   });
 
@@ -77,14 +76,16 @@ export default function Dashboard() {
   const [showCreateSessionModal, setShowCreateSessionModal] = useState(false);
   const [sessionForm, setSessionForm] = useState({ sessionId: '' });
   const [creatingSession, setCreatingSession] = useState(false);
-  
+
   // Webhook management state
   const [showWebhookManager, setShowWebhookManager] = useState(false);
-  const [selectedSessionForWebhooks, setSelectedSessionForWebhooks] = useState(null);
-  
+  const [selectedSessionForWebhooks, setSelectedSessionForWebhooks] =
+    useState(null);
+
   // Session configuration state
   const [showSessionConfig, setShowSessionConfig] = useState(false);
-  const [selectedSessionForConfig, setSelectedSessionForConfig] = useState(null);
+  const [selectedSessionForConfig, setSelectedSessionForConfig] =
+    useState(null);
   const [selectedTokenForExamples, setSelectedTokenForExamples] = useState('');
   const [fullTokenForExamples, setFullTokenForExamples] = useState('');
 
@@ -97,8 +98,8 @@ export default function Dashboard() {
           method: 'GET',
           credentials: 'include', // Include cookies for authentication
           headers: {
-            'Content-Type': 'application/json'
-          }
+            'Content-Type': 'application/json',
+          },
         });
 
         if (response.ok) {
@@ -106,7 +107,7 @@ export default function Dashboard() {
           if (result.success && result.data.user) {
             const userData = result.data.user;
             setUser(userData);
-            
+
             // Atualizar stats com dados reais do usuário
             setStats({
               totalSessions: userData.stats?.totalSessions || 0,
@@ -114,7 +115,7 @@ export default function Dashboard() {
               totalMessages: userData.stats?.messagesCount || 0,
               totalGroups: 0, // Will be updated when we fetch groups data
               activeWebhooks: 0, // Will be updated when we fetch webhooks data
-              uptime: '0h 0m' // Will be calculated from session data
+              uptime: '0h 0m', // Will be calculated from session data
             });
           } else {
             console.error('Erro ao carregar perfil:', result.message);
@@ -122,7 +123,7 @@ export default function Dashboard() {
             setUser({
               name: 'Usuário Demo',
               email: 'demo@whatsapp-api.com',
-              role: 'user'
+              role: 'user',
             });
           }
         } else if (response.status === 401) {
@@ -136,7 +137,7 @@ export default function Dashboard() {
           setUser({
             name: 'Usuário Demo',
             email: 'demo@whatsapp-api.com',
-            role: 'user'
+            role: 'user',
           });
         }
       } catch (error) {
@@ -145,11 +146,10 @@ export default function Dashboard() {
         setUser({
           name: 'Usuário Demo',
           email: 'demo@whatsapp-api.com',
-          role: 'user'
+          role: 'user',
         });
       }
     };
-
 
     const fetchApiTokens = async () => {
       try {
@@ -158,8 +158,8 @@ export default function Dashboard() {
           method: 'GET',
           credentials: 'include',
           headers: {
-            'Content-Type': 'application/json'
-          }
+            'Content-Type': 'application/json',
+          },
         });
 
         if (response.ok) {
@@ -172,19 +172,19 @@ export default function Dashboard() {
       } catch (error) {
         console.error('Erro ao carregar tokens:', error);
       }
-    };    // Executar todas as funções
+    }; // Executar todas as funções
     const initializeData = async () => {
       await fetchUserProfile();
       await fetchApiTokens(); // Load tokens first to get userSessions
       await fetchRealSessions(); // Then load all sessions including userSessions
       setIsLoading(false); // Set loading to false after everything is loaded
     };
-    
+
     initializeData();
 
     // Auto-refresh das sessões com intervalo baseado no performance mode
     const refreshInterval = performanceMode ? 30000 : 15000; // 30s em modo performance, 15s normal
-    
+
     const interval = setInterval(async () => {
       // Só atualiza se a página estiver visível para economizar recursos
       if (!document.hidden) {
@@ -199,19 +199,27 @@ export default function Dashboard() {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'connected': return 'text-green-400 bg-green-500/10 border-green-500/30';
-      case 'connecting': return 'text-yellow-400 bg-yellow-500/10 border-yellow-500/30';
-      case 'disconnected': return 'text-red-400 bg-red-500/10 border-red-500/30';
-      default: return 'text-gray-400 bg-gray-500/10 border-gray-500/30';
+      case 'connected':
+        return 'text-green-400 bg-green-500/10 border-green-500/30';
+      case 'connecting':
+        return 'text-yellow-400 bg-yellow-500/10 border-yellow-500/30';
+      case 'disconnected':
+        return 'text-red-400 bg-red-500/10 border-red-500/30';
+      default:
+        return 'text-gray-400 bg-gray-500/10 border-gray-500/30';
     }
   };
 
   const getStatusIcon = (status) => {
     switch (status) {
-      case 'connected': return <CheckCircleIcon className="w-4 h-4" />;
-      case 'connecting': return <ClockIcon className="w-4 h-4 animate-spin" />;
-      case 'disconnected': return <XCircleIcon className="w-4 h-4" />;
-      default: return <ExclamationTriangleIcon className="w-4 h-4" />;
+      case 'connected':
+        return <CheckCircleIcon className="w-4 h-4" />;
+      case 'connecting':
+        return <ClockIcon className="w-4 h-4 animate-spin" />;
+      case 'disconnected':
+        return <XCircleIcon className="w-4 h-4" />;
+      default:
+        return <ExclamationTriangleIcon className="w-4 h-4" />;
     }
   };
 
@@ -223,20 +231,20 @@ export default function Dashboard() {
     { id: 'groups', name: 'Grupos', icon: UserGroupIcon },
     { id: 'webhooks', name: 'Webhooks', icon: BellIcon },
     { id: 'media', name: 'Mídia', icon: PhotoIcon },
-    { id: 'settings', name: 'Configurações', icon: CogIcon }
+    { id: 'settings', name: 'Configurações', icon: CogIcon },
   ];
 
   const handleLogout = async () => {
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-      
+
       // Fazer logout na API
       await fetch(`${apiUrl}/api/management/auth/logout`, {
         method: 'POST',
         credentials: 'include',
         headers: {
-          'Content-Type': 'application/json'
-        }
+          'Content-Type': 'application/json',
+        },
       });
     } catch (error) {
       console.error('Erro ao fazer logout na API:', error);
@@ -250,7 +258,7 @@ export default function Dashboard() {
   const generateApiToken = async () => {
     try {
       const { name, expiresIn } = tokenForm;
-      
+
       if (!name.trim()) {
         return; // Validation handled by disabled button
       }
@@ -260,12 +268,12 @@ export default function Dashboard() {
         method: 'POST',
         credentials: 'include',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
           name: name.trim(),
-          expiresIn: expiresIn
-        })
+          expiresIn: expiresIn,
+        }),
       });
 
       if (response.ok) {
@@ -276,13 +284,16 @@ export default function Dashboard() {
           setShowCreateTokenModal(false);
           setTokenForm({ name: '', expiresIn: 'never' });
           // Reload tokens list
-          const tokensResponse = await fetch(`${apiUrl}/api/management/tokens/list`, {
-            method: 'GET',
-            credentials: 'include',
-            headers: {
-              'Content-Type': 'application/json'
+          const tokensResponse = await fetch(
+            `${apiUrl}/api/management/tokens/list`,
+            {
+              method: 'GET',
+              credentials: 'include',
+              headers: {
+                'Content-Type': 'application/json',
+              },
             }
-          });
+          );
           if (tokensResponse.ok) {
             const tokensResult = await tokensResponse.json();
             if (tokensResult.success) {
@@ -300,23 +311,29 @@ export default function Dashboard() {
   const revokeApiToken = async (tokenId) => {
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-      const response = await fetch(`${apiUrl}/api/management/tokens/${tokenId}`, {
-        method: 'DELETE',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
+      const response = await fetch(
+        `${apiUrl}/api/management/tokens/${tokenId}`,
+        {
+          method: 'DELETE',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          },
         }
-      });
+      );
 
       if (response.ok) {
         // Reload tokens list
-        const tokensResponse = await fetch(`${apiUrl}/api/management/tokens/list`, {
-          method: 'GET',
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json'
+        const tokensResponse = await fetch(
+          `${apiUrl}/api/management/tokens/list`,
+          {
+            method: 'GET',
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json',
+            },
           }
-        });
+        );
         if (tokensResponse.ok) {
           const tokensResult = await tokensResponse.json();
           if (tokensResult.success) {
@@ -333,28 +350,36 @@ export default function Dashboard() {
   const getActiveApiToken = async () => {
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-      const tokensResponse = await fetch(`${apiUrl}/api/management/tokens/list`, {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
+      const tokensResponse = await fetch(
+        `${apiUrl}/api/management/tokens/list`,
+        {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          },
         }
-      });
+      );
 
       if (tokensResponse.ok) {
         const tokensResult = await tokensResponse.json();
         if (tokensResult.success && tokensResult.tokens.length > 0) {
-          const activeToken = tokensResult.tokens.find(token => token.isActive && !token.isExpired);
-          
+          const activeToken = tokensResult.tokens.find(
+            (token) => token.isActive && !token.isExpired
+          );
+
           if (activeToken) {
             // Get the full token
-            const tokenResponse = await fetch(`${apiUrl}/api/management/tokens/${activeToken._id}/full`, {
-              method: 'GET',
-              credentials: 'include',
-              headers: {
-                'Content-Type': 'application/json'
+            const tokenResponse = await fetch(
+              `${apiUrl}/api/management/tokens/${activeToken._id}/full`,
+              {
+                method: 'GET',
+                credentials: 'include',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
               }
-            });
+            );
 
             if (tokenResponse.ok) {
               const tokenResult = await tokenResponse.json();
@@ -374,25 +399,34 @@ export default function Dashboard() {
 
   const handleDeleteSession = async (sessionId) => {
     try {
-      if (!confirm('Tem certeza que deseja excluir esta sessão? Esta ação não pode ser desfeita.')) {
+      if (
+        !confirm(
+          'Tem certeza que deseja excluir esta sessão? Esta ação não pode ser desfeita.'
+        )
+      ) {
         return;
       }
 
       // Get active API token
       const token = await getActiveApiToken();
       if (!token) {
-        alert('Erro: Nenhum token de API ativo encontrado. Crie um token primeiro.');
+        alert(
+          'Erro: Nenhum token de API ativo encontrado. Crie um token primeiro.'
+        );
         return;
       }
 
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-      const response = await fetch(`${apiUrl}/api/baileys/session/${sessionId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json'
+      const response = await fetch(
+        `${apiUrl}/api/baileys/session/${sessionId}`,
+        {
+          method: 'DELETE',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
         }
-      });
+      );
 
       if (response.ok) {
         const result = await response.json();
@@ -400,11 +434,11 @@ export default function Dashboard() {
           // Close the session config modal
           setShowSessionConfig(false);
           setSelectedSessionForConfig(null);
-          
+
           // Reload sessions to reflect the deletion
           await fetchRealSessions();
           await fetchApiTokens();
-          
+
           console.log('Sessão excluída com sucesso');
         } else {
           console.error('Erro ao excluir sessão:', result.message);
@@ -429,28 +463,33 @@ export default function Dashboard() {
   const fetchQRCodeForSession = async (sessionId) => {
     setLoadingQrCode(true);
     setQrCodeData(null);
-    
+
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-      
+
       // Try management API first
-      const managementResponse = await fetch(`${apiUrl}/api/management/sessions/list`, {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
+      const managementResponse = await fetch(
+        `${apiUrl}/api/management/sessions/list`,
+        {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          },
         }
-      });
+      );
 
       if (managementResponse.ok) {
         const managementResult = await managementResponse.json();
         if (managementResult.success) {
-          const sessionData = managementResult.sessions.find(s => s.sessionId === sessionId);
+          const sessionData = managementResult.sessions.find(
+            (s) => s.sessionId === sessionId
+          );
           if (sessionData && (sessionData.qrCode || sessionData.qrCodeImage)) {
             setQrCodeData({
               qrCode: sessionData.qrCode,
               qrCodeImage: sessionData.qrCodeImage,
-              hasQrCode: sessionData.hasQrCode
+              hasQrCode: sessionData.hasQrCode,
             });
             setLoadingQrCode(false);
             return;
@@ -459,52 +498,66 @@ export default function Dashboard() {
       }
 
       // Try to get an active API token and use Baileys API as fallback
-      const tokensResponse = await fetch(`${apiUrl}/api/management/tokens/list`, {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
+      const tokensResponse = await fetch(
+        `${apiUrl}/api/management/tokens/list`,
+        {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          },
         }
-      });
+      );
 
       if (tokensResponse.ok) {
         const tokensResult = await tokensResponse.json();
         if (tokensResult.success && tokensResult.tokens.length > 0) {
-          const activeToken = tokensResult.tokens.find(token => token.isActive && !token.isExpired);
-          
+          const activeToken = tokensResult.tokens.find(
+            (token) => token.isActive && !token.isExpired
+          );
+
           if (activeToken) {
             // Get the full token
-            const tokenResponse = await fetch(`${apiUrl}/api/management/tokens/${activeToken._id}/full`, {
-              method: 'GET',
-              credentials: 'include',
-              headers: {
-                'Content-Type': 'application/json'
+            const tokenResponse = await fetch(
+              `${apiUrl}/api/management/tokens/${activeToken._id}/full`,
+              {
+                method: 'GET',
+                credentials: 'include',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
               }
-            });
+            );
 
             if (tokenResponse.ok) {
               const tokenResult = await tokenResponse.json();
               if (tokenResult.success && tokenResult.token) {
                 // Get session status from Baileys API
-                const statusResponse = await fetch(`${apiUrl}/api/baileys/session/${sessionId}/status`, {
-                  method: 'GET',
-                  headers: {
-                    'Authorization': `Bearer ${tokenResult.token}`,
-                    'Content-Type': 'application/json'
+                const statusResponse = await fetch(
+                  `${apiUrl}/api/baileys/session/${sessionId}/status`,
+                  {
+                    method: 'GET',
+                    headers: {
+                      Authorization: `Bearer ${tokenResult.token}`,
+                      'Content-Type': 'application/json',
+                    },
                   }
-                });
+                );
 
                 if (statusResponse.ok) {
                   const statusResult = await statusResponse.json();
                   if (statusResult.success && statusResult.hasQrCode) {
                     // Try to regenerate QR if no current QR code
-                    const regenerateResponse = await fetch(`${apiUrl}/api/baileys/session/${sessionId}/regenerate-qr`, {
-                      method: 'POST',
-                      headers: {
-                        'Authorization': `Bearer ${tokenResult.token}`,
-                        'Content-Type': 'application/json'
+                    const regenerateResponse = await fetch(
+                      `${apiUrl}/api/baileys/session/${sessionId}/regenerate-qr`,
+                      {
+                        method: 'POST',
+                        headers: {
+                          Authorization: `Bearer ${tokenResult.token}`,
+                          'Content-Type': 'application/json',
+                        },
                       }
-                    });
+                    );
 
                     if (regenerateResponse.ok) {
                       const regenerateResult = await regenerateResponse.json();
@@ -512,7 +565,7 @@ export default function Dashboard() {
                         setQrCodeData({
                           qrCode: regenerateResult.qrCode,
                           qrCodeImage: regenerateResult.qrCodeImage,
-                          hasQrCode: true
+                          hasQrCode: true,
                         });
                         setLoadingQrCode(false);
                         return;
@@ -529,7 +582,6 @@ export default function Dashboard() {
       // If no QR code found
       setQrCodeData({ hasQrCode: false });
       setLoadingQrCode(false);
-      
     } catch (error) {
       console.error('Erro ao buscar QR Code:', error);
       setQrCodeData({ hasQrCode: false });
@@ -539,55 +591,56 @@ export default function Dashboard() {
   const createWhatsAppSession = async () => {
     try {
       const { sessionId } = sessionForm;
-      
+
       if (!sessionId.trim()) {
         alert('Por favor, digite um ID para a sessão');
         return;
       }
 
       setCreatingSession(true);
-      
+
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-      
+
       // Create session using web authentication (session cookies)
       const response = await fetch(`${apiUrl}/api/baileys/session/create`, {
         method: 'POST',
         credentials: 'include',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          sessionId: sessionId.trim()
-        })
+          sessionId: sessionId.trim(),
+        }),
       });
 
       const result = await response.json();
-      
+
       if (response.ok && result.success) {
         // Session created successfully
         setShowCreateSessionModal(false);
         setSessionForm({ sessionId: '' });
-        
+
         // Show QR code if available
         if (result.qrCode) {
           setSelectedSession({
             id: sessionId,
             name: sessionId,
             qrCode: result.qrCode,
-            qrCodeImage: result.qrCodeImage
+            qrCodeImage: result.qrCodeImage,
           });
           setShowQRCode(true);
         }
-        
+
         // Refresh sessions list
         fetchRealSessions();
-        
-        alert('Sessão WhatsApp criada com sucesso! ' + 
-              (result.qrCode ? 'QR Code gerado para escaneamento.' : ''));
+
+        alert(
+          'Sessão WhatsApp criada com sucesso! ' +
+            (result.qrCode ? 'QR Code gerado para escaneamento.' : '')
+        );
       } else {
         alert(`Erro ao criar sessão: ${result.message}`);
       }
-      
     } catch (error) {
       console.error('Erro ao criar sessão:', error);
       alert('Erro ao criar sessão. Verifique a conexão e tente novamente.');
@@ -599,46 +652,57 @@ export default function Dashboard() {
   const fetchRealSessions = async () => {
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-      
+
       // Try to fetch from the Baileys API directly (requires token) first
-      const tokensResponse = await fetch(`${apiUrl}/api/management/tokens/list`, {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
+      const tokensResponse = await fetch(
+        `${apiUrl}/api/management/tokens/list`,
+        {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          },
         }
-      });
+      );
 
       let baileysSessionsData = [];
       let activeToken = null;
-      
+
       if (tokensResponse.ok) {
         const tokensResult = await tokensResponse.json();
         if (tokensResult.success && tokensResult.tokens.length > 0) {
           // Get first active token to fetch Baileys sessions
-          activeToken = tokensResult.tokens.find(token => token.isActive && !token.isExpired);
+          activeToken = tokensResult.tokens.find(
+            (token) => token.isActive && !token.isExpired
+          );
           if (activeToken) {
             try {
               // Get the full token to make Baileys API request
-              const tokenResponse = await fetch(`${apiUrl}/api/management/tokens/${activeToken._id}/full`, {
-                method: 'GET',
-                credentials: 'include',
-                headers: {
-                  'Content-Type': 'application/json'
+              const tokenResponse = await fetch(
+                `${apiUrl}/api/management/tokens/${activeToken._id}/full`,
+                {
+                  method: 'GET',
+                  credentials: 'include',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
                 }
-              });
+              );
 
               if (tokenResponse.ok) {
                 const tokenResult = await tokenResponse.json();
                 if (tokenResult.success && tokenResult.token) {
                   // Fetch sessions from Baileys API
-                  const baileysResponse = await fetch(`${apiUrl}/api/baileys/sessions`, {
-                    method: 'GET',
-                    headers: {
-                      'Authorization': `Bearer ${tokenResult.token}`,
-                      'Content-Type': 'application/json'
+                  const baileysResponse = await fetch(
+                    `${apiUrl}/api/baileys/sessions`,
+                    {
+                      method: 'GET',
+                      headers: {
+                        Authorization: `Bearer ${tokenResult.token}`,
+                        'Content-Type': 'application/json',
+                      },
                     }
-                  });
+                  );
 
                   if (baileysResponse.ok) {
                     const baileysResult = await baileysResponse.json();
@@ -660,8 +724,8 @@ export default function Dashboard() {
         method: 'GET',
         credentials: 'include',
         headers: {
-          'Content-Type': 'application/json'
-        }
+          'Content-Type': 'application/json',
+        },
       });
 
       let managementSessionsData = [];
@@ -674,39 +738,53 @@ export default function Dashboard() {
 
       // Also include userSessions data (from tokens API with QR codes)
       const userSessionsData = userSessions || [];
-      
+
       // Debug logs
       console.log('📱 Sessions data:', {
         baileysSessionsData: baileysSessionsData.length,
         managementSessionsData: managementSessionsData.length,
         userSessionsData: userSessionsData.length,
         userSessions: userSessions,
-        managementSessions: managementSessionsData
+        managementSessions: managementSessionsData,
       });
-      
+
       // Merge and transform sessions from all sources
       // Prioritize managementSessionsData as it has QR code data
-      const allSessions = [...baileysSessionsData, ...managementSessionsData, ...userSessionsData];
+      const allSessions = [
+        ...baileysSessionsData,
+        ...managementSessionsData,
+        ...userSessionsData,
+      ];
       const uniqueSessions = allSessions.reduce((acc, session) => {
         const sessionId = session.sessionId || session.id;
-        if (!acc.find(s => s.id === sessionId)) {
+        if (!acc.find((s) => s.id === sessionId)) {
           const sessionData = {
             id: sessionId,
             name: session.name || sessionId,
-            status: session.isConnected ? 'connected' : 
-                   session.connectionState === 'connecting' || session.connectionState === 'qr_generated' ? 'connecting' : 'disconnected',
-            lastSeen: session.connectedAt ? 
-                     new Date(session.connectedAt).toLocaleString('pt-BR') : 
-                     session.createdAt ? new Date(session.createdAt).toLocaleString('pt-BR') : 'N/A',
+            status: session.isConnected
+              ? 'connected'
+              : session.connectionState === 'connecting' ||
+                session.connectionState === 'qr_generated'
+              ? 'connecting'
+              : 'disconnected',
+            lastSeen: session.connectedAt
+              ? new Date(session.connectedAt).toLocaleString('pt-BR')
+              : session.createdAt
+              ? new Date(session.createdAt).toLocaleString('pt-BR')
+              : 'N/A',
             messages: session.messageCount || session.messages || 0,
             groups: session.groups || 0,
             webhooks: session.webhooks || 0,
             qrCode: session.qrCode || '',
             qrCodeImage: session.qrCodeImage || '',
-            uptime: session.connectedAt ? 
-                   Math.floor((Date.now() - new Date(session.connectedAt).getTime()) / (1000 * 60)) + 'm' : '0m',
+            uptime: session.connectedAt
+              ? Math.floor(
+                  (Date.now() - new Date(session.connectedAt).getTime()) /
+                    (1000 * 60)
+                ) + 'm'
+              : '0m',
             user: session.user,
-            lastError: session.lastError
+            lastError: session.lastError,
           };
           // Debug log for QR code data
           if (sessionId === 'ddeed') {
@@ -714,7 +792,7 @@ export default function Dashboard() {
               sessionData,
               originalSession: session,
               hasQrCode: !!sessionData.qrCode,
-              hasQrCodeImage: !!sessionData.qrCodeImage
+              hasQrCodeImage: !!sessionData.qrCodeImage,
             });
           }
           acc.push(sessionData);
@@ -722,19 +800,19 @@ export default function Dashboard() {
         return acc;
       }, []);
       setSessions(uniqueSessions);
-      
+
       // Fetch detailed stats for each session if we have an active token
       if (activeToken && uniqueSessions.length > 0) {
         await fetchDetailedStats(uniqueSessions, activeToken);
       } else {
         // Update basic stats based on sessions
-        setStats(prev => ({
+        setStats((prev) => ({
           ...prev,
           totalSessions: uniqueSessions.length,
-          activeSessions: uniqueSessions.filter(s => s.status === 'connected').length
+          activeSessions: uniqueSessions.filter((s) => s.status === 'connected')
+            .length,
         }));
       }
-      
     } catch (error) {
       console.error('Erro ao buscar sessões:', error);
     }
@@ -743,15 +821,18 @@ export default function Dashboard() {
   const fetchDetailedStats = async (sessions, activeToken) => {
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-      
+
       // Get the full token
-      const tokenResponse = await fetch(`${apiUrl}/api/management/tokens/${activeToken._id}/full`, {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
+      const tokenResponse = await fetch(
+        `${apiUrl}/api/management/tokens/${activeToken._id}/full`,
+        {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          },
         }
-      });
+      );
 
       if (!tokenResponse.ok) {
         throw new Error('Failed to get full token');
@@ -768,12 +849,14 @@ export default function Dashboard() {
       let totalWebhooks = 0;
 
       // Fetch detailed data for each session in parallel - but limit to connected sessions for better performance
-      const connectedSessions = sessions.filter(s => s.status === 'connected');
+      const connectedSessions = sessions.filter(
+        (s) => s.status === 'connected'
+      );
       const sessionPromises = connectedSessions.map(async (session) => {
         const sessionStats = {
           messages: 0,
           groups: 0,
-          webhooks: 0
+          webhooks: 0,
         };
 
         try {
@@ -783,18 +866,18 @@ export default function Dashboard() {
             fetch(`${apiUrl}/api/baileys/session/${session.id}/webhooks`, {
               method: 'GET',
               headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-              }
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json',
+              },
             }),
             // Fetch groups for this session
             fetch(`${apiUrl}/api/baileys/groups/${session.id}/list`, {
               method: 'GET',
               headers: {
-                'Authorization': `Bearer ${token}`,
-                'Content-Type': 'application/json'
-              }
-            })
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json',
+              },
+            }),
           ]);
 
           // Process webhooks response
@@ -802,7 +885,8 @@ export default function Dashboard() {
             const webhooksResult = await webhooksResponse.json();
             if (webhooksResult.success) {
               // Count all webhooks (both active and inactive) for total count
-              sessionStats.webhooks = webhooksResult.total || webhooksResult.webhooks?.length || 0;
+              sessionStats.webhooks =
+                webhooksResult.total || webhooksResult.webhooks?.length || 0;
             }
           }
 
@@ -810,22 +894,25 @@ export default function Dashboard() {
           if (groupsResponse.ok) {
             const groupsResult = await groupsResponse.json();
             if (groupsResult.success) {
-              sessionStats.groups = groupsResult.total || groupsResult.groups?.length || 0;
+              sessionStats.groups =
+                groupsResult.total || groupsResult.groups?.length || 0;
             }
           }
 
           // For messages, we'll use the messageCount from the session data
           sessionStats.messages = session.messages || 0;
-
         } catch (error) {
-          console.warn(`Failed to fetch detailed stats for session ${session.id}:`, error);
+          console.warn(
+            `Failed to fetch detailed stats for session ${session.id}:`,
+            error
+          );
         }
 
         return sessionStats;
       });
 
       // Also aggregate from all sessions (including disconnected) for basic counts
-      sessions.forEach(session => {
+      sessions.forEach((session) => {
         totalMessages += session.messages || 0;
       });
 
@@ -833,28 +920,27 @@ export default function Dashboard() {
       const sessionStatsArray = await Promise.all(sessionPromises);
 
       // Aggregate totals from connected sessions
-      sessionStatsArray.forEach(stats => {
+      sessionStatsArray.forEach((stats) => {
         totalGroups += stats.groups;
         totalWebhooks += stats.webhooks;
       });
 
       // Update stats with real data
-      setStats(prev => ({
+      setStats((prev) => ({
         ...prev,
         totalSessions: sessions.length,
-        activeSessions: sessions.filter(s => s.status === 'connected').length,
+        activeSessions: sessions.filter((s) => s.status === 'connected').length,
         totalMessages,
         totalGroups,
-        activeWebhooks: totalWebhooks
+        activeWebhooks: totalWebhooks,
       }));
-
     } catch (error) {
       console.warn('Failed to fetch detailed stats:', error);
       // Fallback to basic stats
-      setStats(prev => ({
+      setStats((prev) => ({
         ...prev,
         totalSessions: sessions.length,
-        activeSessions: sessions.filter(s => s.status === 'connected').length
+        activeSessions: sessions.filter((s) => s.status === 'connected').length,
       }));
     }
   };
@@ -868,16 +954,22 @@ export default function Dashboard() {
 
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-      const tokenResponse = await fetch(`${apiUrl}/api/management/tokens/${tokenId}/full`, {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
+      const tokenResponse = await fetch(
+        `${apiUrl}/api/management/tokens/${tokenId}/full`,
+        {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          },
         }
-      });
+      );
 
       if (!tokenResponse.ok) {
-        console.error('Erro ao buscar token completo:', tokenResponse.statusText);
+        console.error(
+          'Erro ao buscar token completo:',
+          tokenResponse.statusText
+        );
         setFullTokenForExamples('baileys_erro_ao_carregar_token');
         return;
       }
@@ -913,8 +1005,12 @@ export default function Dashboard() {
           <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
             <ServerIcon className="w-8 h-8 text-white animate-pulse" />
           </div>
-          <h2 className="text-xl font-semibold text-white mb-2">Carregando Dashboard</h2>
-          <p className="text-white/70">Conectando com suas sessões WhatsApp...</p>
+          <h2 className="text-xl font-semibold text-white mb-2">
+            Carregando Dashboard
+          </h2>
+          <p className="text-white/70">
+            Conectando com suas sessões WhatsApp...
+          </p>
           <div className="mt-4 flex justify-center">
             <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent"></div>
           </div>
@@ -945,7 +1041,7 @@ export default function Dashboard() {
               transition={{
                 duration: 15 + i * 5,
                 repeat: Infinity,
-                ease: "linear",
+                ease: 'linear',
               }}
             />
           ))}
@@ -954,7 +1050,9 @@ export default function Dashboard() {
 
       {/* Header */}
       <motion.header
-        className={`${performanceMode ? 'glass-performance' : 'glass-morphism'} mx-4 mt-4 mb-6`}
+        className={`${
+          performanceMode ? 'glass-performance' : 'glass-morphism'
+        } mx-4 mt-4 mb-6`}
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: performanceMode ? 0.2 : 0.4 }}
@@ -966,29 +1064,41 @@ export default function Dashboard() {
                 <ChatBubbleLeftRightIcon className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-white">WhatsApp API Dashboard</h1>
-                <p className="text-white/70">Gerencie suas conexões e automações</p>
+                <h1 className="text-2xl font-bold text-white">
+                  WhatsApp API Dashboard
+                </h1>
+                <p className="text-white/70">
+                  Gerencie suas conexões e automações
+                </p>
               </div>
             </div>
-            
+
             <div className="flex items-center space-x-4">
               {/* Performance Mode Toggle */}
               <motion.button
                 onClick={() => setPerformanceMode(!performanceMode)}
                 className={`px-3 py-2 rounded-lg text-xs transition-colors ${
-                  performanceMode 
-                    ? 'bg-green-500/20 text-green-400 border border-green-500/30' 
+                  performanceMode
+                    ? 'bg-green-500/20 text-green-400 border border-green-500/30'
                     : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
                 }`}
                 whileHover={performanceMode ? {} : { scale: 1.02 }}
                 whileTap={performanceMode ? {} : { scale: 0.98 }}
-                title={performanceMode ? 'Modo Performance Ativo' : 'Ativar Modo Performance'}
+                title={
+                  performanceMode
+                    ? 'Modo Performance Ativo'
+                    : 'Ativar Modo Performance'
+                }
               >
                 {performanceMode ? '🚀 Performance' : '✨ Efeitos'}
               </motion.button>
 
               {/* Status Indicator */}
-              <div className={`${performanceMode ? 'glass-ultra' : 'glass-ultra'} px-4 py-2 rounded-xl`}>
+              <div
+                className={`${
+                  performanceMode ? 'glass-ultra' : 'glass-ultra'
+                } px-4 py-2 rounded-xl`}
+              >
                 <div className="flex items-center space-x-2">
                   <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
                   <span className="text-sm text-white/80">Sistema Online</span>
@@ -1002,30 +1112,39 @@ export default function Dashboard() {
                     {user?.name || 'Carregando...'}
                   </div>
                   <div className="text-xs text-white/70 capitalize">
-                    {user?.role === 'user' ? 'Usuário' : user?.role === 'admin' ? 'Administrador' : 'Carregando...'}
+                    {user?.role === 'user'
+                      ? 'Usuário'
+                      : user?.role === 'admin'
+                      ? 'Administrador'
+                      : 'Carregando...'}
                   </div>
                   {user?.email && (
-                    <div className="text-xs text-white/50">
-                      {user.email}
-                    </div>
+                    <div className="text-xs text-white/50">{user.email}</div>
                   )}
                 </div>
-                <motion.div 
+                <motion.div
                   className="relative cursor-pointer"
                   onClick={() => setShowUserProfile(true)}
                   whileHover={performanceMode ? {} : { scale: 1.05 }}
                   whileTap={performanceMode ? {} : { scale: 0.95 }}
                 >
                   {user?.profile?.avatar ? (
-                    <img 
-                      src={user.profile.avatar} 
+                    <img
+                      src={user.profile.avatar}
                       alt={user.name}
                       className="w-10 h-10 rounded-full object-cover border-2 border-white/20 hover:border-white/40 transition-colors"
                     />
                   ) : (
                     <div className="w-10 h-10 rounded-full bg-gradient-to-r from-green-400 to-blue-500 flex items-center justify-center hover:from-green-300 hover:to-blue-400 transition-colors">
                       <span className="text-white font-semibold text-sm">
-                        {user?.name ? user.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'U'}
+                        {user?.name
+                          ? user.name
+                              .split(' ')
+                              .map((n) => n[0])
+                              .join('')
+                              .substring(0, 2)
+                              .toUpperCase()
+                          : 'U'}
                       </span>
                     </div>
                   )}
@@ -1051,10 +1170,15 @@ export default function Dashboard() {
       <div className="flex">
         {/* Sidebar Navigation */}
         <motion.nav
-          className={`w-64 ${performanceMode ? 'glass-performance' : 'glass-morphism'} mx-4 mb-4 p-4`}
+          className={`w-64 ${
+            performanceMode ? 'glass-performance' : 'glass-morphism'
+          } mx-4 mb-4 p-4`}
           initial={{ opacity: 0, x: -10 }}
           animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: performanceMode ? 0.2 : 0.4, delay: performanceMode ? 0 : 0.1 }}
+          transition={{
+            duration: performanceMode ? 0.2 : 0.4,
+            delay: performanceMode ? 0 : 0.1,
+          }}
         >
           <div className="space-y-2">
             {tabs.map((tab) => {
@@ -1079,20 +1203,32 @@ export default function Dashboard() {
           </div>
 
           {/* Quick Stats */}
-          <div className={`mt-8 ${performanceMode ? 'glass-performance' : 'glass-ultra'} p-4 rounded-xl`}>
-            <h3 className="text-sm font-semibold text-white/80 mb-3">Estatísticas Rápidas</h3>
+          <div
+            className={`mt-8 ${
+              performanceMode ? 'glass-performance' : 'glass-ultra'
+            } p-4 rounded-xl`}
+          >
+            <h3 className="text-sm font-semibold text-white/80 mb-3">
+              Estatísticas Rápidas
+            </h3>
             <div className="space-y-2">
               <div className="flex justify-between items-center">
                 <span className="text-xs text-white/60">Sessões Ativas</span>
-                <span className="text-sm font-medium text-green-400">{stats.activeSessions}/{stats.totalSessions}</span>
+                <span className="text-sm font-medium text-green-400">
+                  {stats.activeSessions}/{stats.totalSessions}
+                </span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-xs text-white/60">Mensagens</span>
-                <span className="text-sm font-medium text-blue-400">{stats.totalMessages}</span>
+                <span className="text-sm font-medium text-blue-400">
+                  {stats.totalMessages}
+                </span>
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-xs text-white/60">Uptime</span>
-                <span className="text-sm font-medium text-purple-400">{stats.uptime}</span>
+                <span className="text-sm font-medium text-purple-400">
+                  {stats.uptime}
+                </span>
               </div>
             </div>
           </div>
@@ -1103,7 +1239,10 @@ export default function Dashboard() {
           className="flex-1 mr-4 mb-4"
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: performanceMode ? 0.2 : 0.4, delay: performanceMode ? 0 : 0.1 }}
+          transition={{
+            duration: performanceMode ? 0.2 : 0.4,
+            delay: performanceMode ? 0 : 0.1,
+          }}
         >
           <AnimatePresence mode="wait">
             {activeTab === 'overview' && (
@@ -1118,27 +1257,58 @@ export default function Dashboard() {
                 {/* Stats Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                   {[
-                    { label: 'Total de Sessões', value: stats.totalSessions, icon: PhoneIcon, color: 'from-blue-500 to-cyan-500' },
-                    { label: 'Mensagens Enviadas', value: stats.totalMessages, icon: PaperAirplaneIcon, color: 'from-green-500 to-emerald-500' },
-                    { label: 'Grupos Gerenciados', value: stats.totalGroups, icon: UsersIcon, color: 'from-purple-500 to-pink-500' },
-                    { label: 'Webhooks Ativos', value: stats.activeWebhooks, icon: BellIcon, color: 'from-orange-500 to-red-500' }
+                    {
+                      label: 'Total de Sessões',
+                      value: stats.totalSessions,
+                      icon: PhoneIcon,
+                      color: 'from-blue-500 to-cyan-500',
+                    },
+                    {
+                      label: 'Mensagens Enviadas',
+                      value: stats.totalMessages,
+                      icon: PaperAirplaneIcon,
+                      color: 'from-green-500 to-emerald-500',
+                    },
+                    {
+                      label: 'Grupos Gerenciados',
+                      value: stats.totalGroups,
+                      icon: UsersIcon,
+                      color: 'from-purple-500 to-pink-500',
+                    },
+                    {
+                      label: 'Webhooks Ativos',
+                      value: stats.activeWebhooks,
+                      icon: BellIcon,
+                      color: 'from-orange-500 to-red-500',
+                    },
                   ].map((stat, index) => {
                     const Icon = stat.icon;
                     return (
                       <motion.div
                         key={stat.label}
-                        className={`${performanceMode ? 'glass-performance' : 'glass-card'} p-6 rounded-xl`}
+                        className={`${
+                          performanceMode ? 'glass-performance' : 'glass-card'
+                        } p-6 rounded-xl`}
                         initial={{ opacity: 0, y: performanceMode ? 0 : 10 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: performanceMode ? 0.1 : 0.3, delay: performanceMode ? 0 : index * 0.05 }}
+                        transition={{
+                          duration: performanceMode ? 0.1 : 0.3,
+                          delay: performanceMode ? 0 : index * 0.05,
+                        }}
                         whileHover={performanceMode ? {} : { scale: 1.01 }}
                       >
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="text-white/70 text-sm">{stat.label}</p>
-                            <p className="text-2xl font-bold text-white">{stat.value}</p>
+                            <p className="text-white/70 text-sm">
+                              {stat.label}
+                            </p>
+                            <p className="text-2xl font-bold text-white">
+                              {stat.value}
+                            </p>
                           </div>
-                          <div className={`w-12 h-12 rounded-xl bg-gradient-to-r ${stat.color} flex items-center justify-center`}>
+                          <div
+                            className={`w-12 h-12 rounded-xl bg-gradient-to-r ${stat.color} flex items-center justify-center`}
+                          >
                             <Icon className="w-6 h-6 text-white" />
                           </div>
                         </div>
@@ -1148,9 +1318,15 @@ export default function Dashboard() {
                 </div>
 
                 {/* Recent Sessions */}
-                <div className={`${performanceMode ? 'glass-performance' : 'glass-card'} p-6 rounded-xl`}>
+                <div
+                  className={`${
+                    performanceMode ? 'glass-performance' : 'glass-card'
+                  } p-6 rounded-xl`}
+                >
                   <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-xl font-semibold text-white">Sessões Recentes</h2>
+                    <h2 className="text-xl font-semibold text-white">
+                      Sessões Recentes
+                    </h2>
                     <motion.button
                       onClick={() => setActiveTab('sessions')}
                       className="liquid-button inline-flex items-center text-sm"
@@ -1161,14 +1337,17 @@ export default function Dashboard() {
                       Ver Todas
                     </motion.button>
                   </div>
-                  
+
                   <div className="space-y-4">
                     {sessions.length === 0 ? (
                       <div className="text-center py-8">
                         <PhoneIcon className="w-12 h-12 text-white/30 mx-auto mb-4" />
-                        <h4 className="text-lg font-semibold text-white mb-2">Nenhuma Sessão Ativa</h4>
+                        <h4 className="text-lg font-semibold text-white mb-2">
+                          Nenhuma Sessão Ativa
+                        </h4>
                         <p className="text-white/70 mb-4">
-                          Crie sua primeira sessão WhatsApp para começar a enviar mensagens
+                          Crie sua primeira sessão WhatsApp para começar a
+                          enviar mensagens
                         </p>
                         <motion.button
                           onClick={() => setActiveTab('sessions')}
@@ -1184,31 +1363,53 @@ export default function Dashboard() {
                       sessions.slice(0, 3).map((session) => (
                         <motion.div
                           key={session.id}
-                          className={`flex items-center justify-between p-4 ${performanceMode ? 'glass-performance' : 'glass-ultra'} rounded-xl`}
+                          className={`flex items-center justify-between p-4 ${
+                            performanceMode
+                              ? 'glass-performance'
+                              : 'glass-ultra'
+                          } rounded-xl`}
                           whileHover={performanceMode ? {} : { scale: 1.005 }}
                         >
-                        <div className="flex items-center space-x-4">
-                          <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
-                            <PhoneIcon className="w-5 h-5 text-white" />
+                          <div className="flex items-center space-x-4">
+                            <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
+                              <PhoneIcon className="w-5 h-5 text-white" />
+                            </div>
+                            <div>
+                              <h3 className="text-white font-medium">
+                                {session.name}
+                              </h3>
+                              <p className="text-white/60 text-sm">
+                                Última atividade: {session.lastSeen}
+                              </p>
+                            </div>
                           </div>
-                          <div>
-                            <h3 className="text-white font-medium">{session.name}</h3>
-                            <p className="text-white/60 text-sm">Última atividade: {session.lastSeen}</p>
+
+                          <div className="flex items-center space-x-4">
+                            <div
+                              className={`px-3 py-1 rounded-full border ${getStatusColor(
+                                session.status
+                              )} flex items-center space-x-1`}
+                            >
+                              {getStatusIcon(session.status)}
+                              <span className="text-xs font-medium capitalize">
+                                {session.status === 'connected'
+                                  ? 'Conectado'
+                                  : session.status === 'connecting'
+                                  ? 'Conectando'
+                                  : 'Desconectado'}
+                              </span>
+                            </div>
+
+                            <div className="text-right text-sm">
+                              <div className="text-white/70">
+                                {session.messages} mensagens
+                              </div>
+                              <div className="text-white/50">
+                                {session.groups} grupos
+                              </div>
+                            </div>
                           </div>
-                        </div>
-                        
-                        <div className="flex items-center space-x-4">
-                          <div className={`px-3 py-1 rounded-full border ${getStatusColor(session.status)} flex items-center space-x-1`}>
-                            {getStatusIcon(session.status)}
-                            <span className="text-xs font-medium capitalize">{session.status === 'connected' ? 'Conectado' : session.status === 'connecting' ? 'Conectando' : 'Desconectado'}</span>
-                          </div>
-                          
-                          <div className="text-right text-sm">
-                            <div className="text-white/70">{session.messages} mensagens</div>
-                            <div className="text-white/50">{session.groups} grupos</div>
-                          </div>
-                        </div>
-                      </motion.div>
+                        </motion.div>
                       ))
                     )}
                   </div>
@@ -1226,7 +1427,9 @@ export default function Dashboard() {
                 className="space-y-6"
               >
                 <div className="flex items-center justify-between">
-                  <h2 className="text-2xl font-bold text-white">Gerenciar Sessões</h2>
+                  <h2 className="text-2xl font-bold text-white">
+                    Gerenciar Sessões
+                  </h2>
                   <motion.button
                     onClick={() => setShowCreateSessionModal(true)}
                     className="liquid-button inline-flex items-center"
@@ -1242,7 +1445,9 @@ export default function Dashboard() {
                   {sessions.map((session) => (
                     <motion.div
                       key={session.id}
-                      className={`${performanceMode ? 'glass-performance' : 'glass-card'} p-6 rounded-xl`}
+                      className={`${
+                        performanceMode ? 'glass-performance' : 'glass-card'
+                      } p-6 rounded-xl`}
                       initial={{ opacity: 0, y: performanceMode ? 0 : 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       whileHover={performanceMode ? {} : { scale: 1.005 }}
@@ -1253,48 +1458,84 @@ export default function Dashboard() {
                             <PhoneIcon className="w-8 h-8 text-white" />
                           </div>
                           <div>
-                            <h3 className="text-xl font-semibold text-white">{session.name}</h3>
+                            <h3 className="text-xl font-semibold text-white">
+                              {session.name}
+                            </h3>
                             <p className="text-white/70">ID: {session.id}</p>
                             <div className="flex items-center space-x-4 mt-2">
-                              <div className={`px-3 py-1 rounded-full border ${getStatusColor(session.status)} flex items-center space-x-1`}>
+                              <div
+                                className={`px-3 py-1 rounded-full border ${getStatusColor(
+                                  session.status
+                                )} flex items-center space-x-1`}
+                              >
                                 {getStatusIcon(session.status)}
                                 <span className="text-xs font-medium capitalize">
-                                  {session.status === 'connected' ? 'Conectado' : session.status === 'connecting' ? 'Conectando' : 'Desconectado'}
+                                  {session.status === 'connected'
+                                    ? 'Conectado'
+                                    : session.status === 'connecting'
+                                    ? 'Conectando'
+                                    : 'Desconectado'}
                                 </span>
                               </div>
-                              <span className="text-sm text-white/60">Uptime: {session.uptime}</span>
+                              <span className="text-sm text-white/60">
+                                Uptime: {session.uptime}
+                              </span>
                             </div>
                           </div>
                         </div>
 
                         <div className="flex items-center space-x-4">
                           <div className="text-right">
-                            <div className="text-sm text-white/70">Mensagens: <span className="text-white font-medium">{session.messages}</span></div>
-                            <div className="text-sm text-white/70">Grupos: <span className="text-white font-medium">{session.groups}</span></div>
-                            <div className="text-sm text-white/70">Webhooks: <span className="text-white font-medium">{session.webhooks}</span></div>
+                            <div className="text-sm text-white/70">
+                              Mensagens:{' '}
+                              <span className="text-white font-medium">
+                                {session.messages}
+                              </span>
+                            </div>
+                            <div className="text-sm text-white/70">
+                              Grupos:{' '}
+                              <span className="text-white font-medium">
+                                {session.groups}
+                              </span>
+                            </div>
+                            <div className="text-sm text-white/70">
+                              Webhooks:{' '}
+                              <span className="text-white font-medium">
+                                {session.webhooks}
+                              </span>
+                            </div>
                           </div>
 
                           <div className="flex flex-col space-y-2">
                             {/* Always show QR Code button if there's QR data or if disconnected (likely has QR) */}
-                            {(session.qrCode || session.qrCodeImage || session.status === 'disconnected' || session.status === 'connecting') && (
+                            {(session.qrCode ||
+                              session.qrCodeImage ||
+                              session.status === 'disconnected' ||
+                              session.status === 'connecting') && (
                               <motion.button
                                 onClick={async () => {
                                   setSelectedSession({
                                     id: session.id,
-                                    name: session.name
+                                    name: session.name,
                                   });
                                   setShowQRCode(true);
                                   await fetchQRCodeForSession(session.id);
                                 }}
                                 className="liquid-button inline-flex items-center text-sm"
-                                whileHover={performanceMode ? {} : { scale: 1.05 }}
-                                whileTap={performanceMode ? {} : { scale: 0.95 }}
+                                whileHover={
+                                  performanceMode ? {} : { scale: 1.05 }
+                                }
+                                whileTap={
+                                  performanceMode ? {} : { scale: 0.95 }
+                                }
                               >
                                 <QrCodeIcon className="w-4 h-4 mr-2" />
-                                {session.qrCode || session.qrCodeImage ? 'Ver QR Code' : 'QR Code'}
+                                {session.qrCode || session.qrCodeImage
+                                  ? 'Ver QR Code'
+                                  : 'QR Code'}
                               </motion.button>
                             )}
-                            
+
                             <motion.button
                               onClick={() => {
                                 setSelectedSessionForConfig({
@@ -1304,12 +1545,14 @@ export default function Dashboard() {
                                   messages: session.messages,
                                   groups: session.groups,
                                   webhooks: session.webhooks,
-                                  uptime: session.uptime
+                                  uptime: session.uptime,
                                 });
                                 setShowSessionConfig(true);
                               }}
                               className="liquid-button inline-flex items-center text-sm"
-                              whileHover={performanceMode ? {} : { scale: 1.05 }}
+                              whileHover={
+                                performanceMode ? {} : { scale: 1.05 }
+                              }
                               whileTap={performanceMode ? {} : { scale: 0.95 }}
                             >
                               <WrenchScrewdriverIcon className="w-4 h-4 mr-2" />
@@ -1317,15 +1560,17 @@ export default function Dashboard() {
                             </motion.button>
                           </div>
                         </div>
-                        
+
                         {/* QR Code Preview */}
                         {session.qrCodeImage && (
                           <div className="mt-4 pt-4 border-t border-white/10">
                             <div className="flex items-center justify-between">
-                              <div className="text-sm text-white/70">QR Code disponível para escaneamento:</div>
+                              <div className="text-sm text-white/70">
+                                QR Code disponível para escaneamento:
+                              </div>
                               <div className="w-20 h-20 bg-white/10 rounded-lg p-1">
-                                <img 
-                                  src={session.qrCodeImage} 
+                                <img
+                                  src={session.qrCodeImage}
                                   alt={`QR Code - ${session.name}`}
                                   className="w-full h-full object-contain rounded"
                                 />
@@ -1350,7 +1595,9 @@ export default function Dashboard() {
                 className="space-y-6"
               >
                 <div className="flex items-center justify-between">
-                  <h2 className="text-2xl font-bold text-white">Tokens de API</h2>
+                  <h2 className="text-2xl font-bold text-white">
+                    Tokens de API
+                  </h2>
                   <motion.button
                     onClick={() => setShowCreateTokenModal(true)}
                     className="liquid-button inline-flex items-center"
@@ -1362,37 +1609,56 @@ export default function Dashboard() {
                   </motion.button>
                 </div>
 
-                <div className={`${performanceMode ? 'glass-performance' : 'glass-card'} p-6 rounded-xl`}>
+                <div
+                  className={`${
+                    performanceMode ? 'glass-performance' : 'glass-card'
+                  } p-6 rounded-xl`}
+                >
                   <div className="mb-6">
-                    <h3 className="text-lg font-semibold text-white mb-2">Como usar os tokens de API</h3>
+                    <h3 className="text-lg font-semibold text-white mb-2">
+                      Como usar os tokens de API
+                    </h3>
                     <p className="text-white/70 mb-4">
-                      Use seus tokens para criar e gerenciar sessões WhatsApp. Há duas formas principais:
+                      Use seus tokens para criar e gerenciar sessões WhatsApp.
+                      Há duas formas principais:
                     </p>
-                    
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                      <div className={`${performanceMode ? 'glass-performance' : 'glass-ultra'} p-4 rounded-xl`}>
+                      <div
+                        className={`${
+                          performanceMode ? 'glass-performance' : 'glass-ultra'
+                        } p-4 rounded-xl`}
+                      >
                         <h4 className="text-white font-semibold mb-2 flex items-center">
                           <DocumentTextIcon className="w-4 h-4 mr-2 text-blue-400" />
                           Via Swagger
                         </h4>
-                        <p className="text-white/70 text-sm mb-2">Acesse /api-docs e use o botão "Authorize"</p>
+                        <p className="text-white/70 text-sm mb-2">
+                          Acesse /api-docs e use o botão "Authorize"
+                        </p>
                         <div className="font-mono text-xs text-green-400">
                           Bearer baileys_xxxxx
                         </div>
                       </div>
-                      
-                      <div className={`${performanceMode ? 'glass-performance' : 'glass-ultra'} p-4 rounded-xl`}>
+
+                      <div
+                        className={`${
+                          performanceMode ? 'glass-performance' : 'glass-ultra'
+                        } p-4 rounded-xl`}
+                      >
                         <h4 className="text-white font-semibold mb-2 flex items-center">
                           <ClipboardDocumentIcon className="w-4 h-4 mr-2 text-purple-400" />
                           Via cURL
                         </h4>
-                        <p className="text-white/70 text-sm mb-2">Use o botão 📋 do token</p>
+                        <p className="text-white/70 text-sm mb-2">
+                          Use o botão 📋 do token
+                        </p>
                         <div className="font-mono text-xs text-purple-400">
                           curl -H "Authorization: Bearer..."
                         </div>
                       </div>
                     </div>
-                    
+
                     <div className="flex justify-center">
                       <motion.a
                         href="/api-docs"
@@ -1410,8 +1676,13 @@ export default function Dashboard() {
                   {apiTokens.length === 0 ? (
                     <div className="text-center py-12">
                       <KeyIcon className="w-16 h-16 text-white/30 mx-auto mb-4" />
-                      <h3 className="text-lg font-semibold text-white mb-2">Nenhum token criado</h3>
-                      <p className="text-white/70 mb-6">Crie seu primeiro token de API para começar a usar o WhatsApp Bot</p>
+                      <h3 className="text-lg font-semibold text-white mb-2">
+                        Nenhum token criado
+                      </h3>
+                      <p className="text-white/70 mb-6">
+                        Crie seu primeiro token de API para começar a usar o
+                        WhatsApp Bot
+                      </p>
                       <motion.button
                         onClick={() => setShowCreateTokenModal(true)}
                         className="liquid-button inline-flex items-center"
@@ -1427,18 +1698,26 @@ export default function Dashboard() {
                       {apiTokens.map((token) => (
                         <motion.div
                           key={token._id}
-                          className={`${performanceMode ? 'glass-performance' : 'glass-ultra'} p-4 rounded-xl`}
+                          className={`${
+                            performanceMode
+                              ? 'glass-performance'
+                              : 'glass-ultra'
+                          } p-4 rounded-xl`}
                           whileHover={performanceMode ? {} : { scale: 1.01 }}
                         >
                           <div className="flex items-center justify-between">
                             <div className="flex-1">
                               <div className="flex items-center space-x-3 mb-2">
-                                <h4 className="text-lg font-semibold text-white">{token.name}</h4>
-                                <span className={`px-2 py-1 rounded-full text-xs ${
-                                  token.isActive 
-                                    ? 'bg-green-500/20 text-green-400 border border-green-500/30'
-                                    : 'bg-red-500/20 text-red-400 border border-red-500/30'
-                                }`}>
+                                <h4 className="text-lg font-semibold text-white">
+                                  {token.name}
+                                </h4>
+                                <span
+                                  className={`px-2 py-1 rounded-full text-xs ${
+                                    token.isActive
+                                      ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                                      : 'bg-red-500/20 text-red-400 border border-red-500/30'
+                                  }`}
+                                >
                                   {token.isActive ? 'Ativo' : 'Inativo'}
                                 </span>
                                 {token.isExpired && (
@@ -1449,42 +1728,70 @@ export default function Dashboard() {
                               </div>
                               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                                 <div>
-                                  <span className="text-white/60">Criado em:</span>
+                                  <span className="text-white/60">
+                                    Criado em:
+                                  </span>
                                   <div className="text-white">
-                                    {new Date(token.createdAt).toLocaleDateString('pt-BR')}
+                                    {new Date(
+                                      token.createdAt
+                                    ).toLocaleDateString('pt-BR')}
                                   </div>
                                 </div>
                                 <div>
-                                  <span className="text-white/60">Expira em:</span>
+                                  <span className="text-white/60">
+                                    Expira em:
+                                  </span>
                                   <div className="text-white">
-                                    {token.expiresAt ? new Date(token.expiresAt).toLocaleDateString('pt-BR') : 'Nunca'}
+                                    {token.expiresAt
+                                      ? new Date(
+                                          token.expiresAt
+                                        ).toLocaleDateString('pt-BR')
+                                      : 'Nunca'}
                                   </div>
                                 </div>
                                 <div>
-                                  <span className="text-white/60">Último uso:</span>
+                                  <span className="text-white/60">
+                                    Último uso:
+                                  </span>
                                   <div className="text-white">
-                                    {token.lastUsedAt ? new Date(token.lastUsedAt).toLocaleDateString('pt-BR') : 'Nunca'}
+                                    {token.lastUsedAt
+                                      ? new Date(
+                                          token.lastUsedAt
+                                        ).toLocaleDateString('pt-BR')
+                                      : 'Nunca'}
                                   </div>
                                 </div>
                               </div>
                             </div>
-                            
+
                             <div className="flex items-center space-x-2">
                               <motion.button
                                 onClick={() => {
-                                  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+                                  const apiUrl =
+                                    import.meta.env.VITE_API_URL ||
+                                    'http://localhost:3000';
                                   const curlCommand = `curl -X POST '${apiUrl}/api/baileys/session/create' \\
-  -H 'Authorization: Bearer seu_token_${token.name.toLowerCase().replace(/\s+/g, '_')}' \\
+  -H 'Authorization: Bearer seu_token_${token.name
+    .toLowerCase()
+    .replace(/\s+/g, '_')}' \\
   -H 'Content-Type: application/json' \\
   -d '{"sessionId": "minha-sessao-1"}'`;
-                                  
-                                  navigator.clipboard.writeText(curlCommand).then(() => {
-                                    alert('Comando curl copiado! Cole no terminal para criar uma sessão.\n\nLembre-se de substituir "seu_token_..." pelo token real gerado.');
-                                  });
+
+                                  navigator.clipboard
+                                    .writeText(curlCommand)
+                                    .then(() => {
+                                      alert(
+                                        'Comando curl copiado! Cole no terminal para criar uma sessão.\n\nLembre-se de substituir "seu_token_..." pelo token real gerado.'
+                                      );
+                                    });
                                 }}
                                 className="p-2 rounded-lg bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-colors"
-                                whileHover={performanceMode ? {} : { scale: 1.05 }}
-                                whileTap={performanceMode ? {} : { scale: 0.95 }}
+                                whileHover={
+                                  performanceMode ? {} : { scale: 1.05 }
+                                }
+                                whileTap={
+                                  performanceMode ? {} : { scale: 0.95 }
+                                }
                                 title="Copiar comando curl"
                               >
                                 <ClipboardDocumentIcon className="w-4 h-4" />
@@ -1492,8 +1799,12 @@ export default function Dashboard() {
                               <motion.button
                                 onClick={() => revokeApiToken(token._id)}
                                 className="p-2 rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-colors"
-                                whileHover={performanceMode ? {} : { scale: 1.05 }}
-                                whileTap={performanceMode ? {} : { scale: 0.95 }}
+                                whileHover={
+                                  performanceMode ? {} : { scale: 1.05 }
+                                }
+                                whileTap={
+                                  performanceMode ? {} : { scale: 0.95 }
+                                }
                                 title="Revogar token"
                               >
                                 <TrashIcon className="w-4 h-4" />
@@ -1518,13 +1829,21 @@ export default function Dashboard() {
                 transition={{ duration: performanceMode ? 0.1 : 0.2 }}
                 className="space-y-6"
               >
-                <div className={`${performanceMode ? 'glass-performance' : 'glass-card'} p-6 rounded-xl`}>
+                <div
+                  className={`${
+                    performanceMode ? 'glass-performance' : 'glass-card'
+                  } p-6 rounded-xl`}
+                >
                   <div className="flex items-center justify-between mb-6">
                     <div className="flex items-center">
                       <BellIcon className="w-8 h-8 text-blue-400 mr-3" />
                       <div>
-                        <h2 className="text-2xl font-semibold text-white">Gerenciar Webhooks</h2>
-                        <p className="text-white/70">Configure webhooks para receber eventos em tempo real</p>
+                        <h2 className="text-2xl font-semibold text-white">
+                          Gerenciar Webhooks
+                        </h2>
+                        <p className="text-white/70">
+                          Configure webhooks para receber eventos em tempo real
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -1532,15 +1851,23 @@ export default function Dashboard() {
                   {userSessions.length === 0 ? (
                     <div className="text-center py-12">
                       <BellIcon className="w-16 h-16 text-white/30 mx-auto mb-4" />
-                      <h3 className="text-lg font-medium text-white mb-2">Nenhuma sessão disponível</h3>
-                      <p className="text-white/70">Crie uma sessão primeiro para configurar webhooks</p>
+                      <h3 className="text-lg font-medium text-white mb-2">
+                        Nenhuma sessão disponível
+                      </h3>
+                      <p className="text-white/70">
+                        Crie uma sessão primeiro para configurar webhooks
+                      </p>
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                       {userSessions.map((session) => (
                         <motion.div
                           key={session.sessionId}
-                          className={`${performanceMode ? 'glass-performance' : 'glass-ultra'} p-6 rounded-xl hover:shadow-lg transition-all cursor-pointer`}
+                          className={`${
+                            performanceMode
+                              ? 'glass-performance'
+                              : 'glass-ultra'
+                          } p-6 rounded-xl hover:shadow-lg transition-all cursor-pointer`}
                           whileHover={performanceMode ? {} : { scale: 1.02 }}
                           whileTap={performanceMode ? {} : { scale: 0.98 }}
                           onClick={() => {
@@ -1551,32 +1878,44 @@ export default function Dashboard() {
                           <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center">
                               <PhoneIcon className="w-6 h-6 text-blue-400 mr-3" />
-                              <h3 className="text-lg font-semibold text-white">{session.sessionId}</h3>
+                              <h3 className="text-lg font-semibold text-white">
+                                {session.sessionId}
+                              </h3>
                             </div>
-                            <div className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(session.status || 'disconnected')}`}>
+                            <div
+                              className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
+                                session.status || 'disconnected'
+                              )}`}
+                            >
                               {getStatusIcon(session.status || 'disconnected')}
                             </div>
                           </div>
-                          
+
                           <div className="space-y-2 text-sm text-white/70">
                             <div className="flex justify-between">
                               <span>Status:</span>
-                              <span className="text-white">{session.status || 'Desconectado'}</span>
+                              <span className="text-white">
+                                {session.status || 'Desconectado'}
+                              </span>
                             </div>
                             <div className="flex justify-between">
                               <span>Webhooks:</span>
                               <span className="text-blue-400">Configurar</span>
                             </div>
                           </div>
-                          
+
                           <div className="mt-4 pt-4 border-t border-white/10">
                             <motion.button
                               className="w-full flex items-center justify-center px-4 py-2 bg-blue-500/20 text-blue-400 rounded-lg hover:bg-blue-500/30 transition-colors"
-                              whileHover={performanceMode ? {} : { scale: 1.05 }}
+                              whileHover={
+                                performanceMode ? {} : { scale: 1.05 }
+                              }
                               whileTap={performanceMode ? {} : { scale: 0.95 }}
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setSelectedSessionForWebhooks(session.sessionId);
+                                setSelectedSessionForWebhooks(
+                                  session.sessionId
+                                );
                                 setShowWebhookManager(true);
                               }}
                             >
@@ -1593,34 +1932,40 @@ export default function Dashboard() {
             )}
 
             {/* Placeholder para outras abas */}
-            {activeTab !== 'overview' && activeTab !== 'sessions' && activeTab !== 'tokens' && activeTab !== 'webhooks' && (
-              <motion.div
-                key={activeTab}
-                initial={{ opacity: 0, x: performanceMode ? 0 : 10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: performanceMode ? 0 : -10 }}
-                transition={{ duration: performanceMode ? 0.1 : 0.2 }}
-                className={`${performanceMode ? 'glass-performance' : 'glass-card'} p-8 text-center rounded-xl`}
-              >
-                <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-full flex items-center justify-center">
-                  <CogIcon className="w-10 h-10 text-white/70" />
-                </div>
-                <h2 className="text-2xl font-semibold text-white mb-2">
-                  {tabs.find(tab => tab.id === activeTab)?.name}
-                </h2>
-                <p className="text-white/70 mb-6">
-                  Esta seção está em desenvolvimento. Em breve você poderá gerenciar todas as funcionalidades da API aqui.
-                </p>
-                <motion.button
-                  className="liquid-button inline-flex items-center"
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
+            {activeTab !== 'overview' &&
+              activeTab !== 'sessions' &&
+              activeTab !== 'tokens' &&
+              activeTab !== 'webhooks' && (
+                <motion.div
+                  key={activeTab}
+                  initial={{ opacity: 0, x: performanceMode ? 0 : 10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: performanceMode ? 0 : -10 }}
+                  transition={{ duration: performanceMode ? 0.1 : 0.2 }}
+                  className={`${
+                    performanceMode ? 'glass-performance' : 'glass-card'
+                  } p-8 text-center rounded-xl`}
                 >
-                  <LinkIcon className="w-5 h-5 mr-2" />
-                  Acessar Documentação
-                </motion.button>
-              </motion.div>
-            )}
+                  <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-full flex items-center justify-center">
+                    <CogIcon className="w-10 h-10 text-white/70" />
+                  </div>
+                  <h2 className="text-2xl font-semibold text-white mb-2">
+                    {tabs.find((tab) => tab.id === activeTab)?.name}
+                  </h2>
+                  <p className="text-white/70 mb-6">
+                    Esta seção está em desenvolvimento. Em breve você poderá
+                    gerenciar todas as funcionalidades da API aqui.
+                  </p>
+                  <motion.button
+                    className="liquid-button inline-flex items-center"
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    <LinkIcon className="w-5 h-5 mr-2" />
+                    Acessar Documentação
+                  </motion.button>
+                </motion.div>
+              )}
           </AnimatePresence>
         </motion.main>
       </div>
@@ -1636,19 +1981,27 @@ export default function Dashboard() {
             onClick={() => setShowNewSession(false)}
           >
             <motion.div
-              className={`${performanceMode ? 'glass-performance' : 'glass-card'} p-6 max-w-md w-full mx-4 rounded-xl`}
+              className={`${
+                performanceMode ? 'glass-performance' : 'glass-card'
+              } p-6 max-w-md w-full mx-4 rounded-xl`}
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 className="text-xl font-semibold text-white mb-4">Nova Sessão WhatsApp</h3>
+              <h3 className="text-xl font-semibold text-white mb-4">
+                Nova Sessão WhatsApp
+              </h3>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-white/80 mb-2">Nome da Sessão</label>
+                  <label className="block text-sm font-medium text-white/80 mb-2">
+                    Nome da Sessão
+                  </label>
                   <input
                     type="text"
-                    className={`w-full px-4 py-3 ${performanceMode ? 'glass-performance' : 'glass-ultra'} rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-500 focus:outline-none`}
+                    className={`w-full px-4 py-3 ${
+                      performanceMode ? 'glass-performance' : 'glass-ultra'
+                    } rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-500 focus:outline-none`}
                     placeholder="Ex: Vendas, Suporte, Marketing..."
                   />
                 </div>
@@ -1687,22 +2040,32 @@ export default function Dashboard() {
             }}
           >
             <motion.div
-              className={`${performanceMode ? 'glass-performance' : 'glass-card'} p-6 max-w-md w-full mx-4 text-center rounded-xl`}
+              className={`${
+                performanceMode ? 'glass-performance' : 'glass-card'
+              } p-6 max-w-md w-full mx-4 text-center rounded-xl`}
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 className="text-xl font-semibold text-white mb-4">QR Code - {selectedSession.name}</h3>
-              <div className={`w-64 h-64 mx-auto mb-4 ${performanceMode ? 'glass-performance' : 'glass-ultra'} rounded-xl flex items-center justify-center p-4`}>
+              <h3 className="text-xl font-semibold text-white mb-4">
+                QR Code - {selectedSession.name}
+              </h3>
+              <div
+                className={`w-64 h-64 mx-auto mb-4 ${
+                  performanceMode ? 'glass-performance' : 'glass-ultra'
+                } rounded-xl flex items-center justify-center p-4`}
+              >
                 {loadingQrCode ? (
                   <div className="text-center">
                     <div className="w-16 h-16 mx-auto mb-2 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"></div>
-                    <p className="text-white/50 text-sm">Carregando QR Code...</p>
+                    <p className="text-white/50 text-sm">
+                      Carregando QR Code...
+                    </p>
                   </div>
                 ) : qrCodeData?.qrCodeImage ? (
-                  <img 
-                    src={qrCodeData.qrCodeImage} 
+                  <img
+                    src={qrCodeData.qrCodeImage}
                     alt="QR Code WhatsApp"
                     className="w-full h-full object-contain rounded-lg"
                   />
@@ -1719,23 +2082,29 @@ export default function Dashboard() {
                 ) : qrCodeData?.hasQrCode === false ? (
                   <div className="text-center">
                     <QrCodeIcon className="w-16 h-16 text-red-400/50 mx-auto mb-2" />
-                    <p className="text-red-400 text-sm">QR Code não disponível</p>
-                    <p className="text-white/40 text-xs mt-2">Sessão pode já estar conectada</p>
+                    <p className="text-red-400 text-sm">
+                      QR Code não disponível
+                    </p>
+                    <p className="text-white/40 text-xs mt-2">
+                      Sessão pode já estar conectada
+                    </p>
                   </div>
                 ) : (
                   <div className="text-center">
                     <QrCodeIcon className="w-16 h-16 text-white/30 mx-auto mb-2" />
                     <p className="text-white/50 text-sm">Gerando QR Code...</p>
-                    <p className="text-white/40 text-xs mt-2">Aguarde a geração do QR Code...</p>
+                    <p className="text-white/40 text-xs mt-2">
+                      Aguarde a geração do QR Code...
+                    </p>
                   </div>
                 )}
-              </div>              <p className="text-white/70 mb-6 text-center">
-                {qrCodeData?.qrCode || qrCodeData?.qrCodeImage ? 
-                  'Escaneie este QR Code com o WhatsApp Web para conectar a sessão.' :
-                  qrCodeData?.hasQrCode === false ?
-                    'QR Code não está disponível. A sessão pode já estar conectada ou há um problema na geração.' :
-                    'Aguarde a geração do QR Code...'
-                }
+              </div>{' '}
+              <p className="text-white/70 mb-6 text-center">
+                {qrCodeData?.qrCode || qrCodeData?.qrCodeImage
+                  ? 'Escaneie este QR Code com o WhatsApp Web para conectar a sessão.'
+                  : qrCodeData?.hasQrCode === false
+                  ? 'QR Code não está disponível. A sessão pode já estar conectada ou há um problema na geração.'
+                  : 'Aguarde a geração do QR Code...'}
               </p>
               <div className="flex gap-2">
                 {qrCodeData?.qrCode && (
@@ -1777,29 +2146,44 @@ export default function Dashboard() {
             }}
           >
             <motion.div
-              className={`${performanceMode ? 'glass-performance' : 'glass-card'} p-6 max-w-2xl w-full mx-4 rounded-xl`}
+              className={`${
+                performanceMode ? 'glass-performance' : 'glass-card'
+              } p-6 max-w-2xl w-full mx-4 rounded-xl`}
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 className="text-xl font-semibold text-white mb-4">Token de API Gerado</h3>
-              
+              <h3 className="text-xl font-semibold text-white mb-4">
+                Token de API Gerado
+              </h3>
+
               <div className="mb-6">
                 <div className="bg-yellow-500/20 border border-yellow-500/30 rounded-xl p-4 mb-4">
                   <div className="flex items-center space-x-2 mb-2">
                     <ExclamationTriangleIcon className="w-5 h-5 text-yellow-400" />
-                    <span className="text-yellow-400 font-semibold">IMPORTANTE</span>
+                    <span className="text-yellow-400 font-semibold">
+                      IMPORTANTE
+                    </span>
                   </div>
                   <p className="text-yellow-200 text-sm">
-                    Este token será mostrado apenas uma vez. Certifique-se de copiá-lo e guardá-lo em local seguro.
+                    Este token será mostrado apenas uma vez. Certifique-se de
+                    copiá-lo e guardá-lo em local seguro.
                   </p>
                 </div>
 
-                <label className="block text-sm font-medium text-white/80 mb-2">Seu Token de API:</label>
-                <div className={`${performanceMode ? 'glass-performance' : 'glass-ultra'} p-4 rounded-xl`}>
+                <label className="block text-sm font-medium text-white/80 mb-2">
+                  Seu Token de API:
+                </label>
+                <div
+                  className={`${
+                    performanceMode ? 'glass-performance' : 'glass-ultra'
+                  } p-4 rounded-xl`}
+                >
                   <div className="flex items-center justify-between">
-                    <code className="text-green-400 font-mono text-sm break-all mr-4">{newToken}</code>
+                    <code className="text-green-400 font-mono text-sm break-all mr-4">
+                      {newToken}
+                    </code>
                     <motion.button
                       onClick={() => copyToClipboard(newToken)}
                       className="p-2 rounded-lg bg-blue-500/20 text-blue-400 hover:bg-blue-500/30 transition-colors flex-shrink-0"
@@ -1814,12 +2198,21 @@ export default function Dashboard() {
               </div>
 
               <div className="mb-6">
-                <h4 className="text-lg font-semibold text-white mb-2">Como usar</h4>
+                <h4 className="text-lg font-semibold text-white mb-2">
+                  Como usar
+                </h4>
                 <p className="text-white/70 mb-4">
-                  Inclua este token no header Authorization de suas requisições para as rotas do WhatsApp API:
+                  Inclua este token no header Authorization de suas requisições
+                  para as rotas do WhatsApp API:
                 </p>
-                <div className={`${performanceMode ? 'glass-performance' : 'glass-ultra'} p-4 rounded-xl font-mono text-sm`}>
-                  <div className="text-white/80">Authorization: Bearer {newToken}</div>
+                <div
+                  className={`${
+                    performanceMode ? 'glass-performance' : 'glass-ultra'
+                  } p-4 rounded-xl font-mono text-sm`}
+                >
+                  <div className="text-white/80">
+                    Authorization: Bearer {newToken}
+                  </div>
                 </div>
               </div>
 
@@ -1838,7 +2231,9 @@ export default function Dashboard() {
                     setShowTokenModal(false);
                     setNewToken(null);
                   }}
-                  className={`px-4 py-3 ${performanceMode ? 'glass-performance' : 'glass-ultra'} rounded-xl text-white/70 hover:text-white transition-colors`}
+                  className={`px-4 py-3 ${
+                    performanceMode ? 'glass-performance' : 'glass-ultra'
+                  } rounded-xl text-white/70 hover:text-white transition-colors`}
                   whileHover={performanceMode ? {} : { scale: 1.02 }}
                   whileTap={performanceMode ? {} : { scale: 0.98 }}
                 >
@@ -1861,14 +2256,18 @@ export default function Dashboard() {
             }}
           >
             <motion.div
-              className={`${performanceMode ? 'glass-performance' : 'glass-card'} p-6 max-w-md w-full mx-4 rounded-xl`}
+              className={`${
+                performanceMode ? 'glass-performance' : 'glass-card'
+              } p-6 max-w-md w-full mx-4 rounded-xl`}
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 className="text-xl font-semibold text-white mb-6">Criar Token de API</h3>
-              
+              <h3 className="text-xl font-semibold text-white mb-6">
+                Criar Token de API
+              </h3>
+
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-white/80 mb-2">
@@ -1877,8 +2276,15 @@ export default function Dashboard() {
                   <input
                     type="text"
                     value={tokenForm.name}
-                    onChange={(e) => setTokenForm(prev => ({ ...prev, name: e.target.value }))}
-                    className={`w-full px-4 py-3 ${performanceMode ? 'glass-performance' : 'glass-ultra'} rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-500 focus:outline-none`}
+                    onChange={(e) =>
+                      setTokenForm((prev) => ({
+                        ...prev,
+                        name: e.target.value,
+                      }))
+                    }
+                    className={`w-full px-4 py-3 ${
+                      performanceMode ? 'glass-performance' : 'glass-ultra'
+                    } rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-500 focus:outline-none`}
                     placeholder="Ex: API Principal, Bot Vendas, Sistema..."
                     maxLength={50}
                   />
@@ -1890,24 +2296,49 @@ export default function Dashboard() {
                   </label>
                   <select
                     value={tokenForm.expiresIn}
-                    onChange={(e) => setTokenForm(prev => ({ ...prev, expiresIn: e.target.value }))}
-                    className={`w-full px-4 py-3 ${performanceMode ? 'glass-performance' : 'glass-ultra'} rounded-xl text-white bg-transparent focus:ring-2 focus:ring-blue-500 focus:outline-none`}
+                    onChange={(e) =>
+                      setTokenForm((prev) => ({
+                        ...prev,
+                        expiresIn: e.target.value,
+                      }))
+                    }
+                    className={`w-full px-4 py-3 ${
+                      performanceMode ? 'glass-performance' : 'glass-ultra'
+                    } rounded-xl text-white bg-transparent focus:ring-2 focus:ring-blue-500 focus:outline-none`}
                   >
-                    <option value="never" className="bg-slate-800">Nunca expira</option>
-                    <option value="7" className="bg-slate-800">7 dias</option>
-                    <option value="30" className="bg-slate-800">30 dias</option>
-                    <option value="90" className="bg-slate-800">90 dias</option>
-                    <option value="365" className="bg-slate-800">1 ano</option>
+                    <option value="never" className="bg-slate-800">
+                      Nunca expira
+                    </option>
+                    <option value="7" className="bg-slate-800">
+                      7 dias
+                    </option>
+                    <option value="30" className="bg-slate-800">
+                      30 dias
+                    </option>
+                    <option value="90" className="bg-slate-800">
+                      90 dias
+                    </option>
+                    <option value="365" className="bg-slate-800">
+                      1 ano
+                    </option>
                   </select>
                 </div>
 
-                <div className={`${performanceMode ? 'glass-performance' : 'glass-ultra'} p-4 rounded-xl`}>
+                <div
+                  className={`${
+                    performanceMode ? 'glass-performance' : 'glass-ultra'
+                  } p-4 rounded-xl`}
+                >
                   <div className="flex items-center space-x-2 mb-2">
                     <KeyIcon className="w-4 h-4 text-blue-400" />
-                    <span className="text-sm font-medium text-blue-400">Informações Importantes</span>
+                    <span className="text-sm font-medium text-blue-400">
+                      Informações Importantes
+                    </span>
                   </div>
                   <ul className="text-xs text-white/70 space-y-1">
-                    <li>• O token será mostrado apenas uma vez após a criação</li>
+                    <li>
+                      • O token será mostrado apenas uma vez após a criação
+                    </li>
                     <li>• Guarde-o em local seguro</li>
                     <li>• Use no header: Authorization: Bearer seu_token</li>
                     <li>• Você pode revogar o token a qualquer momento</li>
@@ -1930,9 +2361,21 @@ export default function Dashboard() {
                 <motion.button
                   onClick={generateApiToken}
                   disabled={!tokenForm.name.trim()}
-                  className={`flex-1 liquid-button ${!tokenForm.name.trim() ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  whileHover={tokenForm.name.trim() && !performanceMode ? { scale: 1.02 } : {}}
-                  whileTap={tokenForm.name.trim() && !performanceMode ? { scale: 0.98 } : {}}
+                  className={`flex-1 liquid-button ${
+                    !tokenForm.name.trim()
+                      ? 'opacity-50 cursor-not-allowed'
+                      : ''
+                  }`}
+                  whileHover={
+                    tokenForm.name.trim() && !performanceMode
+                      ? { scale: 1.02 }
+                      : {}
+                  }
+                  whileTap={
+                    tokenForm.name.trim() && !performanceMode
+                      ? { scale: 0.98 }
+                      : {}
+                  }
                 >
                   <KeyIcon className="w-4 h-4 mr-2" />
                   Criar Token
@@ -1954,14 +2397,18 @@ export default function Dashboard() {
             }}
           >
             <motion.div
-              className={`${performanceMode ? 'glass-performance' : 'glass-card'} p-6 max-w-lg w-full mx-4 rounded-xl`}
+              className={`${
+                performanceMode ? 'glass-performance' : 'glass-card'
+              } p-6 max-w-lg w-full mx-4 rounded-xl`}
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 className="text-xl font-semibold text-white mb-6">Criar Sessão WhatsApp</h3>
-              
+              <h3 className="text-xl font-semibold text-white mb-6">
+                Criar Sessão WhatsApp
+              </h3>
+
               <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-white/80 mb-2">
@@ -1970,22 +2417,40 @@ export default function Dashboard() {
                   <input
                     type="text"
                     value={sessionForm.sessionId}
-                    onChange={(e) => setSessionForm(prev => ({ ...prev, sessionId: e.target.value }))}
-                    className={`w-full px-4 py-3 ${performanceMode ? 'glass-performance' : 'glass-ultra'} rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-500 focus:outline-none`}
+                    onChange={(e) =>
+                      setSessionForm((prev) => ({
+                        ...prev,
+                        sessionId: e.target.value,
+                      }))
+                    }
+                    className={`w-full px-4 py-3 ${
+                      performanceMode ? 'glass-performance' : 'glass-ultra'
+                    } rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-500 focus:outline-none`}
                     placeholder="Ex: vendas-bot, suporte-cliente, marketing..."
                     maxLength={30}
                   />
                 </div>
 
-                <div className={`${performanceMode ? 'glass-performance' : 'glass-ultra'} p-4 rounded-xl`}>
+                <div
+                  className={`${
+                    performanceMode ? 'glass-performance' : 'glass-ultra'
+                  } p-4 rounded-xl`}
+                >
                   <div className="flex items-center space-x-2 mb-2">
                     <ExclamationTriangleIcon className="w-4 h-4 text-blue-400" />
-                    <span className="text-sm font-medium text-blue-400">Como Usar</span>
+                    <span className="text-sm font-medium text-blue-400">
+                      Como Usar
+                    </span>
                   </div>
                   <div className="text-xs text-white/70 space-y-1">
                     <p>• Digite um nome único para identificar sua sessão</p>
-                    <p>• Após criar, um QR Code será gerado para escaneamento</p>
-                    <p>• Use a aba "Tokens de API" para criar tokens para automação</p>
+                    <p>
+                      • Após criar, um QR Code será gerado para escaneamento
+                    </p>
+                    <p>
+                      • Use a aba "Tokens de API" para criar tokens para
+                      automação
+                    </p>
                     <p>• Configure webhooks na seção "Configurar" da sessão</p>
                   </div>
                 </div>
@@ -2006,9 +2471,25 @@ export default function Dashboard() {
                 <motion.button
                   onClick={createWhatsAppSession}
                   disabled={!sessionForm.sessionId.trim() || creatingSession}
-                  className={`flex-1 liquid-button ${(!sessionForm.sessionId.trim() || creatingSession) ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  whileHover={(!sessionForm.sessionId.trim() || creatingSession || performanceMode) ? {} : { scale: 1.02 }}
-                  whileTap={(!sessionForm.sessionId.trim() || creatingSession || performanceMode) ? {} : { scale: 0.98 }}
+                  className={`flex-1 liquid-button ${
+                    !sessionForm.sessionId.trim() || creatingSession
+                      ? 'opacity-50 cursor-not-allowed'
+                      : ''
+                  }`}
+                  whileHover={
+                    !sessionForm.sessionId.trim() ||
+                    creatingSession ||
+                    performanceMode
+                      ? {}
+                      : { scale: 1.02 }
+                  }
+                  whileTap={
+                    !sessionForm.sessionId.trim() ||
+                    creatingSession ||
+                    performanceMode
+                      ? {}
+                      : { scale: 0.98 }
+                  }
                 >
                   {creatingSession ? (
                     <>
@@ -2016,10 +2497,7 @@ export default function Dashboard() {
                       Criando...
                     </>
                   ) : (
-                    <>
-                      <PhoneIcon className="w-4 h-4 mr-2" />
-                      Criar Sessão
-                    </>
+                    <>Criar Sessão</>
                   )}
                 </motion.button>
               </div>
@@ -2054,7 +2532,9 @@ export default function Dashboard() {
             }}
           >
             <motion.div
-              className={`${performanceMode ? 'glass-performance' : 'glass-card'} p-6 max-w-4xl w-full mx-4 rounded-xl max-h-[90vh] overflow-y-auto`}
+              className={`${
+                performanceMode ? 'glass-performance' : 'glass-card'
+              } p-6 max-w-4xl w-full mx-4 rounded-xl max-h-[90vh] overflow-y-auto`}
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
@@ -2066,8 +2546,13 @@ export default function Dashboard() {
                     <WrenchScrewdriverIcon className="w-6 h-6 text-white" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-semibold text-white">Configurar Sessão</h3>
-                    <p className="text-white/70">{selectedSessionForConfig.name} ({selectedSessionForConfig.id})</p>
+                    <h3 className="text-xl font-semibold text-white">
+                      Configurar Sessão
+                    </h3>
+                    <p className="text-white/70">
+                      {selectedSessionForConfig.name} (
+                      {selectedSessionForConfig.id})
+                    </p>
                   </div>
                 </div>
                 <motion.button
@@ -2086,30 +2571,50 @@ export default function Dashboard() {
               </div>
 
               {/* Session Status Overview */}
-              <div className={`${performanceMode ? 'glass-performance' : 'glass-ultra'} p-4 rounded-xl mb-6`}>
-                <h4 className="text-lg font-semibold text-white mb-4">Status da Sessão</h4>
+              <div
+                className={`${
+                  performanceMode ? 'glass-performance' : 'glass-ultra'
+                } p-4 rounded-xl mb-6`}
+              >
+                <h4 className="text-lg font-semibold text-white mb-4">
+                  Status da Sessão
+                </h4>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                   <div className="text-center">
-                    <div className={`w-3 h-3 rounded-full mx-auto mb-2 ${
-                      selectedSessionForConfig.status === 'connected' ? 'bg-green-400' :
-                      selectedSessionForConfig.status === 'connecting' ? 'bg-yellow-400' : 'bg-red-400'
-                    }`}></div>
+                    <div
+                      className={`w-3 h-3 rounded-full mx-auto mb-2 ${
+                        selectedSessionForConfig.status === 'connected'
+                          ? 'bg-green-400'
+                          : selectedSessionForConfig.status === 'connecting'
+                          ? 'bg-yellow-400'
+                          : 'bg-red-400'
+                      }`}
+                    ></div>
                     <div className="text-sm text-white/60">Status</div>
                     <div className="text-sm font-medium text-white capitalize">
-                      {selectedSessionForConfig.status === 'connected' ? 'Conectado' : 
-                       selectedSessionForConfig.status === 'connecting' ? 'Conectando' : 'Desconectado'}
+                      {selectedSessionForConfig.status === 'connected'
+                        ? 'Conectado'
+                        : selectedSessionForConfig.status === 'connecting'
+                        ? 'Conectando'
+                        : 'Desconectado'}
                     </div>
                   </div>
                   <div className="text-center">
-                    <div className="text-lg font-bold text-blue-400">{selectedSessionForConfig.messages}</div>
+                    <div className="text-lg font-bold text-blue-400">
+                      {selectedSessionForConfig.messages}
+                    </div>
                     <div className="text-sm text-white/60">Mensagens</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-lg font-bold text-purple-400">{selectedSessionForConfig.groups}</div>
+                    <div className="text-lg font-bold text-purple-400">
+                      {selectedSessionForConfig.groups}
+                    </div>
                     <div className="text-sm text-white/60">Grupos</div>
                   </div>
                   <div className="text-center">
-                    <div className="text-lg font-bold text-green-400">{selectedSessionForConfig.webhooks}</div>
+                    <div className="text-lg font-bold text-green-400">
+                      {selectedSessionForConfig.webhooks}
+                    </div>
                     <div className="text-sm text-white/60">Webhooks</div>
                   </div>
                 </div>
@@ -2118,7 +2623,11 @@ export default function Dashboard() {
               {/* Configuration Tabs */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Session Actions */}
-                <div className={`${performanceMode ? 'glass-performance' : 'glass-ultra'} p-4 rounded-xl`}>
+                <div
+                  className={`${
+                    performanceMode ? 'glass-performance' : 'glass-ultra'
+                  } p-4 rounded-xl`}
+                >
                   <h4 className="text-lg font-semibold text-white mb-4 flex items-center">
                     <ServerIcon className="w-5 h-5 mr-2" />
                     Ações da Sessão
@@ -2129,7 +2638,7 @@ export default function Dashboard() {
                         // Regenerar QR Code
                         setSelectedSession({
                           id: selectedSessionForConfig.id,
-                          name: selectedSessionForConfig.name
+                          name: selectedSessionForConfig.name,
                         });
                         setShowQRCode(true);
                         setShowSessionConfig(false);
@@ -2141,11 +2650,13 @@ export default function Dashboard() {
                       <QrCodeIcon className="w-4 h-4 mr-2" />
                       Regenerar QR Code
                     </motion.button>
-                    
+
                     <motion.button
                       onClick={() => {
                         // Abrir webhook manager
-                        setSelectedSessionForWebhooks(selectedSessionForConfig.id);
+                        setSelectedSessionForWebhooks(
+                          selectedSessionForConfig.id
+                        );
                         setShowWebhookManager(true);
                         setShowSessionConfig(false);
                       }}
@@ -2158,7 +2669,9 @@ export default function Dashboard() {
                     </motion.button>
 
                     <motion.button
-                      onClick={() => handleDeleteSession(selectedSessionForConfig.id)}
+                      onClick={() =>
+                        handleDeleteSession(selectedSessionForConfig.id)
+                      }
                       className="w-full liquid-button-danger inline-flex items-center justify-center"
                       whileHover={performanceMode ? {} : { scale: 1.02 }}
                       whileTap={performanceMode ? {} : { scale: 0.98 }}
@@ -2170,7 +2683,11 @@ export default function Dashboard() {
                 </div>
 
                 {/* Session Information */}
-                <div className={`${performanceMode ? 'glass-performance' : 'glass-ultra'} p-4 rounded-xl`}>
+                <div
+                  className={`${
+                    performanceMode ? 'glass-performance' : 'glass-ultra'
+                  } p-4 rounded-xl`}
+                >
                   <h4 className="text-lg font-semibold text-white mb-4 flex items-center">
                     <DocumentTextIcon className="w-5 h-5 mr-2" />
                     Informações da Sessão
@@ -2184,22 +2701,34 @@ export default function Dashboard() {
                     </div>
                     <div>
                       <div className="text-sm text-white/60">Nome</div>
-                      <div className="text-sm text-white">{selectedSessionForConfig.name}</div>
+                      <div className="text-sm text-white">
+                        {selectedSessionForConfig.name}
+                      </div>
                     </div>
                     <div>
                       <div className="text-sm text-white/60">Tempo Ativo</div>
-                      <div className="text-sm text-white">{selectedSessionForConfig.uptime}</div>
+                      <div className="text-sm text-white">
+                        {selectedSessionForConfig.uptime}
+                      </div>
                     </div>
                     <div>
-                      <div className="text-sm text-white/60">Última Atualização</div>
-                      <div className="text-sm text-white">{new Date().toLocaleString('pt-BR')}</div>
+                      <div className="text-sm text-white/60">
+                        Última Atualização
+                      </div>
+                      <div className="text-sm text-white">
+                        {new Date().toLocaleString('pt-BR')}
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
 
               {/* API Usage Examples */}
-              <div className={`${performanceMode ? 'glass-performance' : 'glass-ultra'} p-4 rounded-xl mt-6`}>
+              <div
+                className={`${
+                  performanceMode ? 'glass-performance' : 'glass-ultra'
+                } p-4 rounded-xl mt-6`}
+              >
                 <div className="flex items-center justify-between mb-4">
                   <h4 className="text-lg font-semibold text-white flex items-center">
                     <ClipboardDocumentIcon className="w-5 h-5 mr-2" />
@@ -2209,15 +2738,32 @@ export default function Dashboard() {
                     <KeyIcon className="w-4 h-4 text-white/60" />
                     <select
                       value={selectedTokenForExamples}
-                      onChange={(e) => setSelectedTokenForExamples(e.target.value)}
-                      className={`px-3 py-2 ${performanceMode ? 'glass-performance' : 'glass-ultra'} rounded-lg text-white text-sm bg-transparent focus:ring-2 focus:ring-blue-500 focus:outline-none min-w-[200px]`}
+                      onChange={(e) =>
+                        setSelectedTokenForExamples(e.target.value)
+                      }
+                      className={`px-3 py-2 ${
+                        performanceMode ? 'glass-performance' : 'glass-ultra'
+                      } rounded-lg text-white text-sm bg-transparent focus:ring-2 focus:ring-blue-500 focus:outline-none min-w-[200px]`}
                     >
-                      <option value="" className="bg-slate-800">Selecione um token</option>
-                      {apiTokens.filter(token => token.isActive && !token.isExpired).map(token => (
-                        <option key={token._id} value={token._id} className="bg-slate-800">
-                          {token.name} {token.expiresAt ? `(expira ${new Date(token.expiresAt).toLocaleDateString('pt-BR')})` : '(nunca expira)'}
-                        </option>
-                      ))}
+                      <option value="" className="bg-slate-800">
+                        Selecione um token
+                      </option>
+                      {apiTokens
+                        .filter((token) => token.isActive && !token.isExpired)
+                        .map((token) => (
+                          <option
+                            key={token._id}
+                            value={token._id}
+                            className="bg-slate-800"
+                          >
+                            {token.name}{' '}
+                            {token.expiresAt
+                              ? `(expira ${new Date(
+                                  token.expiresAt
+                                ).toLocaleDateString('pt-BR')})`
+                              : '(nunca expira)'}
+                          </option>
+                        ))}
                     </select>
                   </div>
                 </div>
@@ -2228,7 +2774,12 @@ export default function Dashboard() {
                         <div className="text-white/60">Enviar Mensagem:</div>
                         <motion.button
                           onClick={() => {
-                            const command = `curl -X POST "${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/baileys/session/${selectedSessionForConfig.id}/send-message" \\
+                            const command = `curl -X POST "${
+                              import.meta.env.VITE_API_URL ||
+                              'http://localhost:3000'
+                            }/api/baileys/session/${
+                              selectedSessionForConfig.id
+                            }/send-message" \\
   -H "Authorization: Bearer ${fullTokenForExamples}" \\
   -H "Content-Type: application/json" \\
   -d '{
@@ -2246,7 +2797,12 @@ export default function Dashboard() {
                         </motion.button>
                       </div>
                       <div className="font-mono text-xs text-white bg-white/5 p-3 rounded border overflow-x-auto">
-                        {`curl -X POST "${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/baileys/session/${selectedSessionForConfig.id}/send-message" \\
+                        {`curl -X POST "${
+                          import.meta.env.VITE_API_URL ||
+                          'http://localhost:3000'
+                        }/api/baileys/session/${
+                          selectedSessionForConfig.id
+                        }/send-message" \\
   -H "Authorization: Bearer ${fullTokenForExamples}" \\
   -H "Content-Type: application/json" \\
   -d '{
@@ -2260,7 +2816,12 @@ export default function Dashboard() {
                         <div className="text-white/60">Verificar Status:</div>
                         <motion.button
                           onClick={() => {
-                            const command = `curl -X GET "${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/baileys/session/${selectedSessionForConfig.id}/status" \\
+                            const command = `curl -X GET "${
+                              import.meta.env.VITE_API_URL ||
+                              'http://localhost:3000'
+                            }/api/baileys/session/${
+                              selectedSessionForConfig.id
+                            }/status" \\
   -H "Authorization: Bearer ${fullTokenForExamples}"`;
                             copyToClipboard(command);
                           }}
@@ -2273,7 +2834,12 @@ export default function Dashboard() {
                         </motion.button>
                       </div>
                       <div className="font-mono text-xs text-white bg-white/5 p-3 rounded border overflow-x-auto">
-                        {`curl -X GET "${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/baileys/session/${selectedSessionForConfig.id}/status" \\
+                        {`curl -X GET "${
+                          import.meta.env.VITE_API_URL ||
+                          'http://localhost:3000'
+                        }/api/baileys/session/${
+                          selectedSessionForConfig.id
+                        }/status" \\
   -H "Authorization: Bearer ${fullTokenForExamples}"`}
                       </div>
                     </div>
@@ -2282,7 +2848,12 @@ export default function Dashboard() {
                         <div className="text-white/60">Listar Grupos:</div>
                         <motion.button
                           onClick={() => {
-                            const command = `curl -X GET "${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/baileys/groups/${selectedSessionForConfig.id}/list" \\
+                            const command = `curl -X GET "${
+                              import.meta.env.VITE_API_URL ||
+                              'http://localhost:3000'
+                            }/api/baileys/groups/${
+                              selectedSessionForConfig.id
+                            }/list" \\
   -H "Authorization: Bearer ${fullTokenForExamples}"`;
                             copyToClipboard(command);
                           }}
@@ -2295,7 +2866,12 @@ export default function Dashboard() {
                         </motion.button>
                       </div>
                       <div className="font-mono text-xs text-white bg-white/5 p-3 rounded border overflow-x-auto">
-                        {`curl -X GET "${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/baileys/groups/${selectedSessionForConfig.id}/list" \\
+                        {`curl -X GET "${
+                          import.meta.env.VITE_API_URL ||
+                          'http://localhost:3000'
+                        }/api/baileys/groups/${
+                          selectedSessionForConfig.id
+                        }/list" \\
   -H "Authorization: Bearer ${fullTokenForExamples}"`}
                       </div>
                     </div>
@@ -2304,7 +2880,12 @@ export default function Dashboard() {
                         <div className="text-white/60">Enviar Mídia:</div>
                         <motion.button
                           onClick={() => {
-                            const command = `curl -X POST "${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/baileys/session/${selectedSessionForConfig.id}/send-media" \\
+                            const command = `curl -X POST "${
+                              import.meta.env.VITE_API_URL ||
+                              'http://localhost:3000'
+                            }/api/baileys/session/${
+                              selectedSessionForConfig.id
+                            }/send-media" \\
   -H "Authorization: Bearer ${fullTokenForExamples}" \\
   -F "media=@/caminho/para/arquivo.jpg" \\
   -F "to=5511999999999" \\
@@ -2320,7 +2901,12 @@ export default function Dashboard() {
                         </motion.button>
                       </div>
                       <div className="font-mono text-xs text-white bg-white/5 p-3 rounded border overflow-x-auto">
-                        {`curl -X POST "${import.meta.env.VITE_API_URL || 'http://localhost:3000'}/api/baileys/session/${selectedSessionForConfig.id}/send-media" \\
+                        {`curl -X POST "${
+                          import.meta.env.VITE_API_URL ||
+                          'http://localhost:3000'
+                        }/api/baileys/session/${
+                          selectedSessionForConfig.id
+                        }/send-media" \\
   -H "Authorization: Bearer ${fullTokenForExamples}" \\
   -F "media=@/caminho/para/arquivo.jpg" \\
   -F "to=5511999999999" \\
@@ -2331,32 +2917,58 @@ export default function Dashboard() {
                 ) : (
                   <div className="text-center py-8">
                     <KeyIcon className="w-16 h-16 text-white/20 mx-auto mb-4" />
-                    <h4 className="text-lg font-semibold text-white/60 mb-2">Selecione um Token</h4>
+                    <h4 className="text-lg font-semibold text-white/60 mb-2">
+                      Selecione um Token
+                    </h4>
                     <p className="text-white/40 text-sm">
-                      Escolha um token acima para ver os exemplos personalizados com seu token real.
+                      Escolha um token acima para ver os exemplos personalizados
+                      com seu token real.
                     </p>
                   </div>
                 )}
-                <div className={`${performanceMode ? 'glass-performance' : 'glass-ultra'} p-3 rounded-xl mt-4`}>
+                <div
+                  className={`${
+                    performanceMode ? 'glass-performance' : 'glass-ultra'
+                  } p-3 rounded-xl mt-4`}
+                >
                   <div className="flex items-center space-x-2 mb-2">
                     <ExclamationTriangleIcon className="w-4 h-4 text-yellow-400" />
-                    <span className="text-sm font-medium text-yellow-400">Dicas de Uso</span>
+                    <span className="text-sm font-medium text-yellow-400">
+                      Dicas de Uso
+                    </span>
                   </div>
                   <div className="text-xs text-white/70 space-y-1">
                     {selectedTokenForExamples ? (
                       <>
-                        <p>• ✅ Token selecionado - comandos prontos para uso!</p>
-                        <p>• 📋 Use os botões "Copiar" para copiar comandos completos</p>
-                        <p>• 🔄 Troque de token no seletor acima para usar outro</p>
+                        <p>
+                          • ✅ Token selecionado - comandos prontos para uso!
+                        </p>
+                        <p>
+                          • 📋 Use os botões "Copiar" para copiar comandos
+                          completos
+                        </p>
+                        <p>
+                          • 🔄 Troque de token no seletor acima para usar outro
+                        </p>
                       </>
                     ) : (
                       <>
-                        <p>• 🔑 Selecione um token acima para ver comandos personalizados</p>
+                        <p>
+                          • 🔑 Selecione um token acima para ver comandos
+                          personalizados
+                        </p>
                         <p>• ⚡ Tokens ativos são carregados automaticamente</p>
                       </>
                     )}
-                    <p>• 📚 Documentação completa disponível em <code className="bg-white/10 px-1 rounded">/api-docs</code></p>
-                    <p>• 🔧 Use a aba "Tokens de API" para gerenciar seus tokens</p>
+                    <p>
+                      • 📚 Documentação completa disponível em{' '}
+                      <code className="bg-white/10 px-1 rounded">
+                        /api-docs
+                      </code>
+                    </p>
+                    <p>
+                      • 🔧 Use a aba "Tokens de API" para gerenciar seus tokens
+                    </p>
                   </div>
                 </div>
               </div>
@@ -2389,7 +3001,9 @@ export default function Dashboard() {
             onClick={() => setShowUserProfile(false)}
           >
             <motion.div
-              className={`${performanceMode ? 'glass-performance' : 'glass-card'} rounded-xl max-w-md w-full max-h-[90vh] overflow-hidden flex flex-col`}
+              className={`${
+                performanceMode ? 'glass-performance' : 'glass-card'
+              } rounded-xl max-w-md w-full max-h-[90vh] overflow-hidden flex flex-col`}
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
@@ -2400,15 +3014,22 @@ export default function Dashboard() {
                 <div className="text-center">
                   <div className="relative mx-auto mb-4">
                     {user.profile?.avatar ? (
-                      <img 
-                        src={user.profile.avatar} 
+                      <img
+                        src={user.profile.avatar}
                         alt={user.name}
                         className="w-20 h-20 rounded-full object-cover border-4 border-white/20 mx-auto"
                       />
                     ) : (
                       <div className="w-20 h-20 rounded-full bg-gradient-to-r from-green-400 to-blue-500 flex items-center justify-center mx-auto">
                         <span className="text-white font-bold text-2xl">
-                          {user.name ? user.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'U'}
+                          {user.name
+                            ? user.name
+                                .split(' ')
+                                .map((n) => n[0])
+                                .join('')
+                                .substring(0, 2)
+                                .toUpperCase()
+                            : 'U'}
                         </span>
                       </div>
                     )}
@@ -2416,14 +3037,22 @@ export default function Dashboard() {
                       <div className="absolute bottom-2 right-2 w-4 h-4 bg-green-400 border-2 border-slate-900 rounded-full"></div>
                     )}
                   </div>
-                  <h3 className="text-xl font-semibold text-white mb-2">{user.name}</h3>
+                  <h3 className="text-xl font-semibold text-white mb-2">
+                    {user.name}
+                  </h3>
                   <p className="text-white/70 mb-1">{user.email}</p>
-                  <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
-                    user.role === 'admin' 
-                      ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30' 
-                      : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-                  }`}>
-                    {user.role === 'user' ? 'Usuário' : user.role === 'admin' ? 'Administrador' : user.role}
+                  <span
+                    className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
+                      user.role === 'admin'
+                        ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
+                        : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                    }`}
+                  >
+                    {user.role === 'user'
+                      ? 'Usuário'
+                      : user.role === 'admin'
+                      ? 'Administrador'
+                      : user.role}
                   </span>
                 </div>
               </div>
@@ -2431,130 +3060,216 @@ export default function Dashboard() {
               {/* Conteúdo com scroll */}
               <div className="flex-1 overflow-y-auto px-6 pb-4 modal-scroll">
                 <div className="space-y-4">
-                <div className={`${performanceMode ? 'glass-performance' : 'glass-ultra'} p-4 rounded-xl`}>
-                  <h4 className="text-sm font-semibold text-white/80 mb-3">Informações da Conta</h4>
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-white/60">ID do Usuário</span>
-                      <span className="text-sm text-white font-mono">{user._id?.substring(0, 8)}...</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-white/60">Membro desde</span>
-                      <span className="text-sm text-white">
-                        {user.createdAt ? new Date(user.createdAt).toLocaleDateString('pt-BR') : 'N/A'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-white/60">Último login</span>
-                      <span className="text-sm text-white">
-                        {user.lastLogin ? new Date(user.lastLogin).toLocaleDateString('pt-BR') : 'N/A'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-white/60">Status</span>
-                      <span className={`text-sm font-medium ${user.active ? 'text-green-400' : 'text-red-400'}`}>
-                        {user.active ? 'Ativo' : 'Inativo'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Estatísticas da API */}
-                <div className={`${performanceMode ? 'glass-performance' : 'glass-ultra'} p-4 rounded-xl`}>
-                  <h4 className="text-sm font-semibold text-white/80 mb-3">Estatísticas da API</h4>
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="text-center">
-                      <div className="text-lg font-bold text-blue-400">{user.stats?.totalSessions || 0}</div>
-                      <div className="text-xs text-white/60">Sessões</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-lg font-bold text-green-400">{user.stats?.activeConnections || 0}</div>
-                      <div className="text-xs text-white/60">Ativas</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-lg font-bold text-purple-400">{user.stats?.messagesCount || 0}</div>
-                      <div className="text-xs text-white/60">Mensagens</div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Configurações */}
-                {user.settings && (
-                  <div className={`${performanceMode ? 'glass-performance' : 'glass-ultra'} p-4 rounded-xl`}>
-                    <h4 className="text-sm font-semibold text-white/80 mb-3">Configurações</h4>
+                  <div
+                    className={`${
+                      performanceMode ? 'glass-performance' : 'glass-ultra'
+                    } p-4 rounded-xl`}
+                  >
+                    <h4 className="text-sm font-semibold text-white/80 mb-3">
+                      Informações da Conta
+                    </h4>
                     <div className="space-y-2">
                       <div className="flex justify-between items-center">
-                        <span className="text-xs text-white/60">Notificações</span>
-                        <span className={`text-sm ${user.settings.notifications ? 'text-green-400' : 'text-red-400'}`}>
-                          {user.settings.notifications ? 'Ativas' : 'Desativadas'}
+                        <span className="text-xs text-white/60">
+                          ID do Usuário
+                        </span>
+                        <span className="text-sm text-white font-mono">
+                          {user._id?.substring(0, 8)}...
                         </span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="text-xs text-white/60">Idioma</span>
-                        <span className="text-sm text-white">{user.settings.language || 'pt-BR'}</span>
+                        <span className="text-xs text-white/60">
+                          Membro desde
+                        </span>
+                        <span className="text-sm text-white">
+                          {user.createdAt
+                            ? new Date(user.createdAt).toLocaleDateString(
+                                'pt-BR'
+                              )
+                            : 'N/A'}
+                        </span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="text-xs text-white/60">Modo Escuro</span>
-                        <span className={`text-sm ${user.settings.darkMode ? 'text-blue-400' : 'text-gray-400'}`}>
-                          {user.settings.darkMode ? 'Ativado' : 'Desativado'}
+                        <span className="text-xs text-white/60">
+                          Último login
+                        </span>
+                        <span className="text-sm text-white">
+                          {user.lastLogin
+                            ? new Date(user.lastLogin).toLocaleDateString(
+                                'pt-BR'
+                              )
+                            : 'N/A'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-white/60">Status</span>
+                        <span
+                          className={`text-sm font-medium ${
+                            user.active ? 'text-green-400' : 'text-red-400'
+                          }`}
+                        >
+                          {user.active ? 'Ativo' : 'Inativo'}
                         </span>
                       </div>
                     </div>
                   </div>
-                )}
 
-                {/* Informações Adicionais */}
-                <div className={`${performanceMode ? 'glass-performance' : 'glass-ultra'} p-4 rounded-xl`}>
-                  <h4 className="text-sm font-semibold text-white/80 mb-3">Informações do Perfil</h4>
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-white/60">Telefone</span>
-                      <span className="text-sm text-white">
-                        {user.profile?.phone || 'Não informado'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-white/60">Empresa</span>
-                      <span className="text-sm text-white">
-                        {user.profile?.company || 'Não informado'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Atividade Recente */}
-                <div className={`${performanceMode ? 'glass-performance' : 'glass-ultra'} p-4 rounded-xl`}>
-                  <h4 className="text-sm font-semibold text-white/80 mb-3">Atividade Recente</h4>
-                  <div className="space-y-3">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                      <div className="flex-1">
-                        <div className="text-sm text-white">Login realizado</div>
-                        <div className="text-xs text-white/60">
-                          {user.lastLogin ? new Date(user.lastLogin).toLocaleString('pt-BR') : 'N/A'}
+                  {/* Estatísticas da API */}
+                  <div
+                    className={`${
+                      performanceMode ? 'glass-performance' : 'glass-ultra'
+                    } p-4 rounded-xl`}
+                  >
+                    <h4 className="text-sm font-semibold text-white/80 mb-3">
+                      Estatísticas da API
+                    </h4>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="text-center">
+                        <div className="text-lg font-bold text-blue-400">
+                          {user.stats?.totalSessions || 0}
                         </div>
+                        <div className="text-xs text-white/60">Sessões</div>
                       </div>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                      <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
-                      <div className="flex-1">
-                        <div className="text-sm text-white">Conta criada</div>
-                        <div className="text-xs text-white/60">
-                          {user.createdAt ? new Date(user.createdAt).toLocaleString('pt-BR') : 'N/A'}
+                      <div className="text-center">
+                        <div className="text-lg font-bold text-green-400">
+                          {user.stats?.activeConnections || 0}
                         </div>
+                        <div className="text-xs text-white/60">Ativas</div>
                       </div>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                      <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
-                      <div className="flex-1">
-                        <div className="text-sm text-white">Perfil atualizado</div>
-                        <div className="text-xs text-white/60">
-                          {user.updatedAt ? new Date(user.updatedAt).toLocaleString('pt-BR') : 'N/A'}
+                      <div className="text-center">
+                        <div className="text-lg font-bold text-purple-400">
+                          {user.stats?.messagesCount || 0}
                         </div>
+                        <div className="text-xs text-white/60">Mensagens</div>
                       </div>
                     </div>
                   </div>
-                </div>
+
+                  {/* Configurações */}
+                  {user.settings && (
+                    <div
+                      className={`${
+                        performanceMode ? 'glass-performance' : 'glass-ultra'
+                      } p-4 rounded-xl`}
+                    >
+                      <h4 className="text-sm font-semibold text-white/80 mb-3">
+                        Configurações
+                      </h4>
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs text-white/60">
+                            Notificações
+                          </span>
+                          <span
+                            className={`text-sm ${
+                              user.settings.notifications
+                                ? 'text-green-400'
+                                : 'text-red-400'
+                            }`}
+                          >
+                            {user.settings.notifications
+                              ? 'Ativas'
+                              : 'Desativadas'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs text-white/60">Idioma</span>
+                          <span className="text-sm text-white">
+                            {user.settings.language || 'pt-BR'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs text-white/60">
+                            Modo Escuro
+                          </span>
+                          <span
+                            className={`text-sm ${
+                              user.settings.darkMode
+                                ? 'text-blue-400'
+                                : 'text-gray-400'
+                            }`}
+                          >
+                            {user.settings.darkMode ? 'Ativado' : 'Desativado'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Informações Adicionais */}
+                  <div
+                    className={`${
+                      performanceMode ? 'glass-performance' : 'glass-ultra'
+                    } p-4 rounded-xl`}
+                  >
+                    <h4 className="text-sm font-semibold text-white/80 mb-3">
+                      Informações do Perfil
+                    </h4>
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-white/60">Telefone</span>
+                        <span className="text-sm text-white">
+                          {user.profile?.phone || 'Não informado'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-white/60">Empresa</span>
+                        <span className="text-sm text-white">
+                          {user.profile?.company || 'Não informado'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Atividade Recente */}
+                  <div
+                    className={`${
+                      performanceMode ? 'glass-performance' : 'glass-ultra'
+                    } p-4 rounded-xl`}
+                  >
+                    <h4 className="text-sm font-semibold text-white/80 mb-3">
+                      Atividade Recente
+                    </h4>
+                    <div className="space-y-3">
+                      <div className="flex items-center space-x-3">
+                        <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                        <div className="flex-1">
+                          <div className="text-sm text-white">
+                            Login realizado
+                          </div>
+                          <div className="text-xs text-white/60">
+                            {user.lastLogin
+                              ? new Date(user.lastLogin).toLocaleString('pt-BR')
+                              : 'N/A'}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-3">
+                        <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                        <div className="flex-1">
+                          <div className="text-sm text-white">Conta criada</div>
+                          <div className="text-xs text-white/60">
+                            {user.createdAt
+                              ? new Date(user.createdAt).toLocaleString('pt-BR')
+                              : 'N/A'}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="flex items-center space-x-3">
+                        <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
+                        <div className="flex-1">
+                          <div className="text-sm text-white">
+                            Perfil atualizado
+                          </div>
+                          <div className="text-xs text-white/60">
+                            {user.updatedAt
+                              ? new Date(user.updatedAt).toLocaleString('pt-BR')
+                              : 'N/A'}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
