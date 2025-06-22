@@ -4,27 +4,35 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a WhatsApp multi-session API built with Node.js, Express, and Baileys library. It provides:
-- Multi-session WhatsApp bot management 
-- Group management functionality
-- Media handling and file uploads
-- Webhook system supporting up to 3 webhooks per session
-- Rate limiting and security features
-- MongoDB integration with development fallback
-- React frontend with Apple Liquid Glass design
+This is a sophisticated WhatsApp multi-session API built with Node.js, Express, and Baileys library. It provides:
+- Multi-session WhatsApp bot management with QR code authentication
+- Group management functionality with comprehensive operations
+- Media handling, file uploads, and Base64 encoding for webhooks
+- Webhook system supporting up to 3 webhooks per session with priorities
+- MongoDB integration with graceful development fallback
+- React 19 frontend with Apple Liquid Glass design and Framer Motion
 
 ## Architecture
 
-The project follows a modular Express.js architecture:
+### Backend Architecture
+The project follows a class-based Express.js architecture with singleton patterns:
 
-- **main.js** - Entry point and server setup with middleware configuration
-- **src/app.js** - Core Baileys WhatsApp logic and session management  
-- **src/api/** - API route handlers (groups.js for WhatsApp group operations)
-- **src/config/** - Configuration files (database.js, swagger.js)
-- **src/middleware/** - Security, rate limiting, CSRF, and authentication middleware
-- **src/controllers/** - Route controllers (authController.js)
-- **src/routes/** - Express route definitions
-- **frontend/** - React/Vite frontend with Tailwind CSS and Framer Motion
+- **main.js** - Server entry point with class-based Express setup
+- **src/app.js** - Core Baileys WhatsApp logic (34K+ lines) with global session management
+- **src/api/groups.js** - WhatsApp group operations API handler
+- **src/config/** - Database connection with fallback and Swagger configuration
+- **src/middleware/** - Layered security: CSRF, API token auth, security headers
+- **src/controllers/authController.js** - Authentication business logic
+- **src/routes/** - Route aggregation with management API structure
+
+### Frontend Architecture
+React 19 + Vite with performance-conscious design:
+
+- **frontend/src/App.jsx** - Main app with React Router and Apple-inspired UI
+- **frontend/src/pages/** - Login and Dashboard pages
+- **frontend/src/components/WebhookManager.jsx** - Webhook configuration component
+- **Styling**: Tailwind CSS with custom Apple Liquid Glass theme
+- **Animation**: Framer Motion with device performance detection
 
 ## Development Commands
 
@@ -54,31 +62,34 @@ npm install:frontend
 ## Key Technical Details
 
 ### Session Management
-- Sessions stored in `sessions` Map in src/app.js
-- WhatsApp auth sessions persisted in `auth_sessions/` directory
-- Global `whatsappSessions` object accessible across modules
+- In-memory sessions stored in `sessions` Map (src/app.js:34K+ lines)
+- WhatsApp auth persistence in `auth_sessions/` directory
+- Global `whatsappSessions` object accessible across all modules
+- Automatic reconnection handling and QR code authentication
 
 ### Database Integration
-- MongoDB with development fallback (continues without DB in dev mode)
-- Session storage uses MongoDB when available, memory store otherwise
-- Connection managed in src/config/database.js
+- MongoDB with graceful development fallback (continues without DB)
+- Connect-mongo session store with connection pooling
+- Database connection management in src/config/database.js
+- Development mode operates fully without database dependency
 
-### Security Features
-- Advanced rate limiting with MongoDB persistence (src/middleware/advancedRateLimit.js)
-- CSRF protection with token handling (src/middleware/csrf.js)
-- Helmet security headers and CORS configuration
-- Express session management with secure cookies
+### Security Architecture
+- Dual authentication: user sessions + API tokens ("baileys_" prefix)
+- CSRF protection with token validation (src/middleware/csrf.js)
+- Helmet security headers with CORS credential support
+- Layered middleware chain: security → auth → CSRF
 
-### Media Handling
-- File uploads to `uploads/` directory
-- Media downloads to `downloads/` directory  
-- Multer middleware for file processing
-- Base64 encoding for webhook media
+### Media & File Handling
+- File uploads to `uploads/` directory with Multer processing
+- Media downloads cached in `downloads/` directory
+- Base64 encoding pipeline for webhook media transmission
+- Automatic cleanup and file management
 
 ### Webhook System
-- Up to 3 webhooks per session with priorities
-- Webhook data stored in `webhooks` Map
-- Real-time event broadcasting to active webhooks
+- Priority-based webhook ordering (up to 3 per session)
+- Real-time event broadcasting with connection.update events
+- Webhook data persistence in memory Maps
+- Performance mode detection for optimal delivery
 
 ## Environment Requirements
 
@@ -92,22 +103,24 @@ Required environment variables:
 
 ## API Structure
 
-- `/api/baileys/*` - WhatsApp operations (sessions, messages, media)
-- `/api/baileys/groups/*` - Group management operations
-- `/api/management/*` - Server management endpoints
-- `/api-docs` - Swagger documentation
-- `/api/management/health` - Health check endpoint
+- **Management API**: `/api/management/*` - User authentication, tokens, sessions
+- **Baileys API**: `/api/baileys/*` - WhatsApp operations (messages, media, QR codes)
+- **Groups API**: `/api/baileys/groups/*` - Group management with comprehensive operations
+- **Documentation**: `/api-docs` - Swagger UI with complete API reference
+- **Health Check**: `/api/management/health` - Server status endpoint
 
-## Frontend Architecture
+## Development Environment
 
-React application using:
-- Vite for fast development and building
-- Tailwind CSS for styling with custom Apple Liquid Glass theme
-- Framer Motion for animations
-- Headless UI for accessible components
-- React Router for navigation
+### Port Configuration
+- **Backend**: Port 3000 (configurable via PORT env var)
+- **Frontend**: Port 5173 (Vite development server)
+- **CORS**: Configured for http://localhost:5173 by default
 
-Frontend runs on port 5173 in development, backend on port 3000.
+### Testing & Quality
+- **No formal test suite** - Only placeholder test script in package.json
+- ESLint configuration for frontend code quality
+- Development-focused error handling with Pino logging
+- Comprehensive API documentation via Swagger
 
 ## Recent Optimizations (Current Session)
 
@@ -126,17 +139,28 @@ The `/api/management/auth/profile` endpoint has been optimized for faster respon
 - **Memory efficient** caching with automatic cleanup
 - **Graceful degradation** maintains functionality if caching fails
 
+## Important Architectural Patterns
+
+### Global State Management
+- **Session Storage**: `global.whatsappSessions` object accessible across modules
+- **In-Memory Maps**: Sessions and webhooks data stored in memory
+- **Singleton Database**: Single database connection shared across application
+
+### Authentication Flow
+- **Dual Authentication**: User sessions for frontend + API tokens for external access
+- **API Token Format**: Must be prefixed with "baileys_" for validation
+- **Session Persistence**: MongoDB session store with connect-mongo integration
+
+### Error Handling & Logging
+- **Graceful Degradation**: Application continues without MongoDB in development
+- **Comprehensive Logging**: Pino logger with detailed request/response tracking
+- **Development Fallbacks**: Memory stores when database unavailable
+
 ## Code Maintenance Guidelines
 - NEVER create files unless absolutely necessary for the goal
 - ALWAYS prefer editing existing files over creating new ones  
 - NEVER proactively create documentation files unless explicitly requested
 - Follow existing code patterns and conventions
-- Maintain backward compatibility when possible
-- Test changes thoroughly before deployment
-
-## Testing & Deployment
-- Use `npm run dev:full` for local development with both frontend and backend
 - Test API endpoints with Swagger documentation at `/api-docs`
-- Verify MongoDB connection before production deployment
-- Monitor rate limiting metrics in development mode
-- Validate environment variables are properly configured
+- Verify environment variables before deployment
+- Monitor session management in logs

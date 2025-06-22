@@ -1,7 +1,6 @@
 const express = require('express');
 const authController = require('../controllers/authController');
 const { authenticateToken } = require('../middleware/auth');
-const advancedRateLimit = require('../middleware/advancedRateLimit');
 const csrfProtection = require('../middleware/csrf');
 const securityMiddleware = require('../middleware/security');
 
@@ -9,14 +8,12 @@ const router = express.Router();
 
 // Aplicar segurança geral a todas as rotas de auth
 router.use(securityMiddleware.fullSecurityStack());
-router.use(advancedRateLimit.globalLimit());
 
 // Endpoint para obter token CSRF
 router.get('/csrf-token', csrfProtection.addTokenToResponse());
 
 // Public routes com segurança máxima
 router.post('/register', [
-  advancedRateLimit.registerLimit(),
   csrfProtection.verifyAuthToken(),
   securityMiddleware.validateRegistration(),
   securityMiddleware.checkValidationResults(),
@@ -24,7 +21,6 @@ router.post('/register', [
 ], authController.register);
 
 router.post('/login', [
-  advancedRateLimit.loginLimit(),
   csrfProtection.verifyAuthToken(),
   securityMiddleware.validateLogin(),
   securityMiddleware.checkValidationResults(),
@@ -39,13 +35,11 @@ router.get('/profile',
 
 router.put('/profile', [
   authenticateToken,
-  advancedRateLimit.authLimit(),
   csrfProtection.verifyToken()
 ], authController.updateProfile);
 
 router.post('/change-password', [
   authenticateToken,
-  advancedRateLimit.authLimit(),
   csrfProtection.verifyToken()
 ], authController.changePassword);
 

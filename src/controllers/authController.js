@@ -2,7 +2,6 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { ObjectId } = require('mongodb');
 const database = require('../config/database');
-const advancedRateLimit = require('../middleware/advancedRateLimit');
 const { clearUserCache } = require('../middleware/auth');
 
 class AuthController {
@@ -206,16 +205,6 @@ class AuthController {
         // Check password
         const isPasswordValid = await bcrypt.compare(password, user.password);
         if (!isPasswordValid) {
-          // Penalizar falha de login
-          try {
-            await advancedRateLimit.penalizeFailedLogin(email, req.ip);
-          } catch (penaltyError) {
-            return res.status(429).json({
-              success: false,
-              message: 'Conta temporariamente bloqueada devido a múltiplas tentativas de login incorretas'
-            });
-          }
-          
           return res.status(401).json({
             success: false,
             message: 'Credenciais inválidas'
