@@ -105,6 +105,7 @@ export default function Dashboard() {
           const result = await response.json();
           if (result.success && result.data.user) {
             const userData = result.data.user;
+            console.log('User data loaded:', userData); // Debug log
             setUser(userData);
             
             // Atualizar stats com dados reais do usuário
@@ -922,7 +923,10 @@ export default function Dashboard() {
                 </div>
                 <motion.div 
                   className="relative cursor-pointer"
-                  onClick={() => setShowUserProfile(true)}
+                  onClick={() => {
+                    console.log('Profile button clicked, user:', user); // Debug log
+                    setShowUserProfile(true);
+                  }}
                   whileHover={performanceMode ? {} : { scale: 1.05 }}
                   whileTap={performanceMode ? {} : { scale: 0.95 }}
                 >
@@ -1675,199 +1679,6 @@ export default function Dashboard() {
           </motion.div>
         )}
 
-        {showUserProfile && user && (
-          <motion.div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={() => setShowUserProfile(false)}
-          >
-            <motion.div
-              className={`${performanceMode ? 'glass-performance' : 'glass-card'} rounded-xl max-w-md w-full max-h-[90vh] overflow-hidden flex flex-col`}
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              {/* Header fixo */}
-              <div className="p-6 pb-4 flex-shrink-0">
-                <div className="text-center">
-                  <div className="relative mx-auto mb-4">
-                    {user.profile?.avatar ? (
-                      <img 
-                        src={user.profile.avatar} 
-                        alt={user.name}
-                        className="w-20 h-20 rounded-full object-cover border-4 border-white/20 mx-auto"
-                      />
-                    ) : (
-                      <div className="w-20 h-20 rounded-full bg-gradient-to-r from-green-400 to-blue-500 flex items-center justify-center mx-auto">
-                        <span className="text-white font-bold text-2xl">
-                          {user.name ? user.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'U'}
-                        </span>
-                      </div>
-                    )}
-                    {user.active && (
-                      <div className="absolute bottom-2 right-2 w-4 h-4 bg-green-400 border-2 border-slate-900 rounded-full"></div>
-                    )}
-                  </div>
-                  <h3 className="text-xl font-semibold text-white mb-2">{user.name}</h3>
-                  <p className="text-white/70 mb-1">{user.email}</p>
-                  <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
-                    user.role === 'admin' 
-                      ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30' 
-                      : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
-                  }`}>
-                    {user.role === 'user' ? 'Usuário' : user.role === 'admin' ? 'Administrador' : user.role}
-                  </span>
-                </div>
-              </div>
-
-              {/* Conteúdo com scroll */}
-              <div className="flex-1 overflow-y-auto px-6 pb-4 modal-scroll">
-                <div className="space-y-4">
-                <div className={`${performanceMode ? 'glass-performance' : 'glass-ultra'} p-4 rounded-xl`}>
-                  <h4 className="text-sm font-semibold text-white/80 mb-3">Informações da Conta</h4>
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-white/60">ID do Usuário</span>
-                      <span className="text-sm text-white font-mono">{user._id?.substring(0, 8)}...</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-white/60">Membro desde</span>
-                      <span className="text-sm text-white">
-                        {user.createdAt ? new Date(user.createdAt).toLocaleDateString('pt-BR') : 'N/A'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-white/60">Último login</span>
-                      <span className="text-sm text-white">
-                        {user.lastLogin ? new Date(user.lastLogin).toLocaleDateString('pt-BR') : 'N/A'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-white/60">Status</span>
-                      <span className={`text-sm font-medium ${user.active ? 'text-green-400' : 'text-red-400'}`}>
-                        {user.active ? 'Ativo' : 'Inativo'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Estatísticas da API */}
-                <div className={`${performanceMode ? 'glass-performance' : 'glass-ultra'} p-4 rounded-xl`}>
-                  <h4 className="text-sm font-semibold text-white/80 mb-3">Estatísticas da API</h4>
-                  <div className="grid grid-cols-3 gap-3">
-                    <div className="text-center">
-                      <div className="text-lg font-bold text-blue-400">{user.stats?.totalSessions || 0}</div>
-                      <div className="text-xs text-white/60">Sessões</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-lg font-bold text-green-400">{user.stats?.activeConnections || 0}</div>
-                      <div className="text-xs text-white/60">Ativas</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-lg font-bold text-purple-400">{user.stats?.messagesCount || 0}</div>
-                      <div className="text-xs text-white/60">Mensagens</div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Configurações */}
-                {user.settings && (
-                  <div className={`${performanceMode ? 'glass-performance' : 'glass-ultra'} p-4 rounded-xl`}>
-                    <h4 className="text-sm font-semibold text-white/80 mb-3">Configurações</h4>
-                    <div className="space-y-2">
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs text-white/60">Notificações</span>
-                        <span className={`text-sm ${user.settings.notifications ? 'text-green-400' : 'text-red-400'}`}>
-                          {user.settings.notifications ? 'Ativas' : 'Desativadas'}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs text-white/60">Idioma</span>
-                        <span className="text-sm text-white">{user.settings.language || 'pt-BR'}</span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-xs text-white/60">Modo Escuro</span>
-                        <span className={`text-sm ${user.settings.darkMode ? 'text-blue-400' : 'text-gray-400'}`}>
-                          {user.settings.darkMode ? 'Ativado' : 'Desativado'}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Informações Adicionais */}
-                <div className={`${performanceMode ? 'glass-performance' : 'glass-ultra'} p-4 rounded-xl`}>
-                  <h4 className="text-sm font-semibold text-white/80 mb-3">Informações do Perfil</h4>
-                  <div className="space-y-2">
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-white/60">Telefone</span>
-                      <span className="text-sm text-white">
-                        {user.profile?.phone || 'Não informado'}
-                      </span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                      <span className="text-xs text-white/60">Empresa</span>
-                      <span className="text-sm text-white">
-                        {user.profile?.company || 'Não informado'}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Atividade Recente */}
-                <div className={`${performanceMode ? 'glass-performance' : 'glass-ultra'} p-4 rounded-xl`}>
-                  <h4 className="text-sm font-semibold text-white/80 mb-3">Atividade Recente</h4>
-                  <div className="space-y-3">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                      <div className="flex-1">
-                        <div className="text-sm text-white">Login realizado</div>
-                        <div className="text-xs text-white/60">
-                          {user.lastLogin ? new Date(user.lastLogin).toLocaleString('pt-BR') : 'N/A'}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                      <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
-                      <div className="flex-1">
-                        <div className="text-sm text-white">Conta criada</div>
-                        <div className="text-xs text-white/60">
-                          {user.createdAt ? new Date(user.createdAt).toLocaleString('pt-BR') : 'N/A'}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="flex items-center space-x-3">
-                      <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
-                      <div className="flex-1">
-                        <div className="text-sm text-white">Perfil atualizado</div>
-                        <div className="text-xs text-white/60">
-                          {user.updatedAt ? new Date(user.updatedAt).toLocaleString('pt-BR') : 'N/A'}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                </div>
-              </div>
-
-              {/* Footer fixo */}
-              <div className="p-6 pt-4 flex-shrink-0">
-                <motion.button
-                  onClick={() => setShowUserProfile(false)}
-                  className="liquid-button w-full"
-                  whileHover={performanceMode ? {} : { scale: 1.02 }}
-                  whileTap={performanceMode ? {} : { scale: 0.98 }}
-                >
-                  Fechar
-                </motion.button>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-
         {showTokenModal && newToken && (
           <motion.div
             className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
@@ -2474,6 +2285,199 @@ export default function Dashboard() {
                   className="liquid-button inline-flex items-center"
                   whileHover={performanceMode ? {} : { scale: 1.05 }}
                   whileTap={performanceMode ? {} : { scale: 0.95 }}
+                >
+                  Fechar
+                </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {showUserProfile && user && (
+          <motion.div
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowUserProfile(false)}
+          >
+            <motion.div
+              className={`${performanceMode ? 'glass-performance' : 'glass-card'} rounded-xl max-w-md w-full max-h-[90vh] overflow-hidden flex flex-col`}
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header fixo */}
+              <div className="p-6 pb-4 flex-shrink-0">
+                <div className="text-center">
+                  <div className="relative mx-auto mb-4">
+                    {user.profile?.avatar ? (
+                      <img 
+                        src={user.profile.avatar} 
+                        alt={user.name}
+                        className="w-20 h-20 rounded-full object-cover border-4 border-white/20 mx-auto"
+                      />
+                    ) : (
+                      <div className="w-20 h-20 rounded-full bg-gradient-to-r from-green-400 to-blue-500 flex items-center justify-center mx-auto">
+                        <span className="text-white font-bold text-2xl">
+                          {user.name ? user.name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase() : 'U'}
+                        </span>
+                      </div>
+                    )}
+                    {user.active && (
+                      <div className="absolute bottom-2 right-2 w-4 h-4 bg-green-400 border-2 border-slate-900 rounded-full"></div>
+                    )}
+                  </div>
+                  <h3 className="text-xl font-semibold text-white mb-2">{user.name}</h3>
+                  <p className="text-white/70 mb-1">{user.email}</p>
+                  <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
+                    user.role === 'admin' 
+                      ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30' 
+                      : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
+                  }`}>
+                    {user.role === 'user' ? 'Usuário' : user.role === 'admin' ? 'Administrador' : user.role}
+                  </span>
+                </div>
+              </div>
+
+              {/* Conteúdo com scroll */}
+              <div className="flex-1 overflow-y-auto px-6 pb-4 modal-scroll">
+                <div className="space-y-4">
+                <div className={`${performanceMode ? 'glass-performance' : 'glass-ultra'} p-4 rounded-xl`}>
+                  <h4 className="text-sm font-semibold text-white/80 mb-3">Informações da Conta</h4>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-white/60">ID do Usuário</span>
+                      <span className="text-sm text-white font-mono">{user._id?.substring(0, 8)}...</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-white/60">Membro desde</span>
+                      <span className="text-sm text-white">
+                        {user.createdAt ? new Date(user.createdAt).toLocaleDateString('pt-BR') : 'N/A'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-white/60">Último login</span>
+                      <span className="text-sm text-white">
+                        {user.lastLogin ? new Date(user.lastLogin).toLocaleDateString('pt-BR') : 'N/A'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-white/60">Status</span>
+                      <span className={`text-sm font-medium ${user.active ? 'text-green-400' : 'text-red-400'}`}>
+                        {user.active ? 'Ativo' : 'Inativo'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Estatísticas da API */}
+                <div className={`${performanceMode ? 'glass-performance' : 'glass-ultra'} p-4 rounded-xl`}>
+                  <h4 className="text-sm font-semibold text-white/80 mb-3">Estatísticas da API</h4>
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="text-center">
+                      <div className="text-lg font-bold text-blue-400">{user.stats?.totalSessions || 0}</div>
+                      <div className="text-xs text-white/60">Sessões</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-lg font-bold text-green-400">{user.stats?.activeConnections || 0}</div>
+                      <div className="text-xs text-white/60">Ativas</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-lg font-bold text-purple-400">{user.stats?.messagesCount || 0}</div>
+                      <div className="text-xs text-white/60">Mensagens</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Configurações */}
+                {user.settings && (
+                  <div className={`${performanceMode ? 'glass-performance' : 'glass-ultra'} p-4 rounded-xl`}>
+                    <h4 className="text-sm font-semibold text-white/80 mb-3">Configurações</h4>
+                    <div className="space-y-2">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-white/60">Notificações</span>
+                        <span className={`text-sm ${user.settings.notifications ? 'text-green-400' : 'text-red-400'}`}>
+                          {user.settings.notifications ? 'Ativas' : 'Desativadas'}
+                        </span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-white/60">Idioma</span>
+                        <span className="text-sm text-white">{user.settings.language || 'pt-BR'}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-white/60">Modo Escuro</span>
+                        <span className={`text-sm ${user.settings.darkMode ? 'text-blue-400' : 'text-gray-400'}`}>
+                          {user.settings.darkMode ? 'Ativado' : 'Desativado'}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Informações Adicionais */}
+                <div className={`${performanceMode ? 'glass-performance' : 'glass-ultra'} p-4 rounded-xl`}>
+                  <h4 className="text-sm font-semibold text-white/80 mb-3">Informações do Perfil</h4>
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-white/60">Telefone</span>
+                      <span className="text-sm text-white">
+                        {user.profile?.phone || 'Não informado'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs text-white/60">Empresa</span>
+                      <span className="text-sm text-white">
+                        {user.profile?.company || 'Não informado'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Atividade Recente */}
+                <div className={`${performanceMode ? 'glass-performance' : 'glass-ultra'} p-4 rounded-xl`}>
+                  <h4 className="text-sm font-semibold text-white/80 mb-3">Atividade Recente</h4>
+                  <div className="space-y-3">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                      <div className="flex-1">
+                        <div className="text-sm text-white">Login realizado</div>
+                        <div className="text-xs text-white/60">
+                          {user.lastLogin ? new Date(user.lastLogin).toLocaleString('pt-BR') : 'N/A'}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
+                      <div className="flex-1">
+                        <div className="text-sm text-white">Conta criada</div>
+                        <div className="text-xs text-white/60">
+                          {user.createdAt ? new Date(user.createdAt).toLocaleString('pt-BR') : 'N/A'}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
+                      <div className="flex-1">
+                        <div className="text-sm text-white">Perfil atualizado</div>
+                        <div className="text-xs text-white/60">
+                          {user.updatedAt ? new Date(user.updatedAt).toLocaleString('pt-BR') : 'N/A'}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                </div>
+              </div>
+
+              {/* Footer fixo */}
+              <div className="p-6 pt-4 flex-shrink-0">
+                <motion.button
+                  onClick={() => setShowUserProfile(false)}
+                  className="liquid-button w-full"
+                  whileHover={performanceMode ? {} : { scale: 1.02 }}
+                  whileTap={performanceMode ? {} : { scale: 0.98 }}
                 >
                   Fechar
                 </motion.button>

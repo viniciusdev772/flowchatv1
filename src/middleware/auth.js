@@ -68,13 +68,7 @@ const authenticateToken = async (req, res, next) => {
         { _id: userIdObj },
         { 
           projection: { 
-            password: 0,
-            // Campos desnecessários para autenticação
-            createdAt: 0,
-            updatedAt: 0,
-            'settings.notifications': 0,
-            'settings.darkMode': 0,
-            'settings.language': 0
+            password: 0 // Only exclude password, keep all other fields for profile display
           }
         }
       );
