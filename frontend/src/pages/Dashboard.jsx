@@ -1655,7 +1655,7 @@ export default function Dashboard() {
                 <div className="flex space-x-3">
                   <motion.button
                     onClick={() => setShowNewSession(false)}
-                    className={`flex-1 px-4 py-3 ${performanceMode ? 'glass-performance' : 'glass-ultra'} rounded-xl text-white/70 hover:text-white transition-colors`}
+                    className="flex-1 liquid-button-secondary"
                     whileHover={performanceMode ? {} : { scale: 1.02 }}
                     whileTap={performanceMode ? {} : { scale: 0.98 }}
                   >
@@ -1921,7 +1921,7 @@ export default function Dashboard() {
                     setShowCreateTokenModal(false);
                     setTokenForm({ name: '', expiresIn: 'never' });
                   }}
-                  className={`flex-1 px-4 py-3 ${performanceMode ? 'glass-performance' : 'glass-ultra'} rounded-xl text-white/70 hover:text-white transition-colors`}
+                  className="flex-1 liquid-button-secondary"
                   whileHover={performanceMode ? {} : { scale: 1.02 }}
                   whileTap={performanceMode ? {} : { scale: 0.98 }}
                 >
@@ -1997,9 +1997,9 @@ export default function Dashboard() {
                     setShowCreateSessionModal(false);
                     setSessionForm({ sessionId: '' });
                   }}
-                  className={`flex-1 px-4 py-3 ${performanceMode ? 'glass-performance' : 'glass-ultra'} rounded-xl text-white/70 hover:text-white transition-colors`}
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
+                  className="flex-1 liquid-button-secondary"
+                  whileHover={performanceMode ? {} : { scale: 1.02 }}
+                  whileTap={performanceMode ? {} : { scale: 0.98 }}
                 >
                   Cancelar
                 </motion.button>
