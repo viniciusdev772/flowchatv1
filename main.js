@@ -21,9 +21,8 @@ const { app: baileysApp, initializeApp } = require('./src/app');
 const apiTokenAuth = require('./src/middleware/apiTokenAuth');
 
 // Swagger setup
-const swaggerJsdoc = require('swagger-jsdoc');
 const swaggerUi = require('swagger-ui-express');
-const swaggerSpec = require('./src/config/swagger');
+const { swaggerSpec } = require('./src/config/swagger');
 
 class Server {
   constructor() {

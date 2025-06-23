@@ -5,8 +5,10 @@ class SecurityMiddleware {
   constructor() {
     this.suspiciousIPs = new Set();
     this.trustedOrigins = [
-      'http://localhost:5173',
-      'http://localhost:3000',
+      'http://localhost',
+      'https://localhost',
+      'http://127.0.0.1',
+      'https://127.0.0.1',
       process.env.CORS_ORIGIN,
       process.env.FRONTEND_URL
     ].filter(Boolean);
@@ -130,9 +132,14 @@ class SecurityMiddleware {
     return (req, res, next) => {
       const origin = req.headers.origin || req.headers.referer;
       
-      // Em produção, verificar origem rigorosamente
+      // Permitir requisições sem origin (acesso direto, Postman, etc.)
+      if (!origin) {
+        return next();
+      }
+      
+      // Em produção, verificar origem rigorosamente apenas para requisições com origin
       if (process.env.NODE_ENV === 'production') {
-        if (!origin || !this.trustedOrigins.some(trusted => origin.startsWith(trusted))) {
+        if (!this.trustedOrigins.some(trusted => trusted && origin.startsWith(trusted))) {
           console.warn(`Requisição de origem não confiável - Origin: ${origin}, IP: ${req.ip}`);
           
           return res.status(403).json({
