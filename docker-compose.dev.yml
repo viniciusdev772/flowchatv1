@@ -1,0 +1,62 @@
+version: '3.8'
+
+services:
+  # MongoDB for development
+  mongodb-dev:
+    image: mongo:7-jammy
+    container_name: baileys_mongodb_dev
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: devpassword
+      MONGO_INITDB_DATABASE: baileys_dev
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_dev_data:/data/db
+    networks:
+      - baileys_dev_network
+
+  # Development API with hot reload
+  baileys-api-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: baileys_api_dev
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      PORT: 3000
+      MONGODB_URI: mongodb://admin:devpassword@mongodb-dev:27017/baileys_dev?authSource=admin
+      DB_NAME: baileys_dev
+      SESSION_SECRET: dev-session-secret
+      COOKIE_SECRET: dev-cookie-secret
+      CORS_ORIGIN: http://localhost:5173
+    ports:
+      - "3000:3000"
+      - "9229:9229"  # Debug port
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - baileys_dev_uploads:/app/uploads
+      - baileys_dev_downloads:/app/downloads
+      - baileys_dev_auth:/app/auth_sessions
+    networks:
+      - baileys_dev_network
+    depends_on:
+      - mongodb-dev
+    command: npm run dev
+
+networks:
+  baileys_dev_network:
+    driver: bridge
+
+volumes:
+  mongodb_dev_data:
+    driver: local
+  baileys_dev_uploads:
+    driver: local
+  baileys_dev_downloads:
+    driver: local
+  baileys_dev_auth:
+    driver: local

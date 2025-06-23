@@ -1,0 +1,96 @@
+version: '3.8'
+
+services:
+  # MongoDB Database
+  mongodb:
+    image: mongo:7-jammy
+    container_name: baileys_mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-password123}
+      MONGO_INITDB_DATABASE: ${DB_NAME:-baileys}
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - mongodb_config:/data/configdb
+    networks:
+      - baileys_network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+
+  # Baileys WhatsApp API
+  baileys-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: baileys_api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      MONGODB_URI: mongodb://${MONGO_ROOT_USER:-admin}:${MONGO_ROOT_PASSWORD:-password123}@mongodb:27017/${DB_NAME:-baileys}?authSource=admin
+      DB_NAME: ${DB_NAME:-baileys}
+      SESSION_SECRET: ${SESSION_SECRET:-your-super-secret-session-key-change-this}
+      COOKIE_SECRET: ${COOKIE_SECRET:-your-super-secret-cookie-key-change-this}
+      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
+    ports:
+      - "3000:3000"
+    volumes:
+      - baileys_uploads:/app/uploads
+      - baileys_downloads:/app/downloads
+      - baileys_auth:/app/auth_sessions
+      - baileys_logs:/app/logs
+    networks:
+      - baileys_network
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/management/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # Nginx Reverse Proxy (Optional)
+  nginx:
+    image: nginx:alpine
+    container_name: baileys_nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    networks:
+      - baileys_network
+    depends_on:
+      - baileys-api
+    profiles:
+      - nginx
+
+networks:
+  baileys_network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
+    driver: local
+  mongodb_config:
+    driver: local
+  baileys_uploads:
+    driver: local
+  baileys_downloads:
+    driver: local
+  baileys_auth:
+    driver: local
+  baileys_logs:
+    driver: local

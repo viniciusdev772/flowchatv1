@@ -1,0 +1,31 @@
+FROM node:20-alpine
+
+# Install system dependencies
+RUN apk add --no-cache \
+    ffmpeg \
+    imagemagick \
+    python3 \
+    make \
+    g++ \
+    curl
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install all dependencies (including dev dependencies)
+RUN npm install
+
+# Create necessary directories
+RUN mkdir -p uploads downloads auth_sessions logs
+
+# Set proper permissions
+RUN chown -R node:node /app
+USER node
+
+# Expose debug port
+EXPOSE 3000 9229
+
+# Development command with hot reload
+CMD ["npm", "run", "dev"]

@@ -1,0 +1,79 @@
+# Node modules and npm cache
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.yarn
+
+# Build outputs
+dist/
+build/
+frontend/dist/
+frontend/build/
+
+# Runtime data and logs
+logs/
+*.log
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Session and temporary files
+auth_sessions/
+uploads/
+downloads/
+sessions/
+
+# Environment and configuration
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Git and version control
+.git/
+.gitignore
+.gitattributes
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Development and testing
+coverage/
+.nyc_output/
+.grunt/
+lib-cov/
+.tmp/
+.cache/
+
+# Documentation
+README.md
+CHANGELOG.md
+LICENSE
+*.md
+
+# Docker files (avoid recursive copies)
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# Frontend development
+frontend/node_modules/
+frontend/.vite/
+frontend/.cache/
