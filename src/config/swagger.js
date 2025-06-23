@@ -32,12 +32,6 @@ const swaggerOptions = {
         description: 'Informações da API e documentação',
       },
     ],
-    servers: [
-      {
-        url: `http://localhost:${process.env.PORT || 3000}`,
-        description: 'Servidor de desenvolvimento',
-      },
-    ],
     components: {
       securitySchemes: {
         ApiKeyAuth: {
