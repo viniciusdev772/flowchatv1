@@ -2128,7 +2128,7 @@ app.post(
   async (req, res) => {
     try {
       const { sessionId } = req.params;
-      const { to, caption, filename } = req.body;
+      const { to, caption, filename, voiceMessage } = req.body;
 
       const session = sessions.get(sessionId);
       if (!session || !session.isConnected) {
@@ -2150,6 +2150,24 @@ app.post(
 
       // Determinar tipo de mídia baseado na extensão
       const ext = path.extname(req.file.originalname).toLowerCase();
+      const isVoiceMessage = voiceMessage === 'true' || voiceMessage === true;
+      const isAudio = ['.mp3', '.wav', '.ogg', '.m4a'].includes(ext);
+
+      // Enviar status "gravando" se for mensagem de voz
+      if (isAudio && isVoiceMessage) {
+        try {
+          await session.sock.sendPresenceUpdate('recording', jid);
+          logger.info(`Status "gravando" enviado para ${jid}`);
+          
+          // Simular tempo de gravação mais longo (3-7 segundos)
+          const recordingTime = Math.floor(Math.random() * 4000) + 3000;
+          await delay(recordingTime);
+        } catch (presenceError) {
+          logger.warn(`Erro ao enviar status de gravação: ${presenceError.message}`);
+          // Continuar mesmo se o status falhar
+        }
+      }
+
       let messageContent = {};
 
       if (['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext)) {
@@ -2164,11 +2182,12 @@ app.post(
           caption: caption || '',
           fileName: filename || req.file.originalname,
         };
-      } else if (['.mp3', '.wav', '.ogg', '.m4a'].includes(ext)) {
+      } else if (isAudio) {
         messageContent = {
           audio: mediaBuffer,
           fileName: filename || req.file.originalname,
           mimetype: req.file.mimetype,
+          ptt: isVoiceMessage, // ptt = Push to Talk (mensagem de voz)
         };
       } else {
         messageContent = {
@@ -2185,6 +2204,47 @@ app.post(
         messageContent
       );
 
+      let captionMessageId = null;
+
+      // Parar status de gravação após enviar (marcar como offline para não mostrar "digitando")
+      if (isAudio && isVoiceMessage) {
+        try {
+          await session.sock.sendPresenceUpdate('unavailable', jid);
+          logger.info(`Status "gravando" removido para ${jid}`);
+          
+          // Aguardar um pouco e depois voltar ao status disponível
+          await delay(1000);
+          await session.sock.sendPresenceUpdate('available', jid);
+          logger.info(`Status voltou para "disponível" para ${jid}`);
+        } catch (presenceError) {
+          logger.warn(`Erro ao remover status de gravação: ${presenceError.message}`);
+        }
+
+        // Enviar caption como resposta à mensagem de voz se fornecida
+        if (caption && caption.trim()) {
+          try {
+            // Aguardar um pouco para garantir que a mensagem foi entregue
+            await delay(500);
+            
+            // Enviar caption como resposta à mensagem de voz
+            const captionResult = await queueMessage(
+              sessionId,
+              session.sock,
+              jid,
+              {
+                text: caption.trim()
+              },
+              result // Referenciar a mensagem de voz completa
+            );
+            
+            captionMessageId = captionResult.key.id;
+            logger.info(`Caption enviada como resposta à mensagem de voz: ${captionMessageId}`);
+          } catch (captionError) {
+            logger.warn(`Erro ao enviar caption para mensagem de voz: ${captionError.message}`);
+          }
+        }
+      }
+
       // Remover arquivo temporário
       fs.unlinkSync(req.file.path);
 
@@ -2199,14 +2259,17 @@ app.post(
             ? 'image'
             : ext.includes('.mp4', '.mov', '.avi', '.mkv')
             ? 'video'
-            : ext.includes('.mp3', '.wav', '.ogg', '.m4a')
-            ? 'audio'
+            : isAudio
+            ? (isVoiceMessage) ? 'voice' : 'audio'
             : 'document',
           fileName: filename || req.file.originalname,
           fileSize: req.file.size,
           mimetype: req.file.mimetype,
-          caption: caption || '',
+          caption: (isAudio && isVoiceMessage && caption) ? '' : caption || '', // Caption vazia para voice se será enviada como reply
           status: 'sent',
+          presenceUpdated: isAudio && isVoiceMessage,
+          captionSentAsReply: isAudio && isVoiceMessage && !!caption && !!captionMessageId,
+          captionMessageId: captionMessageId,
         },
         sessionInfo: {
           sessionId,

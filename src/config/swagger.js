@@ -129,7 +129,7 @@ const swaggerOptions = {
             },
             type: {
               type: 'string',
-              enum: ['text', 'image', 'document', 'audio'],
+              enum: ['text', 'image', 'document', 'audio', 'voice'],
               description: 'Tipo da mensagem',
             },
           },
@@ -649,8 +649,20 @@ const swaggerUiOptions = {
  *   post:
  *     tags:
  *       - Mensagens
- *     summary: Enviar mídia (imagem, vídeo, áudio, documento)
- *     description: Envia arquivos de mídia para um número específico
+ *     summary: Enviar mídia (imagem, vídeo, áudio, documento, mensagem de voz)
+ *     description: | 
+ *       Envia arquivos de mídia para um número específico, incluindo suporte para mensagens de voz.
+ *       
+ *       **NOVO: Status "Gravando Áudio"**
+ *       - Quando `voiceMessage=true` é enviado, o bot automaticamente mostra o status "gravando áudio..." no chat
+ *       - Simula tempo de gravação realista (3-7 segundos) antes de enviar
+ *       - Remove o status corretamente após enviar (sem mostrar "digitando")
+ *       - Funciona apenas com arquivos de áudio (.mp3, .wav, .ogg, .m4a)
+ *       
+ *       **NOVO: Caption para Mensagens de Voz**
+ *       - Se `caption` for fornecida junto com `voiceMessage=true`, a legenda será enviada como uma **resposta à mensagem de voz**
+ *       - Isso permite adicionar contexto às mensagens de voz mantendo a funcionalidade nativa do WhatsApp
+ *       - A resposta é enviada automaticamente após a mensagem de voz
  *     security:
  *       - ApiKeyAuth: []
  *     parameters:
@@ -681,12 +693,27 @@ const swaggerUiOptions = {
  *                 description: Arquivo de mídia
  *               caption:
  *                 type: string
- *                 description: Legenda para a mídia (opcional)
+ *                 description: | 
+ *                   Legenda para a mídia (opcional).
+ *                   
+ *                   **Para mensagens de voz (`voiceMessage=true`):**
+ *                   - A legenda será enviada como **resposta à mensagem de voz**
+ *                   - Permite adicionar contexto sem quebrar a funcionalidade nativa
  *                 example: "Confira esta imagem!"
  *               filename:
  *                 type: string
  *                 description: Nome personalizado do arquivo (opcional)
  *                 example: "minha-imagem.jpg"
+ *               voiceMessage:
+ *                 type: boolean
+ *                 description: | 
+ *                   Se true, áudios serão enviados como mensagem de voz (PTT).
+ *                   
+ *                   **Comportamento adicional:**
+ *                   - Ativa automaticamente o status "gravando áudio..." no chat
+ *                   - Simula tempo de gravação realista (3-7 segundos)
+ *                   - Remove status corretamente após envio (sem "digitando")
+ *                 example: true
  *     responses:
  *       200:
  *         description: Mídia enviada com sucesso
@@ -713,7 +740,7 @@ const swaggerUiOptions = {
  *                       format: date-time
  *                     messageType:
  *                       type: string
- *                       enum: ["image", "video", "audio", "document"]
+ *                       enum: ["image", "video", "audio", "voice", "document"]
  *                     fileName:
  *                       type: string
  *                     fileSize:
@@ -725,6 +752,19 @@ const swaggerUiOptions = {
  *                     status:
  *                       type: string
  *                       example: "sent"
+ *                     presenceUpdated:
+ *                       type: boolean
+ *                       description: Indica se o status "gravando" foi enviado (apenas para voice messages)
+ *                       example: true
+ *                     captionSentAsReply:
+ *                       type: boolean
+ *                       description: Indica se a caption foi enviada como resposta à mensagem de voz
+ *                       example: true
+ *                     captionMessageId:
+ *                       type: string
+ *                       description: ID da mensagem de caption (quando enviada como resposta)
+ *                       nullable: true
+ *                       example: "3EB0C767B7CE45A3B3A37"
  *       400:
  *         description: Dados inválidos ou arquivo não fornecido
  *         content:

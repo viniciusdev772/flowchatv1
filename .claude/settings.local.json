@@ -20,7 +20,10 @@
       "Bash(npm test)",
       "Bash(find:*)",
       "Bash(sed:*)",
-      "Bash(pkill:*)"
+      "Bash(pkill:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:baileys.wiki)",
+      "WebFetch(domain:guide.whiskeysockets.io)"
     ],
     "deny": []
   }
