@@ -2287,6 +2287,124 @@ app.post(
   }
 );
 
+// Rota para mencionar todos os participantes do grupo (silenciosamente)
+app.post('/api/baileys/session/:sessionId/mention-all', checkSessionOwnership, async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const { groupId, message, silentMode = true } = req.body;
+
+    if (!groupId || !message) {
+      return res.status(400).json({
+        success: false,
+        message: 'groupId e message são obrigatórios',
+      });
+    }
+
+    const session = sessions.get(sessionId);
+    if (!session || !session.isConnected) {
+      return res.status(400).json({
+        success: false,
+        message: 'Sessão não encontrada ou não conectada',
+      });
+    }
+
+    // Verificar se é um ID de grupo válido
+    const jid = groupId.includes('@g.us') ? groupId : `${groupId}@g.us`;
+
+    try {
+      // Obter metadados do grupo para listar participantes
+      const groupMetadata = await session.sock.groupMetadata(jid);
+      
+      if (!groupMetadata || !groupMetadata.participants) {
+        return res.status(404).json({
+          success: false,
+          message: 'Grupo não encontrado ou sem participantes',
+        });
+      }
+
+      const participants = groupMetadata.participants;
+      const participantIds = participants.map(p => p.id);
+
+      let result;
+
+      if (silentMode) {
+        // Modo silencioso: usar caracteres invisíveis para mencionar sem @ azuis
+        // Adiciona Zero Width Space (U+200B) e caracteres invisíveis para bypass das notificações
+        const zeroWidthSpace = '\u200B'; // Unicode Zero Width Space
+        const invisibleChar = '\u2800';  // Unicode U+2800 (mais compatível com WhatsApp)
+        const zwjoiner = '\u200D';       // Zero Width Joiner
+        
+        // Criar menções invisíveis usando caracteres zero-width
+        const messageWithInvisibleMentions = message + zeroWidthSpace + invisibleChar + zwjoiner;
+        
+        result = await queueMessage(
+          sessionId,
+          session.sock,
+          jid,
+          {
+            text: messageWithInvisibleMentions,
+            mentions: participantIds // Menciona todos mas com caracteres invisíveis
+          }
+        );
+      } else {
+        // Modo com menções visíveis: enviar com @ azul para todos os participantes
+        result = await queueMessage(
+          sessionId,
+          session.sock,
+          jid,
+          {
+            text: message,
+            mentions: participantIds
+          }
+        );
+      }
+
+      res.json({
+        success: true,
+        message: silentMode ? 'Mensagem enviada para o grupo (modo silencioso)' : 'Mensagem enviada mencionando todos os participantes',
+        messageId: result.key.id,
+        groupInfo: {
+          id: jid,
+          name: groupMetadata.subject,
+          participantCount: participants.length,
+          silentMode: silentMode
+        },
+        messageData: {
+          to: jid,
+          sentAt: new Date().toISOString(),
+          messageType: 'text',
+          content: message,
+          participantsReached: participants.length, // Todos do grupo recebem a mensagem
+          participantsMentioned: participants.length, // Em ambos os modos todos são mencionados
+          mentionType: silentMode ? 'invisible_mentions' : 'visible_mentions',
+          invisibleCharacters: silentMode ? ['U+200B', 'U+2800', 'U+200D'] : null,
+          status: 'sent',
+        },
+        sessionInfo: {
+          sessionId,
+          isConnected: session.isConnected,
+          user: session.sock.user,
+        },
+      });
+
+    } catch (groupError) {
+      logger.error(`Erro ao obter dados do grupo: ${groupError.message}`);
+      res.status(400).json({
+        success: false,
+        message: 'Erro ao acessar dados do grupo. Verifique se o bot faz parte do grupo.',
+        error: groupError.message,
+      });
+    }
+
+  } catch (error) {
+    logger.error(`Erro ao mencionar todos: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+});
+
 app.post('/api/baileys/session/:sessionId/download-media', checkSessionOwnership, async (req, res) => {
   try {
     const { sessionId } = req.params;

@@ -845,6 +845,157 @@ const swaggerUiOptions = {
 
 /**
  * @swagger
+ * /api/baileys/session/{sessionId}/mention-all:
+ *   post:
+ *     tags:
+ *       - Mensagens
+ *     summary: Mencionar todos os participantes do grupo
+ *     description: |
+ *       Envia uma mensagem para um grupo mencionando todos os participantes.
+ *       
+ *       **Modos disponíveis:**
+ *       - **Modo Silencioso (`silentMode=true`)**: Usa caracteres invisíveis (U+200B, U+2800, U+200D) para mencionar sem @ azuis
+ *       - **Modo Com Menções (`silentMode=false`)**: Envia com @ azul visível para cada participante
+ *       
+ *       **Funcionalidade:**
+ *       - Obtém automaticamente todos os participantes do grupo via `groupMetadata`
+ *       - Suporte para IDs de grupo com ou sem sufixo `@g.us`
+ *       - Verifica se o bot faz parte do grupo antes de enviar
+ *       - Retorna informações detalhadas sobre o grupo e participantes
+ *     security:
+ *       - ApiKeyAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID da sessão
+ *         example: "minha-sessao-1"
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - groupId
+ *               - message
+ *             properties:
+ *               groupId:
+ *                 type: string
+ *                 description: ID do grupo (com ou sem @g.us)
+ *                 example: "120363043716731234@g.us"
+ *               message:
+ *                 type: string
+ *                 description: Mensagem a ser enviada para todos
+ *                 example: "Importante! Todos devem ler esta mensagem."
+ *               silentMode:
+ *                 type: boolean
+ *                 default: true
+ *                 description: |
+ *                   **true**: Usa caracteres invisíveis (Zero Width Space) para mencionar sem @ azuis
+ *                   **false**: Menciona visivelmente cada participante (@ azul + notificação)
+ *                   
+ *                   **Técnica de caracteres invisíveis:**
+ *                   - U+200B (Zero Width Space): Caractere invisível entre palavras
+ *                   - U+2800 (Braille Pattern): Compatível com WhatsApp mobile
+ *                   - U+200D (Zero Width Joiner): Conecta caracteres invisibilmente
+ *                   
+ *                   **Resultado:** Todos são mencionados mas sem @ azuis visíveis
+ *                 example: true
+ *     responses:
+ *       200:
+ *         description: Mensagem enviada com sucesso para o grupo
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Mensagem enviada para o grupo (modo silencioso)"
+ *                 messageId:
+ *                   type: string
+ *                   example: "3EB0C767B7CE45A3B3A36"
+ *                 groupInfo:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                       example: "120363043716731234@g.us"
+ *                     name:
+ *                       type: string
+ *                       example: "Meu Grupo de Trabalho"
+ *                     participantCount:
+ *                       type: integer
+ *                       example: 15
+ *                     silentMode:
+ *                       type: boolean
+ *                       example: true
+ *                 messageData:
+ *                   type: object
+ *                   properties:
+ *                     to:
+ *                       type: string
+ *                     sentAt:
+ *                       type: string
+ *                       format: date-time
+ *                     messageType:
+ *                       type: string
+ *                       example: "text"
+ *                     content:
+ *                       type: string
+ *                     participantsReached:
+ *                       type: integer
+ *                       description: Total de participantes que receberam a mensagem
+ *                       example: 1022
+ *                     participantsMentioned:
+ *                       type: integer
+ *                       description: Número total de participantes mencionados (sempre igual ao total)
+ *                       example: 1022
+ *                     mentionType:
+ *                       type: string
+ *                       enum: ["invisible_mentions", "visible_mentions"]
+ *                       description: Tipo de menção utilizada
+ *                       example: "invisible_mentions"
+ *                     invisibleCharacters:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                       description: Caracteres Unicode invisíveis utilizados (apenas modo silencioso)
+ *                       example: ["U+200B", "U+2800", "U+200D"]
+ *                       nullable: true
+ *                     status:
+ *                       type: string
+ *                       example: "sent"
+ *                 sessionInfo:
+ *                   type: object
+ *       400:
+ *         description: Dados inválidos ou grupo não acessível
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ *       404:
+ *         description: Grupo não encontrado ou sem participantes
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ *       500:
+ *         description: Erro interno do servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ */
+
+/**
+ * @swagger
  * /api/baileys/session/{sessionId}/smart-reply:
  *   post:
  *     tags:

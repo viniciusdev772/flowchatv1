@@ -23,7 +23,9 @@
       "Bash(pkill:*)",
       "WebFetch(domain:github.com)",
       "WebFetch(domain:baileys.wiki)",
-      "WebFetch(domain:guide.whiskeysockets.io)"
+      "WebFetch(domain:guide.whiskeysockets.io)",
+      "WebFetch(domain:support.whapi.cloud)",
+      "WebFetch(domain:unicode-explorer.com)"
     ],
     "deny": []
   }
