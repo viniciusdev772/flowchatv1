@@ -6,6 +6,7 @@
  */
 
 const express = require('express');
+const path = require('path');
 const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
@@ -18,6 +19,11 @@ const database = require('./src/config/database');
 const managementRoutes = require('./src/routes');
 const { app: baileysApp, initializeApp } = require('./src/app');
 const apiTokenAuth = require('./src/middleware/apiTokenAuth');
+
+// Swagger setup
+const swaggerJsdoc = require('swagger-jsdoc');
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpec = require('./src/config/swagger');
 
 class Server {
   constructor() {
@@ -121,20 +127,14 @@ class Server {
   }
 
   setupRoutes() {
-    // Root endpoint
-    this.app.get('/', (req, res) => {
-      res.json({
-        success: true,
-        message: 'Baileys API Server',
-        timestamp: req.timestamp,
-        endpoints: {
-          baileys: '/api/baileys/*',
-          management: '/api/management/*',
-          health: '/api/management/health'
-        }
-      });
-    });
+    // Swagger Documentation (before other routes)
+    this.app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+      explorer: true,
+      customCss: '.swagger-ui .topbar { display: none }',
+      customSiteTitle: "Baileys WhatsApp API Documentation"
+    }));
 
+    // API routes
     // Management API routes
     this.app.use('/api/management', managementRoutes);
 
@@ -148,15 +148,29 @@ class Server {
     });
 
     // Mount Baileys app routes
-    this.app.use('/', baileysApp);
+    this.app.use('/api', baileysApp);
 
-    // 404 handler
-    this.app.use('*', (req, res) => {
-      res.status(404).json({
-        success: false,
-        message: 'Endpoint not found',
-        path: req.originalUrl
+    // Serve static files from frontend build
+    this.app.use(express.static(path.join(__dirname, 'frontend/dist')));
+
+    // API info endpoint (fallback for /api requests)
+    this.app.get('/api', (req, res) => {
+      res.json({
+        success: true,
+        message: 'Baileys API Server',
+        timestamp: req.timestamp,
+        endpoints: {
+          baileys: '/api/baileys/*',
+          management: '/api/management/*',
+          health: '/api/management/health',
+          docs: '/api-docs'
+        }
       });
+    });
+
+    // Catch-all handler for SPA - must be last
+    this.app.get('*', (req, res) => {
+      res.sendFile(path.join(__dirname, 'frontend/dist/index.html'));
     });
   }
 
@@ -214,9 +228,9 @@ class Server {
         console.log(`📱 Management API: http://localhost:${this.port}/api/management`);
         console.log(`💬 Baileys API: http://localhost:${this.port}/api/baileys`);
         console.log(`🏥 Health Check: http://localhost:${this.port}/api/management/health`);
-        console.log(`📖 API Info: http://localhost:${this.port}/api/management/info`);
-        console.log(`Acesse http://localhost:${this.port}/api-docs para ver a documentação`);
-        console.log(`Acesse http://localhost:${this.port}/api/baileys/info para informações da API`);
+        console.log(`📖 API Docs: http://localhost:${this.port}/api-docs`);
+        console.log(`🖥️  Frontend: http://localhost:${this.port}`);
+        console.log(`📋 API Info: http://localhost:${this.port}/api`);
         console.log('🎉 ===========================================');
         
         if (process.env.NODE_ENV === 'development') {

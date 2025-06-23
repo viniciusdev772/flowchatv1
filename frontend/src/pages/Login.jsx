@@ -11,7 +11,6 @@ export default function Login() {
   const [apiSuccess, setApiSuccess] = useState('');
   const [csrfToken, setCsrfToken] = useState('');
   const [csrfLoading, setCsrfLoading] = useState(true);
-  const [rateLimitStats, setRateLimitStats] = useState(null);
   const { register, handleSubmit, formState: { errors, isSubmitting }, watch, reset } = useForm();
 
   const password = watch('password');
@@ -43,34 +42,8 @@ export default function Login() {
       }
     };
 
-    // Função para buscar estatísticas de rate limiting (apenas em dev)
-    const fetchRateLimitStats = async () => {
-      if (!import.meta.env.DEV) return;
-      
-      try {
-        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-        const response = await fetch(`${apiUrl}/api/management/rate-limit-stats`, {
-          method: 'GET',
-          credentials: 'include'
-        });
-        
-        if (response.ok) {
-          const result = await response.json();
-          setRateLimitStats(result.data.statistics);
-        }
-      } catch (error) {
-        console.log('Rate limit stats não disponíveis');
-      }
-    };
 
     fetchCSRFToken();
-    fetchRateLimitStats();
-    
-    // Atualizar stats a cada 30 segundos em desenvolvimento
-    if (import.meta.env.DEV) {
-      const interval = setInterval(fetchRateLimitStats, 30000);
-      return () => clearInterval(interval);
-    }
   }, []);
 
   const onSubmit = async (data) => {
@@ -276,18 +249,6 @@ export default function Login() {
             )}
           </div>
           
-          {rateLimitStats && (
-            <div className="bg-black/80 text-white px-3 py-2 rounded-lg text-xs font-mono">
-              <div className="text-yellow-400 font-bold">Rate Limits:</div>
-              <div>Memória: {rateLimitStats.memoryCount}</div>
-              <div>MongoDB: {rateLimitStats.dbCount}</div>
-              <div>Bloqueados: {rateLimitStats.totalBlocked}</div>
-              <div>Nível Max: {rateLimitStats.highestLevel}</div>
-              <div className={rateLimitStats.isMongoConnected ? 'text-green-400' : 'text-red-400'}>
-                DB: {rateLimitStats.isMongoConnected ? '✓' : '✗'}
-              </div>
-            </div>
-          )}
         </div>
       )}
       

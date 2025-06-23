@@ -1,6 +1,5 @@
 const mongoSanitize = require('express-mongo-sanitize');
 const { body, validationResult } = require('express-validator');
-const rateLimit = require('express-rate-limit');
 
 class SecurityMiddleware {
   constructor() {
@@ -250,21 +249,6 @@ class SecurityMiddleware {
     };
   }
 
-  // Rate limiting específico para IPs suspeitos
-  suspiciousIPRateLimit() {
-    return rateLimit({
-      windowMs: 15 * 60 * 1000, // 15 minutos
-      max: (req) => {
-        return this.suspiciousIPs.has(req.ip) ? 1 : 100; // 1 request para IPs suspeitos
-      },
-      message: {
-        success: false,
-        message: 'Taxa de requisições excedida para IP suspeito'
-      },
-      standardHeaders: true,
-      legacyHeaders: false
-    });
-  }
 
   // Verificação de integridade da requisição
   verifyRequestIntegrity() {
@@ -306,7 +290,6 @@ class SecurityMiddleware {
     return [
       this.detectSuspiciousHeaders(),
       this.blockSuspiciousIPs(),
-      this.suspiciousIPRateLimit(),
       this.verifyOrigin(),
       this.verifyUserAgent(),
       this.verifyRequestIntegrity(),
