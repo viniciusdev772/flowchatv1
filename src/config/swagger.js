@@ -1397,20 +1397,13 @@ const swaggerUiOptions = {
  * @swagger
  * /api/baileys/session/{sessionId}/webhook:
  *   post:
- *     deprecated: true
  *     tags:
  *       - Webhooks
- *     summary: "[DEPRECATED] Configurar webhook para eventos"
+ *     summary: "Configurar webhook para eventos"
  *     description: |
- *       **⚠️ DEPRECATED: Este endpoint foi descontinuado. Use os endpoints de webhook que salvam no banco de dados.**
+ *       Configura uma URL de webhook para receber eventos em tempo real da sessão.
  *       
- *       **Alternativas:**
- *       - POST /api/management/webhooks - Criar webhook
- *       - GET /api/management/webhooks - Listar webhooks
- *       - PUT /api/management/webhooks/:id - Atualizar webhook
- *       - DELETE /api/management/webhooks/:id - Remover webhook
- *       
- *       ~~Configura uma URL de webhook para receber eventos em tempo real da sessão.~~
+ *       **Armazenamento:** Este endpoint salva webhooks no banco de dados MongoDB.
  *       
  *       **NOVO: Mídia em Base64**
  *       Os webhooks agora incluem automaticamente o conteúdo de arquivos de mídia em base64 para arquivos até 3MB:
@@ -1516,18 +1509,13 @@ const swaggerUiOptions = {
  *             schema:
  *               $ref: '#/components/schemas/ApiResponse'
  *   get:
- *     deprecated: true
  *     tags:
  *       - Webhooks
- *     summary: "[DEPRECATED] Obter configuração do webhook"
+ *     summary: "Obter configuração do webhook"
  *     description: |
- *       **⚠️ DEPRECATED: Este endpoint foi descontinuado. Use os endpoints de webhook que salvam no banco de dados.**
+ *       Retorna a URL do webhook configurada para a sessão.
  *       
- *       **Alternativas:**
- *       - GET /api/management/webhooks - Listar webhooks
- *       - GET /api/management/webhooks/:id - Obter webhook específico
- *       
- *       ~~Retorna a URL do webhook configurada para a sessão~~
+ *       **Armazenamento:** Busca webhook no banco de dados MongoDB.
  *     security:
  *       - ApiKeyAuth: []
  *     parameters:
@@ -1560,18 +1548,13 @@ const swaggerUiOptions = {
  *             schema:
  *               $ref: '#/components/schemas/ApiResponse'
  *   delete:
- *     deprecated: true
  *     tags:
  *       - Webhooks
- *     summary: "[DEPRECATED] Remover webhook"
+ *     summary: "Remover webhook"
  *     description: |
- *       **⚠️ DEPRECATED: Este endpoint foi descontinuado. Use os endpoints de webhook que salvam no banco de dados.**
+ *       Remove a configuração de webhook da sessão.
  *       
- *       **Alternativas:**
- *       - DELETE /api/management/webhooks/:id - Remover webhook específico
- *       - GET /api/management/webhooks - Listar webhooks
- *       
- *       ~~Remove a configuração de webhook da sessão~~
+ *       **Armazenamento:** Remove webhook do banco de dados MongoDB.
  *     security:
  *       - ApiKeyAuth: []
  *     parameters:
@@ -1614,20 +1597,13 @@ const swaggerUiOptions = {
  * @swagger
  * /api/baileys/session/{sessionId}/webhooks:
  *   get:
- *     deprecated: true
  *     tags:
  *       - Webhooks
- *     summary: "[DEPRECATED] Listar webhooks da sessão"
+ *     summary: "Listar webhooks da sessão"
  *     description: |
- *       **⚠️ DEPRECATED: Este endpoint foi descontinuado. Use os endpoints de webhook que salvam no banco de dados.**
+ *       Retorna todos os webhooks configurados para uma sessão (máximo 3).
  *       
- *       **Alternativas:**
- *       - GET /api/management/webhooks - Listar webhooks
- *       - POST /api/management/webhooks - Criar webhook
- *       - PUT /api/management/webhooks/:id - Atualizar webhook
- *       - DELETE /api/management/webhooks/:id - Remover webhook
- *       
- *       ~~Retorna todos os webhooks configurados para uma sessão (máximo 3)~~
+ *       **Armazenamento:** Busca webhooks no banco de dados MongoDB.
  *     security:
  *       - ApiKeyAuth: []
  *     parameters:
@@ -1693,20 +1669,13 @@ const swaggerUiOptions = {
  *             schema:
  *               $ref: '#/components/schemas/ApiResponse'
  *   post:
- *     deprecated: true
  *     tags:
  *       - Webhooks
- *     summary: "[DEPRECATED] Adicionar novo webhook"
+ *     summary: "Adicionar novo webhook"
  *     description: |
- *       **⚠️ DEPRECATED: Este endpoint foi descontinuado. Use os endpoints de webhook que salvam no banco de dados.**
+ *       Adiciona um novo webhook à sessão (máximo 3 por sessão).
  *       
- *       **Alternativas:**
- *       - POST /api/management/webhooks - Criar webhook
- *       - GET /api/management/webhooks - Listar webhooks
- *       - PUT /api/management/webhooks/:id - Atualizar webhook
- *       - DELETE /api/management/webhooks/:id - Remover webhook
- *       
- *       ~~Adiciona um novo webhook à sessão (máximo 3 por sessão)~~
+ *       **Armazenamento:** Salva webhook no banco de dados MongoDB.
  *     security:
  *       - ApiKeyAuth: []
  *     parameters:
@@ -1812,18 +1781,13 @@ const swaggerUiOptions = {
  * @swagger
  * /api/baileys/session/{sessionId}/webhooks/{webhookId}:
  *   get:
- *     deprecated: true
  *     tags:
  *       - Webhooks
- *     summary: "[DEPRECATED] Obter webhook específico"
+ *     summary: "Obter webhook específico"
  *     description: |
- *       **⚠️ DEPRECATED: Este endpoint foi descontinuado. Use os endpoints de webhook que salvam no banco de dados.**
+ *       Retorna informações de um webhook específico.
  *       
- *       **Alternativas:**
- *       - GET /api/management/webhooks/:id - Obter webhook específico
- *       - GET /api/management/webhooks - Listar webhooks
- *       
- *       ~~Retorna informações de um webhook específico~~
+ *       **Armazenamento:** Busca webhook no banco de dados MongoDB.
  *     security:
  *       - ApiKeyAuth: []
  *     parameters:
@@ -1888,18 +1852,13 @@ const swaggerUiOptions = {
  *             schema:
  *               $ref: '#/components/schemas/ApiResponse'
  *   put:
- *     deprecated: true
  *     tags:
  *       - Webhooks
- *     summary: "[DEPRECATED] Atualizar webhook"
+ *     summary: "Atualizar webhook"
  *     description: |
- *       **⚠️ DEPRECATED: Este endpoint foi descontinuado. Use os endpoints de webhook que salvam no banco de dados.**
+ *       Atualiza as configurações de um webhook específico.
  *       
- *       **Alternativas:**
- *       - PUT /api/management/webhooks/:id - Atualizar webhook específico
- *       - GET /api/management/webhooks - Listar webhooks
- *       
- *       ~~Atualiza as configurações de um webhook específico~~
+ *       **Armazenamento:** Atualiza webhook no banco de dados MongoDB.
  *     security:
  *       - ApiKeyAuth: []
  *     parameters:
@@ -1975,18 +1934,13 @@ const swaggerUiOptions = {
  *             schema:
  *               $ref: '#/components/schemas/ApiResponse'
  *   delete:
- *     deprecated: true
  *     tags:
  *       - Webhooks
- *     summary: "[DEPRECATED] Remover webhook específico"
+ *     summary: "Remover webhook específico"
  *     description: |
- *       **⚠️ DEPRECATED: Este endpoint foi descontinuado. Use os endpoints de webhook que salvam no banco de dados.**
+ *       Remove um webhook específico da sessão.
  *       
- *       **Alternativas:**
- *       - DELETE /api/management/webhooks/:id - Remover webhook específico
- *       - GET /api/management/webhooks - Listar webhooks
- *       
- *       ~~Remove um webhook específico da sessão~~
+ *       **Armazenamento:** Remove webhook do banco de dados MongoDB.
  *     security:
  *       - ApiKeyAuth: []
  *     parameters:
@@ -2034,18 +1988,13 @@ const swaggerUiOptions = {
  * @swagger
  * /api/baileys/session/{sessionId}/webhooks/{webhookId}/toggle:
  *   patch:
- *     deprecated: true
  *     tags:
  *       - Webhooks
- *     summary: "[DEPRECATED] Ativar/desativar webhook"
+ *     summary: "Ativar/desativar webhook"
  *     description: |
- *       **⚠️ DEPRECATED: Este endpoint foi descontinuado. Use os endpoints de webhook que salvam no banco de dados.**
+ *       Alterna o status ativo/inativo de um webhook.
  *       
- *       **Alternativas:**
- *       - PUT /api/management/webhooks/:id - Atualizar webhook (modifique o campo "active")
- *       - GET /api/management/webhooks - Listar webhooks
- *       
- *       ~~Alterna o status ativo/inativo de um webhook~~
+ *       **Armazenamento:** Atualiza webhook no banco de dados MongoDB.
  *     security:
  *       - ApiKeyAuth: []
  *     parameters:
@@ -2093,18 +2042,13 @@ const swaggerUiOptions = {
  * @swagger
  * /api/baileys/session/{sessionId}/webhooks/{webhookId}/test:
  *   post:
- *     deprecated: true
  *     tags:
  *       - Webhooks
- *     summary: "[DEPRECATED] Testar webhook"
+ *     summary: "Testar webhook"
  *     description: |
- *       **⚠️ DEPRECATED: Este endpoint foi descontinuado. Use os endpoints de webhook que salvam no banco de dados.**
+ *       Envia um payload de teste para verificar se o webhook está funcionando.
  *       
- *       **Alternativas:**
- *       - POST /api/management/webhooks/:id/test - Testar webhook específico
- *       - GET /api/management/webhooks - Listar webhooks
- *       
- *       ~~Envia um payload de teste para verificar se o webhook está funcionando~~
+ *       **Armazenamento:** Busca webhook no banco de dados MongoDB.
  *     security:
  *       - ApiKeyAuth: []
  *     parameters:
