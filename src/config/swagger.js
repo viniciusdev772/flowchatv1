@@ -1397,11 +1397,20 @@ const swaggerUiOptions = {
  * @swagger
  * /api/baileys/session/{sessionId}/webhook:
  *   post:
+ *     deprecated: true
  *     tags:
  *       - Webhooks
- *     summary: Configurar webhook para eventos
+ *     summary: "[DEPRECATED] Configurar webhook para eventos"
  *     description: |
- *       Configura uma URL de webhook para receber eventos em tempo real da sessão.
+ *       **⚠️ DEPRECATED: Este endpoint foi descontinuado. Use os endpoints de webhook que salvam no banco de dados.**
+ *       
+ *       **Alternativas:**
+ *       - POST /api/management/webhooks - Criar webhook
+ *       - GET /api/management/webhooks - Listar webhooks
+ *       - PUT /api/management/webhooks/:id - Atualizar webhook
+ *       - DELETE /api/management/webhooks/:id - Remover webhook
+ *       
+ *       ~~Configura uma URL de webhook para receber eventos em tempo real da sessão.~~
  *       
  *       **NOVO: Mídia em Base64**
  *       Os webhooks agora incluem automaticamente o conteúdo de arquivos de mídia em base64 para arquivos até 3MB:
@@ -1507,10 +1516,18 @@ const swaggerUiOptions = {
  *             schema:
  *               $ref: '#/components/schemas/ApiResponse'
  *   get:
+ *     deprecated: true
  *     tags:
  *       - Webhooks
- *     summary: Obter configuração do webhook
- *     description: Retorna a URL do webhook configurada para a sessão
+ *     summary: "[DEPRECATED] Obter configuração do webhook"
+ *     description: |
+ *       **⚠️ DEPRECATED: Este endpoint foi descontinuado. Use os endpoints de webhook que salvam no banco de dados.**
+ *       
+ *       **Alternativas:**
+ *       - GET /api/management/webhooks - Listar webhooks
+ *       - GET /api/management/webhooks/:id - Obter webhook específico
+ *       
+ *       ~~Retorna a URL do webhook configurada para a sessão~~
  *     security:
  *       - ApiKeyAuth: []
  *     parameters:
@@ -1543,10 +1560,18 @@ const swaggerUiOptions = {
  *             schema:
  *               $ref: '#/components/schemas/ApiResponse'
  *   delete:
+ *     deprecated: true
  *     tags:
  *       - Webhooks
- *     summary: Remover webhook
- *     description: Remove a configuração de webhook da sessão
+ *     summary: "[DEPRECATED] Remover webhook"
+ *     description: |
+ *       **⚠️ DEPRECATED: Este endpoint foi descontinuado. Use os endpoints de webhook que salvam no banco de dados.**
+ *       
+ *       **Alternativas:**
+ *       - DELETE /api/management/webhooks/:id - Remover webhook específico
+ *       - GET /api/management/webhooks - Listar webhooks
+ *       
+ *       ~~Remove a configuração de webhook da sessão~~
  *     security:
  *       - ApiKeyAuth: []
  *     parameters:
@@ -1589,10 +1614,20 @@ const swaggerUiOptions = {
  * @swagger
  * /api/baileys/session/{sessionId}/webhooks:
  *   get:
+ *     deprecated: true
  *     tags:
  *       - Webhooks
- *     summary: Listar webhooks da sessão
- *     description: Retorna todos os webhooks configurados para uma sessão (máximo 3)
+ *     summary: "[DEPRECATED] Listar webhooks da sessão"
+ *     description: |
+ *       **⚠️ DEPRECATED: Este endpoint foi descontinuado. Use os endpoints de webhook que salvam no banco de dados.**
+ *       
+ *       **Alternativas:**
+ *       - GET /api/management/webhooks - Listar webhooks
+ *       - POST /api/management/webhooks - Criar webhook
+ *       - PUT /api/management/webhooks/:id - Atualizar webhook
+ *       - DELETE /api/management/webhooks/:id - Remover webhook
+ *       
+ *       ~~Retorna todos os webhooks configurados para uma sessão (máximo 3)~~
  *     security:
  *       - ApiKeyAuth: []
  *     parameters:
@@ -1658,10 +1693,20 @@ const swaggerUiOptions = {
  *             schema:
  *               $ref: '#/components/schemas/ApiResponse'
  *   post:
+ *     deprecated: true
  *     tags:
  *       - Webhooks
- *     summary: Adicionar novo webhook
- *     description: Adiciona um novo webhook à sessão (máximo 3 por sessão)
+ *     summary: "[DEPRECATED] Adicionar novo webhook"
+ *     description: |
+ *       **⚠️ DEPRECATED: Este endpoint foi descontinuado. Use os endpoints de webhook que salvam no banco de dados.**
+ *       
+ *       **Alternativas:**
+ *       - POST /api/management/webhooks - Criar webhook
+ *       - GET /api/management/webhooks - Listar webhooks
+ *       - PUT /api/management/webhooks/:id - Atualizar webhook
+ *       - DELETE /api/management/webhooks/:id - Remover webhook
+ *       
+ *       ~~Adiciona um novo webhook à sessão (máximo 3 por sessão)~~
  *     security:
  *       - ApiKeyAuth: []
  *     parameters:
@@ -1767,10 +1812,18 @@ const swaggerUiOptions = {
  * @swagger
  * /api/baileys/session/{sessionId}/webhooks/{webhookId}:
  *   get:
+ *     deprecated: true
  *     tags:
  *       - Webhooks
- *     summary: Obter webhook específico
- *     description: Retorna informações de um webhook específico
+ *     summary: "[DEPRECATED] Obter webhook específico"
+ *     description: |
+ *       **⚠️ DEPRECATED: Este endpoint foi descontinuado. Use os endpoints de webhook que salvam no banco de dados.**
+ *       
+ *       **Alternativas:**
+ *       - GET /api/management/webhooks/:id - Obter webhook específico
+ *       - GET /api/management/webhooks - Listar webhooks
+ *       
+ *       ~~Retorna informações de um webhook específico~~
  *     security:
  *       - ApiKeyAuth: []
  *     parameters:
@@ -1835,10 +1888,18 @@ const swaggerUiOptions = {
  *             schema:
  *               $ref: '#/components/schemas/ApiResponse'
  *   put:
+ *     deprecated: true
  *     tags:
  *       - Webhooks
- *     summary: Atualizar webhook
- *     description: Atualiza as configurações de um webhook específico
+ *     summary: "[DEPRECATED] Atualizar webhook"
+ *     description: |
+ *       **⚠️ DEPRECATED: Este endpoint foi descontinuado. Use os endpoints de webhook que salvam no banco de dados.**
+ *       
+ *       **Alternativas:**
+ *       - PUT /api/management/webhooks/:id - Atualizar webhook específico
+ *       - GET /api/management/webhooks - Listar webhooks
+ *       
+ *       ~~Atualiza as configurações de um webhook específico~~
  *     security:
  *       - ApiKeyAuth: []
  *     parameters:
@@ -1914,10 +1975,18 @@ const swaggerUiOptions = {
  *             schema:
  *               $ref: '#/components/schemas/ApiResponse'
  *   delete:
+ *     deprecated: true
  *     tags:
  *       - Webhooks
- *     summary: Remover webhook específico
- *     description: Remove um webhook específico da sessão
+ *     summary: "[DEPRECATED] Remover webhook específico"
+ *     description: |
+ *       **⚠️ DEPRECATED: Este endpoint foi descontinuado. Use os endpoints de webhook que salvam no banco de dados.**
+ *       
+ *       **Alternativas:**
+ *       - DELETE /api/management/webhooks/:id - Remover webhook específico
+ *       - GET /api/management/webhooks - Listar webhooks
+ *       
+ *       ~~Remove um webhook específico da sessão~~
  *     security:
  *       - ApiKeyAuth: []
  *     parameters:
@@ -1965,10 +2034,18 @@ const swaggerUiOptions = {
  * @swagger
  * /api/baileys/session/{sessionId}/webhooks/{webhookId}/toggle:
  *   patch:
+ *     deprecated: true
  *     tags:
  *       - Webhooks
- *     summary: Ativar/desativar webhook
- *     description: Alterna o status ativo/inativo de um webhook
+ *     summary: "[DEPRECATED] Ativar/desativar webhook"
+ *     description: |
+ *       **⚠️ DEPRECATED: Este endpoint foi descontinuado. Use os endpoints de webhook que salvam no banco de dados.**
+ *       
+ *       **Alternativas:**
+ *       - PUT /api/management/webhooks/:id - Atualizar webhook (modifique o campo "active")
+ *       - GET /api/management/webhooks - Listar webhooks
+ *       
+ *       ~~Alterna o status ativo/inativo de um webhook~~
  *     security:
  *       - ApiKeyAuth: []
  *     parameters:
@@ -2016,10 +2093,18 @@ const swaggerUiOptions = {
  * @swagger
  * /api/baileys/session/{sessionId}/webhooks/{webhookId}/test:
  *   post:
+ *     deprecated: true
  *     tags:
  *       - Webhooks
- *     summary: Testar webhook
- *     description: Envia um payload de teste para verificar se o webhook está funcionando
+ *     summary: "[DEPRECATED] Testar webhook"
+ *     description: |
+ *       **⚠️ DEPRECATED: Este endpoint foi descontinuado. Use os endpoints de webhook que salvam no banco de dados.**
+ *       
+ *       **Alternativas:**
+ *       - POST /api/management/webhooks/:id/test - Testar webhook específico
+ *       - GET /api/management/webhooks - Listar webhooks
+ *       
+ *       ~~Envia um payload de teste para verificar se o webhook está funcionando~~
  *     security:
  *       - ApiKeyAuth: []
  *     parameters:

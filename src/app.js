@@ -2807,158 +2807,45 @@ app.get('/api/baileys/session/:sessionId/messages', checkSessionOwnership, async
 });
 
 app.post('/api/baileys/session/:sessionId/webhook', checkSessionOwnership, async (req, res) => {
-  try {
-    const { sessionId } = req.params;
-    const { webhookUrl } = req.body;
-
-    if (!webhookUrl) {
-      return res.status(400).json({
-        success: false,
-        message: 'webhookUrl é obrigatório',
-      });
+  return res.status(410).json({
+    success: false,
+    message: 'DEPRECATED: Este endpoint foi descontinuado. Use os endpoints de webhook que salvam no banco de dados: POST /api/management/webhooks',
+    deprecated: true,
+    alternatives: {
+      create: 'POST /api/management/webhooks',
+      list: 'GET /api/management/webhooks',
+      update: 'PUT /api/management/webhooks/:id',
+      delete: 'DELETE /api/management/webhooks/:id'
     }
-
-    // Validar URL
-    try {
-      new URL(webhookUrl);
-    } catch {
-      return res.status(400).json({
-        success: false,
-        message: 'URL do webhook inválida',
-      });
-    }
-
-    const session = sessions.get(sessionId);
-    if (!session) {
-      return res.status(404).json({
-        success: false,
-        message: 'Sessão não encontrada',
-      });
-    }
-
-    // COMPATIBILIDADE: Remover webhook "Principal" existente se houver
-    const sessionWebhooks = getSessionWebhooks(sessionId);
-    const existingPrincipal = sessionWebhooks.find(w => w.name === 'Principal');
-    if (existingPrincipal) {
-      removeWebhookFromSession(sessionId, existingPrincipal.id);
-    }
-
-    // Adicionar novo webhook como "Principal" (endpoint legado)
-    const newWebhook = addWebhookToSession(sessionId, {
-      name: 'Principal',
-      url: webhookUrl,
-      active: true,
-      priority: 1,
-      events: ['*']
-    });
-
-    res.json({
-      success: true,
-      message: 'Webhook configurado com sucesso',
-      webhookUrl,
-      sessionId,
-      webhookInfo: {
-        id: newWebhook.id,
-        name: newWebhook.name,
-        note: 'Endpoint legado - use /webhooks para gerenciamento completo'
-      }
-    });
-  } catch (error) {
-    logger.error(`Erro ao configurar webhook: ${error.message}`);
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
+  });
 });
 
 app.get('/api/baileys/session/:sessionId/webhook', checkSessionOwnership, (req, res) => {
-  try {
-    const { sessionId } = req.params;
-
-    const session = sessions.get(sessionId);
-    if (!session) {
-      return res.status(404).json({
-        success: false,
-        message: 'Sessão não encontrada',
-      });
+  return res.status(410).json({
+    success: false,
+    message: 'DEPRECATED: Este endpoint foi descontinuado. Use os endpoints de webhook que salvam no banco de dados: GET /api/management/webhooks',
+    deprecated: true,
+    alternatives: {
+      list: 'GET /api/management/webhooks',
+      create: 'POST /api/management/webhooks',
+      update: 'PUT /api/management/webhooks/:id',
+      delete: 'DELETE /api/management/webhooks/:id'
     }
-
-    // COMPATIBILIDADE: Buscar webhook "Principal" ou o primeiro ativo
-    const sessionWebhooks = getSessionWebhooks(sessionId);
-    const principalWebhook = sessionWebhooks.find(w => w.name === 'Principal') || sessionWebhooks.find(w => w.active);
-    
-    if (!principalWebhook) {
-      return res.status(404).json({
-        success: false,
-        message: 'Webhook não configurado para esta sessão',
-      });
-    }
-
-    res.json({
-      success: true,
-      webhookUrl: principalWebhook.url,
-      sessionId,
-      webhookInfo: {
-        id: principalWebhook.id,
-        name: principalWebhook.name,
-        active: principalWebhook.active,
-        priority: principalWebhook.priority,
-        note: 'Endpoint legado - use /webhooks para informações completas'
-      }
-    });
-  } catch (error) {
-    logger.error(`Erro ao obter webhook: ${error.message}`);
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
+  });
 });
 
 app.delete('/api/baileys/session/:sessionId/webhook', checkSessionOwnership, (req, res) => {
-  try {
-    const { sessionId } = req.params;
-
-    const session = sessions.get(sessionId);
-    if (!session) {
-      return res.status(404).json({
-        success: false,
-        message: 'Sessão não encontrada',
-      });
+  return res.status(410).json({
+    success: false,
+    message: 'DEPRECATED: Este endpoint foi descontinuado. Use os endpoints de webhook que salvam no banco de dados: DELETE /api/management/webhooks/:id',
+    deprecated: true,
+    alternatives: {
+      delete: 'DELETE /api/management/webhooks/:id',
+      list: 'GET /api/management/webhooks',
+      create: 'POST /api/management/webhooks',
+      update: 'PUT /api/management/webhooks/:id'
     }
-
-    // COMPATIBILIDADE: Remover webhook "Principal" ou o primeiro ativo
-    const sessionWebhooks = getSessionWebhooks(sessionId);
-    const principalWebhook = sessionWebhooks.find(w => w.name === 'Principal') || sessionWebhooks.find(w => w.active);
-    
-    if (!principalWebhook) {
-      return res.status(404).json({
-        success: false,
-        message: 'Nenhum webhook encontrado para remover',
-      });
-    }
-
-    const removedWebhook = removeWebhookFromSession(sessionId, principalWebhook.id);
-
-    res.json({
-      success: true,
-      message: 'Webhook removido com sucesso',
-      sessionId,
-      removedWebhook: {
-        id: removedWebhook.id,
-        name: removedWebhook.name,
-        url: removedWebhook.url,
-        note: 'Endpoint legado - use /webhooks/:id para remoção específica'
-      }
-    });
-  } catch (error) {
-    logger.error(`Erro ao remover webhook: ${error.message}`);
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
+  });
 });
 
 // ========================================
@@ -2967,342 +2854,109 @@ app.delete('/api/baileys/session/:sessionId/webhook', checkSessionOwnership, (re
 
 // Listar todos os webhooks de uma sessão
 app.get('/api/baileys/session/:sessionId/webhooks', apiTokenAuth, checkSessionOwnership, (req, res) => {
-  try {
-    const { sessionId } = req.params;
-
-    const session = sessions.get(sessionId);
-    if (!session) {
-      return res.status(404).json({
-        success: false,
-        message: 'Sessão não encontrada',
-      });
+  return res.status(410).json({
+    success: false,
+    message: 'DEPRECATED: Este endpoint foi descontinuado. Use os endpoints de webhook que salvam no banco de dados: GET /api/management/webhooks',
+    deprecated: true,
+    alternatives: {
+      list: 'GET /api/management/webhooks',
+      create: 'POST /api/management/webhooks',
+      update: 'PUT /api/management/webhooks/:id',
+      delete: 'DELETE /api/management/webhooks/:id'
     }
-
-    const sessionWebhooks = getSessionWebhooks(sessionId);
-
-    res.json({
-      success: true,
-      sessionId,
-      webhooks: sessionWebhooks,
-      total: sessionWebhooks.length,
-      limit: 3
-    });
-  } catch (error) {
-    logger.error(`Erro ao listar webhooks: ${error.message}`);
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
+  });
 });
 
 // Adicionar novo webhook à sessão
 app.post('/api/baileys/session/:sessionId/webhooks', apiTokenAuth, checkSessionOwnership, async (req, res) => {
-  try {
-    const { sessionId } = req.params;
-    const { name, url, active, priority, events } = req.body;
-
-    const session = sessions.get(sessionId);
-    if (!session) {
-      return res.status(404).json({
-        success: false,
-        message: 'Sessão não encontrada',
-      });
+  return res.status(410).json({
+    success: false,
+    message: 'DEPRECATED: Este endpoint foi descontinuado. Use os endpoints de webhook que salvam no banco de dados: POST /api/management/webhooks',
+    deprecated: true,
+    alternatives: {
+      create: 'POST /api/management/webhooks',
+      list: 'GET /api/management/webhooks',
+      update: 'PUT /api/management/webhooks/:id',
+      delete: 'DELETE /api/management/webhooks/:id'
     }
-
-    if (!url) {
-      return res.status(400).json({
-        success: false,
-        message: 'URL do webhook é obrigatória',
-      });
-    }
-
-    // Validar URL
-    try {
-      new URL(url);
-    } catch {
-      return res.status(400).json({
-        success: false,
-        message: 'URL inválida',
-      });
-    }
-
-    const newWebhook = addWebhookToSession(sessionId, {
-      name,
-      url,
-      active,
-      priority,
-      events
-    });
-
-    res.json({
-      success: true,
-      message: 'Webhook adicionado com sucesso',
-      webhook: newWebhook,
-      sessionId
-    });
-
-  } catch (error) {
-    logger.error(`Erro ao adicionar webhook: ${error.message}`);
-    res.status(400).json({
-      success: false,
-      message: error.message,
-    });
-  }
+  });
 });
 
 // Obter webhook específico
 app.get('/api/baileys/session/:sessionId/webhooks/:webhookId', apiTokenAuth, checkSessionOwnership, (req, res) => {
-  try {
-    const { sessionId, webhookId } = req.params;
-
-    const session = sessions.get(sessionId);
-    if (!session) {
-      return res.status(404).json({
-        success: false,
-        message: 'Sessão não encontrada',
-      });
+  return res.status(410).json({
+    success: false,
+    message: 'DEPRECATED: Este endpoint foi descontinuado. Use os endpoints de webhook que salvam no banco de dados: GET /api/management/webhooks/:id',
+    deprecated: true,
+    alternatives: {
+      get: 'GET /api/management/webhooks/:id',
+      list: 'GET /api/management/webhooks',
+      create: 'POST /api/management/webhooks',
+      update: 'PUT /api/management/webhooks/:id',
+      delete: 'DELETE /api/management/webhooks/:id'
     }
-
-    const sessionWebhooks = getSessionWebhooks(sessionId);
-    const webhook = sessionWebhooks.find(w => w.id === webhookId);
-
-    if (!webhook) {
-      return res.status(404).json({
-        success: false,
-        message: 'Webhook não encontrado',
-      });
-    }
-
-    res.json({
-      success: true,
-      webhook,
-      sessionId
-    });
-
-  } catch (error) {
-    logger.error(`Erro ao obter webhook: ${error.message}`);
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
+  });
 });
 
 // Atualizar webhook específico
 app.put('/api/baileys/session/:sessionId/webhooks/:webhookId', apiTokenAuth, checkSessionOwnership, (req, res) => {
-  try {
-    const { sessionId, webhookId } = req.params;
-    const { name, url, active, priority, events } = req.body;
-
-    const session = sessions.get(sessionId);
-    if (!session) {
-      return res.status(404).json({
-        success: false,
-        message: 'Sessão não encontrada',
-      });
+  return res.status(410).json({
+    success: false,
+    message: 'DEPRECATED: Este endpoint foi descontinuado. Use os endpoints de webhook que salvam no banco de dados: PUT /api/management/webhooks/:id',
+    deprecated: true,
+    alternatives: {
+      update: 'PUT /api/management/webhooks/:id',
+      list: 'GET /api/management/webhooks',
+      create: 'POST /api/management/webhooks',
+      delete: 'DELETE /api/management/webhooks/:id'
     }
-
-    // Validar URL se fornecida
-    if (url) {
-      try {
-        new URL(url);
-      } catch {
-        return res.status(400).json({
-          success: false,
-          message: 'URL inválida',
-        });
-      }
-    }
-
-    const updatedWebhook = updateWebhookInSession(sessionId, webhookId, {
-      name,
-      url,
-      active,
-      priority,
-      events
-    });
-
-    res.json({
-      success: true,
-      message: 'Webhook atualizado com sucesso',
-      webhook: updatedWebhook,
-      sessionId
-    });
-
-  } catch (error) {
-    logger.error(`Erro ao atualizar webhook: ${error.message}`);
-    res.status(400).json({
-      success: false,
-      message: error.message,
-    });
-  }
+  });
 });
 
 // Remover webhook específico
 app.delete('/api/baileys/session/:sessionId/webhooks/:webhookId', apiTokenAuth, checkSessionOwnership, (req, res) => {
-  try {
-    const { sessionId, webhookId } = req.params;
-
-    const session = sessions.get(sessionId);
-    if (!session) {
-      return res.status(404).json({
-        success: false,
-        message: 'Sessão não encontrada',
-      });
+  return res.status(410).json({
+    success: false,
+    message: 'DEPRECATED: Este endpoint foi descontinuado. Use os endpoints de webhook que salvam no banco de dados: DELETE /api/management/webhooks/:id',
+    deprecated: true,
+    alternatives: {
+      delete: 'DELETE /api/management/webhooks/:id',
+      list: 'GET /api/management/webhooks',
+      create: 'POST /api/management/webhooks',
+      update: 'PUT /api/management/webhooks/:id'
     }
-
-    const removedWebhook = removeWebhookFromSession(sessionId, webhookId);
-
-    res.json({
-      success: true,
-      message: 'Webhook removido com sucesso',
-      webhook: removedWebhook,
-      sessionId
-    });
-
-  } catch (error) {
-    logger.error(`Erro ao remover webhook: ${error.message}`);
-    res.status(400).json({
-      success: false,
-      message: error.message,
-    });
-  }
+  });
 });
 
 // Ativar/desativar webhook específico
 app.patch('/api/baileys/session/:sessionId/webhooks/:webhookId/toggle', apiTokenAuth, checkSessionOwnership, (req, res) => {
-  try {
-    const { sessionId, webhookId } = req.params;
-
-    const session = sessions.get(sessionId);
-    if (!session) {
-      return res.status(404).json({
-        success: false,
-        message: 'Sessão não encontrada',
-      });
+  return res.status(410).json({
+    success: false,
+    message: 'DEPRECATED: Este endpoint foi descontinuado. Use os endpoints de webhook que salvam no banco de dados: PUT /api/management/webhooks/:id',
+    deprecated: true,
+    alternatives: {
+      toggle: 'PUT /api/management/webhooks/:id (modifique o campo "active")',
+      list: 'GET /api/management/webhooks',
+      create: 'POST /api/management/webhooks',
+      delete: 'DELETE /api/management/webhooks/:id'
     }
-
-    const sessionWebhooks = getSessionWebhooks(sessionId);
-    const webhook = sessionWebhooks.find(w => w.id === webhookId);
-
-    if (!webhook) {
-      return res.status(404).json({
-        success: false,
-        message: 'Webhook não encontrado',
-      });
-    }
-
-    webhook.active = !webhook.active;
-    webhook.updatedAt = new Date().toISOString();
-    webhooks.set(sessionId, sessionWebhooks);
-
-    res.json({
-      success: true,
-      message: `Webhook ${webhook.active ? 'ativado' : 'desativado'} com sucesso`,
-      webhook,
-      sessionId
-    });
-
-  } catch (error) {
-    logger.error(`Erro ao alternar webhook: ${error.message}`);
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
+  });
 });
 
 // Testar webhook específico
 app.post('/api/baileys/session/:sessionId/webhooks/:webhookId/test', apiTokenAuth, checkSessionOwnership, async (req, res) => {
-  try {
-    const { sessionId, webhookId } = req.params;
-
-    const session = sessions.get(sessionId);
-    if (!session) {
-      return res.status(404).json({
-        success: false,
-        message: 'Sessão não encontrada',
-      });
+  return res.status(410).json({
+    success: false,
+    message: 'DEPRECATED: Este endpoint foi descontinuado. Use os endpoints de webhook que salvam no banco de dados: POST /api/management/webhooks/:id/test',
+    deprecated: true,
+    alternatives: {
+      test: 'POST /api/management/webhooks/:id/test',
+      list: 'GET /api/management/webhooks',
+      create: 'POST /api/management/webhooks',
+      update: 'PUT /api/management/webhooks/:id',
+      delete: 'DELETE /api/management/webhooks/:id'
     }
-
-    const sessionWebhooks = getSessionWebhooks(sessionId);
-    const webhook = sessionWebhooks.find(w => w.id === webhookId);
-
-    if (!webhook) {
-      return res.status(404).json({
-        success: false,
-        message: 'Webhook não encontrado',
-      });
-    }
-
-    // Enviar payload de teste
-    const testPayload = {
-      sessionId,
-      eventType: 'webhook.test',
-      timestamp: new Date().toISOString(),
-      data: {
-        message: 'Este é um teste do webhook',
-        webhookId: webhook.id,
-        webhookName: webhook.name
-      }
-    };
-
-    try {
-      const response = await fetch(webhook.url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'User-Agent': 'Baileys-Webhook/1.0',
-        },
-        body: JSON.stringify(testPayload),
-        timeout: 10000, // 10 segundos
-      });
-
-      const success = response.ok;
-      const responseText = await response.text();
-
-      res.json({
-        success: true,
-        message: 'Teste do webhook enviado',
-        webhook: {
-          id: webhook.id,
-          name: webhook.name,
-          url: webhook.url
-        },
-        testResult: {
-          success,
-          status: response.status,
-          statusText: response.statusText,
-          response: responseText.substring(0, 500), // Limitar resposta
-          timestamp: new Date().toISOString()
-        }
-      });
-
-    } catch (fetchError) {
-      res.json({
-        success: true,
-        message: 'Teste do webhook enviado',
-        webhook: {
-          id: webhook.id,
-          name: webhook.name,
-          url: webhook.url
-        },
-        testResult: {
-          success: false,
-          error: fetchError.message,
-          timestamp: new Date().toISOString()
-        }
-      });
-    }
-
-  } catch (error) {
-    logger.error(`Erro ao testar webhook: ${error.message}`);
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
+  });
 });
 
 // Função avançada para simular comportamento humano realista
