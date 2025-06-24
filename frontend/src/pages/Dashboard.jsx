@@ -601,13 +601,56 @@ export default function Dashboard() {
 
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
-      // Create session using web authentication (session cookies)
-      const response = await fetch(`${apiUrl}/api/baileys/session/create`, {
-        method: 'POST',
+      // Get active token for API authentication
+      let authHeaders = {
+        'Content-Type': 'application/json',
+      };
+
+      const tokensResponse = await fetch(`${apiUrl}/api/management/tokens/list`, {
+        method: 'GET',
         credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
         },
+      });
+
+      if (tokensResponse.ok) {
+        const tokensResult = await tokensResponse.json();
+        if (tokensResult.success && tokensResult.tokens.length > 0) {
+          const activeToken = tokensResult.tokens.find(
+            (token) => token.isActive && !token.isExpired
+          );
+          
+          if (activeToken) {
+            try {
+              const tokenResponse = await fetch(
+                `${apiUrl}/api/management/tokens/${activeToken._id}/full`,
+                {
+                  method: 'GET',
+                  credentials: 'include',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                }
+              );
+
+              if (tokenResponse.ok) {
+                const tokenResult = await tokenResponse.json();
+                if (tokenResult.success && tokenResult.token) {
+                  authHeaders.Authorization = `Bearer ${tokenResult.token}`;
+                }
+              }
+            } catch (error) {
+              console.log('Error fetching token for session creation:', error);
+            }
+          }
+        }
+      }
+
+      // Create session using token authentication
+      const response = await fetch(`${apiUrl}/api/baileys/session/create`, {
+        method: 'POST',
+        headers: authHeaders,
         body: JSON.stringify({
           sessionId: sessionId.trim(),
         }),
