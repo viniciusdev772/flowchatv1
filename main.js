@@ -137,17 +137,8 @@ class Server {
     // Management API routes
     this.app.use('/api/management', managementRoutes);
 
-    // Apply API token authentication to Baileys routes (except session creation)
-    this.app.use('/api/baileys', (req, res, next) => {
-      // Skip API token auth for session creation - it has its own dual auth
-      if (req.path === '/session/create' && req.method === 'POST') {
-        return next();
-      }
-      return apiTokenAuth(req, res, next);
-    });
-
-    // Mount Baileys app routes
-    this.app.use('/api', baileysApp);
+    // Mount Baileys app routes (already includes /api/baileys prefix)
+    this.app.use('/', baileysApp);
 
     // Serve static files from frontend build
     this.app.use(express.static(path.join(__dirname, 'frontend/dist')));

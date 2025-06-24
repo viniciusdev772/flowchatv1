@@ -8,33 +8,45 @@ const apiTokenAuth = async (req, res, next) => {
     const authHeader = req.headers.authorization;
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.log('❌ Auth header missing or invalid format:', authHeader);
       return res.status(401).json({
         success: false,
         message: 'Token de API requerido'
       });
-    }    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+    }
+
+    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+    console.log('🔍 Received token:', token.substring(0, 20) + '...');
     
     // Check if token starts with baileys_ prefix
     if (!token.startsWith('baileys_')) {
+      console.log('❌ Token does not start with baileys_ prefix');
       return res.status(401).json({
         success: false,
         message: 'Token de API inválido'
       });
     }
 
-    // Use token directly without hashing (as requested)
-    
     const db = database.getDb();
     if (!db) {
+      console.log('❌ Database not available');
       return res.status(503).json({
         success: false,
         message: 'Banco de dados não disponível'
       });
-    }    // Find the token in database (direct comparison without hashing)
+    }
+
+    // Find the token in database (direct comparison without hashing)
+    console.log('🔍 Searching for token in database...');
     const tokenDoc = await db.collection('api_tokens').findOne({
       token: token,
       isActive: true
     });
+
+    console.log('📄 Token found in DB:', !!tokenDoc);
+    if (tokenDoc) {
+      console.log('📄 Token details - isActive:', tokenDoc.isActive, 'expiresAt:', tokenDoc.expiresAt);
+    }
 
     if (!tokenDoc) {
       return res.status(401).json({

@@ -18,6 +18,17 @@ const crypto = require('crypto');
 const database = require('./config/database');
 const apiTokenAuth = require('./middleware/apiTokenAuth');
 
+// Helper function to create unique session ID for each user
+function createUniqueSessionId(userId, sessionId) {
+  return `${userId}_${sessionId}`;
+}
+
+// Helper function to extract original session ID from unique session ID
+function extractOriginalSessionId(uniqueSessionId) {
+  const parts = uniqueSessionId.split('_');
+  return parts.slice(1).join('_'); // Handle case where sessionId itself contains underscores
+}
+
 // Polyfill para fetch em versões antigas do Node.js
 let fetch;
 if (typeof globalThis.fetch === 'undefined') {
@@ -40,6 +51,9 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// Apply API token authentication to all /api/baileys routes
+app.use('/api/baileys', apiTokenAuth);
 
 // Documentação Swagger
 app.use(
@@ -1853,7 +1867,10 @@ app.post('/api/baileys/session/create', dualAuth, async (req, res) => {
       });
     }
 
-    const result = await createWhatsAppSession(sessionId, userId);
+    // Create unique session ID by combining user ID and session name
+    const uniqueSessionId = `${userId}_${sessionId}`;
+    
+    const result = await createWhatsAppSession(uniqueSessionId, userId);
 
     // Sempre retornar o QR code quando criar uma nova sessão
     if (result.success) {
@@ -1863,7 +1880,7 @@ app.post('/api/baileys/session/create', dualAuth, async (req, res) => {
 
       while (!result.qrCode && attempts < maxAttempts) {
         await new Promise((resolve) => setTimeout(resolve, 500));
-        const session = sessions.get(sessionId);
+        const session = sessions.get(uniqueSessionId);
         if (session && session.qrCode) {
           result.qrCode = session.qrCode;
           break;
@@ -1876,7 +1893,7 @@ app.post('/api/baileys/session/create', dualAuth, async (req, res) => {
         try {
           result.qrCodeImage = await QRCode.toDataURL(result.qrCode);
           // Salvar a imagem na sessão também
-          const session = sessions.get(sessionId);
+          const session = sessions.get(uniqueSessionId);
           if (session) {
             session.qrCodeImage = result.qrCodeImage;
           }
@@ -1886,7 +1903,14 @@ app.post('/api/baileys/session/create', dualAuth, async (req, res) => {
       }
     }
 
-    res.json(result);
+    // Return response with original sessionId for user, but internally use uniqueSessionId
+    const response = {
+      ...result,
+      sessionId: sessionId, // Show original sessionId to user
+      internalSessionId: uniqueSessionId // For debugging purposes
+    };
+    
+    res.json(response);
   } catch (error) {
     res.status(500).json({
       success: false,

@@ -33,8 +33,10 @@ services:
     container_name: baileys_api
     restart: unless-stopped
     environment:
-      NODE_ENV: production
-      PORT: 3000
+      NODE_ENV: ${NODE_ENV:-production}
+      PORT: ${PORT:-3000}
+      API_BASE_URL: ${API_BASE_URL:-http://localhost:3000}
+      DOMAIN: ${DOMAIN:-localhost}
       MONGODB_URI: mongodb://${MONGO_ROOT_USER:-admin}:${MONGO_ROOT_PASSWORD:-password123}@mongodb:27017/${DB_NAME:-baileys}?authSource=admin
       DB_NAME: ${DB_NAME:-baileys}
       SESSION_SECRET: ${SESSION_SECRET:-your-super-secret-session-key-change-this}
