@@ -258,7 +258,7 @@ async function getSessionWebhooksFromDB(sessionId) {
   }
 }
 
-function addWebhookToSession(sessionId, webhookData) {
+function addWebhookToSession(sessionId, webhookData, userId = null) {
   const sessionWebhooks = getSessionWebhooks(sessionId);
   
   // Validar limite máximo de 3 webhooks
@@ -273,10 +273,13 @@ function addWebhookToSession(sessionId, webhookData) {
   
   const newWebhook = {
     id: crypto.randomUUID(),
+    userId: userId,
+    sessionId: sessionId,
     name: webhookData.name || `Webhook ${sessionWebhooks.length + 1}`,
     url: webhookData.url,
     active: webhookData.active !== false, // true por padrão
-    createdAt: new Date().toISOString(),
+    createdAt: new Date(),
+    updatedAt: new Date(),
     priority: webhookData.priority || (sessionWebhooks.length + 1),
     events: webhookData.events || ['*'] // eventos para escutar, '*' = todos
   };
@@ -285,12 +288,12 @@ function addWebhookToSession(sessionId, webhookData) {
   webhooks.set(sessionId, sessionWebhooks);
   
   // Save to MongoDB
-  saveWebhookData(sessionId, sessionWebhooks);
+  saveWebhookData(sessionId, newWebhook, userId);
   
   return newWebhook;
 }
 
-function removeWebhookFromSession(sessionId, webhookId) {
+function removeWebhookFromSession(sessionId, webhookId, userId = null) {
   const sessionWebhooks = getSessionWebhooks(sessionId);
   const webhookIndex = sessionWebhooks.findIndex(w => w.id === webhookId);
   
@@ -303,15 +306,15 @@ function removeWebhookFromSession(sessionId, webhookId) {
   
   // Save to MongoDB
   if (sessionWebhooks.length > 0) {
-    saveWebhookData(sessionId, sessionWebhooks);
+    saveWebhookData(sessionId, sessionWebhooks, userId);
   } else {
-    deleteWebhookData(sessionId);
+    deleteWebhookData(sessionId, userId);
   }
   
   return removedWebhook;
 }
 
-function updateWebhookInSession(sessionId, webhookId, updateData) {
+function updateWebhookInSession(sessionId, webhookId, updateData, userId = null) {
   const sessionWebhooks = getSessionWebhooks(sessionId);
   const webhook = sessionWebhooks.find(w => w.id === webhookId);
   
@@ -338,7 +341,7 @@ function updateWebhookInSession(sessionId, webhookId, updateData) {
   webhooks.set(sessionId, sessionWebhooks);
   
   // Save to MongoDB
-  saveWebhookData(sessionId, sessionWebhooks);
+  saveWebhookData(sessionId, sessionWebhooks, userId);
   
   return webhook;
 }
@@ -692,24 +695,39 @@ async function cleanupExpiredQRCodes() {
 }
 
 // Function to save webhook configuration to MongoDB
-async function saveWebhookData(sessionId, webhookData) {
+async function saveWebhookData(sessionId, webhookData, userId = null) {
   const db = database.getDb();
   if (!db) return;
 
   try {
     const webhooksCollection = db.collection('webhooks');
-    await webhooksCollection.updateOne(
-      { sessionId },
-      {
-        $set: {
-          sessionId,
-          webhooks: webhookData,
-          updatedAt: new Date()
-        }
-      },
-      { upsert: true }
-    );
-    logger.info(`Webhook configuration saved to MongoDB for session ${sessionId}`);
+    
+    // If webhookData is a single webhook object, save it as individual document
+    if (webhookData.id) {
+      await webhooksCollection.insertOne({
+        ...webhookData,
+        userId: userId,
+        sessionId: sessionId,
+        createdAt: webhookData.createdAt || new Date(),
+        updatedAt: new Date()
+      });
+      logger.info(`Individual webhook saved to MongoDB for session ${sessionId}`);
+    } else {
+      // Legacy support: save as array (deprecated)
+      await webhooksCollection.updateOne(
+        { sessionId },
+        {
+          $set: {
+            sessionId,
+            userId: userId,
+            webhooks: webhookData,
+            updatedAt: new Date()
+          }
+        },
+        { upsert: true }
+      );
+      logger.info(`Webhook configuration saved to MongoDB for session ${sessionId}`);
+    }
   } catch (error) {
     logger.warn(`Failed to save webhook configuration to MongoDB: ${error.message}`);
   }
@@ -737,13 +755,18 @@ async function loadWebhookData(sessionId) {
 }
 
 // Function to delete webhook configuration from MongoDB
-async function deleteWebhookData(sessionId) {
+async function deleteWebhookData(sessionId, userId = null) {
   const db = database.getDb();
   if (!db) return;
 
   try {
     const webhooksCollection = db.collection('webhooks');
-    await webhooksCollection.deleteOne({ sessionId });
+    // Delete both legacy format (single doc with webhooks array) and new format (individual docs)
+    if (userId) {
+      await webhooksCollection.deleteMany({ sessionId, userId });
+    } else {
+      await webhooksCollection.deleteMany({ sessionId });
+    }
     logger.info(`Webhook configuration deleted from MongoDB for session ${sessionId}`);
   } catch (error) {
     logger.warn(`Failed to delete webhook configuration from MongoDB: ${error.message}`);
