@@ -219,9 +219,43 @@ function checkSessionOwnership(req, res, next) {
 
 // Funções utilitárias para gerenciar webhooks
 function getSessionWebhooks(sessionId) {
+  // Legacy function - still used for memory fallback
   const sessionWebhooks = webhooks.get(sessionId) || [];
-  logger.info(`Getting webhooks for session ${sessionId}: found ${sessionWebhooks.length} webhooks`);
+  logger.info(`Getting webhooks for session ${sessionId} from memory: found ${sessionWebhooks.length} webhooks`);
   return sessionWebhooks;
+}
+
+// New async function to get webhooks from MongoDB
+async function getSessionWebhooksFromDB(sessionId) {
+  try {
+    const db = database.getDb();
+    if (!db) {
+      logger.warn('Database not available, falling back to memory webhooks');
+      return getSessionWebhooks(sessionId);
+    }
+
+    const webhooksCollection = db.collection('webhooks');
+    
+    // Extract userId from session if available, or use the session directly for now
+    // Since we don't have user context here, we'll search by sessionId only
+    const sessionWebhooks = await webhooksCollection.find({
+      sessionId: sessionId,
+      active: true
+    }).sort({ priority: 1, createdAt: 1 }).toArray();
+
+    // Convert MongoDB _id to id for compatibility
+    const webhooks = sessionWebhooks.map(webhook => ({
+      ...webhook,
+      id: webhook.id || webhook._id.toString()
+    }));
+
+    logger.info(`Getting webhooks for session ${sessionId} from MongoDB: found ${webhooks.length} webhooks`);
+    return webhooks;
+  } catch (error) {
+    logger.error(`Error getting webhooks from DB for session ${sessionId}: ${error.message}`);
+    // Fallback to memory webhooks on error
+    return getSessionWebhooks(sessionId);
+  }
 }
 
 function addWebhookToSession(sessionId, webhookData) {
@@ -310,15 +344,31 @@ function updateWebhookInSession(sessionId, webhookId, updateData) {
 }
 
 function getActiveWebhooks(sessionId, eventType = null) {
+  // Legacy function - still used for memory fallback
   const sessionWebhooks = getSessionWebhooks(sessionId);
-  logger.info(`Session ${sessionId} has ${sessionWebhooks.length} total webhooks`);
+  logger.info(`Session ${sessionId} has ${sessionWebhooks.length} total webhooks (memory)`);
   
   const activeWebhooks = sessionWebhooks
     .filter(w => w.active)
     .filter(w => !eventType || w.events.includes('*') || w.events.includes(eventType))
     .sort((a, b) => a.priority - b.priority);
     
-  logger.info(`Session ${sessionId} has ${activeWebhooks.length} active webhooks for event ${eventType}`);
+  logger.info(`Session ${sessionId} has ${activeWebhooks.length} active webhooks for event ${eventType} (memory)`);
+  
+  return activeWebhooks;
+}
+
+// New async function to get active webhooks from MongoDB
+async function getActiveWebhooksFromDB(sessionId, eventType = null) {
+  const sessionWebhooks = await getSessionWebhooksFromDB(sessionId);
+  logger.info(`Session ${sessionId} has ${sessionWebhooks.length} total webhooks (DB)`);
+  
+  const activeWebhooks = sessionWebhooks
+    .filter(w => w.active)
+    .filter(w => !eventType || w.events.includes('*') || w.events.includes(eventType))
+    .sort((a, b) => a.priority - b.priority);
+    
+  logger.info(`Session ${sessionId} has ${activeWebhooks.length} active webhooks for event ${eventType} (DB)`);
   
   return activeWebhooks;
 }
@@ -1123,7 +1173,7 @@ async function sendWebhook(sessionId, eventType, data) {
     logger.info(`Attempting to send webhook for session ${sessionId}, event: ${eventType}`);
     
     // Obter webhooks ativos para este evento
-    const activeWebhooks = getActiveWebhooks(sessionId, eventType);
+    const activeWebhooks = await getActiveWebhooksFromDB(sessionId, eventType);
     logger.info(`Found ${activeWebhooks.length} active webhooks for session ${sessionId}, event: ${eventType}`);
     
     if (activeWebhooks.length === 0) {
