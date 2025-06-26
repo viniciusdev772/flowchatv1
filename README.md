@@ -22,6 +22,28 @@ baileys/
 
 ## 📦 Instalação
 
+### Opção 1: Docker Compose (Recomendado)
+
+A aplicação inclui **MongoDB automaticamente** no Docker Compose:
+
+```bash
+# Clone o repositório
+git clone <repository-url>
+cd baileys
+
+# Configure as variáveis de ambiente
+cp .env.example .env
+# Edite o .env com seu domínio e senhas seguras
+
+# Inicie todos os serviços (API + MongoDB + Nginx opcional)
+docker-compose up -d
+
+# Para incluir proxy Nginx
+docker-compose --profile nginx up -d
+```
+
+### Opção 2: Instalação Local
+
 ```bash
 npm install
 ```
@@ -92,6 +114,25 @@ Acesse a documentação completa em:
 
 ## 🏃‍♂️ Início Rápido
 
+### Com Docker (Recomendado)
+
+1. **Clone e configure**:
+```bash
+git clone <repo>
+cd baileys
+cp .env.example .env
+# Edite o .env com seu domínio
+```
+
+2. **Inicie os serviços**:
+```bash
+docker-compose up -d
+```
+
+A aplicação iniciará com **MongoDB incluído automaticamente**!
+
+### Instalação Local
+
 1. **Clone e instale**:
 ```bash
 git clone <repo>
@@ -99,12 +140,20 @@ cd baileys
 npm install
 ```
 
-2. **Inicie o servidor**:
+2. **Configure MongoDB** (obrigatório para produção):
+```bash
+# Instale MongoDB localmente ou use Docker:
+docker run -d -p 27017:27017 --name mongodb mongo:7
+```
+
+3. **Inicie o servidor**:
 ```bash
 npm run dev
 ```
 
-3. **Crie uma sessão**:
+### Testando a API
+
+4. **Crie uma sessão**:
 ```bash
 curl -X POST http://localhost:3000/api/baileys/session/create \
   -H "Content-Type: application/json" \
