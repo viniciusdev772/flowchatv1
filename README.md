@@ -121,7 +121,7 @@ Acesse a documentação completa em:
 git clone <repo>
 cd baileys
 cp .env.example .env
-# Edite o .env com seu domínio
+# Edite o .env: altere CORS_ORIGIN para seu domínio e senhas de produção
 ```
 
 2. **Inicie os serviços**:
