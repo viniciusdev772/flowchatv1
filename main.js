@@ -165,6 +165,9 @@ class Server {
     // Mount Baileys app routes (already includes /api/baileys prefix)
     this.app.use('/', baileysApp);
 
+    // Serve temporary images
+    this.app.use('/temp-images', express.static(path.join(__dirname, 'temp-images')));
+
     // Serve static files from frontend build
     this.app.use(express.static(path.join(__dirname, 'frontend/dist')));
 

@@ -3,12 +3,108 @@ const OpenAI = require('openai');
 const { authenticateToken } = require('../middleware/auth');
 const { ObjectId } = require('mongodb');
 const database = require('../config/database');
+const fs = require('fs').promises;
+const path = require('path');
+const crypto = require('crypto');
 const {
   toolSchemas,
   toolImplementations,
   openAITools,
 } = require('../ai/tools');
 const router = express.Router();
+
+// Função utilitária para processar imagens base64 nas respostas da IA
+async function processBase64Images(content) {
+  if (!content || typeof content !== 'string') {
+    return content;
+  }
+
+  // Regex para detectar imagens base64 em formato markdown
+  const base64ImageRegex = /!\[([^\]]*)\]\((data:image\/[^)]+)\)/g;
+  
+  let processedContent = content;
+  let match;
+  const promises = [];
+  
+  // Reset regex
+  base64ImageRegex.lastIndex = 0;
+  
+  while ((match = base64ImageRegex.exec(content)) !== null) {
+    const [fullMatch, alt, base64Data] = match;
+    
+    console.log(`Processing base64 image: ${alt || 'Unnamed'}`);
+    
+    // Criar promise para salvar a imagem
+    const promise = (async () => {
+      try {
+        // Validar formato base64
+        const matches = base64Data.match(/^data:image\/([^;]+);base64,(.+)$/);
+        if (!matches) {
+          console.warn('Invalid base64 format:', base64Data.substring(0, 50));
+          return { fullMatch, replacement: `*[Erro: formato de imagem inválido]*` };
+        }
+
+        const [, imageType, base64String] = matches;
+        
+        // Gerar nome único do arquivo
+        const uniqueId = crypto.randomBytes(16).toString('hex');
+        const fileExtension = imageType === 'svg+xml' ? 'svg' : imageType;
+        const fileName = `ai-image-${uniqueId}.${fileExtension}`;
+        
+        // Diretório para salvar imagens temporárias
+        const tempDir = path.join(__dirname, '../../temp-images');
+        
+        // Garantir que o diretório existe
+        try {
+          await fs.access(tempDir);
+        } catch {
+          await fs.mkdir(tempDir, { recursive: true });
+        }
+        
+        const filePath = path.join(tempDir, fileName);
+        
+        // Converter base64 para buffer e salvar
+        const imageBuffer = Buffer.from(base64String, 'base64');
+        await fs.writeFile(filePath, imageBuffer);
+        
+        // URL para acessar a imagem
+        const imageUrl = `/temp-images/${fileName}`;
+        
+        console.log(`✅ Base64 image saved: ${fileName} (${imageBuffer.length} bytes)`);
+        
+        return { 
+          fullMatch, 
+          replacement: `![${alt}](${imageUrl})` 
+        };
+        
+      } catch (error) {
+        console.error('Error processing base64 image:', error);
+        return { 
+          fullMatch, 
+          replacement: `*[Erro ao processar imagem: ${alt}]*` 
+        };
+      }
+    })();
+    
+    promises.push(promise);
+  }
+
+  // Se encontrou imagens, processar todas
+  if (promises.length > 0) {
+    console.log(`🖼️  Processing ${promises.length} base64 images...`);
+    
+    const results = await Promise.all(promises);
+    
+    // Substituir todas as imagens processadas
+    results.forEach(({ fullMatch, replacement }) => {
+      processedContent = processedContent.replace(fullMatch, replacement);
+    });
+    
+    console.log('✅ All base64 images processed and replaced with local URLs');
+  }
+
+  return processedContent;
+}
 
 // Função para obter o token de API do usuário
 async function getUserApiToken(userId) {
@@ -229,6 +325,7 @@ Responda em português brasileiro de forma técnica, prática e orientada a resu
 
       let functionCalls = [];
       let currentToolCall = null;
+      let accumulatedContent = ''; // Acumular conteúdo para processar imagens
 
       for await (const chunk of chatStream) {
         const delta = chunk.choices[0]?.delta;
@@ -256,6 +353,7 @@ Responda em português brasileiro de forma técnica, prática e orientada a resu
         }
 
         if (delta?.content) {
+          accumulatedContent += delta.content;
           res.write(
             JSON.stringify({
               type: 'content',
@@ -359,6 +457,7 @@ Responda em português brasileiro de forma técnica, prática e orientada a resu
             for await (const chunk of finalStream) {
               const delta = chunk.choices[0]?.delta;
               if (delta?.content) {
+                accumulatedContent += delta.content;
                 res.write(
                   JSON.stringify({
                     type: 'content',
@@ -377,6 +476,27 @@ Responda em português brasileiro de forma técnica, prática e orientada a resu
               }) + '\n'
             );
           }
+        }
+      }
+
+      // Processar imagens base64 no conteúdo final
+      if (accumulatedContent) {
+        try {
+          console.log('🔍 Checking for base64 images in AI response...');
+          const processedContent = await processBase64Images(accumulatedContent);
+          
+          // Se o conteúdo foi modificado (imagens processadas), enviar atualização
+          if (processedContent !== accumulatedContent) {
+            res.write(
+              JSON.stringify({
+                type: 'content_update',
+                content: processedContent,
+                original_content: accumulatedContent,
+              }) + '\n'
+            );
+          }
+        } catch (error) {
+          console.error('Error processing base64 images:', error);
         }
       }
 
@@ -446,9 +566,13 @@ Responda em português brasileiro de forma técnica, prática e orientada a resu
           max_tokens: 1500,
         });
 
+        // Processar imagens base64 na resposta final
+        const finalResponse = finalCompletion.choices[0].message.content;
+        const processedResponse = await processBase64Images(finalResponse);
+
         return res.json({
           success: true,
-          response: finalCompletion.choices[0].message.content,
+          response: processedResponse,
           toolCalls: toolResults,
           usage: {
             initial: completion.usage,
@@ -457,9 +581,12 @@ Responda em português brasileiro de forma técnica, prática e orientada a resu
         });
       }
 
+      // Processar imagens base64 na resposta
+      const processedResponse = await processBase64Images(response.content);
+
       res.json({
         success: true,
-        response: response.content,
+        response: processedResponse,
         toolCalls: [],
         usage: completion.usage,
       });
@@ -517,6 +644,94 @@ router.get('/tools', authenticateToken, (req, res) => {
 //     message: 'Funcionalidade de sugestões foi removida para otimização',
 //   });
 // });
+
+/**
+ * @swagger
+ * /api/management/ai/save-base64-image:
+ *   post:
+ *     summary: Salvar imagem base64 e retornar URL local
+ *     tags: [AI Assistant]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               base64Data:
+ *                 type: string
+ *                 description: Dados da imagem em base64
+ *               filename:
+ *                 type: string
+ *                 description: Nome do arquivo (opcional)
+ *     responses:
+ *       200:
+ *         description: Imagem salva com sucesso
+ */
+router.post('/save-base64-image', async (req, res) => {
+  try {
+    const { base64Data, filename } = req.body;
+
+    if (!base64Data || !base64Data.startsWith('data:image/')) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid base64 image data'
+      });
+    }
+
+    // Extrair o tipo de imagem e os dados base64
+    const matches = base64Data.match(/^data:image\/([^;]+);base64,(.+)$/);
+    if (!matches) {
+      return res.status(400).json({
+        success: false,
+        error: 'Invalid base64 format'
+      });
+    }
+
+    const [, imageType, base64String] = matches;
+    
+    // Gerar nome único do arquivo
+    const uniqueId = crypto.randomBytes(16).toString('hex');
+    const fileExtension = imageType === 'svg+xml' ? 'svg' : imageType;
+    const fileName = filename || `image-${uniqueId}.${fileExtension}`;
+    
+    // Diretório para salvar imagens temporárias
+    const tempDir = path.join(__dirname, '../../temp-images');
+    
+    // Garantir que o diretório existe
+    try {
+      await fs.access(tempDir);
+    } catch {
+      await fs.mkdir(tempDir, { recursive: true });
+    }
+    
+    const filePath = path.join(tempDir, fileName);
+    
+    // Converter base64 para buffer e salvar
+    const imageBuffer = Buffer.from(base64String, 'base64');
+    await fs.writeFile(filePath, imageBuffer);
+    
+    // URL para acessar a imagem
+    const imageUrl = `/temp-images/${fileName}`;
+    
+    console.log(`Base64 image saved: ${fileName} (${imageBuffer.length} bytes)`);
+    
+    res.json({
+      success: true,
+      url: imageUrl,
+      filename: fileName,
+      size: imageBuffer.length
+    });
+
+  } catch (error) {
+    console.error('Error saving base64 image:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to save image',
+      details: error.message
+    });
+  }
+});
 
 /**
  * @swagger
