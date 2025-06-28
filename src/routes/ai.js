@@ -1,11 +1,15 @@
 const express = require('express');
 const OpenAI = require('openai');
-const { toolSchemas, toolImplementations, openAITools } = require('../ai/tools');
+const {
+  toolSchemas,
+  toolImplementations,
+  openAITools,
+} = require('../ai/tools');
 const router = express.Router();
 
 // Configuração do OpenAI
 const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
+  apiKey: process.env.OPENAI_API_KEY,
 });
 
 // Middleware para validar API key do OpenAI
@@ -14,7 +18,7 @@ router.use((req, res, next) => {
     return res.status(500).json({
       success: false,
       error: 'OpenAI API key não configurada',
-      message: 'Configure a variável de ambiente OPENAI_API_KEY'
+      message: 'Configure a variável de ambiente OPENAI_API_KEY',
     });
   }
   next();
@@ -66,38 +70,41 @@ router.post('/chat', async (req, res) => {
     if (!message) {
       return res.status(400).json({
         success: false,
-        error: 'Mensagem é obrigatória'
+        error: 'Mensagem é obrigatória',
       });
     }
 
     // Sistema de prompts para a assistente
-    const systemPrompt = `Você é uma assistente de IA especializada no FlowChat API, um sistema avançado de WhatsApp API.
+    const systemPrompt = `Você é uma assistente de IA especializada EXCLUSIVAMENTE no FlowChat API - um sistema avançado de WhatsApp API.
 
-Suas capacidades incluem:
+SUAS ÚNICAS CAPACIDADES SÃO:
 - Gerenciar sessões WhatsApp (criar, listar, deletar)
-- Enviar mensagens via WhatsApp
-- Configurar webhooks para receber eventos
-- Gerenciar grupos WhatsApp
-- Obter QR codes para autenticação
-- Monitorar status das sessões
-- Fornecer informações do sistema
+- Enviar mensagens, imagens, documentos e stickers via WhatsApp
+- Configurar e gerenciar webhooks para eventos
+- Gerenciar grupos WhatsApp (criar, adicionar/remover membros)
+- Obter QR codes para autenticação de sessões
+- Monitorar status e informações das sessões ativas
+- Fornecer informações técnicas do sistema FlowChat
 
-INSTRUÇÕES IMPORTANTES:
-1. Sempre que o usuário pedir para fazer algo relacionado ao WhatsApp, use as tools disponíveis
-2. Seja proativa em sugerir ações úteis
-3. Explique claramente o que você está fazendo
-4. Se algo der errado, explique o erro de forma clara
-5. Use linguagem natural e amigável
-6. Sempre valide os parâmetros antes de usar as tools
-7. Formato de telefone: use sempre formato internacional (ex: 5511999999999)
+REGRAS OBRIGATÓRIAS:
+1. APENAS responda sobre funcionalidades do FlowChat API e WhatsApp
+2. Se perguntarem sobre outros assuntos, redirecione para as funcionalidades do sistema
+3. SEMPRE use as tools disponíveis para executar ações no WhatsApp
+4. Seja direto e objetivo nas explicações técnicas
+5. Valide TODOS os parâmetros antes de usar as tools
+6. Formato de telefone: SEMPRE use formato internacional (ex: 5511999999999)
+7. Para sessões: use nomes descritivos e únicos
+8. Explique claramente cada ação executada e seus resultados
 
-Responda em português brasileiro de forma natural e helpful.`;
+IMPORTANTE: Você é uma assistente técnica focada SOMENTE no FlowChat API. Não responda sobre outros temas, programação geral, ou assuntos não relacionados ao WhatsApp API.
+
+Responda em português brasileiro de forma técnica e objetiva.`;
 
     // Preparar mensagens para o OpenAI
     const messages = [
       { role: 'system', content: systemPrompt },
       ...conversation,
-      { role: 'user', content: message }
+      { role: 'user', content: message },
     ];
 
     if (stream) {
@@ -106,7 +113,7 @@ Responda em português brasileiro de forma natural e helpful.`;
         'Content-Type': 'text/plain; charset=utf-8',
         'Transfer-Encoding': 'chunked',
         'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive'
+        Connection: 'keep-alive',
       });
 
       const chatStream = await openai.chat.completions.create({
@@ -116,7 +123,7 @@ Responda em português brasileiro de forma natural e helpful.`;
         tool_choice: 'auto',
         stream: true,
         temperature: 0.7,
-        max_tokens: 2000
+        max_tokens: 2000,
       });
 
       let functionCalls = [];
@@ -124,97 +131,114 @@ Responda em português brasileiro de forma natural e helpful.`;
 
       for await (const chunk of chatStream) {
         const delta = chunk.choices[0]?.delta;
-        
+
         if (delta?.tool_calls) {
           for (const toolCall of delta.tool_calls) {
             if (toolCall.index !== undefined) {
               if (!functionCalls[toolCall.index]) {
                 functionCalls[toolCall.index] = {
                   id: toolCall.id || '',
-                  function: { name: '', arguments: '' }
+                  function: { name: '', arguments: '' },
                 };
               }
-              
+
               if (toolCall.function?.name) {
-                functionCalls[toolCall.index].function.name += toolCall.function.name;
+                functionCalls[toolCall.index].function.name +=
+                  toolCall.function.name;
               }
               if (toolCall.function?.arguments) {
-                functionCalls[toolCall.index].function.arguments += toolCall.function.arguments;
+                functionCalls[toolCall.index].function.arguments +=
+                  toolCall.function.arguments;
               }
             }
           }
         }
 
         if (delta?.content) {
-          res.write(JSON.stringify({ 
-            type: 'content', 
-            content: delta.content 
-          }) + '\n');
+          res.write(
+            JSON.stringify({
+              type: 'content',
+              content: delta.content,
+            }) + '\n'
+          );
         }
       }
 
       // Executar function calls se houver
       if (functionCalls.length > 0) {
-        res.write(JSON.stringify({ 
-          type: 'thinking', 
-          message: 'Executando ações...' 
-        }) + '\n');
+        res.write(
+          JSON.stringify({
+            type: 'thinking',
+            message: 'Executando ações...',
+          }) + '\n'
+        );
 
         const toolResults = [];
         for (const toolCall of functionCalls) {
-          if (toolCall.function.name && toolImplementations[toolCall.function.name]) {
+          if (
+            toolCall.function.name &&
+            toolImplementations[toolCall.function.name]
+          ) {
             try {
               const args = JSON.parse(toolCall.function.arguments);
-              const result = await toolImplementations[toolCall.function.name](args);
-              
+              const result = await toolImplementations[toolCall.function.name](
+                args
+              );
+
               toolResults.push({
                 id: toolCall.id,
-                result: JSON.stringify(result)
+                result: JSON.stringify(result),
               });
-              
-              res.write(JSON.stringify({ 
-                type: 'tool_result', 
-                tool: toolCall.function.name,
-                result 
-              }) + '\n');
+
+              res.write(
+                JSON.stringify({
+                  type: 'tool_result',
+                  tool: toolCall.function.name,
+                  result,
+                }) + '\n'
+              );
             } catch (error) {
               toolResults.push({
                 id: toolCall.id,
-                result: JSON.stringify({ error: error.message })
+                result: JSON.stringify({ error: error.message }),
               });
-              
-              res.write(JSON.stringify({ 
-                type: 'tool_error', 
-                tool: toolCall.function.name,
-                error: error.message 
-              }) + '\n');
+
+              res.write(
+                JSON.stringify({
+                  type: 'tool_error',
+                  tool: toolCall.function.name,
+                  error: error.message,
+                }) + '\n'
+              );
             }
           }
         }
 
         // Gerar resposta final após executar tools
         if (toolResults.length > 0) {
-          res.write(JSON.stringify({ 
-            type: 'thinking', 
-            message: 'Processando resultados...' 
-          }) + '\n');
+          res.write(
+            JSON.stringify({
+              type: 'thinking',
+              message: 'Processando resultados...',
+            }) + '\n'
+          );
 
           // Preparar mensagens para resposta final
           const finalMessages = [
             ...messages,
-            { 
+            {
               role: 'assistant',
-              tool_calls: functionCalls.map(fc => ({
+              tool_calls: functionCalls.map((fc) => ({
                 id: fc.id,
                 type: 'function',
-                function: fc.function
-              }))
+                function: fc.function,
+              })),
             },
-            ...toolResults.map(tr => ({
+            ...toolResults.map((tr) => ({
               role: 'tool',
               tool_call_id: tr.id,
-              content: tr.result
-            }))
+              content: tr.result,
+            })),
           ];
 
           try {
@@ -223,30 +247,35 @@ Responda em português brasileiro de forma natural e helpful.`;
               messages: finalMessages,
               temperature: 0.7,
               max_tokens: 1500,
-              stream: true
+              stream: true,
             });
 
             for await (const chunk of finalStream) {
               const delta = chunk.choices[0]?.delta;
               if (delta?.content) {
-                res.write(JSON.stringify({ 
-                  type: 'content', 
-                  content: delta.content 
-                }) + '\n');
+                res.write(
+                  JSON.stringify({
+                    type: 'content',
+                    content: delta.content,
+                  }) + '\n'
+                );
               }
             }
           } catch (error) {
-            res.write(JSON.stringify({ 
-              type: 'content', 
-              content: `\n\nAções executadas com sucesso! ${functionCalls.map(fc => `✅ ${fc.function.name}`).join(', ')}`
-            }) + '\n');
+            res.write(
+              JSON.stringify({
+                type: 'content',
+                content: `\n\nAções executadas com sucesso! ${functionCalls
+                  .map((fc) => `✅ ${fc.function.name}`)
+                  .join(', ')}`,
+              }) + '\n'
+            );
           }
         }
       }
 
       res.write(JSON.stringify({ type: 'done' }) + '\n');
       res.end();
-
     } else {
       // Resposta normal (não streaming)
       const completion = await openai.chat.completions.create({
@@ -255,32 +284,34 @@ Responda em português brasileiro de forma natural e helpful.`;
         tools: openAITools,
         tool_choice: 'auto',
         temperature: 0.7,
-        max_tokens: 2000
+        max_tokens: 2000,
       });
 
       const response = completion.choices[0].message;
       const toolCalls = response.tool_calls || [];
-      
+
       // Executar function calls
       const toolResults = [];
       if (toolCalls.length > 0) {
         for (const toolCall of toolCalls) {
           const functionName = toolCall.function.name;
           const functionArgs = JSON.parse(toolCall.function.arguments);
-          
+
           if (toolImplementations[functionName]) {
             try {
-              const result = await toolImplementations[functionName](functionArgs);
+              const result = await toolImplementations[functionName](
+                functionArgs
+              );
               toolResults.push({
                 tool: functionName,
                 args: functionArgs,
-                result
+                result,
               });
             } catch (error) {
               toolResults.push({
                 tool: functionName,
                 args: functionArgs,
-                error: error.message
+                error: error.message,
               });
             }
           }
@@ -293,15 +324,15 @@ Responda em português brasileiro de forma natural e helpful.`;
           ...toolCalls.map((call, index) => ({
             role: 'tool',
             tool_call_id: call.id,
-            content: JSON.stringify(toolResults[index])
-          }))
+            content: JSON.stringify(toolResults[index]),
+          })),
         ];
 
         const finalCompletion = await openai.chat.completions.create({
           model: 'gpt-4o',
           messages: finalMessages,
           temperature: 0.7,
-          max_tokens: 1500
+          max_tokens: 1500,
         });
 
         return res.json({
@@ -310,8 +341,8 @@ Responda em português brasileiro de forma natural e helpful.`;
           toolCalls: toolResults,
           usage: {
             initial: completion.usage,
-            final: finalCompletion.usage
-          }
+            final: finalCompletion.usage,
+          },
         });
       }
 
@@ -319,18 +350,17 @@ Responda em português brasileiro de forma natural e helpful.`;
         success: true,
         response: response.content,
         toolCalls: [],
-        usage: completion.usage
+        usage: completion.usage,
       });
     }
-
   } catch (error) {
     console.error('Erro na AI Assistant:', error);
-    
+
     if (!res.headersSent) {
       res.status(500).json({
         success: false,
         error: error.message,
-        message: 'Erro interno da assistente de IA'
+        message: 'Erro interno da assistente de IA',
       });
     }
   }
@@ -347,16 +377,16 @@ Responda em português brasileiro de forma natural e helpful.`;
  *         description: Lista de tools disponíveis
  */
 router.get('/tools', (req, res) => {
-  const toolsInfo = openAITools.map(tool => ({
+  const toolsInfo = openAITools.map((tool) => ({
     name: tool.function.name,
     description: tool.function.description,
-    parameters: tool.function.parameters
+    parameters: tool.function.parameters,
   }));
 
   res.json({
     success: true,
     tools: toolsInfo,
-    total: toolsInfo.length
+    total: toolsInfo.length,
   });
 });
 
@@ -376,7 +406,7 @@ router.get('/health', async (req, res) => {
     const testCompletion = await openai.chat.completions.create({
       model: 'gpt-3.5-turbo',
       messages: [{ role: 'user', content: 'Test' }],
-      max_tokens: 5
+      max_tokens: 5,
     });
 
     res.json({
@@ -385,14 +415,14 @@ router.get('/health', async (req, res) => {
       openai: 'connected',
       model: 'gpt-4-turbo-preview',
       tools: openAITools.length,
-      message: 'Assistente de IA funcionando normalmente'
+      message: 'Assistente de IA funcionando normalmente',
     });
   } catch (error) {
     res.status(500).json({
       success: false,
       status: 'unhealthy',
       error: error.message,
-      message: 'Problema com a conexão do OpenAI'
+      message: 'Problema com a conexão do OpenAI',
     });
   }
 });

@@ -31,6 +31,10 @@ const swaggerOptions = {
         name: 'Informações',
         description: 'Informações da API e documentação',
       },
+      {
+        name: 'AI Assistant',
+        description: 'Assistente de IA especializada no FlowChat API',
+      },
     ],
     components: {
       securitySchemes: {
@@ -38,15 +42,15 @@ const swaggerOptions = {
           type: 'http',
           scheme: 'bearer',
           bearerFormat: 'Token',
-          description: 'Token de API do usuário. Use o formato: Bearer baileys_xxxxx'
-        }
+          description:
+            'Token de API do usuário. Use o formato: Bearer baileys_xxxxx',
+        },
       },
       schemas: {
         Session: {
           type: 'object',
           properties: {
             sessionId: {
-              
               type: 'string',
               description: 'ID único da sessão',
             },
@@ -322,15 +326,15 @@ const swaggerUiOptions = {
     tryItOutEnabled: true,
     syntaxHighlight: {
       activate: true,
-      theme: 'agate'
+      theme: 'agate',
     },
-    onComplete: function() {
+    onComplete: function () {
       // Trigger da renderização de imagens após carregar
-      setTimeout(function() {
+      setTimeout(function () {
         const event = new Event('DOMContentLoaded');
         window.dispatchEvent(event);
       }, 500);
-    }
+    },
   },
 };
 
@@ -644,15 +648,15 @@ const swaggerUiOptions = {
  *     tags:
  *       - Mensagens
  *     summary: Enviar mídia (imagem, vídeo, áudio, documento, mensagem de voz)
- *     description: | 
+ *     description: |
  *       Envia arquivos de mídia para um número específico, incluindo suporte para mensagens de voz.
- *       
+ *
  *       **NOVO: Status "Gravando Áudio"**
  *       - Quando `voiceMessage=true` é enviado, o bot automaticamente mostra o status "gravando áudio..." no chat
  *       - Simula tempo de gravação realista (3-7 segundos) antes de enviar
  *       - Remove o status corretamente após enviar (sem mostrar "digitando")
  *       - Funciona apenas com arquivos de áudio (.mp3, .wav, .ogg, .m4a)
- *       
+ *
  *       **NOVO: Caption para Mensagens de Voz**
  *       - Se `caption` for fornecida junto com `voiceMessage=true`, a legenda será enviada como uma **resposta à mensagem de voz**
  *       - Isso permite adicionar contexto às mensagens de voz mantendo a funcionalidade nativa do WhatsApp
@@ -687,9 +691,9 @@ const swaggerUiOptions = {
  *                 description: Arquivo de mídia
  *               caption:
  *                 type: string
- *                 description: | 
+ *                 description: |
  *                   Legenda para a mídia (opcional).
- *                   
+ *
  *                   **Para mensagens de voz (`voiceMessage=true`):**
  *                   - A legenda será enviada como **resposta à mensagem de voz**
  *                   - Permite adicionar contexto sem quebrar a funcionalidade nativa
@@ -700,9 +704,9 @@ const swaggerUiOptions = {
  *                 example: "minha-imagem.jpg"
  *               voiceMessage:
  *                 type: boolean
- *                 description: | 
+ *                 description: |
  *                   Se true, áudios serão enviados como mensagem de voz (PTT).
- *                   
+ *
  *                   **Comportamento adicional:**
  *                   - Ativa automaticamente o status "gravando áudio..." no chat
  *                   - Simula tempo de gravação realista (3-7 segundos)
@@ -846,11 +850,11 @@ const swaggerUiOptions = {
  *     summary: Mencionar todos os participantes do grupo
  *     description: |
  *       Envia uma mensagem para um grupo mencionando todos os participantes.
- *       
+ *
  *       **Modos disponíveis:**
  *       - **Modo Silencioso (`silentMode=true`)**: Usa caracteres invisíveis (U+200B, U+2800, U+200D) para mencionar sem @ azuis
  *       - **Modo Com Menções (`silentMode=false`)**: Envia com @ azul visível para cada participante
- *       
+ *
  *       **Funcionalidade:**
  *       - Obtém automaticamente todos os participantes do grupo via `groupMetadata`
  *       - Suporte para IDs de grupo com ou sem sufixo `@g.us`
@@ -890,12 +894,12 @@ const swaggerUiOptions = {
  *                 description: |
  *                   **true**: Usa caracteres invisíveis (Zero Width Space) para mencionar sem @ azuis
  *                   **false**: Menciona visivelmente cada participante (@ azul + notificação)
- *                   
+ *
  *                   **Técnica de caracteres invisíveis:**
  *                   - U+200B (Zero Width Space): Caractere invisível entre palavras
  *                   - U+2800 (Braille Pattern): Compatível com WhatsApp mobile
  *                   - U+200D (Zero Width Joiner): Conecta caracteres invisibilmente
- *                   
+ *
  *                   **Resultado:** Todos são mencionados mas sem @ azuis visíveis
  *                 example: true
  *     responses:
@@ -1402,9 +1406,9 @@ const swaggerUiOptions = {
  *     summary: "Configurar webhook para eventos"
  *     description: |
  *       Configura uma URL de webhook para receber eventos em tempo real da sessão.
- *       
+ *
  *       **Armazenamento:** Este endpoint salva webhooks no banco de dados MongoDB.
- *       
+ *
  *       **NOVO: Mídia em Base64**
  *       Os webhooks agora incluem automaticamente o conteúdo de arquivos de mídia em base64 para arquivos até 3MB:
  *       - Imagens (JPG, PNG, GIF, WebP)
@@ -1412,7 +1416,7 @@ const swaggerUiOptions = {
  *       - Áudios (MP3, WAV, OGG, etc.)
  *       - Documentos (PDF, DOC, etc.)
  *       - Stickers
- *       
+ *
  *       **Exemplo de payload recebido:**
  *       ```json
  *       {
@@ -1443,7 +1447,7 @@ const swaggerUiOptions = {
  *         }
  *       }
  *       ```
- *       
+ *
  *       **Para arquivos > 3MB:**
  *       ```json
  *       {
@@ -1514,7 +1518,7 @@ const swaggerUiOptions = {
  *     summary: "Obter configuração do webhook"
  *     description: |
  *       Retorna a URL do webhook configurada para a sessão.
- *       
+ *
  *       **Armazenamento:** Busca webhook no banco de dados MongoDB.
  *     security:
  *       - ApiKeyAuth: []
@@ -1553,7 +1557,7 @@ const swaggerUiOptions = {
  *     summary: "Remover webhook"
  *     description: |
  *       Remove a configuração de webhook da sessão.
- *       
+ *
  *       **Armazenamento:** Remove webhook do banco de dados MongoDB.
  *     security:
  *       - ApiKeyAuth: []
@@ -1602,7 +1606,7 @@ const swaggerUiOptions = {
  *     summary: "Listar webhooks da sessão"
  *     description: |
  *       Retorna todos os webhooks configurados para uma sessão (máximo 3).
- *       
+ *
  *       **Armazenamento:** Busca webhooks no banco de dados MongoDB.
  *     security:
  *       - ApiKeyAuth: []
@@ -1674,7 +1678,7 @@ const swaggerUiOptions = {
  *     summary: "Adicionar novo webhook"
  *     description: |
  *       Adiciona um novo webhook à sessão (máximo 3 por sessão).
- *       
+ *
  *       **Armazenamento:** Salva webhook no banco de dados MongoDB.
  *     security:
  *       - ApiKeyAuth: []
@@ -1786,7 +1790,7 @@ const swaggerUiOptions = {
  *     summary: "Obter webhook específico"
  *     description: |
  *       Retorna informações de um webhook específico.
- *       
+ *
  *       **Armazenamento:** Busca webhook no banco de dados MongoDB.
  *     security:
  *       - ApiKeyAuth: []
@@ -1857,7 +1861,7 @@ const swaggerUiOptions = {
  *     summary: "Atualizar webhook"
  *     description: |
  *       Atualiza as configurações de um webhook específico.
- *       
+ *
  *       **Armazenamento:** Atualiza webhook no banco de dados MongoDB.
  *     security:
  *       - ApiKeyAuth: []
@@ -1939,7 +1943,7 @@ const swaggerUiOptions = {
  *     summary: "Remover webhook específico"
  *     description: |
  *       Remove um webhook específico da sessão.
- *       
+ *
  *       **Armazenamento:** Remove webhook do banco de dados MongoDB.
  *     security:
  *       - ApiKeyAuth: []
@@ -1993,7 +1997,7 @@ const swaggerUiOptions = {
  *     summary: "Ativar/desativar webhook"
  *     description: |
  *       Alterna o status ativo/inativo de um webhook.
- *       
+ *
  *       **Armazenamento:** Atualiza webhook no banco de dados MongoDB.
  *     security:
  *       - ApiKeyAuth: []
@@ -2047,7 +2051,7 @@ const swaggerUiOptions = {
  *     summary: "Testar webhook"
  *     description: |
  *       Envia um payload de teste para verificar se o webhook está funcionando.
- *       
+ *
  *       **Armazenamento:** Busca webhook no banco de dados MongoDB.
  *     security:
  *       - ApiKeyAuth: []
@@ -3030,5 +3034,5 @@ const swaggerUiOptions = {
 
 module.exports = {
   swaggerSpec,
-  swaggerUiOptions
+  swaggerUiOptions,
 };

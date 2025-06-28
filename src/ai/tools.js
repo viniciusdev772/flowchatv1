@@ -2,555 +2,1742 @@ const { z } = require('zod');
 
 // Definições Zod para as tools
 const toolSchemas = {
-  // Tool para criar uma nova sessão WhatsApp
+  // ====== SESSÕES ======
   createSession: z.object({
     sessionId: z.string().describe('ID único para a nova sessão'),
-    description: z.string().optional().describe('Descrição opcional da sessão')
   }),
 
-  // Tool para listar sessões ativas
   listSessions: z.object({}),
 
-  // Tool para deletar uma sessão
   deleteSession: z.object({
-    sessionId: z.string().describe('ID da sessão a ser deletada')
+    sessionId: z.string().describe('ID da sessão a ser deletada'),
   }),
 
-  // Tool para enviar mensagem via WhatsApp
+  getSessionStatus: z.object({
+    sessionId: z.string().describe('ID da sessão'),
+  }),
+
+  regenerateQRCode: z.object({
+    sessionId: z.string().describe('ID da sessão para regenerar QR code'),
+  }),
+
+  // ====== MENSAGENS ======
   sendMessage: z.object({
     sessionId: z.string().describe('ID da sessão'),
     phone: z.string().describe('Número de telefone (formato: 5511999999999)'),
-    message: z.string().describe('Mensagem a ser enviada')
+    message: z.string().describe('Mensagem de texto a ser enviada'),
   }),
 
-  // Tool para configurar webhook
+  sendImage: z.object({
+    sessionId: z.string().describe('ID da sessão'),
+    phone: z.string().describe('Número de telefone (formato: 5511999999999)'),
+    imageUrl: z.string().url().describe('URL da imagem a ser enviada'),
+    caption: z.string().optional().describe('Legenda da imagem (opcional)'),
+  }),
+
+  sendDocument: z.object({
+    sessionId: z.string().describe('ID da sessão'),
+    phone: z.string().describe('Número de telefone (formato: 5511999999999)'),
+    documentUrl: z.string().url().describe('URL do documento a ser enviado'),
+    fileName: z.string().describe('Nome do arquivo'),
+    caption: z.string().optional().describe('Legenda do documento (opcional)'),
+  }),
+
+  sendSticker: z.object({
+    sessionId: z.string().describe('ID da sessão'),
+    phone: z.string().describe('Número de telefone (formato: 5511999999999)'),
+    stickerUrl: z
+      .string()
+      .url()
+      .describe('URL do sticker (WebP) a ser enviado'),
+  }),
+
+  // ====== WEBHOOKS ======
   setWebhook: z.object({
     sessionId: z.string().describe('ID da sessão'),
     webhookUrl: z.string().url().describe('URL do webhook'),
-    priority: z.number().min(1).max(3).default(1).describe('Prioridade do webhook (1-3)')
+    priority: z
+      .number()
+      .min(1)
+      .max(3)
+      .default(1)
+      .describe('Prioridade do webhook (1-3)'),
   }),
 
-  // Tool para listar grupos de uma sessão
+  removeWebhook: z.object({
+    sessionId: z.string().describe('ID da sessão'),
+  }),
+
+  // ====== GRUPOS ======
   listGroups: z.object({
-    sessionId: z.string().describe('ID da sessão')
+    sessionId: z.string().describe('ID da sessão'),
   }),
 
-  // Tool para criar grupo
   createGroup: z.object({
     sessionId: z.string().describe('ID da sessão'),
     groupName: z.string().describe('Nome do grupo'),
-    participants: z.array(z.string()).describe('Array de números dos participantes')
+    participants: z
+      .array(z.string())
+      .describe('Array de números dos participantes'),
   }),
 
-  // Tool para obter QR code
-  getQRCode: z.object({
-    sessionId: z.string().describe('ID da sessão')
-  }),
-
-  // Tool para verificar status da sessão
-  getSessionStatus: z.object({
-    sessionId: z.string().describe('ID da sessão')
-  }),
-
-  // Tool para buscar conversas/mensagens
-  searchMessages: z.object({
+  getGroupInfo: z.object({
     sessionId: z.string().describe('ID da sessão'),
-    query: z.string().describe('Termo de busca'),
-    limit: z.number().optional().default(10).describe('Limite de resultados')
+    groupId: z.string().describe('ID do grupo'),
   }),
 
-  // Tool para obter informações do sistema
-  getSystemInfo: z.object({})
+  addGroupParticipants: z.object({
+    sessionId: z.string().describe('ID da sessão'),
+    groupId: z.string().describe('ID do grupo'),
+    participants: z
+      .array(z.string())
+      .describe('Array de números a serem adicionados'),
+  }),
+
+  removeGroupParticipants: z.object({
+    sessionId: z.string().describe('ID da sessão'),
+    groupId: z.string().describe('ID do grupo'),
+    participants: z
+      .array(z.string())
+      .describe('Array de números a serem removidos'),
+  }),
+
+  promoteGroupParticipants: z.object({
+    sessionId: z.string().describe('ID da sessão'),
+    groupId: z.string().describe('ID do grupo'),
+    participants: z
+      .array(z.string())
+      .describe('Array de números a serem promovidos a admin'),
+  }),
+
+  demoteGroupParticipants: z.object({
+    sessionId: z.string().describe('ID da sessão'),
+    groupId: z.string().describe('ID do grupo'),
+    participants: z
+      .array(z.string())
+      .describe('Array de números a serem despromovidos'),
+  }),
+
+  updateGroupName: z.object({
+    sessionId: z.string().describe('ID da sessão'),
+    groupId: z.string().describe('ID do grupo'),
+    subject: z.string().describe('Novo nome do grupo'),
+  }),
+
+  updateGroupDescription: z.object({
+    sessionId: z.string().describe('ID da sessão'),
+    groupId: z.string().describe('ID do grupo'),
+    description: z.string().describe('Nova descrição do grupo'),
+  }),
+
+  updateGroupSettings: z.object({
+    sessionId: z.string().describe('ID da sessão'),
+    groupId: z.string().describe('ID do grupo'),
+    onlyAdminsCanSend: z
+      .boolean()
+      .optional()
+      .describe('Se apenas admins podem enviar mensagens'),
+    onlyAdminsCanEditInfo: z
+      .boolean()
+      .optional()
+      .describe('Se apenas admins podem editar informações'),
+  }),
+
+  leaveGroup: z.object({
+    sessionId: z.string().describe('ID da sessão'),
+    groupId: z.string().describe('ID do grupo'),
+  }),
+
+  getGroupInviteCode: z.object({
+    sessionId: z.string().describe('ID da sessão'),
+    groupId: z.string().describe('ID do grupo'),
+  }),
+
+  revokeGroupInviteCode: z.object({
+    sessionId: z.string().describe('ID da sessão'),
+    groupId: z.string().describe('ID do grupo'),
+  }),
+
+  // ====== SISTEMA ======
+  getSystemInfo: z.object({}),
+
+  cleanupOrphanedSessions: z.object({}),
 };
 
 // Implementações das tools
 const toolImplementations = {
-  async createSession({ sessionId, description }) {
+  // ====== SESSÕES ======
+  async createSession({ sessionId }) {
     try {
-      // Usar a lógica existente do app.js
-      const response = await fetch(`http://localhost:3000/api/baileys/${sessionId}/start`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ description })
-      });
-      
+      const response = await fetch(
+        `http://localhost:3000/api/baileys/session/create`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${
+              process.env.BAILEYS_API_TOKEN || 'baileys_default_token'
+            }`,
+          },
+          body: JSON.stringify({ sessionId }),
+        }
+      );
+
       if (!response.ok) {
-        throw new Error(`Erro ao criar sessão: ${response.statusText}`);
+        const error = await response.json();
+        throw new Error(error.error || `Erro HTTP: ${response.status}`);
       }
-      
+
       const result = await response.json();
       return {
         success: true,
         sessionId,
-        message: `Sessão '${sessionId}' criada com sucesso`,
-        data: result
+        qrCode: result.qrCode,
+        qrCodeImage: result.qrCodeImage,
+        message: `Sessão '${sessionId}' criada com sucesso. Use o QR code para autenticar.`,
+        data: result,
       };
     } catch (error) {
       return {
         success: false,
         error: error.message,
-        message: `Falha ao criar sessão: ${error.message}`
+        message: `Falha ao criar sessão '${sessionId}': ${error.message}`,
       };
     }
   },
 
   async listSessions() {
     try {
-      const sessions = global.whatsappSessions || new Map();
-      const sessionsList = Array.from(sessions.entries()).map(([id, session]) => ({
-        id,
-        status: session.status || 'unknown',
-        connected: session.sock?.user ? true : false,
-        phone: session.sock?.user?.id || null
-      }));
+      const response = await fetch(
+        `http://localhost:3000/api/baileys/sessions`,
+        {
+          headers: {
+            Authorization: `Bearer ${
+              process.env.BAILEYS_API_TOKEN || 'baileys_default_token'
+            }`,
+          },
+        }
+      );
 
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || `Erro HTTP: ${response.status}`);
+      }
+
+      const result = await response.json();
       return {
         success: true,
-        sessions: sessionsList,
-        total: sessionsList.length,
-        message: `${sessionsList.length} sessões encontradas`
+        sessions: result.sessions || [],
+        total: result.total || 0,
+        message: `${result.total || 0} sessões encontradas`,
       };
     } catch (error) {
       return {
         success: false,
         error: error.message,
-        message: `Erro ao listar sessões: ${error.message}`
+        message: `Erro ao listar sessões: ${error.message}`,
       };
     }
   },
 
   async deleteSession({ sessionId }) {
     try {
-      const response = await fetch(`http://localhost:3000/api/baileys/${sessionId}/close`, {
-        method: 'POST'
-      });
-      
+      const response = await fetch(
+        `http://localhost:3000/api/baileys/session/${sessionId}/delete`,
+        {
+          method: 'DELETE',
+          headers: {
+            Authorization: `Bearer ${
+              process.env.BAILEYS_API_TOKEN || 'baileys_default_token'
+            }`,
+          },
+        }
+      );
+
       if (!response.ok) {
-        throw new Error(`Erro ao deletar sessão: ${response.statusText}`);
+        const error = await response.json();
+        throw new Error(error.error || `Erro HTTP: ${response.status}`);
       }
-      
+
       return {
         success: true,
         sessionId,
-        message: `Sessão '${sessionId}' deletada com sucesso`
+        message: `Sessão '${sessionId}' deletada com sucesso`,
       };
     } catch (error) {
       return {
         success: false,
         error: error.message,
-        message: `Falha ao deletar sessão: ${error.message}`
-      };
-    }
-  },
-
-  async sendMessage({ sessionId, phone, message }) {
-    try {
-      const response = await fetch(`http://localhost:3000/api/baileys/${sessionId}/send-message`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          phone,
-          message
-        })
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Erro ao enviar mensagem: ${response.statusText}`);
-      }
-      
-      const result = await response.json();
-      return {
-        success: true,
-        message: `Mensagem enviada para ${phone}`,
-        data: result
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error.message,
-        message: `Falha ao enviar mensagem: ${error.message}`
-      };
-    }
-  },
-
-  async setWebhook({ sessionId, webhookUrl, priority }) {
-    try {
-      const response = await fetch(`http://localhost:3000/api/baileys/${sessionId}/set-webhook`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          webhookUrl,
-          priority
-        })
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Erro ao configurar webhook: ${response.statusText}`);
-      }
-      
-      const result = await response.json();
-      return {
-        success: true,
-        message: `Webhook configurado para sessão '${sessionId}'`,
-        webhookUrl,
-        priority,
-        data: result
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error.message,
-        message: `Falha ao configurar webhook: ${error.message}`
-      };
-    }
-  },
-
-  async listGroups({ sessionId }) {
-    try {
-      const response = await fetch(`http://localhost:3000/api/baileys/groups/${sessionId}/list`);
-      
-      if (!response.ok) {
-        throw new Error(`Erro ao listar grupos: ${response.statusText}`);
-      }
-      
-      const result = await response.json();
-      return {
-        success: true,
-        groups: result.groups || [],
-        total: result.groups?.length || 0,
-        message: `${result.groups?.length || 0} grupos encontrados`
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error.message,
-        message: `Falha ao listar grupos: ${error.message}`
-      };
-    }
-  },
-
-  async createGroup({ sessionId, groupName, participants }) {
-    try {
-      const response = await fetch(`http://localhost:3000/api/baileys/groups/${sessionId}/create`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          groupName,
-          participants
-        })
-      });
-      
-      if (!response.ok) {
-        throw new Error(`Erro ao criar grupo: ${response.statusText}`);
-      }
-      
-      const result = await response.json();
-      return {
-        success: true,
-        message: `Grupo '${groupName}' criado com sucesso`,
-        groupId: result.groupId,
-        participants,
-        data: result
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error.message,
-        message: `Falha ao criar grupo: ${error.message}`
-      };
-    }
-  },
-
-  async getQRCode({ sessionId }) {
-    try {
-      const response = await fetch(`http://localhost:3000/api/baileys/${sessionId}/qr`);
-      
-      if (!response.ok) {
-        throw new Error(`Erro ao obter QR code: ${response.statusText}`);
-      }
-      
-      const result = await response.json();
-      return {
-        success: true,
-        qrCode: result.qr,
-        message: result.qr ? 'QR code disponível' : 'QR code não disponível ou sessão já conectada'
-      };
-    } catch (error) {
-      return {
-        success: false,
-        error: error.message,
-        message: `Falha ao obter QR code: ${error.message}`
+        message: `Falha ao deletar sessão '${sessionId}': ${error.message}`,
       };
     }
   },
 
   async getSessionStatus({ sessionId }) {
     try {
-      const response = await fetch(`http://localhost:3000/api/baileys/${sessionId}/status`);
-      
+      const response = await fetch(
+        `http://localhost:3000/api/baileys/session/${sessionId}/status`,
+        {
+          headers: {
+            Authorization: `Bearer ${
+              process.env.BAILEYS_API_TOKEN || 'baileys_default_token'
+            }`,
+          },
+        }
+      );
+
       if (!response.ok) {
-        throw new Error(`Erro ao obter status: ${response.statusText}`);
+        const error = await response.json();
+        throw new Error(error.error || `Erro HTTP: ${response.status}`);
       }
-      
+
       const result = await response.json();
       return {
         success: true,
-        status: result.status,
-        connected: result.connected,
-        phone: result.phone,
-        message: `Status da sessão '${sessionId}': ${result.status}`
+        sessionId: result.sessionId,
+        isConnected: result.isConnected,
+        connectionState: result.connectionState,
+        user: result.user,
+        message: `Status da sessão '${sessionId}': ${result.connectionState}`,
       };
     } catch (error) {
       return {
         success: false,
         error: error.message,
-        message: `Falha ao obter status: ${error.message}`
+        message: `Falha ao obter status da sessão '${sessionId}': ${error.message}`,
       };
     }
   },
 
-  async searchMessages({ sessionId, query, limit }) {
+  async regenerateQRCode({ sessionId }) {
     try {
-      // Esta seria uma funcionalidade avançada - por enquanto retornamos uma simulação
+      const response = await fetch(
+        `http://localhost:3000/api/baileys/session/${sessionId}/regenerate-qr`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${
+              process.env.BAILEYS_API_TOKEN || 'baileys_default_token'
+            }`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || `Erro HTTP: ${response.status}`);
+      }
+
+      const result = await response.json();
       return {
         success: true,
-        results: [],
-        query,
-        message: `Busca por '${query}' na sessão '${sessionId}' (funcionalidade em desenvolvimento)`
+        sessionId,
+        qrCode: result.qrCode,
+        qrCodeImage: result.qrCodeImage,
+        message: `QR code regenerado para sessão '${sessionId}'`,
       };
     } catch (error) {
       return {
         success: false,
         error: error.message,
-        message: `Falha na busca: ${error.message}`
+        message: `Falha ao regenerar QR code para '${sessionId}': ${error.message}`,
       };
     }
   },
 
+  // ====== MENSAGENS ======
+  async sendMessage({ sessionId, phone, message }) {
+    try {
+      const response = await fetch(
+        `http://localhost:3000/api/baileys/session/${sessionId}/send-message`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${
+              process.env.BAILEYS_API_TOKEN || 'baileys_default_token'
+            }`,
+          },
+          body: JSON.stringify({
+            phone,
+            message,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || `Erro HTTP: ${response.status}`);
+      }
+
+      const result = await response.json();
+      return {
+        success: true,
+        message: `Mensagem enviada para ${phone}`,
+        data: result,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        message: `Falha ao enviar mensagem para ${phone}: ${error.message}`,
+      };
+    }
+  },
+
+  async sendImage({ sessionId, phone, imageUrl, caption }) {
+    try {
+      const response = await fetch(
+        `http://localhost:3000/api/baileys/session/${sessionId}/send-image`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${
+              process.env.BAILEYS_API_TOKEN || 'baileys_default_token'
+            }`,
+          },
+          body: JSON.stringify({
+            phone,
+            imageUrl,
+            caption,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || `Erro HTTP: ${response.status}`);
+      }
+
+      const result = await response.json();
+      return {
+        success: true,
+        message: `Imagem enviada para ${phone}${
+          caption ? ` com legenda: "${caption}"` : ''
+        }`,
+        data: result,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        message: `Falha ao enviar imagem para ${phone}: ${error.message}`,
+      };
+    }
+  },
+
+  async sendDocument({ sessionId, phone, documentUrl, fileName, caption }) {
+    try {
+      const response = await fetch(
+        `http://localhost:3000/api/baileys/session/${sessionId}/send-document`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${
+              process.env.BAILEYS_API_TOKEN || 'baileys_default_token'
+            }`,
+          },
+          body: JSON.stringify({
+            phone,
+            documentUrl,
+            fileName,
+            caption,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || `Erro HTTP: ${response.status}`);
+      }
+
+      const result = await response.json();
+      return {
+        success: true,
+        message: `Documento "${fileName}" enviado para ${phone}`,
+        data: result,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        message: `Falha ao enviar documento para ${phone}: ${error.message}`,
+      };
+    }
+  },
+
+  async sendSticker({ sessionId, phone, stickerUrl }) {
+    try {
+      const response = await fetch(
+        `http://localhost:3000/api/baileys/session/${sessionId}/send-sticker`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${
+              process.env.BAILEYS_API_TOKEN || 'baileys_default_token'
+            }`,
+          },
+          body: JSON.stringify({
+            phone,
+            stickerUrl,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || `Erro HTTP: ${response.status}`);
+      }
+
+      const result = await response.json();
+      return {
+        success: true,
+        message: `Sticker enviado para ${phone}`,
+        data: result,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        message: `Falha ao enviar sticker para ${phone}: ${error.message}`,
+      };
+    }
+  },
+
+  // ====== WEBHOOKS ======
+  async setWebhook({ sessionId, webhookUrl, priority = 1 }) {
+    try {
+      const response = await fetch(
+        `http://localhost:3000/api/baileys/session/${sessionId}/webhook`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${
+              process.env.BAILEYS_API_TOKEN || 'baileys_default_token'
+            }`,
+          },
+          body: JSON.stringify({
+            webhookUrl,
+            priority,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || `Erro HTTP: ${response.status}`);
+      }
+
+      const result = await response.json();
+      return {
+        success: true,
+        message: `Webhook configurado para sessão '${sessionId}': ${webhookUrl}`,
+        webhookUrl,
+        priority,
+        data: result,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        message: `Falha ao configurar webhook para '${sessionId}': ${error.message}`,
+      };
+    }
+  },
+
+  async removeWebhook({ sessionId }) {
+    try {
+      const response = await fetch(
+        `http://localhost:3000/api/baileys/session/${sessionId}/webhook`,
+        {
+          method: 'DELETE',
+          headers: {
+            Authorization: `Bearer ${
+              process.env.BAILEYS_API_TOKEN || 'baileys_default_token'
+            }`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || `Erro HTTP: ${response.status}`);
+      }
+
+      return {
+        success: true,
+        message: `Webhook removido da sessão '${sessionId}'`,
+        sessionId,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        message: `Falha ao remover webhook da sessão '${sessionId}': ${error.message}`,
+      };
+    }
+  },
+  // ====== GRUPOS ======
+  async listGroups({ sessionId }) {
+    try {
+      const response = await fetch(
+        `http://localhost:3000/api/baileys/groups/${sessionId}/list`,
+        {
+          headers: {
+            Authorization: `Bearer ${
+              process.env.BAILEYS_API_TOKEN || 'baileys_default_token'
+            }`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || `Erro HTTP: ${response.status}`);
+      }
+
+      const result = await response.json();
+      return {
+        success: true,
+        groups: result.groups || [],
+        total: result.total || 0,
+        message: `${
+          result.total || 0
+        } grupos encontrados na sessão '${sessionId}'`,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        message: `Falha ao listar grupos da sessão '${sessionId}': ${error.message}`,
+      };
+    }
+  },
+
+  async createGroup({ sessionId, groupName, participants }) {
+    try {
+      const response = await fetch(
+        `http://localhost:3000/api/baileys/groups/${sessionId}/create`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${
+              process.env.BAILEYS_API_TOKEN || 'baileys_default_token'
+            }`,
+          },
+          body: JSON.stringify({
+            groupName,
+            participants,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || `Erro HTTP: ${response.status}`);
+      }
+
+      const result = await response.json();
+      return {
+        success: true,
+        message: `Grupo '${groupName}' criado com sucesso`,
+        groupId: result.groupId,
+        participants,
+        data: result,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        message: `Falha ao criar grupo '${groupName}': ${error.message}`,
+      };
+    }
+  },
+
+  async getGroupInfo({ sessionId, groupId }) {
+    try {
+      const response = await fetch(
+        `http://localhost:3000/api/baileys/groups/${sessionId}/${groupId}/info`,
+        {
+          headers: {
+            Authorization: `Bearer ${
+              process.env.BAILEYS_API_TOKEN || 'baileys_default_token'
+            }`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || `Erro HTTP: ${response.status}`);
+      }
+
+      const result = await response.json();
+      return {
+        success: true,
+        groupInfo: result.groupInfo,
+        message: `Informações do grupo obtidas com sucesso`,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        message: `Falha ao obter informações do grupo: ${error.message}`,
+      };
+    }
+  },
+
+  async addGroupParticipants({ sessionId, groupId, participants }) {
+    try {
+      const response = await fetch(
+        `http://localhost:3000/api/baileys/groups/${sessionId}/${groupId}/add-participants`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${
+              process.env.BAILEYS_API_TOKEN || 'baileys_default_token'
+            }`,
+          },
+          body: JSON.stringify({ participants }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || `Erro HTTP: ${response.status}`);
+      }
+
+      const result = await response.json();
+      return {
+        success: true,
+        message: `${participants.length} participantes adicionados ao grupo`,
+        addedParticipants: result.addedParticipants,
+        data: result,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        message: `Falha ao adicionar participantes: ${error.message}`,
+      };
+    }
+  },
+
+  async removeGroupParticipants({ sessionId, groupId, participants }) {
+    try {
+      const response = await fetch(
+        `http://localhost:3000/api/baileys/groups/${sessionId}/${groupId}/remove-participants`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${
+              process.env.BAILEYS_API_TOKEN || 'baileys_default_token'
+            }`,
+          },
+          body: JSON.stringify({ participants }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || `Erro HTTP: ${response.status}`);
+      }
+
+      const result = await response.json();
+      return {
+        success: true,
+        message: `${participants.length} participantes removidos do grupo`,
+        removedParticipants: result.removedParticipants,
+        data: result,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        message: `Falha ao remover participantes: ${error.message}`,
+      };
+    }
+  },
+
+  async promoteGroupParticipants({ sessionId, groupId, participants }) {
+    try {
+      const response = await fetch(
+        `http://localhost:3000/api/baileys/groups/${sessionId}/${groupId}/promote`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${
+              process.env.BAILEYS_API_TOKEN || 'baileys_default_token'
+            }`,
+          },
+          body: JSON.stringify({ participants }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || `Erro HTTP: ${response.status}`);
+      }
+
+      const result = await response.json();
+      return {
+        success: true,
+        message: `${participants.length} participantes promovidos a admin`,
+        promotedParticipants: result.promotedParticipants,
+        data: result,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        message: `Falha ao promover participantes: ${error.message}`,
+      };
+    }
+  },
+
+  async demoteGroupParticipants({ sessionId, groupId, participants }) {
+    try {
+      const response = await fetch(
+        `http://localhost:3000/api/baileys/groups/${sessionId}/${groupId}/demote`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${
+              process.env.BAILEYS_API_TOKEN || 'baileys_default_token'
+            }`,
+          },
+          body: JSON.stringify({ participants }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || `Erro HTTP: ${response.status}`);
+      }
+
+      const result = await response.json();
+      return {
+        success: true,
+        message: `${participants.length} admins despromovidos`,
+        demotedParticipants: result.demotedParticipants,
+        data: result,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        message: `Falha ao despromover participantes: ${error.message}`,
+      };
+    }
+  },
+
+  async updateGroupName({ sessionId, groupId, subject }) {
+    try {
+      const response = await fetch(
+        `http://localhost:3000/api/baileys/groups/${sessionId}/${groupId}/subject`,
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${
+              process.env.BAILEYS_API_TOKEN || 'baileys_default_token'
+            }`,
+          },
+          body: JSON.stringify({ subject }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || `Erro HTTP: ${response.status}`);
+      }
+
+      const result = await response.json();
+      return {
+        success: true,
+        message: `Nome do grupo atualizado para: "${subject}"`,
+        newSubject: result.newSubject,
+        data: result,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        message: `Falha ao atualizar nome do grupo: ${error.message}`,
+      };
+    }
+  },
+
+  async updateGroupDescription({ sessionId, groupId, description }) {
+    try {
+      const response = await fetch(
+        `http://localhost:3000/api/baileys/groups/${sessionId}/${groupId}/description`,
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${
+              process.env.BAILEYS_API_TOKEN || 'baileys_default_token'
+            }`,
+          },
+          body: JSON.stringify({ description }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || `Erro HTTP: ${response.status}`);
+      }
+
+      const result = await response.json();
+      return {
+        success: true,
+        message: `Descrição do grupo atualizada`,
+        newDescription: result.newDescription,
+        data: result,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        message: `Falha ao atualizar descrição do grupo: ${error.message}`,
+      };
+    }
+  },
+
+  async updateGroupSettings({
+    sessionId,
+    groupId,
+    onlyAdminsCanSend,
+    onlyAdminsCanEditInfo,
+  }) {
+    try {
+      const response = await fetch(
+        `http://localhost:3000/api/baileys/groups/${sessionId}/${groupId}/settings`,
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${
+              process.env.BAILEYS_API_TOKEN || 'baileys_default_token'
+            }`,
+          },
+          body: JSON.stringify({
+            onlyAdminsCanSend,
+            onlyAdminsCanEditInfo,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || `Erro HTTP: ${response.status}`);
+      }
+
+      const result = await response.json();
+      return {
+        success: true,
+        message: `Configurações do grupo atualizadas`,
+        settings: result.settings,
+        data: result,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        message: `Falha ao atualizar configurações do grupo: ${error.message}`,
+      };
+    }
+  },
+
+  async leaveGroup({ sessionId, groupId }) {
+    try {
+      const response = await fetch(
+        `http://localhost:3000/api/baileys/groups/${sessionId}/${groupId}/leave`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${
+              process.env.BAILEYS_API_TOKEN || 'baileys_default_token'
+            }`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || `Erro HTTP: ${response.status}`);
+      }
+
+      return {
+        success: true,
+        message: `Saiu do grupo com sucesso`,
+        groupId,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        message: `Falha ao sair do grupo: ${error.message}`,
+      };
+    }
+  },
+
+  async getGroupInviteCode({ sessionId, groupId }) {
+    try {
+      const response = await fetch(
+        `http://localhost:3000/api/baileys/groups/${sessionId}/${groupId}/invite-code`,
+        {
+          headers: {
+            Authorization: `Bearer ${
+              process.env.BAILEYS_API_TOKEN || 'baileys_default_token'
+            }`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || `Erro HTTP: ${response.status}`);
+      }
+
+      const result = await response.json();
+      return {
+        success: true,
+        inviteCode: result.inviteCode,
+        inviteLink: result.inviteLink,
+        message: `Código de convite obtido: ${result.inviteLink}`,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        message: `Falha ao obter código de convite: ${error.message}`,
+      };
+    }
+  },
+
+  async revokeGroupInviteCode({ sessionId, groupId }) {
+    try {
+      const response = await fetch(
+        `http://localhost:3000/api/baileys/groups/${sessionId}/${groupId}/revoke-invite`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${
+              process.env.BAILEYS_API_TOKEN || 'baileys_default_token'
+            }`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || `Erro HTTP: ${response.status}`);
+      }
+
+      const result = await response.json();
+      return {
+        success: true,
+        newInviteCode: result.newInviteCode,
+        newInviteLink: result.newInviteLink,
+        message: `Código de convite revogado. Novo link: ${result.newInviteLink}`,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        message: `Falha ao revogar código de convite: ${error.message}`,
+      };
+    }
+  },
+
+  // ====== SISTEMA ======
   async getSystemInfo() {
     try {
-      const sessions = global.whatsappSessions || new Map();
-      const activeSessions = Array.from(sessions.values()).filter(s => s.sock?.user).length;
-      
+      const response = await fetch(
+        `http://localhost:3000/api/baileys/system/info`,
+        {
+          headers: {
+            Authorization: `Bearer ${
+              process.env.BAILEYS_API_TOKEN || 'baileys_default_token'
+            }`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        // Se não existe rota específica, usar informações locais
+        return {
+          success: true,
+          info: {
+            uptime: process.uptime(),
+            memory: process.memoryUsage(),
+            nodeVersion: process.version,
+            platform: process.platform,
+            timestamp: new Date().toISOString(),
+          },
+          message: 'Informações do sistema coletadas',
+        };
+      }
+
+      const result = await response.json();
       return {
         success: true,
-        info: {
-          totalSessions: sessions.size,
-          activeSessions,
-          uptime: process.uptime(),
-          memory: process.memoryUsage(),
-          nodeVersion: process.version,
-          platform: process.platform
-        },
-        message: 'Informações do sistema coletadas'
+        info: result.info || result,
+        message: 'Informações do sistema obtidas',
       };
     } catch (error) {
       return {
         success: false,
         error: error.message,
-        message: `Falha ao obter informações: ${error.message}`
+        message: `Falha ao obter informações do sistema: ${error.message}`,
       };
     }
-  }
+  },
+
+  async cleanupOrphanedSessions() {
+    try {
+      const response = await fetch(
+        `http://localhost:3000/api/baileys/sessions/cleanup-orphaned`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${
+              process.env.BAILEYS_API_TOKEN || 'baileys_default_token'
+            }`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || `Erro HTTP: ${response.status}`);
+      }
+
+      const result = await response.json();
+      return {
+        success: true,
+        message: result.message || 'Limpeza de sessões órfãs concluída',
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        message: `Falha na limpeza de sessões órfãs: ${error.message}`,
+      };
+    }
+  },
 };
 
 // Definição das tools para OpenAI
 const openAITools = [
+  // ====== SESSÕES ======
   {
-    type: "function",
+    type: 'function',
     function: {
-      name: "createSession",
-      description: "Cria uma nova sessão WhatsApp com ID específico",
+      name: 'createSession',
+      description:
+        'Cria uma nova sessão WhatsApp com ID específico e retorna QR code para autenticação',
       parameters: {
-        type: "object",
+        type: 'object',
         properties: {
           sessionId: {
-            type: "string",
-            description: "ID único para a nova sessão"
+            type: 'string',
+            description: 'ID único para a nova sessão',
           },
-          description: {
-            type: "string", 
-            description: "Descrição opcional da sessão"
-          }
         },
-        required: ["sessionId"]
-      }
-    }
+        required: ['sessionId'],
+      },
+    },
   },
   {
-    type: "function",
+    type: 'function',
     function: {
-      name: "listSessions",
-      description: "Lista todas as sessões WhatsApp ativas no sistema",
+      name: 'listSessions',
+      description:
+        'Lista todas as sessões WhatsApp ativas no sistema com seus status',
       parameters: {
-        type: "object",
-        properties: {}
-      }
-    }
+        type: 'object',
+        properties: {},
+      },
+    },
   },
   {
-    type: "function",
+    type: 'function',
     function: {
-      name: "deleteSession",
-      description: "Remove/fecha uma sessão WhatsApp específica",
+      name: 'deleteSession',
+      description: 'Remove/fecha uma sessão WhatsApp específica',
       parameters: {
-        type: "object",
+        type: 'object',
         properties: {
           sessionId: {
-            type: "string",
-            description: "ID da sessão a ser deletada"
-          }
+            type: 'string',
+            description: 'ID da sessão a ser deletada',
+          },
         },
-        required: ["sessionId"]
-      }
-    }
+        required: ['sessionId'],
+      },
+    },
   },
   {
-    type: "function",
+    type: 'function',
     function: {
-      name: "sendMessage",
-      description: "Envia uma mensagem de texto via WhatsApp",
+      name: 'getSessionStatus',
+      description: 'Verifica o status detalhado de conexão de uma sessão',
       parameters: {
-        type: "object",
+        type: 'object',
         properties: {
           sessionId: {
-            type: "string",
-            description: "ID da sessão WhatsApp"
+            type: 'string',
+            description: 'ID da sessão',
+          },
+        },
+        required: ['sessionId'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'regenerateQRCode',
+      description: 'Regenera o QR code para uma sessão que não está conectada',
+      parameters: {
+        type: 'object',
+        properties: {
+          sessionId: {
+            type: 'string',
+            description: 'ID da sessão para regenerar QR code',
+          },
+        },
+        required: ['sessionId'],
+      },
+    },
+  },
+
+  // ====== MENSAGENS ======
+  {
+    type: 'function',
+    function: {
+      name: 'sendMessage',
+      description: 'Envia uma mensagem de texto via WhatsApp',
+      parameters: {
+        type: 'object',
+        properties: {
+          sessionId: {
+            type: 'string',
+            description: 'ID da sessão WhatsApp',
           },
           phone: {
-            type: "string",
-            description: "Número de telefone no formato internacional (ex: 5511999999999)"
+            type: 'string',
+            description:
+              'Número de telefone no formato internacional (ex: 5511999999999)',
           },
           message: {
-            type: "string",
-            description: "Conteúdo da mensagem a ser enviada"
-          }
+            type: 'string',
+            description: 'Conteúdo da mensagem de texto a ser enviada',
+          },
         },
-        required: ["sessionId", "phone", "message"]
-      }
-    }
+        required: ['sessionId', 'phone', 'message'],
+      },
+    },
   },
   {
-    type: "function",
+    type: 'function',
     function: {
-      name: "setWebhook", 
-      description: "Configura um webhook para receber eventos de uma sessão",
+      name: 'sendImage',
+      description: 'Envia uma imagem via WhatsApp com legenda opcional',
       parameters: {
-        type: "object",
+        type: 'object',
         properties: {
           sessionId: {
-            type: "string",
-            description: "ID da sessão"
+            type: 'string',
+            description: 'ID da sessão WhatsApp',
+          },
+          phone: {
+            type: 'string',
+            description: 'Número de telefone no formato internacional',
+          },
+          imageUrl: {
+            type: 'string',
+            description: 'URL da imagem a ser enviada',
+          },
+          caption: {
+            type: 'string',
+            description: 'Legenda da imagem (opcional)',
+          },
+        },
+        required: ['sessionId', 'phone', 'imageUrl'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'sendDocument',
+      description: 'Envia um documento via WhatsApp',
+      parameters: {
+        type: 'object',
+        properties: {
+          sessionId: {
+            type: 'string',
+            description: 'ID da sessão WhatsApp',
+          },
+          phone: {
+            type: 'string',
+            description: 'Número de telefone no formato internacional',
+          },
+          documentUrl: {
+            type: 'string',
+            description: 'URL do documento a ser enviado',
+          },
+          fileName: {
+            type: 'string',
+            description: 'Nome do arquivo',
+          },
+          caption: {
+            type: 'string',
+            description: 'Legenda do documento (opcional)',
+          },
+        },
+        required: ['sessionId', 'phone', 'documentUrl', 'fileName'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'sendSticker',
+      description: 'Envia um sticker (figurinha) via WhatsApp',
+      parameters: {
+        type: 'object',
+        properties: {
+          sessionId: {
+            type: 'string',
+            description: 'ID da sessão WhatsApp',
+          },
+          phone: {
+            type: 'string',
+            description: 'Número de telefone no formato internacional',
+          },
+          stickerUrl: {
+            type: 'string',
+            description: 'URL do sticker em formato WebP',
+          },
+        },
+        required: ['sessionId', 'phone', 'stickerUrl'],
+      },
+    },
+  },
+
+  // ====== WEBHOOKS ======
+  {
+    type: 'function',
+    function: {
+      name: 'setWebhook',
+      description: 'Configura um webhook para receber eventos de uma sessão',
+      parameters: {
+        type: 'object',
+        properties: {
+          sessionId: {
+            type: 'string',
+            description: 'ID da sessão',
           },
           webhookUrl: {
-            type: "string",
-            description: "URL do webhook que receberá os eventos"
+            type: 'string',
+            description: 'URL do webhook que receberá os eventos',
           },
           priority: {
-            type: "number",
-            description: "Prioridade do webhook (1-3, sendo 1 a maior prioridade)",
+            type: 'number',
+            description:
+              'Prioridade do webhook (1-3, sendo 1 a maior prioridade)',
             minimum: 1,
-            maximum: 3
-          }
+            maximum: 3,
+          },
         },
-        required: ["sessionId", "webhookUrl"]
-      }
-    }
+        required: ['sessionId', 'webhookUrl'],
+      },
+    },
   },
   {
-    type: "function",
+    type: 'function',
     function: {
-      name: "listGroups",
-      description: "Lista todos os grupos WhatsApp de uma sessão",
+      name: 'removeWebhook',
+      description: 'Remove o webhook configurado de uma sessão',
       parameters: {
-        type: "object",
+        type: 'object',
         properties: {
           sessionId: {
-            type: "string",
-            description: "ID da sessão"
-          }
+            type: 'string',
+            description: 'ID da sessão',
+          },
         },
-        required: ["sessionId"]
-      }
-    }
+        required: ['sessionId'],
+      },
+    },
+  },
+
+  // ====== GRUPOS ======
+  {
+    type: 'function',
+    function: {
+      name: 'listGroups',
+      description: 'Lista todos os grupos WhatsApp de uma sessão',
+      parameters: {
+        type: 'object',
+        properties: {
+          sessionId: {
+            type: 'string',
+            description: 'ID da sessão',
+          },
+        },
+        required: ['sessionId'],
+      },
+    },
   },
   {
-    type: "function",
+    type: 'function',
     function: {
-      name: "createGroup",
-      description: "Cria um novo grupo WhatsApp",
+      name: 'createGroup',
+      description: 'Cria um novo grupo WhatsApp',
       parameters: {
-        type: "object",
+        type: 'object',
         properties: {
           sessionId: {
-            type: "string",
-            description: "ID da sessão"
+            type: 'string',
+            description: 'ID da sessão',
           },
           groupName: {
-            type: "string",
-            description: "Nome do grupo"
+            type: 'string',
+            description: 'Nome do grupo',
           },
           participants: {
-            type: "array",
+            type: 'array',
             items: {
-              type: "string"
+              type: 'string',
             },
-            description: "Array de números de telefone dos participantes"
-          }
+            description: 'Array de números de telefone dos participantes',
+          },
         },
-        required: ["sessionId", "groupName", "participants"]
-      }
-    }
+        required: ['sessionId', 'groupName', 'participants'],
+      },
+    },
   },
   {
-    type: "function",
+    type: 'function',
     function: {
-      name: "getQRCode",
-      description: "Obtém o QR code para autenticação de uma sessão",
+      name: 'getGroupInfo',
+      description: 'Obtém informações detalhadas de um grupo específico',
       parameters: {
-        type: "object",
+        type: 'object',
         properties: {
           sessionId: {
-            type: "string",
-            description: "ID da sessão"
-          }
+            type: 'string',
+            description: 'ID da sessão',
+          },
+          groupId: {
+            type: 'string',
+            description: 'ID do grupo',
+          },
         },
-        required: ["sessionId"]
-      }
-    }
+        required: ['sessionId', 'groupId'],
+      },
+    },
   },
   {
-    type: "function",
+    type: 'function',
     function: {
-      name: "getSessionStatus",
-      description: "Verifica o status de conexão de uma sessão",
+      name: 'addGroupParticipants',
+      description: 'Adiciona participantes a um grupo WhatsApp',
       parameters: {
-        type: "object",
+        type: 'object',
         properties: {
           sessionId: {
-            type: "string",
-            description: "ID da sessão"
-          }
+            type: 'string',
+            description: 'ID da sessão',
+          },
+          groupId: {
+            type: 'string',
+            description: 'ID do grupo',
+          },
+          participants: {
+            type: 'array',
+            items: {
+              type: 'string',
+            },
+            description:
+              'Array de números dos participantes a serem adicionados',
+          },
         },
-        required: ["sessionId"]
-      }
-    }
+        required: ['sessionId', 'groupId', 'participants'],
+      },
+    },
   },
   {
-    type: "function",
+    type: 'function',
     function: {
-      name: "getSystemInfo",
-      description: "Obtém informações gerais do sistema e estatísticas",
+      name: 'removeGroupParticipants',
+      description: 'Remove participantes de um grupo WhatsApp',
       parameters: {
-        type: "object",
-        properties: {}
-      }
-    }
-  }
+        type: 'object',
+        properties: {
+          sessionId: {
+            type: 'string',
+            description: 'ID da sessão',
+          },
+          groupId: {
+            type: 'string',
+            description: 'ID do grupo',
+          },
+          participants: {
+            type: 'array',
+            items: {
+              type: 'string',
+            },
+            description: 'Array de números dos participantes a serem removidos',
+          },
+        },
+        required: ['sessionId', 'groupId', 'participants'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'promoteGroupParticipants',
+      description: 'Promove participantes a administradores do grupo',
+      parameters: {
+        type: 'object',
+        properties: {
+          sessionId: {
+            type: 'string',
+            description: 'ID da sessão',
+          },
+          groupId: {
+            type: 'string',
+            description: 'ID do grupo',
+          },
+          participants: {
+            type: 'array',
+            items: {
+              type: 'string',
+            },
+            description: 'Array de números a serem promovidos a admin',
+          },
+        },
+        required: ['sessionId', 'groupId', 'participants'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'demoteGroupParticipants',
+      description: 'Remove privilégios de administrador de participantes',
+      parameters: {
+        type: 'object',
+        properties: {
+          sessionId: {
+            type: 'string',
+            description: 'ID da sessão',
+          },
+          groupId: {
+            type: 'string',
+            description: 'ID do grupo',
+          },
+          participants: {
+            type: 'array',
+            items: {
+              type: 'string',
+            },
+            description: 'Array de números a serem despromovidos',
+          },
+        },
+        required: ['sessionId', 'groupId', 'participants'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'updateGroupName',
+      description: 'Atualiza o nome/assunto de um grupo',
+      parameters: {
+        type: 'object',
+        properties: {
+          sessionId: {
+            type: 'string',
+            description: 'ID da sessão',
+          },
+          groupId: {
+            type: 'string',
+            description: 'ID do grupo',
+          },
+          subject: {
+            type: 'string',
+            description: 'Novo nome do grupo',
+          },
+        },
+        required: ['sessionId', 'groupId', 'subject'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'updateGroupDescription',
+      description: 'Atualiza a descrição de um grupo',
+      parameters: {
+        type: 'object',
+        properties: {
+          sessionId: {
+            type: 'string',
+            description: 'ID da sessão',
+          },
+          groupId: {
+            type: 'string',
+            description: 'ID do grupo',
+          },
+          description: {
+            type: 'string',
+            description: 'Nova descrição do grupo',
+          },
+        },
+        required: ['sessionId', 'groupId', 'description'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'updateGroupSettings',
+      description:
+        'Configura permissões do grupo (quem pode enviar mensagens e editar informações)',
+      parameters: {
+        type: 'object',
+        properties: {
+          sessionId: {
+            type: 'string',
+            description: 'ID da sessão',
+          },
+          groupId: {
+            type: 'string',
+            description: 'ID do grupo',
+          },
+          onlyAdminsCanSend: {
+            type: 'boolean',
+            description: 'Se apenas admins podem enviar mensagens',
+          },
+          onlyAdminsCanEditInfo: {
+            type: 'boolean',
+            description: 'Se apenas admins podem editar informações do grupo',
+          },
+        },
+        required: ['sessionId', 'groupId'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'leaveGroup',
+      description: 'Remove a sessão atual de um grupo (sair do grupo)',
+      parameters: {
+        type: 'object',
+        properties: {
+          sessionId: {
+            type: 'string',
+            description: 'ID da sessão',
+          },
+          groupId: {
+            type: 'string',
+            description: 'ID do grupo',
+          },
+        },
+        required: ['sessionId', 'groupId'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'getGroupInviteCode',
+      description: 'Obtém o código de convite do grupo para compartilhar',
+      parameters: {
+        type: 'object',
+        properties: {
+          sessionId: {
+            type: 'string',
+            description: 'ID da sessão',
+          },
+          groupId: {
+            type: 'string',
+            description: 'ID do grupo',
+          },
+        },
+        required: ['sessionId', 'groupId'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'revokeGroupInviteCode',
+      description: 'Revoga o código de convite atual do grupo e gera um novo',
+      parameters: {
+        type: 'object',
+        properties: {
+          sessionId: {
+            type: 'string',
+            description: 'ID da sessão',
+          },
+          groupId: {
+            type: 'string',
+            description: 'ID do grupo',
+          },
+        },
+        required: ['sessionId', 'groupId'],
+      },
+    },
+  },
+
+  // ====== SISTEMA ======
+  {
+    type: 'function',
+    function: {
+      name: 'getSystemInfo',
+      description: 'Obtém informações gerais do sistema e estatísticas de uso',
+      parameters: {
+        type: 'object',
+        properties: {},
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'cleanupOrphanedSessions',
+      description:
+        'Remove sessões órfãs que não estão associadas a nenhum usuário',
+      parameters: {
+        type: 'object',
+        properties: {},
+      },
+    },
+  },
 ];
 
 module.exports = {
   toolSchemas,
   toolImplementations,
-  openAITools
+  openAITools,
 };
