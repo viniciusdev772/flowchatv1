@@ -25,7 +25,8 @@
       "WebFetch(domain:baileys.wiki)",
       "WebFetch(domain:guide.whiskeysockets.io)",
       "WebFetch(domain:support.whapi.cloud)",
-      "WebFetch(domain:unicode-explorer.com)"
+      "WebFetch(domain:unicode-explorer.com)",
+      "mcp__magic-server__21st_magic_component_inspiration"
     ],
     "deny": []
   }
