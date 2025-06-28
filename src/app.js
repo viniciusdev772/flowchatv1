@@ -52,8 +52,16 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Apply API token authentication to all /api/baileys routes
-app.use('/api/baileys', apiTokenAuth);
+// Apply API token authentication to all /api/baileys routes EXCEPT download routes
+app.use('/api/baileys', (req, res, next) => {
+  // Permitir download direto sem autenticação
+  if (req.path.startsWith('/download/')) {
+    logger.info(`🔓 Download público acessado: ${req.path} - IP: ${req.ip}`);
+    return next();
+  }
+  // Aplicar autenticação para outras rotas
+  return apiTokenAuth(req, res, next);
+});
 
 // Documentação Swagger
 app.use(
@@ -1082,6 +1090,18 @@ function getMessageById(sessionId, messageId) {
 // Função para buscar informações de contato/grupo (para webhooks)
 async function getContactOrGroupInfo(jid, sock) {
   try {
+    // Validate jid parameter
+    if (!jid || typeof jid !== 'string') {
+      logger.warn(`getContactOrGroupInfo chamado com jid inválido: ${jid}`);
+      return {
+        type: 'unknown',
+        name: 'ID inválido',
+        number: 'unknown',
+        exists: false,
+        isRegistered: false,
+      };
+    }
+
     if (jid.endsWith('@g.us')) {
       // É um grupo - buscar metadados do grupo
       try {
@@ -1126,7 +1146,7 @@ async function getContactOrGroupInfo(jid, sock) {
         return {
           type: 'group',
           jid: jid,
-          name: `Grupo ${jid.split('@')[0]}`,
+          name: `Grupo ${jid.includes('@') ? jid.split('@')[0] : jid}`,
           participants: 0,
           description: null,
           createdAt: null,
@@ -1144,13 +1164,13 @@ async function getContactOrGroupInfo(jid, sock) {
       // É um contato individual - buscar nome
       try {
         // Tentar buscar nome do contato na agenda
-        const contactInfo = await sock.onWhatsApp(jid.split('@')[0]);
+        const contactInfo = await sock.onWhatsApp(jid.includes('@') ? jid.split('@')[0] : jid);
         if (contactInfo && contactInfo.length > 0) {
           return {
             type: 'contact',
             name:
-              contactInfo[0].name || contactInfo[0].notify || jid.split('@')[0],
-            number: jid.split('@')[0],
+              contactInfo[0].name || contactInfo[0].notify || (jid.includes('@') ? jid.split('@')[0] : jid),
+            number: jid.includes('@') ? jid.split('@')[0] : jid,
             exists: contactInfo[0].exists,
             isRegistered: true,
           };
@@ -1164,8 +1184,8 @@ async function getContactOrGroupInfo(jid, sock) {
       // Fallback para número apenas
       return {
         type: 'contact',
-        name: jid.split('@')[0],
-        number: jid.split('@')[0],
+        name: jid.includes('@') ? jid.split('@')[0] : jid,
+        number: jid.includes('@') ? jid.split('@')[0] : jid,
         exists: true,
         isRegistered: false,
       };
@@ -1204,43 +1224,97 @@ async function sendWebhook(sessionId, eventType, data) {
       return;
     }
 
+    // Filtrar mensagens de tipo não suportado para evitar spam de webhooks
+    if (eventType === 'messages.upsert' && data) {
+      // Lista de critérios para filtrar mensagens não suportadas
+      const isUnsupportedMessage = (
+        data.messageType === 'unknown' || 
+        data.content === 'Tipo de mensagem não suportado' ||
+        (data.messageType === null && data.content === 'Tipo de mensagem não suportado') ||
+        // Filtrar mensagens vazias ou malformadas
+        (!data.messageType && !data.content && !data.mediaData && !data.mediaDownload)
+      );
+      
+      if (isUnsupportedMessage) {
+        logger.info(`🚫 Mensagem filtrada (tipo não suportado) - Session: ${sessionId}, Type: ${data.messageType || 'null'}, Content: "${data.content || 'empty'}"`);
+        return;
+      }
+    }
+
     // Enriquecer dados com informações de contato/grupo se disponível
     let enrichedData = { ...data };
 
-    if (data.remoteJid && eventType === 'message.upsert') {
+    if (data.chat?.id && eventType === 'messages.upsert') {
       const session = sessions.get(sessionId);
       if (session && session.sock) {
         try {
           const chatInfo = await getContactOrGroupInfo(
-            data.remoteJid,
+            data.chat.id,
             session.sock
           );
-          enrichedData.chatInfo = chatInfo;
+          
+          // Enhanced chat information organization
+          enrichedData.chat = {
+            ...enrichedData.chat,
+            name: chatInfo.name,
+            type: chatInfo.type,
+            isGroup: chatInfo.type === 'group'
+          };
+          
+          // Add group-specific information
+          if (chatInfo.type === 'group') {
+            enrichedData.chat.group = {
+              name: chatInfo.name,
+              description: chatInfo.description,
+              participantCount: chatInfo.participantCount,
+              isAnnounce: chatInfo.isAnnounce,
+              isRestrict: chatInfo.isRestrict,
+              createdAt: chatInfo.createdAt,
+              admins: chatInfo.admins || [],
+              superAdmins: chatInfo.superAdmins || []
+            };
+          } else {
+            // Add private chat information
+            enrichedData.chat.contact = {
+              name: chatInfo.name,
+              number: data.chat?.id ? data.chat.id.split('@')[0] : 'unknown',
+              isRegistered: chatInfo.isRegistered
+            };
+          }
 
-          // Se for grupo e há um participante, adicionar info do participante
-          if (chatInfo.type === 'group' && data.participant) {
+          // Enhanced participant information for group messages
+          if (chatInfo.type === 'group' && data.sender.id && !data.sender.isMe) {
             try {
               const participantInfo = await getContactOrGroupInfo(
-                data.participant,
+                data.sender.id,
                 session.sock
               );
-              enrichedData.participantInfo = {
-                jid: data.participant,
-                number: data.participant.split('@')[0],
+              
+              enrichedData.sender = {
+                ...enrichedData.sender,
                 name: participantInfo.name,
-                pushName: data.pushName || null,
+                number: data.sender?.id ? data.sender.id.split('@')[0] : 'unknown',
+                isRegistered: participantInfo.isRegistered
               };
             } catch (error) {
               logger.warn(
-                `Erro ao buscar info do participante ${data.participant}: ${error.message}`
+                `Erro ao buscar info do participante ${data.sender.id}: ${error.message}`
               );
-              enrichedData.participantInfo = {
-                jid: data.participant,
-                number: data.participant.split('@')[0],
-                name: data.participant.split('@')[0],
-                pushName: data.pushName || null,
+              
+              enrichedData.sender = {
+                ...enrichedData.sender,
+                name: data.sender?.id ? data.sender.id.split('@')[0] : 'unknown',
+                number: data.sender?.id ? data.sender.id.split('@')[0] : 'unknown'
               };
             }
+          } else if (chatInfo.type === 'private') {
+            // For private messages, enhance sender info
+            enrichedData.sender = {
+              ...enrichedData.sender,
+              name: chatInfo.name,
+              number: data.chat?.id ? data.chat.id.split('@')[0] : 'unknown',
+              isRegistered: chatInfo.isRegistered
+            };
           }
         } catch (error) {
           logger.warn(`Erro ao enriquecer dados do webhook: ${error.message}`);
@@ -1248,11 +1322,12 @@ async function sendWebhook(sessionId, eventType, data) {
       }
     }
 
+    // Create organized payload structure
     const payload = {
       sessionId,
       eventType,
       timestamp: new Date().toISOString(),
-      data: enrichedData,
+      data: enrichedData
     };
 
     // Enviar para todos os webhooks ativos em paralelo
@@ -1316,37 +1391,369 @@ async function sendWebhook(sessionId, eventType, data) {
   }
 }
 
-// Função para baixar mídia e converter para base64 (máximo 3MB)
-async function downloadMediaAsBase64(sock, message) {
-  try {
-    const MAX_FILE_SIZE = 3 * 1024 * 1024; // 3MB em bytes
+// Coleção MongoDB para armazenar metadados dos arquivos baixados
+const DOWNLOADS_COLLECTION = 'downloaded_files';
 
-    // Verificar tamanho do arquivo antes de baixar
+// Função para criar índices do MongoDB para downloads
+async function createDownloadIndexes() {
+  try {
+    const db = database.getDb();
+    if (!db) {
+      logger.warn('MongoDB não disponível - índices de download não criados');
+      return;
+    }
+    
+    const collection = db.collection(DOWNLOADS_COLLECTION);
+    
+    // Índices para melhorar performance
+    await collection.createIndex({ downloadId: 1 }, { unique: true });
+    await collection.createIndex({ sessionId: 1 });
+    await collection.createIndex({ expiresAt: 1 });
+    await collection.createIndex({ messageId: 1 });
+    await collection.createIndex({ createdAt: -1 });
+    
+    logger.info('📊 Índices MongoDB criados para downloads');
+  } catch (error) {
+    logger.warn(`Erro ao criar índices MongoDB para downloads: ${error.message}`);
+  }
+}
+
+// Executar criação de índices após inicialização
+setTimeout(createDownloadIndexes, 5000); // 5 segundos após startup
+
+// Log sobre a migração para MongoDB
+logger.info('🔄 Sistema de downloads migrado para MongoDB - metadados persistidos permanentemente');
+
+// Funções para gerenciar downloads no MongoDB
+async function saveDownloadMetadata(downloadMetadata) {
+  try {
+    const db = database.getDb();
+    if (!db) {
+      logger.warn('MongoDB não disponível - metadados de download não persistidos');
+      return false;
+    }
+    
+    await db.collection(DOWNLOADS_COLLECTION).insertOne({
+      ...downloadMetadata,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    });
+    
+    logger.debug(`💾 Metadados salvos no MongoDB: ${downloadMetadata.downloadId}`);
+    return true;
+  } catch (error) {
+    logger.error(`Erro ao salvar metadados de download: ${error.message}`);
+    return false;
+  }
+}
+
+async function getDownloadMetadata(downloadId) {
+  try {
+    const db = database.getDb();
+    if (!db) {
+      logger.warn('MongoDB não disponível - usando fallback em memória');
+      return null;
+    }
+    
+    const metadata = await db.collection(DOWNLOADS_COLLECTION).findOne({
+      downloadId: downloadId
+    });
+    
+    return metadata;
+  } catch (error) {
+    logger.error(`Erro ao buscar metadados de download: ${error.message}`);
+    return null;
+  }
+}
+
+async function deleteDownloadMetadata(downloadId) {
+  try {
+    const db = database.getDb();
+    if (!db) {
+      logger.warn('MongoDB não disponível - não foi possível remover metadados');
+      return false;
+    }
+    
+    const result = await db.collection(DOWNLOADS_COLLECTION).deleteOne({
+      downloadId: downloadId
+    });
+    
+    return result.deletedCount > 0;
+  } catch (error) {
+    logger.error(`Erro ao remover metadados de download: ${error.message}`);
+    return false;
+  }
+}
+
+async function getExpiredDownloads() {
+  try {
+    const db = database.getDb();
+    if (!db) {
+      return [];
+    }
+    
+    const now = new Date();
+    const expiredDownloads = await db.collection(DOWNLOADS_COLLECTION).find({
+      expiresAt: { $lt: now }
+    }).toArray();
+    
+    return expiredDownloads;
+  } catch (error) {
+    logger.error(`Erro ao buscar downloads expirados: ${error.message}`);
+    return [];
+  }
+}
+
+async function getAllDownloads(sessionId = null) {
+  try {
+    const db = database.getDb();
+    if (!db) {
+      return [];
+    }
+    
+    const query = sessionId ? { sessionId } : {};
+    const downloads = await db.collection(DOWNLOADS_COLLECTION).find(query)
+      .sort({ createdAt: -1 })
+      .toArray();
+    
+    return downloads;
+  } catch (error) {
+    logger.error(`Erro ao listar downloads: ${error.message}`);
+    return [];
+  }
+}
+
+// Função para limpar arquivos expirados (executa a cada 6 horas)
+async function cleanupExpiredFiles() {
+  const fs = require('fs');
+  let cleanedCount = 0;
+  
+  try {
+    // Buscar downloads expirados no MongoDB
+    const expiredDownloads = await getExpiredDownloads();
+    
+    for (const metadata of expiredDownloads) {
+      try {
+        // Remover arquivo do disco
+        if (fs.existsSync(metadata.filePath)) {
+          fs.unlinkSync(metadata.filePath);
+          cleanedCount++;
+        }
+        
+        // Remover metadados do MongoDB
+        await deleteDownloadMetadata(metadata.downloadId);
+        
+      } catch (error) {
+        logger.warn(`Erro ao remover arquivo expirado ${metadata.downloadId}: ${error.message}`);
+      }
+    }
+    
+    if (cleanedCount > 0) {
+      logger.info(`🧹 Limpeza automática: ${cleanedCount} arquivos expirados removidos do disco e MongoDB`);
+    } else {
+      logger.debug(`🧹 Limpeza automática: nenhum arquivo expirado encontrado`);
+    }
+    
+  } catch (error) {
+    logger.error(`Erro na limpeza automática: ${error.message}`);
+  }
+}
+
+// Executar limpeza automática a cada 6 horas
+setInterval(cleanupExpiredFiles, 6 * 60 * 60 * 1000); // 6 horas em millisegundos
+
+// Executar limpeza inicial após 1 minuto do startup
+setTimeout(cleanupExpiredFiles, 60 * 1000);
+
+// Função para gerar ID único para download
+function generateDownloadId() {
+  const timestamp = Date.now();
+  const random = Math.random().toString(36).substring(2, 15);
+  return `${timestamp}_${random}`;
+}
+
+// Função para obter extensão do arquivo baseada no mimetype e tipo de mensagem
+function getFileExtension(mimetype, messageType = null, isPtt = false) {
+  const mimeToExt = {
+    // Imagens
+    'image/jpeg': 'jpg',
+    'image/jpg': 'jpg', 
+    'image/png': 'png',
+    'image/gif': 'gif',
+    'image/webp': 'webp',
+    'image/bmp': 'bmp',
+    'image/tiff': 'tiff',
+    
+    // Vídeos
+    'video/mp4': 'mp4',
+    'video/webm': 'webm',
+    'video/quicktime': 'mov',
+    'video/x-msvideo': 'avi',
+    'video/3gpp': '3gp',
+    'video/x-ms-wmv': 'wmv',
+    
+    // Áudios comuns
+    'audio/mpeg': 'mp3',
+    'audio/mp3': 'mp3',
+    'audio/mp4': 'm4a',
+    'audio/aac': 'aac',
+    'audio/ogg': 'ogg',
+    'audio/opus': 'opus',
+    'audio/webm': 'webm',
+    'audio/wav': 'wav',
+    'audio/x-wav': 'wav',
+    'audio/wave': 'wav',
+    'audio/flac': 'flac',
+    'audio/x-m4a': 'm4a',
+    
+    // Áudios específicos do WhatsApp
+    'audio/mp4; codecs=opus': 'opus',
+    'audio/ogg; codecs=opus': 'opus',
+    'audio/webm; codecs=opus': 'opus',
+    
+    // Documentos
+    'application/pdf': 'pdf',
+    'application/msword': 'doc',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+    'application/vnd.ms-excel': 'xls',
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
+    'application/vnd.ms-powerpoint': 'ppt',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'pptx',
+    'text/plain': 'txt',
+    'text/csv': 'csv',
+    'application/json': 'json',
+    'application/xml': 'xml',
+    'text/xml': 'xml',
+    
+    // Arquivos comprimidos
+    'application/zip': 'zip',
+    'application/x-rar-compressed': 'rar',
+    'application/x-7z-compressed': '7z',
+    'application/x-tar': 'tar',
+    'application/gzip': 'gz'
+  };
+  
+  // Tratamento especial para mensagens de voz (PTT)
+  if (isPtt || messageType === 'audio') {
+    // WhatsApp geralmente usa Opus para mensagens de voz
+    if (!mimetype || mimetype.includes('application/octet-stream') || mimetype === 'application/ogg') {
+      return 'ogg'; // Formato padrão para mensagens de voz do WhatsApp
+    }
+    if (mimetype.includes('opus')) {
+      return 'opus';
+    }
+    if (mimetype.includes('ogg')) {
+      return 'ogg';
+    }
+    if (mimetype.includes('mp4') || mimetype.includes('m4a')) {
+      return 'm4a';
+    }
+    if (mimetype.includes('webm')) {
+      return 'webm';
+    }
+    // Fallback para áudio não identificado
+    return 'ogg';
+  }
+  
+  // Tratamento para mimetypes mal formatados ou incompletos
+  if (mimetype) {
+    // Verificar se contém palavras-chave conhecidas
+    const lowerMime = mimetype.toLowerCase();
+    
+    if (lowerMime.includes('image')) {
+      if (lowerMime.includes('jpeg') || lowerMime.includes('jpg')) return 'jpg';
+      if (lowerMime.includes('png')) return 'png';
+      if (lowerMime.includes('gif')) return 'gif';
+      if (lowerMime.includes('webp')) return 'webp';
+      return 'jpg'; // fallback para imagens
+    }
+    
+    if (lowerMime.includes('video')) {
+      if (lowerMime.includes('mp4')) return 'mp4';
+      if (lowerMime.includes('webm')) return 'webm';
+      if (lowerMime.includes('quicktime') || lowerMime.includes('mov')) return 'mov';
+      return 'mp4'; // fallback para vídeos
+    }
+    
+    if (lowerMime.includes('audio')) {
+      if (lowerMime.includes('mpeg') || lowerMime.includes('mp3')) return 'mp3';
+      if (lowerMime.includes('mp4') || lowerMime.includes('m4a')) return 'm4a';
+      if (lowerMime.includes('ogg')) return 'ogg';
+      if (lowerMime.includes('opus')) return 'opus';
+      if (lowerMime.includes('wav')) return 'wav';
+      return 'mp3'; // fallback para áudios
+    }
+  }
+  
+  // Busca exata no mapeamento
+  const exactMatch = mimeToExt[mimetype];
+  if (exactMatch) {
+    return exactMatch;
+  }
+  
+  // Fallback baseado no tipo de mensagem
+  if (messageType === 'image') return 'jpg';
+  if (messageType === 'video') return 'mp4';
+  if (messageType === 'audio') return 'ogg';
+  if (messageType === 'document') return 'pdf';
+  if (messageType === 'sticker') return 'webp';
+  
+  return 'bin';
+}
+
+// Função para baixar mídia e salvar no disco com link único
+async function downloadMediaToFile(sock, message, sessionId) {
+  try {
+    const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB para arquivos salvos no disco
+    const fs = require('fs');
+    const path = require('path');
+
+    // Verificar tamanho do arquivo e extrair metadados antes de baixar
     let fileLength = 0;
+    let mimetype = '';
+    let originalFileName = '';
+    let messageType = '';
+    let isPtt = false;
+    
     if (message.message.imageMessage) {
       fileLength = message.message.imageMessage.fileLength;
+      mimetype = message.message.imageMessage.mimetype;
+      messageType = 'image';
     } else if (message.message.videoMessage) {
       fileLength = message.message.videoMessage.fileLength;
+      mimetype = message.message.videoMessage.mimetype;
+      messageType = 'video';
     } else if (message.message.audioMessage) {
       fileLength = message.message.audioMessage.fileLength;
+      mimetype = message.message.audioMessage.mimetype;
+      messageType = 'audio';
+      isPtt = message.message.audioMessage.ptt || false;
+      
+      // Log para debug de mensagens de voz
+      logger.info(`🎤 Áudio detectado - PTT: ${isPtt}, Mimetype: ${mimetype || 'undefined'}, Tamanho: ${fileLength}`);
     } else if (message.message.documentMessage) {
       fileLength = message.message.documentMessage.fileLength;
+      mimetype = message.message.documentMessage.mimetype;
+      originalFileName = message.message.documentMessage.fileName;
+      messageType = 'document';
     } else if (message.message.stickerMessage) {
       fileLength = message.message.stickerMessage.fileLength;
+      mimetype = message.message.stickerMessage.mimetype;
+      messageType = 'sticker';
     }
 
-    // Se arquivo é maior que 3MB, não baixar
+    // Se arquivo é maior que 50MB, não baixar
     if (fileLength > MAX_FILE_SIZE) {
       logger.warn(
         `Arquivo muito grande (${(fileLength / (1024 * 1024)).toFixed(
           2
-        )}MB), não será incluído no webhook`
+        )}MB), não será baixado`
       );
       return {
         error: 'FILE_TOO_LARGE',
         message: `Arquivo de ${(fileLength / (1024 * 1024)).toFixed(
           2
-        )}MB excede o limite de 3MB`,
+        )}MB excede o limite de 50MB`,
         fileSize: fileLength,
       };
     }
@@ -1362,37 +1769,101 @@ async function downloadMediaAsBase64(sock, message) {
       }
     );
 
-    // Verificar se o buffer não excede 3MB (double-check)
-    if (buffer.length > MAX_FILE_SIZE) {
-      logger.warn(
-        `Buffer baixado excede 3MB (${(buffer.length / (1024 * 1024)).toFixed(
-          2
-        )}MB)`
-      );
-      return {
-        error: 'BUFFER_TOO_LARGE',
-        message: `Buffer de ${(buffer.length / (1024 * 1024)).toFixed(
-          2
-        )}MB excede o limite de 3MB`,
-        actualSize: buffer.length,
-      };
+    // Gerar ID único e nome do arquivo com detecção inteligente de extensão
+    const downloadId = generateDownloadId();
+    const fileExtension = getFileExtension(mimetype, messageType, isPtt);
+    
+    // Gerar nome de arquivo mais descritivo baseado no tipo
+    let fileName;
+    if (originalFileName) {
+      // Usar nome original do documento
+      fileName = originalFileName;
+    } else if (isPtt) {
+      // Mensagem de voz
+      fileName = `voice_${downloadId}.${fileExtension}`;
+    } else if (messageType === 'audio') {
+      // Áudio regular
+      fileName = `audio_${downloadId}.${fileExtension}`;
+    } else {
+      // Outros tipos de mídia
+      fileName = `${messageType}_${downloadId}.${fileExtension}`;
+    }
+    
+    const safeFileName = `${downloadId}_${fileName.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
+    
+    // Log para debug de arquivos de voz
+    if (isPtt || messageType === 'audio') {
+      logger.info(`📁 Arquivo de áudio: ${fileName} (${fileExtension}) - PTT: ${isPtt}`);
+    }
+    
+    // Criar diretório se não existir
+    const downloadsDir = path.join(process.cwd(), 'downloads');
+    if (!fs.existsSync(downloadsDir)) {
+      fs.mkdirSync(downloadsDir, { recursive: true });
     }
 
-    // Converter para base64
-    const base64Data = buffer.toString('base64');
+    // Caminho completo do arquivo
+    const filePath = path.join(downloadsDir, safeFileName);
+    
+    // Salvar arquivo no disco
+    fs.writeFileSync(filePath, buffer);
+
+    // Obter URL base do servidor
+    const baseUrl = process.env.CORS_ORIGIN || `http://localhost:${process.env.PORT || 3000}`;
+    const serverUrl = baseUrl.replace('5173', process.env.PORT || '3000'); // Replace frontend port with backend port
+    
+    // Gerar link único de download
+    const downloadUrl = `${serverUrl}/api/baileys/download/${downloadId}`;
+
+    // Preparar metadados do arquivo para salvar no MongoDB
+    const fileMetadata = {
+      downloadId,
+      originalFileName: fileName,
+      safeFileName,
+      filePath,
+      mimetype,
+      size: buffer.length,
+      downloadUrl,
+      sessionId,
+      messageId: message.key.id,
+      messageType,
+      isPtt: isPtt || false,
+      uploadedAt: new Date(),
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 dias
+    };
+    
+    // Salvar metadados no MongoDB
+    const saveSuccess = await saveDownloadMetadata(fileMetadata);
+    if (!saveSuccess) {
+      logger.warn(`⚠️  Metadados de download não persistidos no MongoDB para ${downloadId}`);
+    }
 
     logger.info(
-      `Mídia convertida para base64: ${(buffer.length / 1024).toFixed(2)}KB`
+      `📥 Mídia salva: ${fileName} (${(buffer.length / 1024).toFixed(2)}KB)`
     );
+    logger.info(
+      `🔗 Link direto de download: ${downloadUrl}`
+    );
+
+    // Para compatibilidade, também retornar base64 se for menor que 3MB
+    let base64Data = null;
+    if (buffer.length <= 3 * 1024 * 1024) {
+      base64Data = buffer.toString('base64');
+    }
 
     return {
       success: true,
-      base64: base64Data,
+      downloadId,
+      downloadUrl,
+      fileName: originalFileName || fileName,
+      mimetype,
       size: buffer.length,
       sizeFormatted: `${(buffer.length / 1024).toFixed(2)}KB`,
+      base64: base64Data,
+      expiresAt: fileMetadata.expiresAt
     };
   } catch (error) {
-    logger.error(`Erro ao baixar mídia para webhook: ${error.message}`);
+    logger.error(`Erro ao baixar mídia: ${error.message}`);
     return {
       error: 'DOWNLOAD_FAILED',
       message: error.message,
@@ -1400,21 +1871,161 @@ async function downloadMediaAsBase64(sock, message) {
   }
 }
 
+// Função legacy para compatibilidade - baixar mídia e converter para base64 (máximo 3MB)
+async function downloadMediaAsBase64(sock, message) {
+  const downloadResult = await downloadMediaToFile(sock, message, 'legacy');
+  
+  if (downloadResult.success && downloadResult.base64) {
+    return {
+      success: true,
+      base64: downloadResult.base64,
+      size: downloadResult.size,
+      sizeFormatted: downloadResult.sizeFormatted,
+    };
+  } else if (downloadResult.success) {
+    // Se arquivo foi baixado mas é muito grande para base64
+    return {
+      error: 'FILE_TOO_LARGE_FOR_BASE64',
+      message: 'Arquivo baixado mas muito grande para base64 (>3MB). Use downloadUrl.',
+      downloadUrl: downloadResult.downloadUrl,
+      size: downloadResult.size,
+      sizeFormatted: downloadResult.sizeFormatted,
+    };
+  } else {
+    return downloadResult;
+  }
+}
+
 // Função para extrair dados completos da mensagem (agora com mídia em base64)
 async function extractMessageData(message, sock = null) {
+  const isGroup = message.key.remoteJid?.endsWith('@g.us') || false;
+  
   const messageData = {
     messageId: message.key.id,
-    fromMe: message.key.fromMe,
-    remoteJid: message.key.remoteJid,
-    participant: message.key.participant,
     timestamp: message.messageTimestamp,
-    pushName: message.pushName,
     messageType: null,
     content: null,
     quotedMessage: null,
     mediaData: null,
-    mediaBase64: null, // Novo campo para dados em base64
-    isGroup: message.key.remoteJid?.endsWith('@g.us') || false,
+    mediaDownload: null,
+    
+    // Chat info structure
+    chat: {
+      id: message.key.remoteJid,
+      type: isGroup ? 'group' : 'private',
+      isGroup: isGroup
+    },
+    
+    // Sender info structure
+    sender: {
+      id: isGroup ? message.key.participant : message.key.remoteJid,
+      pushName: message.pushName,
+      isMe: message.key.fromMe
+    }
+  };
+
+  // Helper function to extract quoted message from contextInfo (based on official Baileys WAProto)
+  const extractQuotedMessage = (contextInfo) => {
+    if (!contextInfo?.quotedMessage || !contextInfo.stanzaId) return null;
+    
+    const quoted = contextInfo.quotedMessage;
+    let quotedContent = '';
+    let quotedType = 'unknown';
+    let quotedMediaData = null;
+    
+    // Text messages
+    if (quoted.conversation) {
+      quotedContent = quoted.conversation;
+      quotedType = 'text';
+    } else if (quoted.extendedTextMessage) {
+      quotedContent = quoted.extendedTextMessage.text;
+      quotedType = 'text';
+    }
+    // Media messages with captions
+    else if (quoted.imageMessage) {
+      quotedContent = quoted.imageMessage.caption || '';
+      quotedType = 'image';
+      quotedMediaData = {
+        mimetype: quoted.imageMessage.mimetype,
+        width: quoted.imageMessage.width,
+        height: quoted.imageMessage.height,
+        fileLength: quoted.imageMessage.fileLength
+      };
+    } else if (quoted.videoMessage) {
+      quotedContent = quoted.videoMessage.caption || '';
+      quotedType = 'video';
+      quotedMediaData = {
+        mimetype: quoted.videoMessage.mimetype,
+        width: quoted.videoMessage.width,
+        height: quoted.videoMessage.height,
+        seconds: quoted.videoMessage.seconds,
+        fileLength: quoted.videoMessage.fileLength
+      };
+    } else if (quoted.audioMessage) {
+      quotedContent = '';
+      quotedType = 'audio';
+      quotedMediaData = {
+        mimetype: quoted.audioMessage.mimetype,
+        seconds: quoted.audioMessage.seconds,
+        ptt: quoted.audioMessage.ptt || false,
+        fileLength: quoted.audioMessage.fileLength
+      };
+    } else if (quoted.documentMessage) {
+      quotedContent = quoted.documentMessage.caption || '';
+      quotedType = 'document';
+      quotedMediaData = {
+        mimetype: quoted.documentMessage.mimetype,
+        fileName: quoted.documentMessage.fileName,
+        title: quoted.documentMessage.title,
+        fileLength: quoted.documentMessage.fileLength
+      };
+    } else if (quoted.stickerMessage) {
+      quotedContent = '';
+      quotedType = 'sticker';
+      quotedMediaData = {
+        mimetype: quoted.stickerMessage.mimetype,
+        width: quoted.stickerMessage.width,
+        height: quoted.stickerMessage.height,
+        fileLength: quoted.stickerMessage.fileLength
+      };
+    }
+    // Other message types
+    else if (quoted.contactMessage) {
+      quotedContent = quoted.contactMessage.displayName || '';
+      quotedType = 'contact';
+    } else if (quoted.locationMessage) {
+      quotedContent = quoted.locationMessage.name || '';
+      quotedType = 'location';
+      quotedMediaData = {
+        latitude: quoted.locationMessage.degreesLatitude,
+        longitude: quoted.locationMessage.degreesLongitude,
+        address: quoted.locationMessage.address
+      };
+    } else if (quoted.liveLocationMessage) {
+      quotedContent = quoted.liveLocationMessage.caption || '';
+      quotedType = 'liveLocation';
+      quotedMediaData = {
+        latitude: quoted.liveLocationMessage.degreesLatitude,
+        longitude: quoted.liveLocationMessage.degreesLongitude
+      };
+    } else if (quoted.contactsArrayMessage) {
+      quotedContent = `${quoted.contactsArrayMessage.contacts?.length || 0} contatos`;
+      quotedType = 'contactsArray';
+    }
+    
+    return {
+      messageId: contextInfo.stanzaId,
+      participant: contextInfo.participant,
+      remoteJid: contextInfo.remoteJid,
+      content: quotedContent,
+      messageType: quotedType,
+      mediaData: quotedMediaData,
+      fromMe: contextInfo.participant === message.key.remoteJid,
+      // Additional contextInfo fields that might be useful
+      isForwarded: contextInfo.isForwarded || false,
+      forwardingScore: contextInfo.forwardingScore || 0,
+      mentions: contextInfo.mentionedJid || []
+    };
   };
 
   // Extrair conteúdo da mensagem
@@ -1425,9 +2036,10 @@ async function extractMessageData(message, sock = null) {
     } else if (message.message.extendedTextMessage) {
       messageData.messageType = 'text';
       messageData.content = message.message.extendedTextMessage.text;
+      
+      // Extract quoted message if present
       if (message.message.extendedTextMessage.contextInfo?.quotedMessage) {
-        messageData.quotedMessage =
-          message.message.extendedTextMessage.contextInfo;
+        messageData.quotedMessage = extractQuotedMessage(message.message.extendedTextMessage.contextInfo);
       }
     } else if (message.message.imageMessage) {
       messageData.messageType = 'image';
@@ -1440,9 +2052,17 @@ async function extractMessageData(message, sock = null) {
         height: message.message.imageMessage.height,
       };
 
-      // Baixar e converter para base64 se sock foi fornecido
+      // Extract quoted message if present
+      if (message.message.imageMessage.contextInfo?.quotedMessage) {
+        messageData.quotedMessage = extractQuotedMessage(message.message.imageMessage.contextInfo);
+      }
+
+      // Baixar mídia automaticamente se sock foi fornecido
       if (sock) {
-        messageData.mediaBase64 = await downloadMediaAsBase64(sock, message);
+        const sessionId = global.whatsappSessions ? 
+          Object.keys(global.whatsappSessions).find(id => global.whatsappSessions[id] === sock) || 'unknown' :
+          'unknown';
+        messageData.mediaDownload = await downloadMediaToFile(sock, message, sessionId);
       }
     } else if (message.message.videoMessage) {
       messageData.messageType = 'video';
@@ -1456,9 +2076,17 @@ async function extractMessageData(message, sock = null) {
         seconds: message.message.videoMessage.seconds,
       };
 
-      // Baixar e converter para base64 se sock foi fornecido
+      // Extract quoted message if present
+      if (message.message.videoMessage.contextInfo?.quotedMessage) {
+        messageData.quotedMessage = extractQuotedMessage(message.message.videoMessage.contextInfo);
+      }
+
+      // Baixar mídia automaticamente se sock foi fornecido
       if (sock) {
-        messageData.mediaBase64 = await downloadMediaAsBase64(sock, message);
+        const sessionId = global.whatsappSessions ? 
+          Object.keys(global.whatsappSessions).find(id => global.whatsappSessions[id] === sock) || 'unknown' :
+          'unknown';
+        messageData.mediaDownload = await downloadMediaToFile(sock, message, sessionId);
       }
     } else if (message.message.audioMessage) {
       messageData.messageType = 'audio';
@@ -1470,9 +2098,17 @@ async function extractMessageData(message, sock = null) {
         ptt: message.message.audioMessage.ptt || false,
       };
 
-      // Baixar e converter para base64 se sock foi fornecido
+      // Extract quoted message if present
+      if (message.message.audioMessage.contextInfo?.quotedMessage) {
+        messageData.quotedMessage = extractQuotedMessage(message.message.audioMessage.contextInfo);
+      }
+
+      // Baixar mídia automaticamente se sock foi fornecido
       if (sock) {
-        messageData.mediaBase64 = await downloadMediaAsBase64(sock, message);
+        const sessionId = global.whatsappSessions ? 
+          Object.keys(global.whatsappSessions).find(id => global.whatsappSessions[id] === sock) || 'unknown' :
+          'unknown';
+        messageData.mediaDownload = await downloadMediaToFile(sock, message, sessionId);
       }
     } else if (message.message.documentMessage) {
       messageData.messageType = 'document';
@@ -1486,9 +2122,17 @@ async function extractMessageData(message, sock = null) {
         title: message.message.documentMessage.title,
       };
 
-      // Baixar e converter para base64 se sock foi fornecido
+      // Extract quoted message if present
+      if (message.message.documentMessage.contextInfo?.quotedMessage) {
+        messageData.quotedMessage = extractQuotedMessage(message.message.documentMessage.contextInfo);
+      }
+
+      // Baixar mídia automaticamente se sock foi fornecido
       if (sock) {
-        messageData.mediaBase64 = await downloadMediaAsBase64(sock, message);
+        const sessionId = global.whatsappSessions ? 
+          Object.keys(global.whatsappSessions).find(id => global.whatsappSessions[id] === sock) || 'unknown' :
+          'unknown';
+        messageData.mediaDownload = await downloadMediaToFile(sock, message, sessionId);
       }
     } else if (message.message.stickerMessage) {
       messageData.messageType = 'sticker';
@@ -1501,9 +2145,17 @@ async function extractMessageData(message, sock = null) {
         height: message.message.stickerMessage.height,
       };
 
-      // Baixar e converter para base64 se sock foi fornecido
+      // Extract quoted message if present
+      if (message.message.stickerMessage.contextInfo?.quotedMessage) {
+        messageData.quotedMessage = extractQuotedMessage(message.message.stickerMessage.contextInfo);
+      }
+
+      // Baixar mídia automaticamente se sock foi fornecido
       if (sock) {
-        messageData.mediaBase64 = await downloadMediaAsBase64(sock, message);
+        const sessionId = global.whatsappSessions ? 
+          Object.keys(global.whatsappSessions).find(id => global.whatsappSessions[id] === sock) || 'unknown' :
+          'unknown';
+        messageData.mediaDownload = await downloadMediaToFile(sock, message, sessionId);
       }
     } else if (message.message.contactMessage) {
       messageData.messageType = 'contact';
@@ -1511,6 +2163,11 @@ async function extractMessageData(message, sock = null) {
         displayName: message.message.contactMessage.displayName,
         vcard: message.message.contactMessage.vcard,
       };
+      
+      // Extract quoted message if present
+      if (message.message.contactMessage.contextInfo?.quotedMessage) {
+        messageData.quotedMessage = extractQuotedMessage(message.message.contactMessage.contextInfo);
+      }
     } else if (message.message.locationMessage) {
       messageData.messageType = 'location';
       messageData.content = {
@@ -1519,7 +2176,45 @@ async function extractMessageData(message, sock = null) {
         name: message.message.locationMessage.name,
         address: message.message.locationMessage.address,
       };
+      
+      // Extract quoted message if present
+      if (message.message.locationMessage.contextInfo?.quotedMessage) {
+        messageData.quotedMessage = extractQuotedMessage(message.message.locationMessage.contextInfo);
+      }
+    } else if (message.message.liveLocationMessage) {
+      messageData.messageType = 'liveLocation';
+      messageData.content = {
+        latitude: message.message.liveLocationMessage.degreesLatitude,
+        longitude: message.message.liveLocationMessage.degreesLongitude,
+        caption: message.message.liveLocationMessage.caption,
+        sequenceNumber: message.message.liveLocationMessage.sequenceNumber
+      };
+    } else if (message.message.contactsArrayMessage) {
+      messageData.messageType = 'contactsArray';
+      messageData.content = {
+        displayName: message.message.contactsArrayMessage.displayName,
+        contactsCount: message.message.contactsArrayMessage.contacts?.length || 0
+      };
+    } else if (message.message.reactionMessage) {
+      messageData.messageType = 'reaction';
+      messageData.content = {
+        text: message.message.reactionMessage.text,
+        targetMessageKey: message.message.reactionMessage.key
+      };
+    } else if (message.message.protocolMessage) {
+      // Filtrar mensagens de protocolo (como mensagens deletadas, etc.)
+      logger.debug(`Mensagem de protocolo ignorada: ${message.message.protocolMessage.type}`);
+      return null; // Retorna null para indicar que deve ser ignorada
+    } else if (message.message.senderKeyDistributionMessage || 
+               message.message.fastRatchetKeySenderKeyDistributionMessage) {
+      // Filtrar mensagens de distribuição de chave (protocolo interno)
+      logger.debug('Mensagem de distribuição de chave ignorada');
+      return null; // Retorna null para indicar que deve ser ignorada
     } else {
+      // Log detalhado para debug de tipos não suportados
+      const messageKeys = message.message ? Object.keys(message.message) : [];
+      logger.warn(`Tipo de mensagem não suportado encontrado: ${messageKeys.join(', ')} - MessageID: ${message.key?.id}`);
+      
       messageData.messageType = 'unknown';
       messageData.content = 'Tipo de mensagem não suportado';
     }
@@ -1791,8 +2486,12 @@ async function createWhatsAppSession(sessionId, userId = null) {
         // Debug: Log all webhooks in memory
         logger.info(`Current webhooks in memory: ${JSON.stringify(Array.from(webhooks.entries()))}`);
         
-        // Enviar webhook para todas as mensagens (enviadas e recebidas)
-        await sendWebhook(sessionId, 'messages.upsert', messageData);
+        // Enviar webhook apenas se messageData não for null (filtra mensagens de protocolo)
+        if (messageData !== null) {
+          await sendWebhook(sessionId, 'messages.upsert', messageData);
+        } else {
+          logger.debug(`Mensagem ignorada para webhook - SessionID: ${sessionId}, MessageID: ${message.key?.id}`);
+        }
 
         if (!message.key.fromMe && message.message) {
           // Processar mensagem recebida
@@ -2598,6 +3297,132 @@ app.post('/api/baileys/session/:sessionId/download-media', checkSessionOwnership
   }
 });
 
+// Rota para servir arquivos de mídia baixados via link único
+app.get('/api/baileys/download/:downloadId', async (req, res) => {
+  try {
+    const { downloadId } = req.params;
+    const fs = require('fs');
+    const path = require('path');
+
+    // Buscar metadados no MongoDB
+    const fileMetadata = await getDownloadMetadata(downloadId);
+    if (!fileMetadata) {
+      // Retornar erro simples para browsers
+      return res.status(404).send('Arquivo não encontrado ou link expirado');
+    }
+
+    // Verificar se o arquivo não expirou (7 dias)
+    const now = new Date();
+    const expiresAt = new Date(fileMetadata.expiresAt);
+    if (now > expiresAt) {
+      // Remover arquivo expirado do MongoDB e do disco
+      await deleteDownloadMetadata(downloadId);
+      try {
+        if (fs.existsSync(fileMetadata.filePath)) {
+          fs.unlinkSync(fileMetadata.filePath);
+        }
+      } catch (cleanupError) {
+        logger.warn(`Erro ao limpar arquivo expirado: ${cleanupError.message}`);
+      }
+      
+      return res.status(410).send('Link de download expirado');
+    }
+
+    // Verificar se o arquivo ainda existe no disco
+    if (!fs.existsSync(fileMetadata.filePath)) {
+      await deleteDownloadMetadata(downloadId);
+      return res.status(404).send('Arquivo não encontrado no servidor');
+    }
+
+    // Configurar headers apropriados para download direto
+    res.setHeader('Content-Type', fileMetadata.mimetype || 'application/octet-stream');
+    res.setHeader('Content-Length', fileMetadata.size);
+    
+    // Escapar nome do arquivo para Content-Disposition (suporte UTF-8)
+    const cleanFileName = fileMetadata.originalFileName.replace(/[^\w\s.-]/g, '_');
+    res.setHeader('Content-Disposition', `attachment; filename="${cleanFileName}"; filename*=UTF-8''${encodeURIComponent(cleanFileName)}`);
+    
+    // Headers de segurança e controle de cache
+    res.setHeader('Cache-Control', 'private, max-age=3600, must-revalidate');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    res.setHeader('Accept-Ranges', 'bytes');
+    
+    // Headers informativos
+    res.setHeader('X-Download-ID', downloadId);
+    res.setHeader('X-File-Name', fileMetadata.originalFileName);
+    res.setHeader('X-Session-ID', fileMetadata.sessionId);
+    res.setHeader('X-File-Type', fileMetadata.originalFileName.includes('voice_') ? 'voice-message' : 'media');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    
+    // Header para melhor compatibilidade com downloads
+    res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition,X-File-Name,X-File-Type');
+
+    // Enviar arquivo
+    const fileStream = fs.createReadStream(fileMetadata.filePath);
+    
+    fileStream.on('error', (error) => {
+      logger.error(`Erro ao transmitir arquivo ${downloadId}: ${error.message}`);
+      if (!res.headersSent) {
+        res.status(500).send('Erro ao transmitir arquivo');
+      }
+    });
+
+    fileStream.pipe(res);
+
+    // Log do download
+    logger.info(`Arquivo baixado: ${fileMetadata.originalFileName} (${downloadId}) por IP: ${req.ip}`);
+
+  } catch (error) {
+    logger.error(`Erro na rota de download: ${error.message}`);
+    res.status(500).send('Erro interno do servidor');
+  }
+});
+
+// Rota para listar downloads disponíveis (opcional, para debug)
+app.get('/api/baileys/downloads', async (req, res) => {
+  try {
+    const sessionId = req.query.sessionId; // Opcional: filtrar por sessão
+    const allDownloads = await getAllDownloads(sessionId);
+    const now = new Date();
+    
+    const downloads = allDownloads.map(metadata => {
+      const isExpired = now > new Date(metadata.expiresAt);
+      return {
+        downloadId: metadata.downloadId,
+        fileName: metadata.originalFileName,
+        size: metadata.size,
+        sizeFormatted: `${(metadata.size / 1024).toFixed(2)}KB`,
+        mimetype: metadata.mimetype,
+        messageType: metadata.messageType,
+        isPtt: metadata.isPtt,
+        sessionId: metadata.sessionId,
+        messageId: metadata.messageId,
+        uploadedAt: metadata.uploadedAt,
+        expiresAt: metadata.expiresAt,
+        isExpired,
+        downloadUrl: isExpired ? null : metadata.downloadUrl
+      };
+    });
+
+    res.json({
+      success: true,
+      downloads,
+      total: downloads.length,
+      active: downloads.filter(d => !d.isExpired).length,
+      expired: downloads.filter(d => d.isExpired).length,
+      sessionFilter: sessionId || null
+    });
+
+  } catch (error) {
+    logger.error(`Erro ao listar downloads: ${error.message}`);
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno do servidor'
+    });
+  }
+});
+
 app.post('/api/baileys/session/:sessionId/mark-read', checkSessionOwnership, async (req, res) => {
   try {
     const { sessionId } = req.params;
@@ -2831,7 +3656,7 @@ app.get('/api/baileys/session/:sessionId/messages', checkSessionOwnership, async
         if (contactInfo && contactInfo.type === 'group' && message.key.participant) {
           messageInfo.participant = {
             jid: message.key.participant,
-            number: message.key.participant.split('@')[0],
+            number: message.key.participant && message.key.participant.includes('@') ? message.key.participant.split('@')[0] : (message.key.participant || 'unknown'),
             pushName: message.pushName || null,
           };
         }
