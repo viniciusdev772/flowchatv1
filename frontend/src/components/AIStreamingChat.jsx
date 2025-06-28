@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   PaperAirplaneIcon, 
@@ -25,6 +25,7 @@ export default function AIStreamingChat() {
   const [currentStreamingId, setCurrentStreamingId] = useState(null);
   const [streamingContent, setStreamingContent] = useState('');
   const [isThinking, setIsThinking] = useState(false);
+  const [streamingToolCalls, setStreamingToolCalls] = useState([]);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const abortControllerRef = useRef(null);
@@ -35,7 +36,7 @@ export default function AIStreamingChat() {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages, streamingContent, isThinking]);
+  }, [messages.length, isThinking]); // Removido streamingContent para evitar re-renders
 
   const stopStreaming = () => {
     if (abortControllerRef.current) {
@@ -44,6 +45,7 @@ export default function AIStreamingChat() {
       setIsThinking(false);
       setCurrentStreamingId(null);
       setStreamingContent('');
+      setStreamingToolCalls([]);
     }
   };
 
@@ -126,13 +128,24 @@ export default function AIStreamingChat() {
             if (data.type === 'content') {
               accumulatedContent += data.content;
               setStreamingContent(accumulatedContent);
+              // Atualizar mensagem sem trigger de re-render completo
+              setMessages(prev => {
+                const newMessages = [...prev];
+                const msgIndex = newMessages.findIndex(msg => msg.id === assistantMessageId);
+                if (msgIndex !== -1) {
+                  newMessages[msgIndex] = { ...newMessages[msgIndex], content: accumulatedContent };
+                }
+                return newMessages;
+              });
             } else if (data.type === 'thinking') {
               setIsThinking(true);
             } else if (data.type === 'tool_result') {
               toolResults.push(data);
+              setStreamingToolCalls(prev => [...prev, data]);
               setIsThinking(false);
             } else if (data.type === 'tool_error') {
               toolResults.push(data);
+              setStreamingToolCalls(prev => [...prev, data]);
               setIsThinking(false);
             } else if (data.type === 'done') {
               // Finalize the message
@@ -151,6 +164,7 @@ export default function AIStreamingChat() {
               setCurrentStreamingId(null);
               setStreamingContent('');
               setIsThinking(false);
+              setStreamingToolCalls([]);
               break;
             }
           } catch (e) {
@@ -184,6 +198,7 @@ export default function AIStreamingChat() {
       setIsThinking(false);
       setCurrentStreamingId(null);
       setStreamingContent('');
+      setStreamingToolCalls([]);
       abortControllerRef.current = null;
     }
   };
@@ -247,40 +262,49 @@ export default function AIStreamingChat() {
     </motion.div>
   );
 
-  const StreamingIndicator = ({ content }) => (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="flex items-start space-x-3 px-4 py-3"
-    >
-      <div className="flex items-center justify-center w-8 h-8 bg-blue-100 rounded-full">
-        <CpuChipIcon className="w-4 h-4 text-blue-600" />
+  const ToolCallsDisplay = ({ toolCalls }) => {
+    if (!toolCalls || toolCalls.length === 0) return null;
+    
+    return (
+      <div className="mt-2 space-y-2">
+        {toolCalls.map((toolCall, index) => (
+          <motion.div
+            key={index}
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            transition={{ delay: index * 0.1 }}
+            className="bg-blue-50 border border-blue-200 rounded-lg p-3"
+          >
+            <div className="flex items-center space-x-2 mb-2">
+              <Cog6ToothIcon className="w-4 h-4 text-blue-600" />
+              <span className="text-xs font-medium text-blue-800">{toolCall.tool}</span>
+              {toolCall.result?.success ? (
+                <CheckCircleIcon className="w-4 h-4 text-green-600" />
+              ) : (
+                <ExclamationTriangleIcon className="w-4 h-4 text-red-600" />
+              )}
+            </div>
+            <p className="text-xs text-blue-700">
+              {toolCall.result?.message || toolCall.error || 'Executado'}
+            </p>
+            {toolCall.result && Object.keys(toolCall.result).length > 2 && (
+              <details className="mt-2">
+                <summary className="text-xs text-blue-600 cursor-pointer">Ver detalhes</summary>
+                <pre className="text-xs text-gray-600 mt-1 bg-white p-2 rounded overflow-x-auto">
+                  {JSON.stringify(toolCall.result, null, 2)}
+                </pre>
+              </details>
+            )}
+          </motion.div>
+        ))}
       </div>
-      <div className="max-w-xs lg:max-w-md">
-        <div className="bg-gray-100 text-gray-800 rounded-2xl px-4 py-2">
-          <div className="flex items-start">
-            <p className="text-sm whitespace-pre-wrap flex-1">{content}</p>
-            <motion.div
-              animate={{ opacity: [0, 1, 0] }}
-              transition={{ duration: 1, repeat: Infinity }}
-              className="ml-1 mt-1 w-2 h-4 bg-blue-500 rounded-sm"
-            />
-          </div>
-        </div>
-        <p className="text-xs text-gray-500 mt-1">
-          {formatTimestamp(new Date())}
-        </p>
-      </div>
-    </motion.div>
-  );
+    );
+  };
 
-  const MessageBubble = ({ message }) => {
+  const MessageBubble = useCallback(({ message }) => {
     const isUser = message.role === 'user';
     const isError = message.isError;
     const isStreaming = message.isStreaming;
-
-    // Don't render streaming messages in this component - use StreamingIndicator instead
-    if (isStreaming) return null;
 
     return (
       <motion.div
@@ -320,44 +344,20 @@ export default function AIStreamingChat() {
                   : 'bg-gray-100 text-gray-800'
             }`}
           >
-            <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+            <div className="flex items-start">
+              <p className="text-sm whitespace-pre-wrap flex-1">{message.content}</p>
+              {isStreaming && (
+                <motion.div
+                  animate={{ opacity: [0, 1, 0] }}
+                  transition={{ duration: 1, repeat: Infinity }}
+                  className="ml-1 mt-1 w-2 h-4 bg-blue-500 rounded-sm flex-shrink-0"
+                />
+              )}
+            </div>
           </motion.div>
 
           {/* Tool Calls Results */}
-          {message.toolCalls && message.toolCalls.length > 0 && (
-            <div className="mt-2 space-y-2">
-              {message.toolCalls.map((toolCall, index) => (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  transition={{ delay: index * 0.1 }}
-                  className="bg-blue-50 border border-blue-200 rounded-lg p-3"
-                >
-                  <div className="flex items-center space-x-2 mb-2">
-                    <Cog6ToothIcon className="w-4 h-4 text-blue-600" />
-                    <span className="text-xs font-medium text-blue-800">{toolCall.tool}</span>
-                    {toolCall.result?.success ? (
-                      <CheckCircleIcon className="w-4 h-4 text-green-600" />
-                    ) : (
-                      <ExclamationTriangleIcon className="w-4 h-4 text-red-600" />
-                    )}
-                  </div>
-                  <p className="text-xs text-blue-700">
-                    {toolCall.result?.message || toolCall.error || 'Executado'}
-                  </p>
-                  {toolCall.result && Object.keys(toolCall.result).length > 2 && (
-                    <details className="mt-2">
-                      <summary className="text-xs text-blue-600 cursor-pointer">Ver detalhes</summary>
-                      <pre className="text-xs text-gray-600 mt-1 bg-white p-2 rounded overflow-x-auto">
-                        {JSON.stringify(toolCall.result, null, 2)}
-                      </pre>
-                    </details>
-                  )}
-                </motion.div>
-              ))}
-            </div>
-          )}
+          <ToolCallsDisplay toolCalls={message.toolCalls} />
 
           {/* Timestamp */}
           <p className={`text-xs text-gray-500 mt-1 ${isUser ? 'text-right' : ''}`}>
@@ -366,7 +366,7 @@ export default function AIStreamingChat() {
         </div>
       </motion.div>
     );
-  };
+  }, []); // Memorizar o componente
 
   return (
     <div className="flex flex-col h-full max-h-screen bg-white">
@@ -415,8 +415,15 @@ export default function AIStreamingChat() {
             <MessageBubble key={message.id} message={message} />
           ))}
           {isThinking && <ThinkingIndicator />}
-          {currentStreamingId && streamingContent && (
-            <StreamingIndicator content={streamingContent} />
+          {streamingToolCalls.length > 0 && !isThinking && (
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="px-4 py-2"
+            >
+              <ToolCallsDisplay toolCalls={streamingToolCalls} />
+            </motion.div>
           )}
         </AnimatePresence>
         <div ref={messagesEndRef} />

@@ -1,6 +1,6 @@
-# Baileys Multi-Session WhatsApp API
+# Baileys Multi-Session WhatsApp API 🤖
 
-API avançada do WhatsApp com Baileys, multi-sessões, comportamento humano e gerenciamento completo de grupos.
+API avançada do WhatsApp com Baileys, multi-sessões, comportamento humano, gerenciamento completo de grupos e **Assistente de IA integrada**.
 
 ## 🚀 Estrutura do Projeto
 
