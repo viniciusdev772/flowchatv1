@@ -12,6 +12,134 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 // import { useSmartSuggestions } from '../hooks/useSmartSuggestions'; // DESABILITADO
 import MarkdownRenderer, { ToolResponseBlock } from './MarkdownRenderer';
 
+// Componente específico para renderizar mensagens com imagens base64
+const MessageContentRenderer = ({ content, isComplete, isStreaming }) => {
+  const [processedContent, setProcessedContent] = useState(null);
+  const [images, setImages] = useState([]);
+  const [textParts, setTextParts] = useState([]);
+
+  useEffect(() => {
+    if (!isComplete || isStreaming) {
+      // Durante streaming, mostrar apenas o conteúdo markdown normal
+      setProcessedContent(<MarkdownRenderer content={content} />);
+      return;
+    }
+
+    // Debug: log do conteúdo recebido
+    console.log('Processing content for base64 images:', content.substring(0, 200) + '...');
+    console.log('Full content length:', content.length);
+    console.log('Looking for pattern like: ![QR Code](data:image/png;base64,...)');
+    
+    // Teste específico para o formato que você mostrou
+    const testMatch = content.match(/!\[QR Code\]\(data:image\/png;base64,/);
+    console.log('Test match for QR Code pattern:', testMatch ? 'FOUND' : 'NOT FOUND');
+
+    // Regex mais simples e eficaz para capturar imagens base64
+    const regexPatterns = [
+      // Formato exato do seu exemplo: ![QR Code](data:image/png;base64,...)
+      /!\[([^\]]*)\]\((data:image\/[^)]+)\)/g,
+      // Formato mais permissivo para qualquer formato
+      /!\[[^\]]*\]\(data:image\/[^)]+\)/g
+    ];
+
+    let foundImages = [];
+    let cleanContent = content;
+    
+    // Tentar cada regex
+    for (const regex of regexPatterns) {
+      let match;
+      regex.lastIndex = 0; // Reset regex
+      
+      while ((match = regex.exec(content)) !== null) {
+        console.log('Found base64 image with regex pattern:', regex.source);
+        console.log('Match details:', {
+          alt: match[1] || 'No alt text',
+          srcStart: (match[2] || match[1] || match[0])?.substring(0, 60) + '...',
+          fullMatchStart: match[0].substring(0, 100) + '...'
+        });
+
+        // Adaptar para diferentes formatos de match
+        const alt = match[1] || 'QR Code';
+        const src = match[2] || (match[0].match(/data:image\/[^)]+/) && match[0].match(/data:image\/[^)]+/)[0]);
+        
+        if (src && src.startsWith('data:image/')) {
+          const imageData = {
+            id: `img-${Date.now()}-${Math.random()}`,
+            alt: alt,
+            src: src.replace(/\s+/g, ''),
+            originalMatch: match[0]
+          };
+
+          foundImages.push(imageData);
+          
+          // Remover a imagem do conteúdo de texto
+          cleanContent = cleanContent.replace(match[0], `[IMAGEM_${imageData.id}]`);
+          console.log('Successfully processed image:', imageData.alt);
+        }
+      }
+    }
+
+    if (foundImages.length > 0) {
+      console.log(`Found ${foundImages.length} base64 images`);
+      setImages(foundImages);
+      
+      // Dividir o conteúdo de texto
+      const parts = cleanContent.split(/\[IMAGEM_[^\]]+\]/);
+      setTextParts(parts);
+
+      // Renderizar conteúdo misto
+      const mixedContent = (
+        <div className="space-y-3">
+          {parts.map((textPart, index) => (
+            <div key={`content-${index}`}>
+              {textPart.trim() && (
+                <div className="mb-3">
+                  <MarkdownRenderer content={textPart.trim()} />
+                </div>
+              )}
+              {foundImages[index] && (
+                <div className="flex justify-center my-4">
+                  <img
+                    key={foundImages[index].id}
+                    src={foundImages[index].src}
+                    alt={foundImages[index].alt}
+                    className="max-w-full h-auto rounded-lg shadow-lg border border-gray-200 bg-white"
+                    style={{ maxHeight: '400px', maxWidth: '100%' }}
+                    onLoad={() => console.log('Image loaded successfully')}
+                    onError={(e) => {
+                      console.error('Failed to load base64 image:', e);
+                      const errorDiv = document.createElement('div');
+                      errorDiv.className = 'flex items-center justify-center w-full h-32 bg-red-50 border border-red-200 rounded-lg';
+                      errorDiv.innerHTML = `
+                        <div class="text-center text-red-600">
+                          <svg class="w-8 h-8 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 15.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                          </svg>
+                          <p class="text-sm">Erro ao carregar QR Code</p>
+                          <p class="text-xs mt-1">Imagem base64 inválida</p>
+                        </div>
+                      `;
+                      e.target.parentNode.replaceChild(errorDiv, e.target);
+                    }}
+                    loading="lazy"
+                  />
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      );
+
+      setProcessedContent(mixedContent);
+    } else {
+      console.log('No base64 images found, rendering as markdown');
+      setProcessedContent(<MarkdownRenderer content={content} />);
+    }
+  }, [content, isComplete, isStreaming]);
+
+  return processedContent || <MarkdownRenderer content={content} />;
+};
+
 export default function AIStreamingChat() {
   const [messages, setMessages] = useState([
     {
@@ -351,6 +479,7 @@ export default function AIStreamingChat() {
     );
   };
 
+
   const MessageBubble = useCallback(({ message }) => {
     const isUser = message.role === 'user';
     const isError = message.isError;
@@ -401,9 +530,10 @@ export default function AIStreamingChat() {
                 </p>
               ) : (
                 <div className="text-sm flex-1">
-                  <MarkdownRenderer
-                    content={message.content}
-                    className={isError ? 'prose-red' : 'prose-gray'}
+                  <MessageContentRenderer 
+                    content={message.content} 
+                    isComplete={message.isComplete}
+                    isStreaming={message.isStreaming}
                   />
                 </div>
               )}

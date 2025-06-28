@@ -130,9 +130,70 @@ const MarkdownComponents = {
 
   // Separadores
   hr: () => <hr className="my-6 border-gray-200" />,
+
+  // Imagens com suporte a base64
+  img: ({ src, alt, title }) => {
+    // Verificar se é uma imagem base64
+    const isBase64 = src?.startsWith('data:image/');
+    
+    return (
+      <div className="my-4 flex justify-center">
+        <img
+          src={src}
+          alt={alt || 'Imagem'}
+          title={title}
+          className="max-w-full h-auto rounded-lg shadow-md border border-gray-200"
+          style={{ maxHeight: '500px' }}
+          onError={(e) => {
+            e.target.style.display = 'none';
+            // Mostrar placeholder em caso de erro
+            const placeholder = document.createElement('div');
+            placeholder.className = 'flex items-center justify-center w-full h-32 bg-gray-100 border border-gray-300 rounded-lg';
+            placeholder.innerHTML = `
+              <div class="text-center text-gray-500">
+                <svg class="w-8 h-8 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                </svg>
+                <p class="text-sm">Erro ao carregar imagem</p>
+              </div>
+            `;
+            e.target.parentNode.replaceChild(placeholder, e.target);
+          }}
+          loading="lazy"
+        />
+      </div>
+    );
+  },
 };
 
 export default function MarkdownRenderer({ content, className = '' }) {
+  // Função para processar imagens base64 no conteúdo
+  const processBase64Images = (text) => {
+    // Regex para encontrar imagens base64 em markdown
+    const base64ImageRegex = /!\[([^\]]*)\]\((data:image\/[^;]+;base64,[^)]+)\)/g;
+    
+    return text.replace(base64ImageRegex, (match, alt, src) => {
+      // Gerar um ID único para cada imagem
+      const imageId = `img-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      
+      // Retornar HTML customizado para a imagem
+      return `<div class="my-4 flex justify-center">
+        <img 
+          id="${imageId}"
+          src="${src}" 
+          alt="${alt || 'Imagem'}" 
+          class="max-w-full h-auto rounded-lg shadow-md border border-gray-200"
+          style="max-height: 500px;"
+          loading="lazy"
+          onerror="this.style.display='none'; this.parentNode.innerHTML='<div class=\\'flex items-center justify-center w-full h-32 bg-gray-100 border border-gray-300 rounded-lg\\'><div class=\\'text-center text-gray-500\\'><svg class=\\'w-8 h-8 mx-auto mb-2\\' fill=\\'none\\' stroke=\\'currentColor\\' viewBox=\\'0 0 24 24\\'><path stroke-linecap=\\'round\\' stroke-linejoin=\\'round\\' stroke-width=\\'2\\' d=\\'M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z\\'></path></svg><p class=\\'text-sm\\'>Erro ao carregar imagem</p></div></div>';"
+        />
+      </div>`;
+    });
+  };
+
+  // Processar o conteúdo antes de passar para o ReactMarkdown
+  const processedContent = processBase64Images(content);
+
   return (
     <div className={`prose prose-sm max-w-none ${className}`}>
       <ReactMarkdown
@@ -140,7 +201,7 @@ export default function MarkdownRenderer({ content, className = '' }) {
         rehypePlugins={[rehypeHighlight, rehypeRaw]}
         components={MarkdownComponents}
       >
-        {content}
+        {processedContent}
       </ReactMarkdown>
     </div>
   );
