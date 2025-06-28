@@ -362,7 +362,7 @@ const toolImplementations = {
         'baileys_default_token';
 
       const response = await fetch(
-        `http://localhost:3000/api/baileys/session/${sessionId}/delete`,
+        `http://localhost:3000/api/baileys/session/${sessionId}`,
         {
           method: 'DELETE',
           headers: {
@@ -485,7 +485,7 @@ const toolImplementations = {
             Authorization: `Bearer ${userToken}`,
           },
           body: JSON.stringify({
-            phone,
+            to: phone,
             message,
           }),
         }
@@ -518,8 +518,9 @@ const toolImplementations = {
         process.env.BAILEYS_API_TOKEN ||
         'baileys_default_token';
 
+      // Para envio de imagem, usamos o endpoint send-media
       const response = await fetch(
-        `http://localhost:3000/api/baileys/session/${sessionId}/send-image`,
+        `http://localhost:3000/api/baileys/session/${sessionId}/send-media`,
         {
           method: 'POST',
           headers: {
@@ -527,9 +528,10 @@ const toolImplementations = {
             Authorization: `Bearer ${userToken}`,
           },
           body: JSON.stringify({
-            phone,
-            imageUrl,
+            to: phone,
+            media: imageUrl,
             caption,
+            filename: 'image.jpg'
           }),
         }
       );
@@ -563,8 +565,9 @@ const toolImplementations = {
         process.env.BAILEYS_API_TOKEN ||
         'baileys_default_token';
 
+      // Para envio de documento, usamos o endpoint send-media
       const response = await fetch(
-        `http://localhost:3000/api/baileys/session/${sessionId}/send-document`,
+        `http://localhost:3000/api/baileys/session/${sessionId}/send-media`,
         {
           method: 'POST',
           headers: {
@@ -572,9 +575,9 @@ const toolImplementations = {
             Authorization: `Bearer ${userToken}`,
           },
           body: JSON.stringify({
-            phone,
-            documentUrl,
-            fileName,
+            to: phone,
+            media: documentUrl,
+            filename: fileName,
             caption,
           }),
         }
@@ -607,8 +610,9 @@ const toolImplementations = {
         process.env.BAILEYS_API_TOKEN ||
         'baileys_default_token';
 
+      // Para envio de sticker, usamos o endpoint send-media
       const response = await fetch(
-        `http://localhost:3000/api/baileys/session/${sessionId}/send-sticker`,
+        `http://localhost:3000/api/baileys/session/${sessionId}/send-media`,
         {
           method: 'POST',
           headers: {
@@ -616,8 +620,9 @@ const toolImplementations = {
             Authorization: `Bearer ${userToken}`,
           },
           body: JSON.stringify({
-            phone,
-            stickerUrl,
+            to: phone,
+            media: stickerUrl,
+            filename: 'sticker.webp'
           }),
         }
       );
@@ -1350,7 +1355,7 @@ const toolImplementations = {
             Authorization: `Bearer ${userToken}`,
           },
           body: JSON.stringify({
-            phone,
+            to: phone,
             message,
             quotedMessageId,
           }),
@@ -1390,11 +1395,11 @@ const toolImplementations = {
             Authorization: `Bearer ${userToken}`,
           },
           body: JSON.stringify({
-            phone,
-            mediaUrl,
-            mediaType,
+            to: phone,
+            media: mediaUrl,
             caption,
-            fileName,
+            filename: fileName,
+            voiceMessage: mediaType === 'audio'
           }),
         }
       );
@@ -1432,7 +1437,7 @@ const toolImplementations = {
             Authorization: `Bearer ${userToken}`,
           },
           body: JSON.stringify({
-            phone,
+            to: phone,
             messageId,
           }),
         }
@@ -1469,7 +1474,7 @@ const toolImplementations = {
             Authorization: `Bearer ${userToken}`,
           },
           body: JSON.stringify({
-            phone,
+            to: phone,
             isTyping,
           }),
         }
