@@ -2,11 +2,14 @@ import {
   ClockIcon,
   CpuChipIcon,
   ExclamationTriangleIcon,
+  LightBulbIcon,
   PaperAirplaneIcon,
+  SparklesIcon,
   StopIcon,
 } from '@heroicons/react/24/outline';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { useSmartSuggestions } from '../hooks/useSmartSuggestions';
 import MarkdownRenderer, { ToolResponseBlock } from './MarkdownRenderer';
 
 export default function AIStreamingChat() {
@@ -26,9 +29,18 @@ export default function AIStreamingChat() {
   const [streamingContent, setStreamingContent] = useState('');
   const [isThinking, setIsThinking] = useState(false);
   const [streamingToolCalls, setStreamingToolCalls] = useState([]);
+
+  const {
+    smartSuggestions,
+    isGeneratingSuggestions,
+    generateSmartSuggestions,
+    clearSuggestions,
+  } = useSmartSuggestions();
+
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
   const abortControllerRef = useRef(null);
+  const suggestionsGeneratedFor = useRef(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -36,7 +48,25 @@ export default function AIStreamingChat() {
 
   useEffect(() => {
     scrollToBottom();
-  }, [messages.length, isThinking]); // Removido streamingContent para evitar re-renders
+  }, [messages.length, isThinking]);
+
+  // Gerar sugestões após cada resposta da IA
+  useEffect(() => {
+    const lastMessage = messages[messages.length - 1];
+    if (
+      lastMessage &&
+      lastMessage.role === 'assistant' &&
+      lastMessage.isComplete &&
+      !isStreaming &&
+      suggestionsGeneratedFor.current !== lastMessage.id
+    ) {
+      const timer = setTimeout(() => {
+        suggestionsGeneratedFor.current = lastMessage.id;
+        generateSmartSuggestions(messages);
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [messages.length, isStreaming]);
 
   const stopStreaming = () => {
     if (abortControllerRef.current) {
@@ -51,6 +81,10 @@ export default function AIStreamingChat() {
 
   const sendMessage = async () => {
     if (!inputValue.trim() || isStreaming) return;
+
+    // Limpar sugestões e controles quando enviar nova mensagem
+    clearSuggestions();
+    suggestionsGeneratedFor.current = null;
 
     const userMessage = {
       id: Date.now(),
@@ -457,52 +491,136 @@ export default function AIStreamingChat() {
       </div>
 
       {/* Input Area */}
-      <div className="border-t border-gray-200 bg-gray-50 p-4">
-        <form onSubmit={handleSubmit} className="relative">
-          <textarea
-            ref={inputRef}
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
-            onKeyPress={handleKeyPress}
-            placeholder="Digite sua mensagem... (Enter para enviar, Shift+Enter para nova linha)"
-            className="w-full resize-none rounded-lg border border-gray-300 bg-white px-4 py-3 pr-12 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
-            rows="2"
-            disabled={isStreaming}
-          />
-          <motion.button
-            type="submit"
-            disabled={!inputValue.trim() || isStreaming}
-            className="absolute bottom-3 right-3 flex items-center justify-center w-8 h-8 bg-blue-600 text-white rounded-full disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-700 transition-colors"
-            whileHover={
-              !isStreaming && inputValue.trim() ? { scale: 1.05 } : {}
-            }
-            whileTap={!isStreaming && inputValue.trim() ? { scale: 0.95 } : {}}
-          >
-            <PaperAirplaneIcon className="w-4 h-4" />
-          </motion.button>
-        </form>
+      <div className="border-t border-gray-200 bg-gray-50">
+        {/* Smart Suggestions - Moved to top for better visibility */}
+        {!isStreaming &&
+          (smartSuggestions.length > 0 || isGeneratingSuggestions) && (
+            <div className="px-4 pt-4 pb-2">
+              <div className="flex items-center space-x-2 mb-3">
+                <SparklesIcon className="w-4 h-4 text-purple-600" />
+                <span className="text-sm font-medium text-gray-700">
+                  Sugestões inteligentes
+                </span>
+                {isGeneratingSuggestions && (
+                  <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{
+                      duration: 1,
+                      repeat: Infinity,
+                      ease: 'linear',
+                    }}
+                  >
+                    <SparklesIcon className="w-3 h-3 text-purple-400" />
+                  </motion.div>
+                )}
+              </div>
 
-        {/* Quick Actions */}
-        {!isStreaming && (
-          <div className="mt-3 flex flex-wrap gap-2">
-            {[
-              'Listar todas as sessões ativas',
-              'Criar uma nova sessão chamada "test"',
-              'Verificar status do sistema',
-              'Como configurar webhooks?',
-            ].map((suggestion) => (
-              <motion.button
-                key={suggestion}
-                onClick={() => setInputValue(suggestion)}
-                className="text-xs bg-white border border-gray-300 rounded-full px-3 py-1 text-gray-600 hover:bg-gray-50 transition-colors"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                {suggestion}
-              </motion.button>
-            ))}
-          </div>
-        )}
+              {isGeneratingSuggestions ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {[...Array(4)].map((_, index) => (
+                    <motion.div
+                      key={index}
+                      className="bg-white border border-gray-200 rounded-lg px-3 py-2 h-12"
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: [0.3, 0.6, 0.3] }}
+                      transition={{
+                        duration: 1.5,
+                        repeat: Infinity,
+                        delay: index * 0.2,
+                      }}
+                    >
+                      <div className="flex items-center space-x-2 h-full">
+                        <div className="w-4 h-4 bg-gray-200 rounded animate-pulse" />
+                        <div className="flex-1 space-y-1">
+                          <div className="h-2 bg-gray-200 rounded animate-pulse" />
+                          <div className="h-2 bg-gray-200 rounded w-3/4 animate-pulse" />
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {smartSuggestions.map((suggestion, index) => (
+                    <motion.button
+                      key={index}
+                      onClick={() => setInputValue(suggestion)}
+                      className="text-left text-sm bg-white border border-purple-200 rounded-lg px-3 py-2 text-gray-700 hover:bg-purple-50 hover:border-purple-300 transition-all duration-200 shadow-sm"
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.1 }}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      <div className="flex items-start space-x-2">
+                        <LightBulbIcon className="w-4 h-4 text-purple-500 mt-0.5 flex-shrink-0" />
+                        <span
+                          className="text-sm leading-relaxed overflow-hidden text-ellipsis"
+                          style={{
+                            display: '-webkit-box',
+                            WebkitLineClamp: 2,
+                            WebkitBoxOrient: 'vertical',
+                          }}
+                        >
+                          {suggestion}
+                        </span>
+                      </div>
+                    </motion.button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+        <div className="p-4">
+          <form onSubmit={handleSubmit} className="relative">
+            <textarea
+              ref={inputRef}
+              value={inputValue}
+              onChange={(e) => setInputValue(e.target.value)}
+              onKeyPress={handleKeyPress}
+              placeholder="Digite sua mensagem... (Enter para enviar, Shift+Enter para nova linha)"
+              className="w-full resize-none rounded-lg border border-gray-300 bg-white px-4 py-3 pr-12 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-200"
+              rows="2"
+              disabled={isStreaming}
+            />
+            <motion.button
+              type="submit"
+              disabled={!inputValue.trim() || isStreaming}
+              className="absolute bottom-3 right-3 flex items-center justify-center w-8 h-8 bg-blue-600 text-white rounded-full disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-700 transition-colors"
+              whileHover={
+                !isStreaming && inputValue.trim() ? { scale: 1.05 } : {}
+              }
+              whileTap={
+                !isStreaming && inputValue.trim() ? { scale: 0.95 } : {}
+              }
+            >
+              <PaperAirplaneIcon className="w-4 h-4" />
+            </motion.button>
+          </form>
+
+          {/* Quick Actions - Fallback when no smart suggestions */}
+          {!isStreaming && smartSuggestions.length === 0 && (
+            <div className="mt-3 flex flex-wrap gap-2">
+              {[
+                'Listar todas as sessões ativas',
+                'Criar uma nova sessão chamada "test"',
+                'Verificar status do sistema',
+                'Como configurar webhooks?',
+              ].map((suggestion) => (
+                <motion.button
+                  key={suggestion}
+                  onClick={() => setInputValue(suggestion)}
+                  className="text-xs bg-white border border-gray-300 rounded-full px-3 py-1 text-gray-600 hover:bg-gray-50 transition-colors"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  {suggestion}
+                </motion.button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

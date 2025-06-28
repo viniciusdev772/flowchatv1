@@ -139,31 +139,67 @@ router.post('/chat', authenticateToken, async (req, res) => {
       );
     }
 
-    // Sistema de prompts para a assistente
-    const systemPrompt = `Você é uma assistente de IA especializada EXCLUSIVAMENTE no FlowChat API - um sistema avançado de WhatsApp API.
+    // Sistema de prompts para a assistente - ATUALIZADO COM NOVAS FUNCIONALIDADES
+    const systemPrompt = `Você é uma assistente de IA especializada EXCLUSIVAMENTE no FlowChat API - um sistema avançado de WhatsApp API multi-sessão.
 
-SUAS ÚNICAS CAPACIDADES SÃO:
-- Gerenciar sessões WhatsApp (criar, listar, deletar)
-- Enviar mensagens, imagens, documentos e stickers via WhatsApp
-- Configurar e gerenciar webhooks para eventos
-- Gerenciar grupos WhatsApp (criar, adicionar/remover membros)
-- Obter QR codes para autenticação de sessões
-- Monitorar status e informações das sessões ativas
-- Fornecer informações técnicas do sistema FlowChat
+SUAS CAPACIDADES AVANÇADAS INCLUEM:
+
+📱 GERENCIAMENTO DE SESSÕES:
+- Criar, listar, deletar e monitorar sessões WhatsApp
+- Regenerar QR codes e verificar status de conexão
+- Limpeza automática de sessões órfãs
+- Estatísticas detalhadas de uso e performance
+
+💬 MENSAGENS AVANÇADAS:
+- Envio de mensagens, imagens, documentos, stickers e mídia
+- Respostas com citação (reply) a mensagens específicas
+- Controle de status de digitação (typing)
+- Marcar mensagens como lidas
+- Histórico completo de mensagens com filtros
+- Envio de mídia com detecção automática de tipo
+
+🔗 SISTEMA DE WEBHOOKS MODERNO:
+- Até 3 webhooks por sessão com prioridades (1-3)
+- Criar, listar, atualizar, deletar e testar webhooks
+- Ativar/desativar webhooks individualmente
+- Configuração de eventos específicos para escutar
+- Sistema de fallback com delivery garantido
+
+👥 GRUPOS AVANÇADOS:
+- Gerenciamento completo de grupos (criar, info, configurações)
+- Adicionar/remover participantes em massa
+- Promover/despromover administradores
+- Atualizar nome, descrição e configurações de permissão
+- Códigos de convite (gerar, obter, revogar)
+- Envio de mensagens para grupos com menções
+- Histórico de mensagens do grupo
+
+📊 MONITORAMENTO E DOWNLOADS:
+- Informações detalhadas do sistema e estatísticas
+- Download automático de mídias com URLs públicas
+- Gerenciamento de downloads com expiração automática
+- Limpeza de arquivos temporários
+
+🔧 RECURSOS TÉCNICOS:
+- Validação avançada com TypeBox (substituindo Zod)
+- Integração completa com documentação Swagger
+- Autenticação por tokens de usuário
+- Fallback graceful para desenvolvimento sem BD
+- Cache inteligente para performance otimizada
 
 REGRAS OBRIGATÓRIAS:
-1. APENAS responda sobre funcionalidades do FlowChat API e WhatsApp
-2. Se perguntarem sobre outros assuntos, redirecione para as funcionalidades do sistema
-3. SEMPRE use as tools disponíveis para executar ações no WhatsApp
-4. Seja direto e objetivo nas explicações técnicas
-5. Valide TODOS os parâmetros antes de usar as tools
-6. Formato de telefone: SEMPRE use formato internacional (ex: 5511999999999)
-7. Para sessões: use nomes descritivos e únicos
-8. Explique claramente cada ação executada e seus resultados
+1. EXCLUSIVAMENTE sobre FlowChat API e WhatsApp
+2. SEMPRE use as tools para executar ações práticas
+3. Formato de telefone: OBRIGATORIAMENTE internacional (ex: 5511999999999)
+4. Sessões: nomes únicos e descritivos
+5. Webhooks: sempre especificar prioridade (1=alta, 3=baixa)
+6. Grupos: validar permissões antes de modificações
+7. Explicar CADA ação executada e seus resultados
+8. Para dúvidas sobre APIs: consultar documentação em /api-docs
 
-IMPORTANTE: Você é uma assistente técnica focada SOMENTE no FlowChat API. Não responda sobre outros temas, programação geral, ou assuntos não relacionados ao WhatsApp API.
+IMPORTANTE: Você tem acesso a TODAS as funcionalidades do Baileys API. Use as tools extensivamente para demonstrar as capacidades do sistema.
 
-Responda em português brasileiro de forma técnica e objetiva.`;
+Responda em português brasileiro de forma técnica, prática e orientada a resultados.`;
 
     // Preparar mensagens para o OpenAI
     const messages = [
@@ -463,6 +499,139 @@ router.get('/tools', authenticateToken, (req, res) => {
     tools: toolsInfo,
     total: toolsInfo.length,
   });
+});
+
+/**
+ * @swagger
+ * /api/ai/suggestions:
+ *   post:
+ *     summary: Gera sugestões inteligentes baseadas na conversa
+ *     tags: [AI Assistant]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - conversation
+ *             properties:
+ *               conversation:
+ *                 type: array
+ *                 description: Últimas mensagens da conversa
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     role:
+ *                       type: string
+ *                       enum: [user, assistant]
+ *                     content:
+ *                       type: string
+ *     responses:
+ *       200:
+ *         description: Sugestões geradas com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 suggestions:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ */
+router.post('/suggestions', authenticateToken, async (req, res) => {
+  try {
+    const { conversation = [] } = req.body;
+
+    if (!conversation || conversation.length === 0) {
+      return res.json({
+        success: true,
+        suggestions: [
+          'Listar todas as sessões ativas',
+          'Criar uma nova sessão',
+          'Verificar status do sistema',
+          'Como configurar webhooks?',
+        ],
+      });
+    }
+
+    // Prompt para gerar sugestões contextuais
+    const suggestionsPrompt = `
+Com base na conversa a seguir sobre o FlowChat API (sistema de gerenciamento de WhatsApp), gere 4 sugestões curtas e práticas para o que o usuário pode perguntar ou fazer em seguida.
+
+Contexto da conversa:
+${conversation
+  .map(
+    (msg) => `${msg.role === 'user' ? 'Usuário' : 'Assistente'}: ${msg.content}`
+  )
+  .join('\n')}
+
+As sugestões devem ser:
+- Relacionadas ao contexto da conversa
+- Práticas e úteis para o usuário
+- Focadas em funcionalidades do FlowChat API
+- Máximo de 60 caracteres cada
+
+Retorne apenas as 4 sugestões, uma por linha, sem numeração ou formatação extra.
+`;
+
+    const response = await openai.chat.completions.create({
+      model: 'gpt-3.5-turbo',
+      messages: [
+        {
+          role: 'system',
+          content:
+            'Você é um especialista em APIs de WhatsApp e assistente do FlowChat API.',
+        },
+        {
+          role: 'user',
+          content: suggestionsPrompt,
+        },
+      ],
+      max_tokens: 200,
+      temperature: 0.7,
+    });
+
+    const suggestionsText = response.choices[0]?.message?.content || '';
+    const suggestions = suggestionsText
+      .split('\n')
+      .filter((line) => line.trim())
+      .slice(0, 4)
+      .map((suggestion) => suggestion.trim());
+
+    // Fallback se não conseguir gerar sugestões
+    if (suggestions.length === 0) {
+      return res.json({
+        success: true,
+        suggestions: [
+          'Listar todas as sessões ativas',
+          'Criar uma nova sessão',
+          'Verificar status do sistema',
+          'Como configurar webhooks?',
+        ],
+      });
+    }
+
+    res.json({
+      success: true,
+      suggestions,
+    });
+  } catch (error) {
+    console.error('Erro ao gerar sugestões:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erro interno do servidor',
+      suggestions: [
+        'Listar todas as sessões ativas',
+        'Criar uma nova sessão',
+        'Verificar status do sistema',
+        'Como configurar webhooks?',
+      ],
+    });
+  }
 });
 
 /**

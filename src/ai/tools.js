@@ -1,167 +1,274 @@
-const { z } = require('zod');
+const { Type } = require('@sinclair/typebox');
 
-// Definições Zod para as tools
+// Definições TypeBox para as tools - melhor performance e validação que Zod
 const toolSchemas = {
   // ====== SESSÕES ======
-  createSession: z.object({
-    sessionId: z.string().describe('ID único para a nova sessão'),
+  createSession: Type.Object({
+    sessionId: Type.String({ description: 'ID único para a nova sessão', minLength: 1 }),
   }),
 
-  listSessions: z.object({}),
+  listSessions: Type.Object({}),
 
-  deleteSession: z.object({
-    sessionId: z.string().describe('ID da sessão a ser deletada'),
+  deleteSession: Type.Object({
+    sessionId: Type.String({ description: 'ID da sessão a ser deletada', minLength: 1 }),
   }),
 
-  getSessionStatus: z.object({
-    sessionId: z.string().describe('ID da sessão'),
+  getSessionStatus: Type.Object({
+    sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
   }),
 
-  regenerateQRCode: z.object({
-    sessionId: z.string().describe('ID da sessão para regenerar QR code'),
+  regenerateQRCode: Type.Object({
+    sessionId: Type.String({ description: 'ID da sessão para regenerar QR code', minLength: 1 }),
   }),
 
   // ====== MENSAGENS ======
-  sendMessage: z.object({
-    sessionId: z.string().describe('ID da sessão'),
-    phone: z.string().describe('Número de telefone (formato: 5511999999999)'),
-    message: z.string().describe('Mensagem de texto a ser enviada'),
+  sendMessage: Type.Object({
+    sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
+    phone: Type.String({ description: 'Número de telefone (formato: 5511999999999)', pattern: '^[1-9]\\d{1,14}$' }),
+    message: Type.String({ description: 'Mensagem de texto a ser enviada', minLength: 1 }),
   }),
 
-  sendImage: z.object({
-    sessionId: z.string().describe('ID da sessão'),
-    phone: z.string().describe('Número de telefone (formato: 5511999999999)'),
-    imageUrl: z.string().url().describe('URL da imagem a ser enviada'),
-    caption: z.string().optional().describe('Legenda da imagem (opcional)'),
+  sendImage: Type.Object({
+    sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
+    phone: Type.String({ description: 'Número de telefone (formato: 5511999999999)', pattern: '^[1-9]\\d{1,14}$' }),
+    imageUrl: Type.String({ description: 'URL da imagem a ser enviada', format: 'uri' }),
+    caption: Type.Optional(Type.String({ description: 'Legenda da imagem (opcional)' })),
   }),
 
-  sendDocument: z.object({
-    sessionId: z.string().describe('ID da sessão'),
-    phone: z.string().describe('Número de telefone (formato: 5511999999999)'),
-    documentUrl: z.string().url().describe('URL do documento a ser enviado'),
-    fileName: z.string().describe('Nome do arquivo'),
-    caption: z.string().optional().describe('Legenda do documento (opcional)'),
+  sendDocument: Type.Object({
+    sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
+    phone: Type.String({ description: 'Número de telefone (formato: 5511999999999)', pattern: '^[1-9]\\d{1,14}$' }),
+    documentUrl: Type.String({ description: 'URL do documento a ser enviado', format: 'uri' }),
+    fileName: Type.String({ description: 'Nome do arquivo', minLength: 1 }),
+    caption: Type.Optional(Type.String({ description: 'Legenda do documento (opcional)' })),
   }),
 
-  sendSticker: z.object({
-    sessionId: z.string().describe('ID da sessão'),
-    phone: z.string().describe('Número de telefone (formato: 5511999999999)'),
-    stickerUrl: z
-      .string()
-      .url()
-      .describe('URL do sticker (WebP) a ser enviado'),
+  sendSticker: Type.Object({
+    sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
+    phone: Type.String({ description: 'Número de telefone (formato: 5511999999999)', pattern: '^[1-9]\\d{1,14}$' }),
+    stickerUrl: Type.String({ description: 'URL do sticker (WebP) a ser enviado', format: 'uri' }),
   }),
 
-  // ====== WEBHOOKS ======
-  setWebhook: z.object({
-    sessionId: z.string().describe('ID da sessão'),
-    webhookUrl: z.string().url().describe('URL do webhook'),
-    priority: z
-      .number()
-      .min(1)
-      .max(3)
-      .default(1)
-      .describe('Prioridade do webhook (1-3)'),
+  // Novas ferramentas para mensagens avançadas
+  replyMessage: Type.Object({
+    sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
+    phone: Type.String({ description: 'Número de telefone (formato: 5511999999999)', pattern: '^[1-9]\\d{1,14}$' }),
+    message: Type.String({ description: 'Mensagem de resposta', minLength: 1 }),
+    quotedMessageId: Type.String({ description: 'ID da mensagem sendo respondida', minLength: 1 }),
   }),
 
-  removeWebhook: z.object({
-    sessionId: z.string().describe('ID da sessão'),
+  sendMedia: Type.Object({
+    sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
+    phone: Type.String({ description: 'Número de telefone (formato: 5511999999999)', pattern: '^[1-9]\\d{1,14}$' }),
+    mediaUrl: Type.String({ description: 'URL da mídia a ser enviada', format: 'uri' }),
+    mediaType: Type.Union([Type.Literal('image'), Type.Literal('video'), Type.Literal('audio'), Type.Literal('document')], { description: 'Tipo de mídia' }),
+    caption: Type.Optional(Type.String({ description: 'Legenda da mídia (opcional)' })),
+    fileName: Type.Optional(Type.String({ description: 'Nome do arquivo (opcional)' })),
   }),
 
-  // ====== GRUPOS ======
-  listGroups: z.object({
-    sessionId: z.string().describe('ID da sessão'),
+  markAsRead: Type.Object({
+    sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
+    phone: Type.String({ description: 'Número de telefone (formato: 5511999999999)', pattern: '^[1-9]\\d{1,14}$' }),
+    messageId: Type.Optional(Type.String({ description: 'ID da mensagem específica (opcional)' })),
   }),
 
-  createGroup: z.object({
-    sessionId: z.string().describe('ID da sessão'),
-    groupName: z.string().describe('Nome do grupo'),
-    participants: z
-      .array(z.string())
-      .describe('Array de números dos participantes'),
+  setTypingStatus: Type.Object({
+    sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
+    phone: Type.String({ description: 'Número de telefone (formato: 5511999999999)', pattern: '^[1-9]\\d{1,14}$' }),
+    isTyping: Type.Boolean({ description: 'Status de digitação (true/false)' }),
   }),
 
-  getGroupInfo: z.object({
-    sessionId: z.string().describe('ID da sessão'),
-    groupId: z.string().describe('ID do grupo'),
+  getMessageHistory: Type.Object({
+    sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
+    phone: Type.Optional(Type.String({ description: 'Número de telefone específico (opcional)', pattern: '^[1-9]\\d{1,14}$' })),
+    limit: Type.Optional(Type.Number({ description: 'Limite de mensagens (padrão: 50)', minimum: 1, maximum: 1000 })),
+    before: Type.Optional(Type.String({ description: 'Buscar mensagens antes de um timestamp específico' })),
   }),
 
-  addGroupParticipants: z.object({
-    sessionId: z.string().describe('ID da sessão'),
-    groupId: z.string().describe('ID do grupo'),
-    participants: z
-      .array(z.string())
-      .describe('Array de números a serem adicionados'),
+  // ====== WEBHOOKS AVANÇADOS ======
+  // Sistema de webhooks moderno com até 3 webhooks por sessão
+  createWebhook: Type.Object({
+    sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
+    webhookUrl: Type.String({ description: 'URL do webhook', format: 'uri' }),
+    priority: Type.Number({ description: 'Prioridade do webhook (1-3)', minimum: 1, maximum: 3, default: 1 }),
+    events: Type.Optional(Type.Array(Type.String(), { description: 'Eventos específicos para escutar (opcional)' })),
+    isActive: Type.Optional(Type.Boolean({ description: 'Status ativo do webhook (padrão: true)', default: true })),
   }),
 
-  removeGroupParticipants: z.object({
-    sessionId: z.string().describe('ID da sessão'),
-    groupId: z.string().describe('ID do grupo'),
-    participants: z
-      .array(z.string())
-      .describe('Array de números a serem removidos'),
+  listWebhooks: Type.Object({
+    sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
   }),
 
-  promoteGroupParticipants: z.object({
-    sessionId: z.string().describe('ID da sessão'),
-    groupId: z.string().describe('ID do grupo'),
-    participants: z
-      .array(z.string())
-      .describe('Array de números a serem promovidos a admin'),
+  getWebhook: Type.Object({
+    sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
+    webhookId: Type.String({ description: 'ID do webhook', minLength: 1 }),
   }),
 
-  demoteGroupParticipants: z.object({
-    sessionId: z.string().describe('ID da sessão'),
-    groupId: z.string().describe('ID do grupo'),
-    participants: z
-      .array(z.string())
-      .describe('Array de números a serem despromovidos'),
+  updateWebhook: Type.Object({
+    sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
+    webhookId: Type.String({ description: 'ID do webhook', minLength: 1 }),
+    webhookUrl: Type.Optional(Type.String({ description: 'Nova URL do webhook', format: 'uri' })),
+    priority: Type.Optional(Type.Number({ description: 'Nova prioridade (1-3)', minimum: 1, maximum: 3 })),
+    events: Type.Optional(Type.Array(Type.String(), { description: 'Novos eventos para escutar' })),
   }),
 
-  updateGroupName: z.object({
-    sessionId: z.string().describe('ID da sessão'),
-    groupId: z.string().describe('ID do grupo'),
-    subject: z.string().describe('Novo nome do grupo'),
+  deleteWebhook: Type.Object({
+    sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
+    webhookId: Type.String({ description: 'ID do webhook', minLength: 1 }),
   }),
 
-  updateGroupDescription: z.object({
-    sessionId: z.string().describe('ID da sessão'),
-    groupId: z.string().describe('ID do grupo'),
-    description: z.string().describe('Nova descrição do grupo'),
+  toggleWebhook: Type.Object({
+    sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
+    webhookId: Type.String({ description: 'ID do webhook', minLength: 1 }),
+    isActive: Type.Boolean({ description: 'Novo status ativo do webhook' }),
   }),
 
-  updateGroupSettings: z.object({
-    sessionId: z.string().describe('ID da sessão'),
-    groupId: z.string().describe('ID do grupo'),
-    onlyAdminsCanSend: z
-      .boolean()
-      .optional()
-      .describe('Se apenas admins podem enviar mensagens'),
-    onlyAdminsCanEditInfo: z
-      .boolean()
-      .optional()
-      .describe('Se apenas admins podem editar informações'),
+  testWebhook: Type.Object({
+    sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
+    webhookId: Type.String({ description: 'ID do webhook', minLength: 1 }),
+    testData: Type.Optional(Type.Object({}, { description: 'Dados de teste personalizados (opcional)' })),
   }),
 
-  leaveGroup: z.object({
-    sessionId: z.string().describe('ID da sessão'),
-    groupId: z.string().describe('ID do grupo'),
+  // Legacy webhook support
+  setWebhook: Type.Object({
+    sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
+    webhookUrl: Type.String({ description: 'URL do webhook', format: 'uri' }),
+    priority: Type.Optional(Type.Number({ description: 'Prioridade do webhook (1-3)', minimum: 1, maximum: 3, default: 1 })),
   }),
 
-  getGroupInviteCode: z.object({
-    sessionId: z.string().describe('ID da sessão'),
-    groupId: z.string().describe('ID do grupo'),
+  removeWebhook: Type.Object({
+    sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
   }),
 
-  revokeGroupInviteCode: z.object({
-    sessionId: z.string().describe('ID da sessão'),
-    groupId: z.string().describe('ID do grupo'),
+  // ====== GRUPOS AVANÇADOS ======
+  listGroups: Type.Object({
+    sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
+    includeParticipants: Type.Optional(Type.Boolean({ description: 'Incluir lista de participantes (padrão: false)' })),
+    filter: Type.Optional(Type.String({ description: 'Filtro por nome do grupo (opcional)' })),
   }),
 
-  // ====== SISTEMA ======
-  getSystemInfo: z.object({}),
+  createGroup: Type.Object({
+    sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
+    groupName: Type.String({ description: 'Nome do grupo', minLength: 1, maxLength: 100 }),
+    participants: Type.Array(Type.String({ pattern: '^[1-9]\\d{1,14}$' }), { description: 'Array de números dos participantes', minItems: 1 }),
+    description: Type.Optional(Type.String({ description: 'Descrição inicial do grupo (opcional)' })),
+  }),
 
-  cleanupOrphanedSessions: z.object({}),
+  getGroupInfo: Type.Object({
+    sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
+    groupId: Type.String({ description: 'ID do grupo', minLength: 1 }),
+    includeParticipants: Type.Optional(Type.Boolean({ description: 'Incluir lista detalhada de participantes (padrão: true)' })),
+  }),
+
+  addGroupParticipants: Type.Object({
+    sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
+    groupId: Type.String({ description: 'ID do grupo', minLength: 1 }),
+    participants: Type.Array(Type.String({ pattern: '^[1-9]\\d{1,14}$' }), { description: 'Array de números a serem adicionados', minItems: 1 }),
+  }),
+
+  removeGroupParticipants: Type.Object({
+    sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
+    groupId: Type.String({ description: 'ID do grupo', minLength: 1 }),
+    participants: Type.Array(Type.String({ pattern: '^[1-9]\\d{1,14}$' }), { description: 'Array de números a serem removidos', minItems: 1 }),
+  }),
+
+  promoteGroupParticipants: Type.Object({
+    sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
+    groupId: Type.String({ description: 'ID do grupo', minLength: 1 }),
+    participants: Type.Array(Type.String({ pattern: '^[1-9]\\d{1,14}$' }), { description: 'Array de números a serem promovidos a admin', minItems: 1 }),
+  }),
+
+  demoteGroupParticipants: Type.Object({
+    sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
+    groupId: Type.String({ description: 'ID do grupo', minLength: 1 }),
+    participants: Type.Array(Type.String({ pattern: '^[1-9]\\d{1,14}$' }), { description: 'Array de números a serem despromovidos', minItems: 1 }),
+  }),
+
+  updateGroupName: Type.Object({
+    sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
+    groupId: Type.String({ description: 'ID do grupo', minLength: 1 }),
+    subject: Type.String({ description: 'Novo nome do grupo', minLength: 1, maxLength: 100 }),
+  }),
+
+  updateGroupDescription: Type.Object({
+    sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
+    groupId: Type.String({ description: 'ID do grupo', minLength: 1 }),
+    description: Type.String({ description: 'Nova descrição do grupo', maxLength: 500 }),
+  }),
+
+  updateGroupSettings: Type.Object({
+    sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
+    groupId: Type.String({ description: 'ID do grupo', minLength: 1 }),
+    onlyAdminsCanSend: Type.Optional(Type.Boolean({ description: 'Se apenas admins podem enviar mensagens' })),
+    onlyAdminsCanEditInfo: Type.Optional(Type.Boolean({ description: 'Se apenas admins podem editar informações' })),
+  }),
+
+  leaveGroup: Type.Object({
+    sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
+    groupId: Type.String({ description: 'ID do grupo', minLength: 1 }),
+  }),
+
+  getGroupInviteCode: Type.Object({
+    sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
+    groupId: Type.String({ description: 'ID do grupo', minLength: 1 }),
+  }),
+
+  revokeGroupInviteCode: Type.Object({
+    sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
+    groupId: Type.String({ description: 'ID do grupo', minLength: 1 }),
+  }),
+
+  // Novas funcionalidades para grupos
+  sendGroupMessage: Type.Object({
+    sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
+    groupId: Type.String({ description: 'ID do grupo', minLength: 1 }),
+    message: Type.String({ description: 'Mensagem para o grupo', minLength: 1 }),
+    mentionAll: Type.Optional(Type.Boolean({ description: 'Mencionar todos os participantes (padrão: false)' })),
+    mentions: Type.Optional(Type.Array(Type.String({ pattern: '^[1-9]\\d{1,14}$' }), { description: 'Lista de participantes para mencionar' })),
+  }),
+
+  getGroupMessages: Type.Object({
+    sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
+    groupId: Type.String({ description: 'ID do grupo', minLength: 1 }),
+    limit: Type.Optional(Type.Number({ description: 'Limite de mensagens (padrão: 50)', minimum: 1, maximum: 1000 })),
+    before: Type.Optional(Type.String({ description: 'Buscar mensagens antes de um timestamp específico' })),
+  }),
+
+  // ====== SISTEMA E MONITORAMENTO ======
+  getSystemInfo: Type.Object({
+    includeStats: Type.Optional(Type.Boolean({ description: 'Incluir estatísticas detalhadas (padrão: true)' })),
+    includeMemory: Type.Optional(Type.Boolean({ description: 'Incluir informações de memória (padrão: true)' })),
+  }),
+
+  cleanupOrphanedSessions: Type.Object({
+    force: Type.Optional(Type.Boolean({ description: 'Forçar limpeza de todas as sessões órfãs (padrão: false)' })),
+  }),
+
+  getSessionStats: Type.Object({
+    sessionId: Type.Optional(Type.String({ description: 'ID da sessão específica (opcional para estatísticas globais)', minLength: 1 })),
+    period: Type.Optional(Type.Union([Type.Literal('1h'), Type.Literal('24h'), Type.Literal('7d'), Type.Literal('30d')], { description: 'Período para estatísticas (padrão: 24h)' })),
+  }),
+
+  // ====== DOWNLOADS E MÍDIA ======
+  downloadMedia: Type.Object({
+    sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
+    messageId: Type.String({ description: 'ID da mensagem com mídia', minLength: 1 }),
+    phone: Type.String({ description: 'Número de telefone origem', pattern: '^[1-9]\\d{1,14}$' }),
+  }),
+
+  listDownloads: Type.Object({
+    sessionId: Type.Optional(Type.String({ description: 'Filtrar por sessão específica (opcional)', minLength: 1 })),
+    limit: Type.Optional(Type.Number({ description: 'Limite de resultados (padrão: 50)', minimum: 1, maximum: 1000 })),
+    mediaType: Type.Optional(Type.Union([Type.Literal('image'), Type.Literal('video'), Type.Literal('audio'), Type.Literal('document')], { description: 'Filtrar por tipo de mídia' })),
+  }),
+
+  getDownloadInfo: Type.Object({
+    downloadId: Type.String({ description: 'ID do download', minLength: 1 }),
+  }),
+
+  cleanupExpiredDownloads: Type.Object({
+    olderThan: Type.Optional(Type.Number({ description: 'Limpar downloads mais antigos que X dias (padrão: 7)', minimum: 1 })),
+  }),
 };
 
 // Implementações das tools
@@ -1225,6 +1332,460 @@ const toolImplementations = {
   // Método para obter o token do usuário
   getUserToken() {
     return this.userToken;
+  },
+
+  // ====== NOVAS IMPLEMENTAÇÕES DE FERRAMENTAS AVANÇADAS ======
+
+  // Mensagens avançadas
+  async replyMessage({ sessionId, phone, message, quotedMessageId }) {
+    try {
+      const userToken = this.getUserToken?.() || process.env.BAILEYS_API_TOKEN || 'baileys_default_token';
+
+      const response = await fetch(
+        `http://localhost:3000/api/baileys/session/${sessionId}/reply-message`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${userToken}`,
+          },
+          body: JSON.stringify({
+            phone,
+            message,
+            quotedMessageId,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || `Erro HTTP: ${response.status}`);
+      }
+
+      const result = await response.json();
+      return {
+        success: true,
+        message: `Resposta enviada para ${phone}`,
+        data: result,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        message: `Falha ao enviar resposta para ${phone}: ${error.message}`,
+      };
+    }
+  },
+
+  async sendMedia({ sessionId, phone, mediaUrl, mediaType, caption, fileName }) {
+    try {
+      const userToken = this.getUserToken?.() || process.env.BAILEYS_API_TOKEN || 'baileys_default_token';
+
+      const response = await fetch(
+        `http://localhost:3000/api/baileys/session/${sessionId}/send-media`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${userToken}`,
+          },
+          body: JSON.stringify({
+            phone,
+            mediaUrl,
+            mediaType,
+            caption,
+            fileName,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || `Erro HTTP: ${response.status}`);
+      }
+
+      const result = await response.json();
+      return {
+        success: true,
+        message: `Mídia ${mediaType} enviada para ${phone}`,
+        data: result,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        message: `Falha ao enviar mídia para ${phone}: ${error.message}`,
+      };
+    }
+  },
+
+  async markAsRead({ sessionId, phone, messageId }) {
+    try {
+      const userToken = this.getUserToken?.() || process.env.BAILEYS_API_TOKEN || 'baileys_default_token';
+
+      const response = await fetch(
+        `http://localhost:3000/api/baileys/session/${sessionId}/mark-read`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${userToken}`,
+          },
+          body: JSON.stringify({
+            phone,
+            messageId,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || `Erro HTTP: ${response.status}`);
+      }
+
+      return {
+        success: true,
+        message: `Mensagem marcada como lida para ${phone}`,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        message: `Falha ao marcar como lida para ${phone}: ${error.message}`,
+      };
+    }
+  },
+
+  async setTypingStatus({ sessionId, phone, isTyping }) {
+    try {
+      const userToken = this.getUserToken?.() || process.env.BAILEYS_API_TOKEN || 'baileys_default_token';
+
+      const response = await fetch(
+        `http://localhost:3000/api/baileys/session/${sessionId}/typing`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${userToken}`,
+          },
+          body: JSON.stringify({
+            phone,
+            isTyping,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || `Erro HTTP: ${response.status}`);
+      }
+
+      return {
+        success: true,
+        message: `Status de digitação ${isTyping ? 'ativado' : 'desativado'} para ${phone}`,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        message: `Falha ao definir status de digitação para ${phone}: ${error.message}`,
+      };
+    }
+  },
+
+  async getMessageHistory({ sessionId, phone, limit = 50, before }) {
+    try {
+      const userToken = this.getUserToken?.() || process.env.BAILEYS_API_TOKEN || 'baileys_default_token';
+
+      const params = new URLSearchParams();
+      if (phone) params.append('phone', phone);
+      if (limit) params.append('limit', limit);
+      if (before) params.append('before', before);
+
+      const response = await fetch(
+        `http://localhost:3000/api/baileys/session/${sessionId}/messages?${params}`,
+        {
+          headers: {
+            Authorization: `Bearer ${userToken}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || `Erro HTTP: ${response.status}`);
+      }
+
+      const result = await response.json();
+      return {
+        success: true,
+        messages: result.messages || [],
+        total: result.total || 0,
+        message: `${result.total || 0} mensagens encontradas`,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        message: `Falha ao obter histórico de mensagens: ${error.message}`,
+      };
+    }
+  },
+
+  // Webhooks avançados
+  async createWebhook({ sessionId, webhookUrl, priority = 1, events, isActive = true }) {
+    try {
+      const userToken = this.getUserToken?.() || process.env.BAILEYS_API_TOKEN || 'baileys_default_token';
+
+      const response = await fetch(
+        `http://localhost:3000/api/baileys/session/${sessionId}/webhooks`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${userToken}`,
+          },
+          body: JSON.stringify({
+            webhookUrl,
+            priority,
+            events,
+            isActive,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || `Erro HTTP: ${response.status}`);
+      }
+
+      const result = await response.json();
+      return {
+        success: true,
+        webhookId: result.webhookId,
+        message: `Webhook criado com sucesso para sessão '${sessionId}'`,
+        data: result,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        message: `Falha ao criar webhook para '${sessionId}': ${error.message}`,
+      };
+    }
+  },
+
+  async listWebhooks({ sessionId }) {
+    try {
+      const userToken = this.getUserToken?.() || process.env.BAILEYS_API_TOKEN || 'baileys_default_token';
+
+      const response = await fetch(
+        `http://localhost:3000/api/baileys/session/${sessionId}/webhooks`,
+        {
+          headers: {
+            Authorization: `Bearer ${userToken}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || `Erro HTTP: ${response.status}`);
+      }
+
+      const result = await response.json();
+      return {
+        success: true,
+        webhooks: result.webhooks || [],
+        total: result.total || 0,
+        message: `${result.total || 0} webhooks encontrados para sessão '${sessionId}'`,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        message: `Falha ao listar webhooks da sessão '${sessionId}': ${error.message}`,
+      };
+    }
+  },
+
+  async getWebhook({ sessionId, webhookId }) {
+    try {
+      const userToken = this.getUserToken?.() || process.env.BAILEYS_API_TOKEN || 'baileys_default_token';
+
+      const response = await fetch(
+        `http://localhost:3000/api/baileys/session/${sessionId}/webhooks/${webhookId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${userToken}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || `Erro HTTP: ${response.status}`);
+      }
+
+      const result = await response.json();
+      return {
+        success: true,
+        webhook: result.webhook,
+        message: `Webhook ${webhookId} obtido com sucesso`,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        message: `Falha ao obter webhook ${webhookId}: ${error.message}`,
+      };
+    }
+  },
+
+  async updateWebhook({ sessionId, webhookId, webhookUrl, priority, events }) {
+    try {
+      const userToken = this.getUserToken?.() || process.env.BAILEYS_API_TOKEN || 'baileys_default_token';
+
+      const response = await fetch(
+        `http://localhost:3000/api/baileys/session/${sessionId}/webhooks/${webhookId}`,
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${userToken}`,
+          },
+          body: JSON.stringify({
+            webhookUrl,
+            priority,
+            events,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || `Erro HTTP: ${response.status}`);
+      }
+
+      const result = await response.json();
+      return {
+        success: true,
+        message: `Webhook ${webhookId} atualizado com sucesso`,
+        data: result,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        message: `Falha ao atualizar webhook ${webhookId}: ${error.message}`,
+      };
+    }
+  },
+
+  async deleteWebhook({ sessionId, webhookId }) {
+    try {
+      const userToken = this.getUserToken?.() || process.env.BAILEYS_API_TOKEN || 'baileys_default_token';
+
+      const response = await fetch(
+        `http://localhost:3000/api/baileys/session/${sessionId}/webhooks/${webhookId}`,
+        {
+          method: 'DELETE',
+          headers: {
+            Authorization: `Bearer ${userToken}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || `Erro HTTP: ${response.status}`);
+      }
+
+      return {
+        success: true,
+        message: `Webhook ${webhookId} deletado com sucesso`,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        message: `Falha ao deletar webhook ${webhookId}: ${error.message}`,
+      };
+    }
+  },
+
+  async toggleWebhook({ sessionId, webhookId, isActive }) {
+    try {
+      const userToken = this.getUserToken?.() || process.env.BAILEYS_API_TOKEN || 'baileys_default_token';
+
+      const response = await fetch(
+        `http://localhost:3000/api/baileys/session/${sessionId}/webhooks/${webhookId}/toggle`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${userToken}`,
+          },
+          body: JSON.stringify({
+            isActive,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || `Erro HTTP: ${response.status}`);
+      }
+
+      return {
+        success: true,
+        message: `Webhook ${webhookId} ${isActive ? 'ativado' : 'desativado'} com sucesso`,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        message: `Falha ao ${isActive ? 'ativar' : 'desativar'} webhook ${webhookId}: ${error.message}`,
+      };
+    }
+  },
+
+  async testWebhook({ sessionId, webhookId, testData }) {
+    try {
+      const userToken = this.getUserToken?.() || process.env.BAILEYS_API_TOKEN || 'baileys_default_token';
+
+      const response = await fetch(
+        `http://localhost:3000/api/baileys/session/${sessionId}/webhooks/${webhookId}/test`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${userToken}`,
+          },
+          body: JSON.stringify({
+            testData: testData || { test: true, timestamp: new Date().toISOString() },
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || `Erro HTTP: ${response.status}`);
+      }
+
+      const result = await response.json();
+      return {
+        success: true,
+        message: `Teste do webhook ${webhookId} executado com sucesso`,
+        testResult: result,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        message: `Falha no teste do webhook ${webhookId}: ${error.message}`,
+      };
+    }
   },
 };
 
