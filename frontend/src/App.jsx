@@ -11,6 +11,7 @@ import {
 } from '@heroicons/react/24/outline'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
+import AIAssistantPage from './pages/AIAssistant'
 
 function Home() {
   const features = [
@@ -223,6 +224,12 @@ function Home() {
             >
               Acessar Dashboard
             </Link>
+            <Link 
+              to="/ai"
+              className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 px-8 py-3 rounded-lg font-medium transition-colors inline-flex items-center justify-center"
+            >
+              🤖 Assistente de IA
+            </Link>
           </div>
         </div>
       </section>
@@ -280,6 +287,7 @@ function App() {
         <Route path="/" element={<Home />} />
         <Route path="/login" element={<Login />} />
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/ai" element={<AIAssistantPage />} />
       </Routes>
     </Router>
   )

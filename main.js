@@ -35,36 +35,53 @@ class Server {
 
   setupMiddleware() {
     // Security headers
-    this.app.use(helmet({
-      crossOriginResourcePolicy: { policy: "cross-origin" }
-    }));    // CORS configuration
-    this.app.use(cors({
-      origin: function (origin, callback) {
-        // Allow requests with no origin (mobile apps, curl, etc.)
-        if (!origin) return callback(null, true);
-        
-        // Allow all origins
-        return callback(null, true);
-        
-        // Add CORS_ORIGIN from environment if it exists
-        if (process.env.CORS_ORIGIN && !allowedOrigins.includes(process.env.CORS_ORIGIN)) {
-          allowedOrigins.push(process.env.CORS_ORIGIN);
-        }
-        
-        if (allowedOrigins.includes(origin)) {
-          console.log('CORS allowed origin:', origin);
-          callback(null, true);
-        } else {
-          console.log('CORS blocked origin:', origin, 'Allowed:', allowedOrigins);
-          callback(new Error('Not allowed by CORS'));
-        }
-      },
-      credentials: true,
-      methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-      allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token', 'csrf-token'],
-      exposedHeaders: ['X-CSRF-Token', 'X-New-CSRF-Token'],
-      optionsSuccessStatus: 200 // For legacy browser support
-    }));
+    this.app.use(
+      helmet({
+        crossOriginResourcePolicy: { policy: 'cross-origin' },
+      })
+    ); // CORS configuration
+    this.app.use(
+      cors({
+        origin: function (origin, callback) {
+          // Allow requests with no origin (mobile apps, curl, etc.)
+          if (!origin) return callback(null, true);
+
+          // Allow all origins
+          return callback(null, true);
+
+          // Add CORS_ORIGIN from environment if it exists
+          if (
+            process.env.CORS_ORIGIN &&
+            !allowedOrigins.includes(process.env.CORS_ORIGIN)
+          ) {
+            allowedOrigins.push(process.env.CORS_ORIGIN);
+          }
+
+          if (allowedOrigins.includes(origin)) {
+            console.log('CORS allowed origin:', origin);
+            callback(null, true);
+          } else {
+            console.log(
+              'CORS blocked origin:',
+              origin,
+              'Allowed:',
+              allowedOrigins
+            );
+            callback(new Error('Not allowed by CORS'));
+          }
+        },
+        credentials: true,
+        methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+        allowedHeaders: [
+          'Content-Type',
+          'Authorization',
+          'X-CSRF-Token',
+          'csrf-token',
+        ],
+        exposedHeaders: ['X-CSRF-Token', 'X-New-CSRF-Token'],
+        optionsSuccessStatus: 200, // For legacy browser support
+      })
+    );
 
     // Handle preflight OPTIONS requests explicitly
     this.app.options('*', (req, res) => {
@@ -81,7 +98,9 @@ class Server {
     this.app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
     // Cookie parsing with signature
-    this.app.use(cookieParser(process.env.COOKIE_SECRET || 'your-cookie-secret-key'));
+    this.app.use(
+      cookieParser(process.env.COOKIE_SECRET || 'your-cookie-secret-key')
+    );
 
     // Session configuration
     const sessionConfig = {
@@ -92,9 +111,9 @@ class Server {
         secure: process.env.NODE_ENV === 'production',
         httpOnly: true,
         maxAge: 24 * 60 * 60 * 1000, // 24 hours
-        sameSite: 'strict'
+        sameSite: 'strict',
       },
-      name: 'sessionId' // Hide default session name
+      name: 'sessionId', // Hide default session name
     };
 
     // Add MongoDB store if database is available
@@ -105,18 +124,20 @@ class Server {
           client: client,
           dbName: process.env.DB_NAME,
           collectionName: 'sessions',
-          ttl: 24 * 60 * 60 // 24 hours
+          ttl: 24 * 60 * 60, // 24 hours
         });
         console.log('✅ Using MongoDB for session storage');
       } else {
         console.log('⚠️  Using memory store for sessions (development mode)');
       }
     } catch (error) {
-      console.log('⚠️  MongoDB session store failed, using memory store:', error.message);
+      console.log(
+        '⚠️  MongoDB session store failed, using memory store:',
+        error.message
+      );
     }
 
     this.app.use(session(sessionConfig));
-
 
     // Request timestamp middleware
     this.app.use((req, res, next) => {
@@ -127,11 +148,15 @@ class Server {
 
   setupRoutes() {
     // Swagger Documentation (before other routes)
-    this.app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
-      explorer: true,
-      customCss: '.swagger-ui .topbar { display: none }',
-      customSiteTitle: "Baileys WhatsApp API Documentation"
-    }));
+    this.app.use(
+      '/api-docs',
+      swaggerUi.serve,
+      swaggerUi.setup(swaggerSpec, {
+        explorer: true,
+        customCss: '.swagger-ui .topbar { display: none }',
+        customSiteTitle: 'Baileys WhatsApp API Documentation',
+      })
+    );
 
     // API routes
     // Management API routes
@@ -153,8 +178,8 @@ class Server {
           baileys: '/api/baileys/*',
           management: '/api/management/*',
           health: '/api/management/health',
-          docs: '/api-docs'
-        }
+          docs: '/api-docs',
+        },
       });
     });
 
@@ -168,7 +193,7 @@ class Server {
     // Global error handler
     this.app.use((error, req, res, next) => {
       console.error('Unhandled error:', error);
-      
+
       if (res.headersSent) {
         return next(error);
       }
@@ -190,7 +215,7 @@ class Server {
       res.status(statusCode).json({
         success: false,
         message,
-        ...(process.env.NODE_ENV === 'development' && { stack: error.stack })
+        ...(process.env.NODE_ENV === 'development' && { stack: error.stack }),
       });
     });
   }
@@ -215,14 +240,20 @@ class Server {
       this.server = this.app.listen(this.port, () => {
         console.log('🎉 ===========================================');
         console.log(`🚀 Server running on port ${this.port}`);
-        console.log(`📱 Management API: http://localhost:${this.port}/api/management`);
-        console.log(`💬 Baileys API: http://localhost:${this.port}/api/baileys`);
-        console.log(`🏥 Health Check: http://localhost:${this.port}/api/management/health`);
+        console.log(
+          `📱 Management API: http://localhost:${this.port}/api/management`
+        );
+        console.log(
+          `💬 Baileys API: http://localhost:${this.port}/api/baileys`
+        );
+        console.log(
+          `🏥 Health Check: http://localhost:${this.port}/api/management/health`
+        );
         console.log(`📖 API Docs: http://localhost:${this.port}/api-docs`);
         console.log(`🖥️  Frontend: http://localhost:${this.port}`);
         console.log(`📋 API Info: http://localhost:${this.port}/api`);
         console.log('🎉 ===========================================');
-        
+
         if (process.env.NODE_ENV === 'development') {
           console.log('');
           console.log('💡 Development Mode Features:');
@@ -236,7 +267,6 @@ class Server {
       // Graceful shutdown
       process.on('SIGTERM', () => this.gracefulShutdown());
       process.on('SIGINT', () => this.gracefulShutdown());
-
     } catch (error) {
       console.error('❌ Failed to start server:', error);
       process.exit(1);
@@ -249,7 +279,7 @@ class Server {
     if (this.server) {
       this.server.close(async () => {
         console.log('HTTP server closed');
-        
+
         try {
           await database.disconnect();
           console.log('Database connection closed');

@@ -2,6 +2,7 @@ const express = require('express');
 const authRoutes = require('./auth');
 const tokenRoutes = require('./tokens');
 const sessionRoutes = require('./sessions');
+const aiRoutes = require('./ai');
 
 const router = express.Router();
 
@@ -24,6 +25,8 @@ router.use('/tokens', tokenRoutes);
 // Session routes
 router.use('/sessions', sessionRoutes);
 
+// AI Assistant routes
+router.use('/ai', aiRoutes);
 
 // API info endpoint
 router.get('/info', (req, res) => {
@@ -51,6 +54,11 @@ router.get('/info', (req, res) => {
         sessions: {
           createWithToken: 'POST /api/management/sessions/create-with-token',
           list: 'GET /api/management/sessions/list'
+        },
+        ai: {
+          chat: 'POST /api/management/ai/chat',
+          tools: 'GET /api/management/ai/tools',
+          health: 'GET /api/management/ai/health'
         }
       }
     }
