@@ -69,7 +69,7 @@ const toolSchemas = {
   markAsRead: Type.Object({
     sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
     phone: Type.String({ description: 'Número de telefone (formato: 5511999999999)', pattern: '^[1-9]\\d{1,14}$' }),
-    messageId: Type.Optional(Type.String({ description: 'ID da mensagem específica (opcional)' })),
+    messageId: Type.String({ description: 'ID da mensagem específica (obrigatório)', minLength: 1 }),
   }),
 
   setTypingStatus: Type.Object({
@@ -269,6 +269,11 @@ const toolSchemas = {
   cleanupExpiredDownloads: Type.Object({
     olderThan: Type.Optional(Type.Number({ description: 'Limpar downloads mais antigos que X dias (padrão: 7)', minimum: 1 })),
   }),
+};
+
+// Funções auxiliares
+const formatPhoneToJid = (phone) => {
+  return phone.includes('@') ? phone : `${phone}@s.whatsapp.net`;
 };
 
 // Implementações das tools
@@ -1355,9 +1360,8 @@ const toolImplementations = {
             Authorization: `Bearer ${userToken}`,
           },
           body: JSON.stringify({
-            to: phone,
-            message,
-            quotedMessageId,
+            messageId: quotedMessageId,
+            reply: message,
           }),
         }
       );
@@ -1370,14 +1374,14 @@ const toolImplementations = {
       const result = await response.json();
       return {
         success: true,
-        message: `Resposta enviada para ${phone}`,
+        message: `Resposta enviada para mensagem ${quotedMessageId}`,
         data: result,
       };
     } catch (error) {
       return {
         success: false,
         error: error.message,
-        message: `Falha ao enviar resposta para ${phone}: ${error.message}`,
+        message: `Falha ao enviar resposta para mensagem ${quotedMessageId}: ${error.message}`,
       };
     }
   },
@@ -1428,6 +1432,13 @@ const toolImplementations = {
     try {
       const userToken = this.getUserToken?.() || process.env.BAILEYS_API_TOKEN || 'baileys_default_token';
 
+      // Converter número para formato JID se necessário
+      const jid = formatPhoneToJid(phone);
+
+      if (!messageId) {
+        throw new Error('messageId é obrigatório para marcar mensagem como lida');
+      }
+
       const response = await fetch(
         `http://localhost:3000/api/baileys/session/${sessionId}/mark-read`,
         {
@@ -1437,7 +1448,7 @@ const toolImplementations = {
             Authorization: `Bearer ${userToken}`,
           },
           body: JSON.stringify({
-            to: phone,
+            jid,
             messageId,
           }),
         }
@@ -1450,7 +1461,7 @@ const toolImplementations = {
 
       return {
         success: true,
-        message: `Mensagem marcada como lida para ${phone}`,
+        message: `Mensagem ${messageId} marcada como lida para ${phone}`,
       };
     } catch (error) {
       return {
@@ -1465,6 +1476,9 @@ const toolImplementations = {
     try {
       const userToken = this.getUserToken?.() || process.env.BAILEYS_API_TOKEN || 'baileys_default_token';
 
+      // Converter número para formato JID se necessário
+      const jid = formatPhoneToJid(phone);
+
       const response = await fetch(
         `http://localhost:3000/api/baileys/session/${sessionId}/typing`,
         {
@@ -1474,7 +1488,7 @@ const toolImplementations = {
             Authorization: `Bearer ${userToken}`,
           },
           body: JSON.stringify({
-            to: phone,
+            jid,
             isTyping,
           }),
         }
@@ -2634,10 +2648,10 @@ const openAITools = [
           },
           messageId: {
             type: 'string',
-            description: 'ID da mensagem específica (opcional)',
+            description: 'ID da mensagem específica (obrigatório)',
           },
         },
-        required: ['sessionId', 'phone'],
+        required: ['sessionId', 'phone', 'messageId'],
       },
     },
   },
