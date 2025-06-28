@@ -774,10 +774,57 @@ const toolImplementations = {
 
   async createGroup({ sessionId, groupName, participants }) {
     try {
+      // Validação prévia dos parâmetros
+      if (!sessionId || typeof sessionId !== 'string') {
+        throw new Error('sessionId é obrigatório e deve ser uma string');
+      }
+      if (!groupName || typeof groupName !== 'string' || groupName.trim().length === 0) {
+        throw new Error('groupName é obrigatório e deve ser uma string não vazia');
+      }
+      if (!Array.isArray(participants) || participants.length === 0) {
+        throw new Error('participants deve ser um array não vazio de números de telefone');
+      }
+
+      // Validar formato dos números de telefone
+      const validParticipants = participants.filter(phone => {
+        if (typeof phone !== 'string') return false;
+        // Aceitar números com ou sem código do país
+        const cleanPhone = phone.replace(/\D/g, ''); // Remove caracteres não numéricos
+        return cleanPhone.length >= 10 && cleanPhone.length <= 15;
+      });
+
+      if (validParticipants.length === 0) {
+        throw new Error('Nenhum número de telefone válido encontrado nos participantes');
+      }
+
       const userToken =
         this.getUserToken?.() ||
         process.env.BAILEYS_API_TOKEN ||
         'baileys_default_token';
+
+      const requestBody = {
+        groupName: groupName.trim(),
+        participants: validParticipants,
+      };
+
+      console.log(`[createGroup] Criando grupo '${groupName}' com ${validParticipants.length} participantes`);
+
+      // Verificar status da sessão antes de tentar criar grupo
+      const statusResponse = await fetch(
+        `http://localhost:3000/api/baileys/session/${sessionId}/status`,
+        {
+          headers: {
+            Authorization: `Bearer ${userToken}`,
+          },
+        }
+      );
+
+      if (statusResponse.ok) {
+        const statusData = await statusResponse.json();
+        if (!statusData.isConnected) {
+          throw new Error(`Sessão '${sessionId}' não está conectada ao WhatsApp. Conecte a sessão primeiro.`);
+        }
+      }
 
       const response = await fetch(
         `http://localhost:3000/api/baileys/groups/${sessionId}/create`,
@@ -787,27 +834,26 @@ const toolImplementations = {
             'Content-Type': 'application/json',
             Authorization: `Bearer ${userToken}`,
           },
-          body: JSON.stringify({
-            groupName,
-            participants,
-          }),
+          body: JSON.stringify(requestBody),
         }
       );
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || `Erro HTTP: ${response.status}`);
+        const errorData = await response.json();
+        const errorMessage = errorData.message || errorData.error || `Erro HTTP: ${response.status}`;
+        throw new Error(errorMessage);
       }
 
       const result = await response.json();
       return {
         success: true,
-        message: `Grupo '${groupName}' criado com sucesso`,
+        message: `Grupo '${groupName}' criado com sucesso com ${validParticipants.length} participantes`,
         groupId: result.groupId,
-        participants,
+        participants: validParticipants,
         data: result,
       };
     } catch (error) {
+      console.error(`[createGroup] Erro ao criar grupo '${groupName}':`, error.message);
       return {
         success: false,
         error: error.message,
