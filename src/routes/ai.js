@@ -501,138 +501,22 @@ router.get('/tools', authenticateToken, (req, res) => {
   });
 });
 
-/**
- * @swagger
- * /api/ai/suggestions:
- *   post:
- *     summary: Gera sugestões inteligentes baseadas na conversa
- *     tags: [AI Assistant]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - conversation
- *             properties:
- *               conversation:
- *                 type: array
- *                 description: Últimas mensagens da conversa
- *                 items:
- *                   type: object
- *                   properties:
- *                     role:
- *                       type: string
- *                       enum: [user, assistant]
- *                     content:
- *                       type: string
- *     responses:
- *       200:
- *         description: Sugestões geradas com sucesso
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 suggestions:
- *                   type: array
- *                   items:
- *                     type: string
- */
-router.post('/suggestions', authenticateToken, async (req, res) => {
-  try {
-    const { conversation = [] } = req.body;
-
-    if (!conversation || conversation.length === 0) {
-      return res.json({
-        success: true,
-        suggestions: [
-          'Listar todas as sessões ativas',
-          'Criar uma nova sessão',
-          'Verificar status do sistema',
-          'Como configurar webhooks?',
-        ],
-      });
-    }
-
-    // Prompt para gerar sugestões contextuais
-    const suggestionsPrompt = `
-Com base na conversa a seguir sobre o FlowChat API (sistema de gerenciamento de WhatsApp), gere 4 sugestões curtas e práticas para o que o usuário pode perguntar ou fazer em seguida.
-
-Contexto da conversa:
-${conversation
-  .map(
-    (msg) => `${msg.role === 'user' ? 'Usuário' : 'Assistente'}: ${msg.content}`
-  )
-  .join('\n')}
-
-As sugestões devem ser:
-- Relacionadas ao contexto da conversa
-- Práticas e úteis para o usuário
-- Focadas em funcionalidades do FlowChat API
-- Máximo de 60 caracteres cada
-
-Retorne apenas as 4 sugestões, uma por linha, sem numeração ou formatação extra.
-`;
-
-    const response = await openai.chat.completions.create({
-      model: 'gpt-3.5-turbo',
-      messages: [
-        {
-          role: 'system',
-          content:
-            'Você é um especialista em APIs de WhatsApp e assistente do FlowChat API.',
-        },
-        {
-          role: 'user',
-          content: suggestionsPrompt,
-        },
-      ],
-      max_tokens: 200,
-      temperature: 0.7,
-    });
-
-    const suggestionsText = response.choices[0]?.message?.content || '';
-    const suggestions = suggestionsText
-      .split('\n')
-      .filter((line) => line.trim())
-      .slice(0, 4)
-      .map((suggestion) => suggestion.trim());
-
-    // Fallback se não conseguir gerar sugestões
-    if (suggestions.length === 0) {
-      return res.json({
-        success: true,
-        suggestions: [
-          'Listar todas as sessões ativas',
-          'Criar uma nova sessão',
-          'Verificar status do sistema',
-          'Como configurar webhooks?',
-        ],
-      });
-    }
-
-    res.json({
-      success: true,
-      suggestions,
-    });
-  } catch (error) {
-    console.error('Erro ao gerar sugestões:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Erro interno do servidor',
-      suggestions: [
-        'Listar todas as sessões ativas',
-        'Criar uma nova sessão',
-        'Verificar status do sistema',
-        'Como configurar webhooks?',
-      ],
-    });
-  }
-});
+// ENDPOINT DE SUGESTÕES DESABILITADO - Funcionalidade removida para otimização
+// /**
+//  * @swagger
+//  * /api/ai/suggestions:
+//  *   post:
+//  *     summary: Gera sugestões inteligentes baseadas na conversa (DESABILITADO)
+//  *     deprecated: true
+//  *     tags: [AI Assistant]
+//  */
+// router.post('/suggestions', authenticateToken, async (req, res) => {
+//   res.status(410).json({
+//     success: false,
+//     error: 'Endpoint desabilitado',
+//     message: 'Funcionalidade de sugestões foi removida para otimização',
+//   });
+// });
 
 /**
  * @swagger

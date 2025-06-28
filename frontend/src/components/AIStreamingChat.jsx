@@ -9,7 +9,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useSmartSuggestions } from '../hooks/useSmartSuggestions';
+// import { useSmartSuggestions } from '../hooks/useSmartSuggestions'; // DESABILITADO
 import MarkdownRenderer, { ToolResponseBlock } from './MarkdownRenderer';
 
 export default function AIStreamingChat() {
@@ -30,12 +30,19 @@ export default function AIStreamingChat() {
   const [isThinking, setIsThinking] = useState(false);
   const [streamingToolCalls, setStreamingToolCalls] = useState([]);
 
-  const {
-    smartSuggestions,
-    isGeneratingSuggestions,
-    generateSmartSuggestions,
-    clearSuggestions,
-  } = useSmartSuggestions();
+  // SUGESTÕES DESABILITADAS - Funcionalidade removida
+  // const {
+  //   smartSuggestions,
+  //   isGeneratingSuggestions,
+  //   generateSmartSuggestions,
+  //   clearSuggestions,
+  // } = useSmartSuggestions();
+  
+  // Mock para manter compatibilidade
+  const smartSuggestions = [];
+  const isGeneratingSuggestions = false;
+  const generateSmartSuggestions = () => {};
+  const clearSuggestions = () => {};
 
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
@@ -50,23 +57,23 @@ export default function AIStreamingChat() {
     scrollToBottom();
   }, [messages.length, isThinking]);
 
-  // Gerar sugestões após cada resposta da IA
-  useEffect(() => {
-    const lastMessage = messages[messages.length - 1];
-    if (
-      lastMessage &&
-      lastMessage.role === 'assistant' &&
-      lastMessage.isComplete &&
-      !isStreaming &&
-      suggestionsGeneratedFor.current !== lastMessage.id
-    ) {
-      const timer = setTimeout(() => {
-        suggestionsGeneratedFor.current = lastMessage.id;
-        generateSmartSuggestions(messages);
-      }, 1500);
-      return () => clearTimeout(timer);
-    }
-  }, [messages.length, isStreaming]);
+  // SUGESTÕES DESABILITADAS - useEffect removido
+  // useEffect(() => {
+  //   const lastMessage = messages[messages.length - 1];
+  //   if (
+  //     lastMessage &&
+  //     lastMessage.role === 'assistant' &&
+  //     lastMessage.isComplete &&
+  //     !isStreaming &&
+  //     suggestionsGeneratedFor.current !== lastMessage.id
+  //   ) {
+  //     const timer = setTimeout(() => {
+  //       suggestionsGeneratedFor.current = lastMessage.id;
+  //       generateSmartSuggestions(messages);
+  //     }, 1500);
+  //     return () => clearTimeout(timer);
+  //   }
+  // }, [messages.length, isStreaming]);
 
   const stopStreaming = () => {
     if (abortControllerRef.current) {
@@ -82,8 +89,7 @@ export default function AIStreamingChat() {
   const sendMessage = async () => {
     if (!inputValue.trim() || isStreaming) return;
 
-    // Limpar sugestões e controles quando enviar nova mensagem
-    clearSuggestions();
+    // Resetar controles quando enviar nova mensagem
     suggestionsGeneratedFor.current = null;
 
     const userMessage = {
@@ -492,85 +498,7 @@ export default function AIStreamingChat() {
 
       {/* Input Area */}
       <div className="border-t border-gray-200 bg-gray-50">
-        {/* Smart Suggestions - Moved to top for better visibility */}
-        {!isStreaming &&
-          (smartSuggestions.length > 0 || isGeneratingSuggestions) && (
-            <div className="px-4 pt-4 pb-2">
-              <div className="flex items-center space-x-2 mb-3">
-                <SparklesIcon className="w-4 h-4 text-purple-600" />
-                <span className="text-sm font-medium text-gray-700">
-                  Sugestões inteligentes
-                </span>
-                {isGeneratingSuggestions && (
-                  <motion.div
-                    animate={{ rotate: 360 }}
-                    transition={{
-                      duration: 1,
-                      repeat: Infinity,
-                      ease: 'linear',
-                    }}
-                  >
-                    <SparklesIcon className="w-3 h-3 text-purple-400" />
-                  </motion.div>
-                )}
-              </div>
-
-              {isGeneratingSuggestions ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {[...Array(4)].map((_, index) => (
-                    <motion.div
-                      key={index}
-                      className="bg-white border border-gray-200 rounded-lg px-3 py-2 h-12"
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: [0.3, 0.6, 0.3] }}
-                      transition={{
-                        duration: 1.5,
-                        repeat: Infinity,
-                        delay: index * 0.2,
-                      }}
-                    >
-                      <div className="flex items-center space-x-2 h-full">
-                        <div className="w-4 h-4 bg-gray-200 rounded animate-pulse" />
-                        <div className="flex-1 space-y-1">
-                          <div className="h-2 bg-gray-200 rounded animate-pulse" />
-                          <div className="h-2 bg-gray-200 rounded w-3/4 animate-pulse" />
-                        </div>
-                      </div>
-                    </motion.div>
-                  ))}
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {smartSuggestions.map((suggestion, index) => (
-                    <motion.button
-                      key={index}
-                      onClick={() => setInputValue(suggestion)}
-                      className="text-left text-sm bg-white border border-purple-200 rounded-lg px-3 py-2 text-gray-700 hover:bg-purple-50 hover:border-purple-300 transition-all duration-200 shadow-sm"
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.1 }}
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                    >
-                      <div className="flex items-start space-x-2">
-                        <LightBulbIcon className="w-4 h-4 text-purple-500 mt-0.5 flex-shrink-0" />
-                        <span
-                          className="text-sm leading-relaxed overflow-hidden text-ellipsis"
-                          style={{
-                            display: '-webkit-box',
-                            WebkitLineClamp: 2,
-                            WebkitBoxOrient: 'vertical',
-                          }}
-                        >
-                          {suggestion}
-                        </span>
-                      </div>
-                    </motion.button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+        {/* SUGESTÕES INTELIGENTES DESABILITADAS */}
 
         <div className="p-4">
           <form onSubmit={handleSubmit} className="relative">
@@ -599,14 +527,16 @@ export default function AIStreamingChat() {
             </motion.button>
           </form>
 
-          {/* Quick Actions - Fallback when no smart suggestions */}
-          {!isStreaming && smartSuggestions.length === 0 && (
+          {/* Quick Actions - Sempre visíveis */}
+          {!isStreaming && (
             <div className="mt-3 flex flex-wrap gap-2">
               {[
                 'Listar todas as sessões ativas',
-                'Criar uma nova sessão chamada "test"',
+                'Criar uma nova sessão',
                 'Verificar status do sistema',
-                'Como configurar webhooks?',
+                'Enviar mensagem de exemplo',
+                'Configurar webhook',
+                'Listar grupos',
               ].map((suggestion) => (
                 <motion.button
                   key={suggestion}

@@ -2365,6 +2365,339 @@ const openAITools = [
     },
   },
 
+  // ====== WEBHOOKS AVANÇADOS ======
+  {
+    type: 'function',
+    function: {
+      name: 'createWebhook',
+      description: 'Criar um novo webhook para uma sessão (até 3 por sessão)',
+      parameters: {
+        type: 'object',
+        properties: {
+          sessionId: {
+            type: 'string',
+            description: 'ID da sessão',
+          },
+          webhookUrl: {
+            type: 'string',
+            description: 'URL do webhook',
+          },
+          priority: {
+            type: 'number',
+            description: 'Prioridade do webhook (1-3)',
+            minimum: 1,
+            maximum: 3,
+          },
+          events: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Eventos específicos para escutar (opcional)',
+          },
+          isActive: {
+            type: 'boolean',
+            description: 'Status ativo do webhook',
+          },
+        },
+        required: ['sessionId', 'webhookUrl'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'listWebhooks',
+      description: 'Listar todos os webhooks configurados para uma sessão',
+      parameters: {
+        type: 'object',
+        properties: {
+          sessionId: {
+            type: 'string',
+            description: 'ID da sessão',
+          },
+        },
+        required: ['sessionId'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'getWebhook',
+      description: 'Obter detalhes de um webhook específico',
+      parameters: {
+        type: 'object',
+        properties: {
+          sessionId: {
+            type: 'string',
+            description: 'ID da sessão',
+          },
+          webhookId: {
+            type: 'string',
+            description: 'ID do webhook',
+          },
+        },
+        required: ['sessionId', 'webhookId'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'updateWebhook',
+      description: 'Atualizar configurações de um webhook existente',
+      parameters: {
+        type: 'object',
+        properties: {
+          sessionId: {
+            type: 'string',
+            description: 'ID da sessão',
+          },
+          webhookId: {
+            type: 'string',
+            description: 'ID do webhook',
+          },
+          webhookUrl: {
+            type: 'string',
+            description: 'Nova URL do webhook',
+          },
+          priority: {
+            type: 'number',
+            description: 'Nova prioridade (1-3)',
+            minimum: 1,
+            maximum: 3,
+          },
+          events: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Novos eventos para escutar',
+          },
+        },
+        required: ['sessionId', 'webhookId'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'deleteWebhook',
+      description: 'Deletar um webhook específico',
+      parameters: {
+        type: 'object',
+        properties: {
+          sessionId: {
+            type: 'string',
+            description: 'ID da sessão',
+          },
+          webhookId: {
+            type: 'string',
+            description: 'ID do webhook',
+          },
+        },
+        required: ['sessionId', 'webhookId'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'toggleWebhook',
+      description: 'Ativar ou desativar um webhook específico',
+      parameters: {
+        type: 'object',
+        properties: {
+          sessionId: {
+            type: 'string',
+            description: 'ID da sessão',
+          },
+          webhookId: {
+            type: 'string',
+            description: 'ID do webhook',
+          },
+          isActive: {
+            type: 'boolean',
+            description: 'Novo status ativo do webhook',
+          },
+        },
+        required: ['sessionId', 'webhookId', 'isActive'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'testWebhook',
+      description: 'Testar um webhook enviando dados de teste',
+      parameters: {
+        type: 'object',
+        properties: {
+          sessionId: {
+            type: 'string',
+            description: 'ID da sessão',
+          },
+          webhookId: {
+            type: 'string',
+            description: 'ID do webhook',
+          },
+          testData: {
+            type: 'object',
+            description: 'Dados de teste personalizados (opcional)',
+          },
+        },
+        required: ['sessionId', 'webhookId'],
+      },
+    },
+  },
+
+  // ====== MENSAGENS AVANÇADAS ======
+  {
+    type: 'function',
+    function: {
+      name: 'replyMessage',
+      description: 'Responder a uma mensagem específica com citação',
+      parameters: {
+        type: 'object',
+        properties: {
+          sessionId: {
+            type: 'string',
+            description: 'ID da sessão',
+          },
+          phone: {
+            type: 'string',
+            description: 'Número de telefone no formato internacional',
+          },
+          message: {
+            type: 'string',
+            description: 'Mensagem de resposta',
+          },
+          quotedMessageId: {
+            type: 'string',
+            description: 'ID da mensagem sendo respondida',
+          },
+        },
+        required: ['sessionId', 'phone', 'message', 'quotedMessageId'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'sendMedia',
+      description: 'Enviar mídia com detecção automática de tipo',
+      parameters: {
+        type: 'object',
+        properties: {
+          sessionId: {
+            type: 'string',
+            description: 'ID da sessão',
+          },
+          phone: {
+            type: 'string',
+            description: 'Número de telefone no formato internacional',
+          },
+          mediaUrl: {
+            type: 'string',
+            description: 'URL da mídia a ser enviada',
+          },
+          mediaType: {
+            type: 'string',
+            enum: ['image', 'video', 'audio', 'document'],
+            description: 'Tipo de mídia',
+          },
+          caption: {
+            type: 'string',
+            description: 'Legenda da mídia (opcional)',
+          },
+          fileName: {
+            type: 'string',
+            description: 'Nome do arquivo (opcional)',
+          },
+        },
+        required: ['sessionId', 'phone', 'mediaUrl', 'mediaType'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'markAsRead',
+      description: 'Marcar mensagem como lida',
+      parameters: {
+        type: 'object',
+        properties: {
+          sessionId: {
+            type: 'string',
+            description: 'ID da sessão',
+          },
+          phone: {
+            type: 'string',
+            description: 'Número de telefone no formato internacional',
+          },
+          messageId: {
+            type: 'string',
+            description: 'ID da mensagem específica (opcional)',
+          },
+        },
+        required: ['sessionId', 'phone'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'setTypingStatus',
+      description: 'Controlar status de digitação',
+      parameters: {
+        type: 'object',
+        properties: {
+          sessionId: {
+            type: 'string',
+            description: 'ID da sessão',
+          },
+          phone: {
+            type: 'string',
+            description: 'Número de telefone no formato internacional',
+          },
+          isTyping: {
+            type: 'boolean',
+            description: 'Status de digitação (true/false)',
+          },
+        },
+        required: ['sessionId', 'phone', 'isTyping'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'getMessageHistory',
+      description: 'Obter histórico de mensagens com filtros e paginação',
+      parameters: {
+        type: 'object',
+        properties: {
+          sessionId: {
+            type: 'string',
+            description: 'ID da sessão',
+          },
+          phone: {
+            type: 'string',
+            description: 'Número de telefone específico (opcional)',
+          },
+          limit: {
+            type: 'number',
+            description: 'Limite de mensagens (padrão: 50)',
+            minimum: 1,
+            maximum: 1000,
+          },
+          before: {
+            type: 'string',
+            description: 'Buscar mensagens antes de um timestamp específico',
+          },
+        },
+        required: ['sessionId'],
+      },
+    },
+  },
+
   // ====== SISTEMA ======
   {
     type: 'function',
