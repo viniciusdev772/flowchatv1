@@ -169,15 +169,19 @@ const toolImplementations = {
   // ====== SESSÕES ======
   async createSession({ sessionId }) {
     try {
+      // Obter token do usuário autenticado do contexto da request
+      const userToken =
+        this.getUserToken?.() ||
+        process.env.BAILEYS_API_TOKEN ||
+        'baileys_default_token';
+
       const response = await fetch(
         `http://localhost:3000/api/baileys/session/create`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${
-              process.env.BAILEYS_API_TOKEN || 'baileys_default_token'
-            }`,
+            Authorization: `Bearer ${userToken}`,
           },
           body: JSON.stringify({ sessionId }),
         }
@@ -208,13 +212,16 @@ const toolImplementations = {
 
   async listSessions() {
     try {
+      const userToken =
+        this.getUserToken?.() ||
+        process.env.BAILEYS_API_TOKEN ||
+        'baileys_default_token';
+
       const response = await fetch(
         `http://localhost:3000/api/baileys/sessions`,
         {
           headers: {
-            Authorization: `Bearer ${
-              process.env.BAILEYS_API_TOKEN || 'baileys_default_token'
-            }`,
+            Authorization: `Bearer ${userToken}`,
           },
         }
       );
@@ -242,14 +249,17 @@ const toolImplementations = {
 
   async deleteSession({ sessionId }) {
     try {
+      const userToken =
+        this.getUserToken?.() ||
+        process.env.BAILEYS_API_TOKEN ||
+        'baileys_default_token';
+
       const response = await fetch(
         `http://localhost:3000/api/baileys/session/${sessionId}/delete`,
         {
           method: 'DELETE',
           headers: {
-            Authorization: `Bearer ${
-              process.env.BAILEYS_API_TOKEN || 'baileys_default_token'
-            }`,
+            Authorization: `Bearer ${userToken}`,
           },
         }
       );
@@ -275,13 +285,16 @@ const toolImplementations = {
 
   async getSessionStatus({ sessionId }) {
     try {
+      const userToken =
+        this.getUserToken?.() ||
+        process.env.BAILEYS_API_TOKEN ||
+        'baileys_default_token';
+
       const response = await fetch(
         `http://localhost:3000/api/baileys/session/${sessionId}/status`,
         {
           headers: {
-            Authorization: `Bearer ${
-              process.env.BAILEYS_API_TOKEN || 'baileys_default_token'
-            }`,
+            Authorization: `Bearer ${userToken}`,
           },
         }
       );
@@ -311,14 +324,17 @@ const toolImplementations = {
 
   async regenerateQRCode({ sessionId }) {
     try {
+      const userToken =
+        this.getUserToken?.() ||
+        process.env.BAILEYS_API_TOKEN ||
+        'baileys_default_token';
+
       const response = await fetch(
         `http://localhost:3000/api/baileys/session/${sessionId}/regenerate-qr`,
         {
           method: 'POST',
           headers: {
-            Authorization: `Bearer ${
-              process.env.BAILEYS_API_TOKEN || 'baileys_default_token'
-            }`,
+            Authorization: `Bearer ${userToken}`,
           },
         }
       );
@@ -348,15 +364,18 @@ const toolImplementations = {
   // ====== MENSAGENS ======
   async sendMessage({ sessionId, phone, message }) {
     try {
+      const userToken =
+        this.getUserToken?.() ||
+        process.env.BAILEYS_API_TOKEN ||
+        'baileys_default_token';
+
       const response = await fetch(
         `http://localhost:3000/api/baileys/session/${sessionId}/send-message`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${
-              process.env.BAILEYS_API_TOKEN || 'baileys_default_token'
-            }`,
+            Authorization: `Bearer ${userToken}`,
           },
           body: JSON.stringify({
             phone,
@@ -387,15 +406,18 @@ const toolImplementations = {
 
   async sendImage({ sessionId, phone, imageUrl, caption }) {
     try {
+      const userToken =
+        this.getUserToken?.() ||
+        process.env.BAILEYS_API_TOKEN ||
+        'baileys_default_token';
+
       const response = await fetch(
         `http://localhost:3000/api/baileys/session/${sessionId}/send-image`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${
-              process.env.BAILEYS_API_TOKEN || 'baileys_default_token'
-            }`,
+            Authorization: `Bearer ${userToken}`,
           },
           body: JSON.stringify({
             phone,
@@ -429,15 +451,18 @@ const toolImplementations = {
 
   async sendDocument({ sessionId, phone, documentUrl, fileName, caption }) {
     try {
+      const userToken =
+        this.getUserToken?.() ||
+        process.env.BAILEYS_API_TOKEN ||
+        'baileys_default_token';
+
       const response = await fetch(
         `http://localhost:3000/api/baileys/session/${sessionId}/send-document`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${
-              process.env.BAILEYS_API_TOKEN || 'baileys_default_token'
-            }`,
+            Authorization: `Bearer ${userToken}`,
           },
           body: JSON.stringify({
             phone,
@@ -470,15 +495,18 @@ const toolImplementations = {
 
   async sendSticker({ sessionId, phone, stickerUrl }) {
     try {
+      const userToken =
+        this.getUserToken?.() ||
+        process.env.BAILEYS_API_TOKEN ||
+        'baileys_default_token';
+
       const response = await fetch(
         `http://localhost:3000/api/baileys/session/${sessionId}/send-sticker`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${
-              process.env.BAILEYS_API_TOKEN || 'baileys_default_token'
-            }`,
+            Authorization: `Bearer ${userToken}`,
           },
           body: JSON.stringify({
             phone,
@@ -510,15 +538,18 @@ const toolImplementations = {
   // ====== WEBHOOKS ======
   async setWebhook({ sessionId, webhookUrl, priority = 1 }) {
     try {
+      const userToken =
+        this.getUserToken?.() ||
+        process.env.BAILEYS_API_TOKEN ||
+        'baileys_default_token';
+
       const response = await fetch(
         `http://localhost:3000/api/baileys/session/${sessionId}/webhook`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${
-              process.env.BAILEYS_API_TOKEN || 'baileys_default_token'
-            }`,
+            Authorization: `Bearer ${userToken}`,
           },
           body: JSON.stringify({
             webhookUrl,
@@ -551,14 +582,17 @@ const toolImplementations = {
 
   async removeWebhook({ sessionId }) {
     try {
+      const userToken =
+        this.getUserToken?.() ||
+        process.env.BAILEYS_API_TOKEN ||
+        'baileys_default_token';
+
       const response = await fetch(
         `http://localhost:3000/api/baileys/session/${sessionId}/webhook`,
         {
           method: 'DELETE',
           headers: {
-            Authorization: `Bearer ${
-              process.env.BAILEYS_API_TOKEN || 'baileys_default_token'
-            }`,
+            Authorization: `Bearer ${userToken}`,
           },
         }
       );
@@ -584,13 +618,16 @@ const toolImplementations = {
   // ====== GRUPOS ======
   async listGroups({ sessionId }) {
     try {
+      const userToken =
+        this.getUserToken?.() ||
+        process.env.BAILEYS_API_TOKEN ||
+        'baileys_default_token';
+
       const response = await fetch(
         `http://localhost:3000/api/baileys/groups/${sessionId}/list`,
         {
           headers: {
-            Authorization: `Bearer ${
-              process.env.BAILEYS_API_TOKEN || 'baileys_default_token'
-            }`,
+            Authorization: `Bearer ${userToken}`,
           },
         }
       );
@@ -620,15 +657,18 @@ const toolImplementations = {
 
   async createGroup({ sessionId, groupName, participants }) {
     try {
+      const userToken =
+        this.getUserToken?.() ||
+        process.env.BAILEYS_API_TOKEN ||
+        'baileys_default_token';
+
       const response = await fetch(
         `http://localhost:3000/api/baileys/groups/${sessionId}/create`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${
-              process.env.BAILEYS_API_TOKEN || 'baileys_default_token'
-            }`,
+            Authorization: `Bearer ${userToken}`,
           },
           body: JSON.stringify({
             groupName,
@@ -661,13 +701,16 @@ const toolImplementations = {
 
   async getGroupInfo({ sessionId, groupId }) {
     try {
+      const userToken =
+        this.getUserToken?.() ||
+        process.env.BAILEYS_API_TOKEN ||
+        'baileys_default_token';
+
       const response = await fetch(
         `http://localhost:3000/api/baileys/groups/${sessionId}/${groupId}/info`,
         {
           headers: {
-            Authorization: `Bearer ${
-              process.env.BAILEYS_API_TOKEN || 'baileys_default_token'
-            }`,
+            Authorization: `Bearer ${userToken}`,
           },
         }
       );
@@ -694,15 +737,18 @@ const toolImplementations = {
 
   async addGroupParticipants({ sessionId, groupId, participants }) {
     try {
+      const userToken =
+        this.getUserToken?.() ||
+        process.env.BAILEYS_API_TOKEN ||
+        'baileys_default_token';
+
       const response = await fetch(
         `http://localhost:3000/api/baileys/groups/${sessionId}/${groupId}/add-participants`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${
-              process.env.BAILEYS_API_TOKEN || 'baileys_default_token'
-            }`,
+            Authorization: `Bearer ${userToken}`,
           },
           body: JSON.stringify({ participants }),
         }
@@ -731,15 +777,18 @@ const toolImplementations = {
 
   async removeGroupParticipants({ sessionId, groupId, participants }) {
     try {
+      const userToken =
+        this.getUserToken?.() ||
+        process.env.BAILEYS_API_TOKEN ||
+        'baileys_default_token';
+
       const response = await fetch(
         `http://localhost:3000/api/baileys/groups/${sessionId}/${groupId}/remove-participants`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${
-              process.env.BAILEYS_API_TOKEN || 'baileys_default_token'
-            }`,
+            Authorization: `Bearer ${userToken}`,
           },
           body: JSON.stringify({ participants }),
         }
@@ -768,15 +817,18 @@ const toolImplementations = {
 
   async promoteGroupParticipants({ sessionId, groupId, participants }) {
     try {
+      const userToken =
+        this.getUserToken?.() ||
+        process.env.BAILEYS_API_TOKEN ||
+        'baileys_default_token';
+
       const response = await fetch(
         `http://localhost:3000/api/baileys/groups/${sessionId}/${groupId}/promote`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${
-              process.env.BAILEYS_API_TOKEN || 'baileys_default_token'
-            }`,
+            Authorization: `Bearer ${userToken}`,
           },
           body: JSON.stringify({ participants }),
         }
@@ -805,15 +857,18 @@ const toolImplementations = {
 
   async demoteGroupParticipants({ sessionId, groupId, participants }) {
     try {
+      const userToken =
+        this.getUserToken?.() ||
+        process.env.BAILEYS_API_TOKEN ||
+        'baileys_default_token';
+
       const response = await fetch(
         `http://localhost:3000/api/baileys/groups/${sessionId}/${groupId}/demote`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${
-              process.env.BAILEYS_API_TOKEN || 'baileys_default_token'
-            }`,
+            Authorization: `Bearer ${userToken}`,
           },
           body: JSON.stringify({ participants }),
         }
@@ -842,15 +897,18 @@ const toolImplementations = {
 
   async updateGroupName({ sessionId, groupId, subject }) {
     try {
+      const userToken =
+        this.getUserToken?.() ||
+        process.env.BAILEYS_API_TOKEN ||
+        'baileys_default_token';
+
       const response = await fetch(
         `http://localhost:3000/api/baileys/groups/${sessionId}/${groupId}/subject`,
         {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${
-              process.env.BAILEYS_API_TOKEN || 'baileys_default_token'
-            }`,
+            Authorization: `Bearer ${userToken}`,
           },
           body: JSON.stringify({ subject }),
         }
@@ -879,15 +937,18 @@ const toolImplementations = {
 
   async updateGroupDescription({ sessionId, groupId, description }) {
     try {
+      const userToken =
+        this.getUserToken?.() ||
+        process.env.BAILEYS_API_TOKEN ||
+        'baileys_default_token';
+
       const response = await fetch(
         `http://localhost:3000/api/baileys/groups/${sessionId}/${groupId}/description`,
         {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${
-              process.env.BAILEYS_API_TOKEN || 'baileys_default_token'
-            }`,
+            Authorization: `Bearer ${userToken}`,
           },
           body: JSON.stringify({ description }),
         }
@@ -921,15 +982,18 @@ const toolImplementations = {
     onlyAdminsCanEditInfo,
   }) {
     try {
+      const userToken =
+        this.getUserToken?.() ||
+        process.env.BAILEYS_API_TOKEN ||
+        'baileys_default_token';
+
       const response = await fetch(
         `http://localhost:3000/api/baileys/groups/${sessionId}/${groupId}/settings`,
         {
           method: 'PUT',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${
-              process.env.BAILEYS_API_TOKEN || 'baileys_default_token'
-            }`,
+            Authorization: `Bearer ${userToken}`,
           },
           body: JSON.stringify({
             onlyAdminsCanSend,
@@ -961,14 +1025,17 @@ const toolImplementations = {
 
   async leaveGroup({ sessionId, groupId }) {
     try {
+      const userToken =
+        this.getUserToken?.() ||
+        process.env.BAILEYS_API_TOKEN ||
+        'baileys_default_token';
+
       const response = await fetch(
         `http://localhost:3000/api/baileys/groups/${sessionId}/${groupId}/leave`,
         {
           method: 'POST',
           headers: {
-            Authorization: `Bearer ${
-              process.env.BAILEYS_API_TOKEN || 'baileys_default_token'
-            }`,
+            Authorization: `Bearer ${userToken}`,
           },
         }
       );
@@ -994,13 +1061,16 @@ const toolImplementations = {
 
   async getGroupInviteCode({ sessionId, groupId }) {
     try {
+      const userToken =
+        this.getUserToken?.() ||
+        process.env.BAILEYS_API_TOKEN ||
+        'baileys_default_token';
+
       const response = await fetch(
         `http://localhost:3000/api/baileys/groups/${sessionId}/${groupId}/invite-code`,
         {
           headers: {
-            Authorization: `Bearer ${
-              process.env.BAILEYS_API_TOKEN || 'baileys_default_token'
-            }`,
+            Authorization: `Bearer ${userToken}`,
           },
         }
       );
@@ -1028,14 +1098,17 @@ const toolImplementations = {
 
   async revokeGroupInviteCode({ sessionId, groupId }) {
     try {
+      const userToken =
+        this.getUserToken?.() ||
+        process.env.BAILEYS_API_TOKEN ||
+        'baileys_default_token';
+
       const response = await fetch(
         `http://localhost:3000/api/baileys/groups/${sessionId}/${groupId}/revoke-invite`,
         {
           method: 'POST',
           headers: {
-            Authorization: `Bearer ${
-              process.env.BAILEYS_API_TOKEN || 'baileys_default_token'
-            }`,
+            Authorization: `Bearer ${userToken}`,
           },
         }
       );
@@ -1064,13 +1137,16 @@ const toolImplementations = {
   // ====== SISTEMA ======
   async getSystemInfo() {
     try {
+      const userToken =
+        this.getUserToken?.() ||
+        process.env.BAILEYS_API_TOKEN ||
+        'baileys_default_token';
+
       const response = await fetch(
         `http://localhost:3000/api/baileys/system/info`,
         {
           headers: {
-            Authorization: `Bearer ${
-              process.env.BAILEYS_API_TOKEN || 'baileys_default_token'
-            }`,
+            Authorization: `Bearer ${userToken}`,
           },
         }
       );
@@ -1107,14 +1183,17 @@ const toolImplementations = {
 
   async cleanupOrphanedSessions() {
     try {
+      const userToken =
+        this.getUserToken?.() ||
+        process.env.BAILEYS_API_TOKEN ||
+        'baileys_default_token';
+
       const response = await fetch(
         `http://localhost:3000/api/baileys/sessions/cleanup-orphaned`,
         {
           method: 'POST',
           headers: {
-            Authorization: `Bearer ${
-              process.env.BAILEYS_API_TOKEN || 'baileys_default_token'
-            }`,
+            Authorization: `Bearer ${userToken}`,
           },
         }
       );
@@ -1136,6 +1215,16 @@ const toolImplementations = {
         message: `Falha na limpeza de sessões órfãs: ${error.message}`,
       };
     }
+  },
+
+  // Método para definir o token do usuário (será usado no contexto da IA)
+  setUserToken(token) {
+    this.userToken = token;
+  },
+
+  // Método para obter o token do usuário
+  getUserToken() {
+    return this.userToken;
   },
 };
 

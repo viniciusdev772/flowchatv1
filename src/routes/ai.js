@@ -1,11 +1,59 @@
 const express = require('express');
 const OpenAI = require('openai');
+const { authenticateToken } = require('../middleware/auth');
+const { ObjectId } = require('mongodb');
+const database = require('../config/database');
 const {
   toolSchemas,
   toolImplementations,
   openAITools,
 } = require('../ai/tools');
 const router = express.Router();
+
+// Função para obter o token de API do usuário
+async function getUserApiToken(userId) {
+  try {
+    const db = database.getDb();
+    if (!db) {
+      console.warn('Database não disponível, usando token padrão');
+      return process.env.BAILEYS_API_TOKEN || 'baileys_default_token';
+    }
+
+    const tokensCollection = db.collection('api_tokens');
+
+    // Garantir que userId seja um ObjectId
+    const userObjectId =
+      typeof userId === 'string' ? new ObjectId(userId) : userId;
+
+    // Buscar o token ativo mais recente do usuário
+    const tokenRecord = await tokensCollection.findOne(
+      {
+        userId: userObjectId,
+        isActive: true,
+        $or: [{ expiresAt: null }, { expiresAt: { $gt: new Date() } }],
+      },
+      { sort: { createdAt: -1 } }
+    );
+
+    if (tokenRecord && tokenRecord.token) {
+      console.log(
+        `Token encontrado para usuário ${userId}: ${tokenRecord.token.substring(
+          0,
+          12
+        )}...`
+      );
+      return tokenRecord.token;
+    }
+
+    console.warn(
+      `Nenhum token válido encontrado para o usuário ${userId}, usando token padrão`
+    );
+    return process.env.BAILEYS_API_TOKEN || 'baileys_default_token';
+  } catch (error) {
+    console.error('Erro ao obter token do usuário:', error);
+    return process.env.BAILEYS_API_TOKEN || 'baileys_default_token';
+  }
+}
 
 // Configuração do OpenAI
 const openai = new OpenAI({
@@ -63,7 +111,7 @@ router.use((req, res, next) => {
  *       500:
  *         description: Erro interno
  */
-router.post('/chat', async (req, res) => {
+router.post('/chat', authenticateToken, async (req, res) => {
   try {
     const { message, conversation = [], stream = false } = req.body;
 
@@ -72,6 +120,23 @@ router.post('/chat', async (req, res) => {
         success: false,
         error: 'Mensagem é obrigatória',
       });
+    }
+
+    // Obter token do usuário autenticado para usar nas tools
+    const userToken = await getUserApiToken(req.user._id);
+
+    // Injetar token do usuário nas tools
+    if (userToken) {
+      toolImplementations.setUserToken(userToken);
+      console.log(
+        `Token do usuário ${
+          req.user._id
+        } injetado nas tools da IA: ${userToken.substring(0, 12)}...`
+      );
+    } else {
+      console.warn(
+        `Falha ao obter token para usuário ${req.user._id}, tools usarão token padrão`
+      );
     }
 
     // Sistema de prompts para a assistente
@@ -166,6 +231,11 @@ Responda em português brasileiro de forma técnica e objetiva.`;
 
       // Executar function calls se houver
       if (functionCalls.length > 0) {
+        // Injetar token do usuário nas tools (para streaming)
+        if (userToken) {
+          toolImplementations.setUserToken(userToken);
+        }
+
         res.write(
           JSON.stringify({
             type: 'thinking',
@@ -293,6 +363,11 @@ Responda em português brasileiro de forma técnica e objetiva.`;
       // Executar function calls
       const toolResults = [];
       if (toolCalls.length > 0) {
+        // Injetar token do usuário nas tools (para execução sem streaming)
+        if (userToken) {
+          toolImplementations.setUserToken(userToken);
+        }
+
         for (const toolCall of toolCalls) {
           const functionName = toolCall.function.name;
           const functionArgs = JSON.parse(toolCall.function.arguments);
@@ -376,7 +451,7 @@ Responda em português brasileiro de forma técnica e objetiva.`;
  *       200:
  *         description: Lista de tools disponíveis
  */
-router.get('/tools', (req, res) => {
+router.get('/tools', authenticateToken, (req, res) => {
   const toolsInfo = openAITools.map((tool) => ({
     name: tool.function.name,
     description: tool.function.description,

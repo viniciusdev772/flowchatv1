@@ -9,6 +9,7 @@ import {
   ClockIcon,
   Cog6ToothIcon
 } from '@heroicons/react/24/outline';
+import MarkdownRenderer, { ToolResponseBlock } from './MarkdownRenderer';
 
 export default function AIAssistant() {
   const [messages, setMessages] = useState([
@@ -189,7 +190,16 @@ export default function AIAssistant() {
                 ? 'bg-red-50 border border-red-200 text-red-800'
                 : 'bg-gray-100 text-gray-800'
           }`}>
-            <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+            {isUser ? (
+              <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+            ) : (
+              <div className="text-sm">
+                <MarkdownRenderer 
+                  content={message.content} 
+                  className={isError ? 'prose-red' : 'prose-gray'}
+                />
+              </div>
+            )}
           </div>
 
           {/* Tool Calls Results */}

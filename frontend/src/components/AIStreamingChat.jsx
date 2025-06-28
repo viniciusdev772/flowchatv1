@@ -1,24 +1,24 @@
-import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { 
-  PaperAirplaneIcon, 
+import {
+  ClockIcon,
   CpuChipIcon,
   ExclamationTriangleIcon,
-  CheckCircleIcon,
-  ClockIcon,
-  Cog6ToothIcon,
-  StopIcon
+  PaperAirplaneIcon,
+  StopIcon,
 } from '@heroicons/react/24/outline';
+import { AnimatePresence, motion } from 'framer-motion';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import MarkdownRenderer, { ToolResponseBlock } from './MarkdownRenderer';
 
 export default function AIStreamingChat() {
   const [messages, setMessages] = useState([
     {
       id: 1,
       role: 'assistant',
-      content: 'Olá! Sou sua assistente de IA para o FlowChat API. Posso ajudar você com gerenciamento de sessões WhatsApp, envio de mensagens, configuração de webhooks e muito mais. Como posso ajudar?',
+      content:
+        'Olá! Sou sua assistente de IA para o FlowChat API. Posso ajudar você com gerenciamento de sessões WhatsApp, envio de mensagens, configuração de webhooks e muito mais. Como posso ajudar?',
       timestamp: new Date(),
-      isComplete: true
-    }
+      isComplete: true,
+    },
   ]);
   const [inputValue, setInputValue] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
@@ -57,10 +57,10 @@ export default function AIStreamingChat() {
       role: 'user',
       content: inputValue,
       timestamp: new Date(),
-      isComplete: true
+      isComplete: true,
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    setMessages((prev) => [...prev, userMessage]);
     setInputValue('');
     setIsStreaming(true);
     setIsThinking(true);
@@ -76,18 +76,18 @@ export default function AIStreamingChat() {
       const response = await fetch(`${apiUrl}/api/management/ai/chat`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
         },
         credentials: 'include',
         signal: abortControllerRef.current.signal,
         body: JSON.stringify({
           message: inputValue,
-          conversation: messages.map(msg => ({
+          conversation: messages.map((msg) => ({
             role: msg.role,
-            content: msg.content
+            content: msg.content,
           })),
-          stream: true
-        })
+          stream: true,
+        }),
       });
 
       if (!response.ok) {
@@ -102,10 +102,10 @@ export default function AIStreamingChat() {
         timestamp: new Date(),
         isComplete: false,
         isStreaming: true,
-        toolCalls: []
+        toolCalls: [],
       };
 
-      setMessages(prev => [...prev, streamingMessage]);
+      setMessages((prev) => [...prev, streamingMessage]);
       setIsThinking(false);
 
       const reader = response.body.getReader();
@@ -115,11 +115,11 @@ export default function AIStreamingChat() {
 
       while (true) {
         const { done, value } = await reader.read();
-        
+
         if (done) break;
 
         const chunk = decoder.decode(value);
-        const lines = chunk.split('\n').filter(line => line.trim());
+        const lines = chunk.split('\n').filter((line) => line.trim());
 
         for (const line of lines) {
           try {
@@ -129,11 +129,16 @@ export default function AIStreamingChat() {
               accumulatedContent += data.content;
               setStreamingContent(accumulatedContent);
               // Atualizar mensagem sem trigger de re-render completo
-              setMessages(prev => {
+              setMessages((prev) => {
                 const newMessages = [...prev];
-                const msgIndex = newMessages.findIndex(msg => msg.id === assistantMessageId);
+                const msgIndex = newMessages.findIndex(
+                  (msg) => msg.id === assistantMessageId
+                );
                 if (msgIndex !== -1) {
-                  newMessages[msgIndex] = { ...newMessages[msgIndex], content: accumulatedContent };
+                  newMessages[msgIndex] = {
+                    ...newMessages[msgIndex],
+                    content: accumulatedContent,
+                  };
                 }
                 return newMessages;
               });
@@ -141,25 +146,27 @@ export default function AIStreamingChat() {
               setIsThinking(true);
             } else if (data.type === 'tool_result') {
               toolResults.push(data);
-              setStreamingToolCalls(prev => [...prev, data]);
+              setStreamingToolCalls((prev) => [...prev, data]);
               setIsThinking(false);
             } else if (data.type === 'tool_error') {
               toolResults.push(data);
-              setStreamingToolCalls(prev => [...prev, data]);
+              setStreamingToolCalls((prev) => [...prev, data]);
               setIsThinking(false);
             } else if (data.type === 'done') {
               // Finalize the message
-              setMessages(prev => prev.map(msg => 
-                msg.id === assistantMessageId 
-                  ? { 
-                      ...msg, 
-                      content: accumulatedContent, 
-                      isComplete: true, 
-                      isStreaming: false,
-                      toolCalls: toolResults 
-                    }
-                  : msg
-              ));
+              setMessages((prev) =>
+                prev.map((msg) =>
+                  msg.id === assistantMessageId
+                    ? {
+                        ...msg,
+                        content: accumulatedContent,
+                        isComplete: true,
+                        isStreaming: false,
+                        toolCalls: toolResults,
+                      }
+                    : msg
+                )
+              );
               setIsStreaming(false);
               setCurrentStreamingId(null);
               setStreamingContent('');
@@ -172,13 +179,14 @@ export default function AIStreamingChat() {
           }
         }
       }
-
     } catch (error) {
       console.error('Erro na conversa com IA:', error);
-      
+
       if (error.name === 'AbortError') {
         // Request was aborted by user
-        setMessages(prev => prev.filter(msg => msg.id !== assistantMessageId));
+        setMessages((prev) =>
+          prev.filter((msg) => msg.id !== assistantMessageId)
+        );
       } else {
         const errorMessage = {
           id: assistantMessageId,
@@ -186,12 +194,14 @@ export default function AIStreamingChat() {
           content: `Desculpe, ocorreu um erro: ${error.message}. Verifique se a chave da OpenAI está configurada corretamente.`,
           timestamp: new Date(),
           isError: true,
-          isComplete: true
+          isComplete: true,
         };
 
-        setMessages(prev => prev.map(msg => 
-          msg.id === assistantMessageId ? errorMessage : msg
-        ));
+        setMessages((prev) =>
+          prev.map((msg) =>
+            msg.id === assistantMessageId ? errorMessage : msg
+          )
+        );
       }
     } finally {
       setIsStreaming(false);
@@ -218,7 +228,7 @@ export default function AIStreamingChat() {
   const formatTimestamp = (timestamp) => {
     return new Intl.DateTimeFormat('pt-BR', {
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
     }).format(timestamp);
   };
 
@@ -232,7 +242,7 @@ export default function AIStreamingChat() {
       <div className="flex items-center justify-center w-8 h-8 bg-blue-100 rounded-full">
         <motion.div
           animate={{ rotate: 360 }}
-          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+          transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
         >
           <CpuChipIcon className="w-4 h-4 text-blue-600" />
         </motion.div>
@@ -246,12 +256,12 @@ export default function AIStreamingChat() {
                 className="w-2 h-2 bg-blue-500 rounded-full"
                 animate={{
                   scale: [1, 1.5, 1],
-                  opacity: [0.5, 1, 0.5]
+                  opacity: [0.5, 1, 0.5],
                 }}
                 transition={{
                   duration: 1.5,
                   repeat: Infinity,
-                  delay: i * 0.2
+                  delay: i * 0.2,
                 }}
               />
             ))}
@@ -264,7 +274,7 @@ export default function AIStreamingChat() {
 
   const ToolCallsDisplay = ({ toolCalls }) => {
     if (!toolCalls || toolCalls.length === 0) return null;
-    
+
     return (
       <div className="mt-2 space-y-2">
         {toolCalls.map((toolCall, index) => (
@@ -273,26 +283,26 @@ export default function AIStreamingChat() {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             transition={{ delay: index * 0.1 }}
-            className="bg-blue-50 border border-blue-200 rounded-lg p-3"
           >
-            <div className="flex items-center space-x-2 mb-2">
-              <Cog6ToothIcon className="w-4 h-4 text-blue-600" />
-              <span className="text-xs font-medium text-blue-800">{toolCall.tool}</span>
-              {toolCall.result?.success ? (
-                <CheckCircleIcon className="w-4 h-4 text-green-600" />
-              ) : (
-                <ExclamationTriangleIcon className="w-4 h-4 text-red-600" />
-              )}
-            </div>
-            <p className="text-xs text-blue-700">
-              {toolCall.result?.message || toolCall.error || 'Executado'}
-            </p>
+            <ToolResponseBlock
+              toolName={toolCall.tool}
+              result={toolCall.result?.message || toolCall.error || 'Executado'}
+              success={toolCall.result?.success}
+            />
             {toolCall.result && Object.keys(toolCall.result).length > 2 && (
               <details className="mt-2">
-                <summary className="text-xs text-blue-600 cursor-pointer">Ver detalhes</summary>
-                <pre className="text-xs text-gray-600 mt-1 bg-white p-2 rounded overflow-x-auto">
-                  {JSON.stringify(toolCall.result, null, 2)}
-                </pre>
+                <summary className="text-xs text-gray-600 cursor-pointer">
+                  Ver detalhes técnicos
+                </summary>
+                <div className="mt-1 p-2 bg-gray-50 rounded text-xs">
+                  <MarkdownRenderer
+                    content={`\`\`\`json\n${JSON.stringify(
+                      toolCall.result,
+                      null,
+                      2
+                    )}\n\`\`\``}
+                  />
+                </div>
               </details>
             )}
           </motion.div>
@@ -310,17 +320,17 @@ export default function AIStreamingChat() {
       <motion.div
         initial={{ opacity: 0, y: 20, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.3, ease: "easeOut" }}
-        className={`flex items-start space-x-3 px-4 py-3 ${isUser ? 'flex-row-reverse space-x-reverse' : ''}`}
+        transition={{ duration: 0.3, ease: 'easeOut' }}
+        className={`flex items-start space-x-3 px-4 py-3 ${
+          isUser ? 'flex-row-reverse space-x-reverse' : ''
+        }`}
       >
         {/* Avatar */}
-        <div className={`flex items-center justify-center w-8 h-8 rounded-full ${
-          isUser 
-            ? 'bg-blue-600' 
-            : isError 
-              ? 'bg-red-100' 
-              : 'bg-blue-100'
-        }`}>
+        <div
+          className={`flex items-center justify-center w-8 h-8 rounded-full ${
+            isUser ? 'bg-blue-600' : isError ? 'bg-red-100' : 'bg-blue-100'
+          }`}
+        >
           {isUser ? (
             <span className="text-white text-sm font-medium">U</span>
           ) : isError ? (
@@ -332,20 +342,31 @@ export default function AIStreamingChat() {
 
         {/* Message Content */}
         <div className={`max-w-xs lg:max-w-md ${isUser ? 'text-right' : ''}`}>
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.5 }}
             className={`rounded-2xl px-4 py-2 ${
-              isUser 
-                ? 'bg-blue-600 text-white' 
-                : isError 
-                  ? 'bg-red-50 border border-red-200 text-red-800'
-                  : 'bg-gray-100 text-gray-800'
+              isUser
+                ? 'bg-blue-600 text-white'
+                : isError
+                ? 'bg-red-50 border border-red-200 text-red-800'
+                : 'bg-gray-100 text-gray-800'
             }`}
           >
             <div className="flex items-start">
-              <p className="text-sm whitespace-pre-wrap flex-1">{message.content}</p>
+              {isUser ? (
+                <p className="text-sm whitespace-pre-wrap flex-1">
+                  {message.content}
+                </p>
+              ) : (
+                <div className="text-sm flex-1">
+                  <MarkdownRenderer
+                    content={message.content}
+                    className={isError ? 'prose-red' : 'prose-gray'}
+                  />
+                </div>
+              )}
               {isStreaming && (
                 <motion.div
                   animate={{ opacity: [0, 1, 0] }}
@@ -360,7 +381,11 @@ export default function AIStreamingChat() {
           <ToolCallsDisplay toolCalls={message.toolCalls} />
 
           {/* Timestamp */}
-          <p className={`text-xs text-gray-500 mt-1 ${isUser ? 'text-right' : ''}`}>
+          <p
+            className={`text-xs text-gray-500 mt-1 ${
+              isUser ? 'text-right' : ''
+            }`}
+          >
             {formatTimestamp(message.timestamp)}
           </p>
         </div>
@@ -378,17 +403,19 @@ export default function AIStreamingChat() {
               <CpuChipIcon className="w-5 h-5 text-blue-600" />
             </div>
             <div>
-              <h1 className="text-lg font-semibold text-gray-900">Assistente de IA</h1>
+              <h1 className="text-lg font-semibold text-gray-900">
+                Assistente de IA
+              </h1>
               <p className="text-sm text-gray-500">FlowChat API Assistant</p>
             </div>
           </div>
-          
+
           {isStreaming && (
             <div className="flex items-center space-x-3">
               <div className="flex items-center space-x-2">
                 <motion.div
                   animate={{ rotate: 360 }}
-                  transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                  transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
                 >
                   <ClockIcon className="w-4 h-4 text-blue-600" />
                 </motion.div>
@@ -446,7 +473,9 @@ export default function AIStreamingChat() {
             type="submit"
             disabled={!inputValue.trim() || isStreaming}
             className="absolute bottom-3 right-3 flex items-center justify-center w-8 h-8 bg-blue-600 text-white rounded-full disabled:opacity-50 disabled:cursor-not-allowed hover:bg-blue-700 transition-colors"
-            whileHover={!isStreaming && inputValue.trim() ? { scale: 1.05 } : {}}
+            whileHover={
+              !isStreaming && inputValue.trim() ? { scale: 1.05 } : {}
+            }
             whileTap={!isStreaming && inputValue.trim() ? { scale: 0.95 } : {}}
           >
             <PaperAirplaneIcon className="w-4 h-4" />
@@ -460,7 +489,7 @@ export default function AIStreamingChat() {
               'Listar todas as sessões ativas',
               'Criar uma nova sessão chamada "test"',
               'Verificar status do sistema',
-              'Como configurar webhooks?'
+              'Como configurar webhooks?',
             ].map((suggestion) => (
               <motion.button
                 key={suggestion}
