@@ -460,15 +460,29 @@ router.get('/:sessionId/list', checkSession, async (req, res) => {
   try {
     const sock = req.whatsappSession.sock;
 
-    // Parâmetros de paginação
-    const limit = Math.min(Math.max(parseInt(req.query.limit) || 5, 1), 10); // Min 1, Max 10, Default 5
+    // Parâmetros de paginação e busca
+    const limit = Math.min(Math.max(parseInt(req.query.limit) || 10, 1), 50); // Min 1, Max 50, Default 10
     const offset = Math.max(parseInt(req.query.offset) || 0, 0); // Min 0, Default 0
+    const search = req.query.search?.trim(); // Parâmetro de busca opcional
+    const includeParticipants = req.query.includeParticipants === 'true';
+
+    console.log(`📋 Listing groups - limit: ${limit}, offset: ${offset}, search: "${search || 'none'}"`);
 
     // Obter lista de grupos diretamente do Baileys
     const groups = await sock.groupFetchAllParticipating();
-    const groupEntries = Object.entries(groups);
+    let groupEntries = Object.entries(groups);
 
-    // Aplicar paginação
+    // Aplicar busca por nome se fornecida
+    if (search) {
+      const searchLower = search.toLowerCase();
+      groupEntries = groupEntries.filter(([groupId, groupData]) => {
+        const groupName = (groupData.subject || 'Grupo sem nome').toLowerCase();
+        return groupName.includes(searchLower);
+      });
+      console.log(`🔍 Search "${search}" filtered to ${groupEntries.length} groups`);
+    }
+
+    // Aplicar paginação após filtros
     const totalGroups = groupEntries.length;
     const paginatedEntries = groupEntries.slice(offset, offset + limit);
 
@@ -507,6 +521,18 @@ router.get('/:sessionId/list', checkSession, async (req, res) => {
             adminsCount: admins.length,
             superAdminsCount: superAdmins.length,
             regularCount: regularParticipants.length,
+            // Incluir listas detalhadas só se solicitado
+            ...(includeParticipants && {
+              admins: admins,
+              superAdmins: superAdmins,
+              regular: regularParticipants,
+              all: participants.map(p => ({
+                id: p.id,
+                admin: p.admin || null,
+                isAdmin: p.admin === 'admin',
+                isSuperAdmin: p.admin === 'superadmin'
+              }))
+            })
           },
           settings: {
             announce: groupMetadata.announce || false,
@@ -550,6 +576,12 @@ router.get('/:sessionId/list', checkSession, async (req, res) => {
 
     // Ordenar grupos por nome
     groupList.sort((a, b) => a.name.localeCompare(b.name));
+    
+    const currentPage = Math.floor(offset / limit) + 1;
+    const totalPages = Math.ceil(totalGroups / limit);
+    
+    console.log(`✅ Returning ${groupList.length} groups (page ${currentPage}/${totalPages})`);
+    
     res.json({
       success: true,
       groups: groupList,
@@ -559,6 +591,15 @@ router.get('/:sessionId/list', checkSession, async (req, res) => {
         offset: offset,
         returned: groupList.length,
         hasMore: offset + limit < totalGroups,
+        currentPage: currentPage,
+        totalPages: totalPages,
+        // Informações de navegação úteis para a IA
+        nextOffset: offset + limit < totalGroups ? offset + limit : null,
+        prevOffset: offset > 0 ? Math.max(0, offset - limit) : null,
+      },
+      filters: {
+        search: search || null,
+        includeParticipants: includeParticipants,
       },
       source: 'baileys',
     });

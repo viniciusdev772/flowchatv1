@@ -145,6 +145,19 @@ const toolSchemas = {
     sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
     includeParticipants: Type.Optional(Type.Boolean({ description: 'Incluir lista de participantes (padrão: false)' })),
     filter: Type.Optional(Type.String({ description: 'Filtro por nome do grupo (opcional)' })),
+    limit: Type.Optional(Type.Number({ 
+      description: 'Número máximo de grupos a retornar (1-50, padrão: 10)', 
+      minimum: 1, 
+      maximum: 50 
+    })),
+    offset: Type.Optional(Type.Number({ 
+      description: 'Posição inicial para paginação (padrão: 0)', 
+      minimum: 0 
+    })),
+    search: Type.Optional(Type.String({ 
+      description: 'Buscar grupos por nome (parcial, case-insensitive)',
+      minLength: 1
+    })),
   }),
 
   createGroup: Type.Object({
@@ -733,15 +746,33 @@ const toolImplementations = {
     }
   },
   // ====== GRUPOS ======
-  async listGroups({ sessionId }) {
+  async listGroups({ 
+    sessionId, 
+    includeParticipants = false, 
+    filter, 
+    limit = 10, 
+    offset = 0, 
+    search 
+  }) {
     try {
       const userToken =
         this.getUserToken?.() ||
         process.env.BAILEYS_API_TOKEN ||
         'baileys_default_token';
 
+      // Construir query parameters
+      const queryParams = new URLSearchParams({
+        limit: Math.min(Math.max(limit, 1), 50).toString(), // Clamp between 1-50
+        offset: Math.max(offset, 0).toString(),
+      });
+
+      // Adicionar parâmetros opcionais
+      if (includeParticipants) queryParams.append('includeParticipants', 'true');
+      if (filter) queryParams.append('filter', filter);
+      if (search) queryParams.append('search', search);
+
       const response = await fetch(
-        `http://localhost:3000/api/baileys/groups/${sessionId}/list`,
+        `http://localhost:3000/api/baileys/groups/${sessionId}/list?${queryParams}`,
         {
           headers: {
             Authorization: `Bearer ${userToken}`,
@@ -755,13 +786,21 @@ const toolImplementations = {
       }
 
       const result = await response.json();
+      const pagination = result.pagination || {};
+      
       return {
         success: true,
         groups: result.groups || [],
-        total: result.total || 0,
-        message: `${
-          result.total || 0
-        } grupos encontrados na sessão '${sessionId}'`,
+        pagination: {
+          total: pagination.total || 0,
+          limit: pagination.limit || limit,
+          offset: pagination.offset || offset,
+          returned: pagination.returned || (result.groups?.length || 0),
+          hasMore: pagination.hasMore || false,
+          currentPage: Math.floor(offset / limit) + 1,
+          totalPages: Math.ceil((pagination.total || 0) / limit),
+        },
+        message: `Página ${Math.floor(offset / limit) + 1}: ${pagination.returned || 0} de ${pagination.total || 0} grupos encontrados na sessão '${sessionId}'${search ? ` (busca: "${search}")` : ''}${pagination.hasMore ? ' - Use offset para ver mais grupos' : ''}`,
       };
     } catch (error) {
       return {
