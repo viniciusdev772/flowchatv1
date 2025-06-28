@@ -173,7 +173,7 @@ function Home() {
               <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-400 to-purple-600 flex items-center justify-center">
                 <PhoneIcon className="w-6 h-6 text-white" />
               </div>
-              <h1 className="text-2xl font-bold">Baileys Multi-Session API</h1>
+              <h1 className="text-2xl font-bold">FlowChat API</h1>
             </div>
             <div className="flex space-x-4">
               <motion.a 
@@ -228,13 +228,13 @@ function Home() {
         transition={{ duration: 0.8, delay: 0.2 }}
       >
         <h2 className={`text-6xl font-bold mb-6 ${performanceMode ? 'text-white' : 'liquid-text-gradient glass-text-glow'}`}>
-          WhatsApp API
+          FlowChat API
           <br />
-          <span className="text-4xl">Avançada & Segura</span>
+          <span className="text-4xl">Fluxo Inteligente de Mensagens</span>
         </h2>
         <p className="text-xl text-white/80 mb-12 max-w-2xl mx-auto">
-          API completa do WhatsApp com Baileys, comportamento humano simulado, 
-          multi-sessões e sistema de webhooks para prevenção de banimentos.
+          API avançada de WhatsApp com fluxo contínuo de mensagens, comportamento humano simulado, 
+          multi-sessões e sistema de webhooks inteligente para automação segura.
         </p>
 
         {/* Stats */}
@@ -427,7 +427,7 @@ function Home() {
             </motion.a>
           </div>
           <p className="text-white/60 mt-6">
-            Baileys Multi-Session API - Desenvolvido com ❤️ para automação WhatsApp segura
+            FlowChat API - Desenvolvido com ❤️ para fluxo inteligente de mensagens WhatsApp
           </p>
         </div>
       </motion.footer>

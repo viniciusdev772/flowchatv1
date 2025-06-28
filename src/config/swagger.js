@@ -5,10 +5,10 @@ const swaggerOptions = {
   definition: {
     openapi: '3.0.0',
     info: {
-      title: 'Baileys Multi-Session WhatsApp API',
+      title: 'FlowChat API',
       version: '1.0.0',
       description:
-        'API avançada do WhatsApp com Baileys, multi-sessões e comportamento humano para prevenção de banimentos',
+        'FlowChat API - Fluxo inteligente de mensagens WhatsApp com multi-sessões, webhooks avançados e automação segura',
       contact: {
         name: 'API Support',
         email: 'support@example.com',

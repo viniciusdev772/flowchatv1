@@ -377,10 +377,10 @@ export default function Login() {
             animate={{ y: 0, opacity: 1 }}
             transition={{ duration: 0.6, delay: 0.5 }}
           >
-            WhatsApp API
+            FlowChat API
             <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-400 via-blue-400 to-purple-400">
-              Profissional
+              Fluxo Inteligente
             </span>
           </motion.h1>
           
@@ -390,8 +390,8 @@ export default function Login() {
             animate={{ y: 0, opacity: 1 }}
             transition={{ duration: 0.6, delay: 0.7 }}
           >
-            API completa do WhatsApp com Baileys. Multi-sessões, webhooks 
-            e prevenção de banimentos para sua aplicação.
+            API avançada de WhatsApp com fluxo contínuo de mensagens. Multi-sessões, webhooks 
+            inteligentes e automação segura para sua aplicação.
           </motion.p>
           
           <motion.div
@@ -510,8 +510,8 @@ export default function Login() {
                 </h2>
                 <p className="text-sm xs:text-base sm:text-lg lg:text-base xl:text-lg text-white/80 lg:text-gray-600">
                   {isLogin 
-                    ? 'Acesse sua conta e gerencie suas APIs do WhatsApp' 
-                    : 'Crie sua conta e automatize o WhatsApp Business'
+                    ? 'Acesse sua conta e gerencie seus fluxos de mensagens' 
+                    : 'Crie sua conta e automatize seu fluxo de comunicação'
                   }
                 </p>
               </motion.div>

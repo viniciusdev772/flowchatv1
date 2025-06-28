@@ -1108,10 +1108,10 @@ export default function Dashboard() {
               </div>
               <div>
                 <h1 className="text-2xl font-bold text-white">
-                  WhatsApp API Dashboard
+                  FlowChat API Dashboard
                 </h1>
                 <p className="text-white/70">
-                  Gerencie suas conexões e automações
+                  Gerencie seus fluxos de mensagens e automações
                 </p>
               </div>
             </div>

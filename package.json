@@ -1,7 +1,7 @@
 {
-  "name": "baileys-multi-session-api",
+  "name": "flowchat-api",
   "version": "1.0.0",
-  "description": "API avançada do WhatsApp com Baileys, multi-sessões e comportamento humano para prevenção de banimentos",
+  "description": "FlowChat API - Fluxo inteligente de mensagens WhatsApp com multi-sessões e automação segura",
   "main": "main.js",
   "scripts": {
     "start": "node main.js",
@@ -14,13 +14,16 @@
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
+    "flowchat",
     "whatsapp",
     "baileys",
     "api",
     "multi-session",
     "automation",
     "webhook",
-    "express"
+    "express",
+    "flow",
+    "messaging"
   ],
   "author": "Seu Nome",
   "license": "MIT",

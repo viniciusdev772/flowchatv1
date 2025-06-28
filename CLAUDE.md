@@ -57,6 +57,16 @@ npm run frontend:preview
 
 # Install frontend dependencies
 npm install:frontend
+
+# Docker commands (if using containers)
+docker-compose up -d                    # Start all services
+docker-compose --profile nginx up -d    # Include Nginx proxy
+docker-compose logs -f                  # View logs
+docker-compose down                     # Stop services
+
+# Syntax validation
+node -c src/app.js                      # Check app.js syntax
+node -c main.js                         # Check main entry point
 ```
 
 ## Key Technical Details
@@ -85,11 +95,15 @@ npm install:frontend
 - Base64 encoding pipeline for webhook media transmission
 - Automatic cleanup and file management
 
-### Webhook System
+### Webhook System & Message Processing
 - Priority-based webhook ordering (up to 3 per session)
 - Real-time event broadcasting with connection.update events
-- Webhook data persistence in memory Maps
+- Webhook data persistence in memory Maps and MongoDB
 - Performance mode detection for optimal delivery
+- **Message Organization**: Webhooks deliver structured data distinguishing between group and private messages
+- **Quoted Message Support**: Full extraction and download of quoted media content
+- **Auto-download**: All media automatically downloaded and provided as direct URLs
+- **Event Types**: `messages.upsert`, `connection.update`, and other Baileys events
 
 ## Environment Requirements
 
@@ -122,7 +136,23 @@ Required environment variables:
 - Development-focused error handling with Pino logging
 - Comprehensive API documentation via Swagger
 
-## Recent Optimizations (Current Session)
+## Recent Optimizations & Features
+
+### Enhanced Webhook System with Quoted Message Support
+Recent improvements to the webhook system include comprehensive quoted message handling:
+
+1. **Quoted Message Downloads**: Automatic media download for quoted messages (images, videos, audio, documents, stickers)
+2. **Download URL Generation**: Full download URLs for quoted media with MongoDB persistence
+3. **Boolean Indicator**: Added `hasQuotedMessage` field for easy webhook processing
+4. **Comprehensive Media Support**: All media types in quoted messages now include download metadata
+5. **Async Processing**: Improved performance with proper async/await handling
+
+### Media Download Enhancements
+- **Direct Download URLs**: Public access to media without authentication requirements
+- **Quoted Media Processing**: Full media extraction and storage for quoted content
+- **File Type Detection**: Improved extension detection for voice messages and other audio formats
+- **MongoDB Persistence**: All download metadata stored persistently with 7-day expiration
+- **Automatic Cleanup**: Scheduled cleanup of expired downloads every 6 hours
 
 ### Profile API Performance Enhancement
 The `/api/management/auth/profile` endpoint has been optimized for faster response times:
@@ -156,6 +186,14 @@ The `/api/management/auth/profile` endpoint has been optimized for faster respon
 - **Comprehensive Logging**: Pino logger with detailed request/response tracking
 - **Development Fallbacks**: Memory stores when database unavailable
 
+### Critical Implementation Details
+- **Core Logic Location**: The main business logic resides in `src/app.js` (2000+ lines)
+- **Message Processing**: `extractMessageData()` function handles all message types and webhook delivery
+- **Media Processing**: `downloadMediaToFile()` and `extractQuotedMessage()` handle media downloads
+- **Global Sessions**: `global.whatsappSessions` Map stores all active WhatsApp connections
+- **Download System**: Unique download IDs with 7-day expiration stored in MongoDB
+- **File Extensions**: Smart detection based on mimetype and message type (PTT detection)
+
 ## Code Maintenance Guidelines
 - NEVER create files unless absolutely necessary for the goal
 - ALWAYS prefer editing existing files over creating new ones  
@@ -164,3 +202,25 @@ The `/api/management/auth/profile` endpoint has been optimized for faster respon
 - Test API endpoints with Swagger documentation at `/api-docs`
 - Verify environment variables before deployment
 - Monitor session management in logs
+
+## Development & Debugging
+
+### Key Functions to Understand
+- **`extractMessageData()`**: Core message processing with webhook delivery
+- **`extractQuotedMessage()`**: Quoted message handling with media downloads  
+- **`downloadMediaToFile()`**: Media download and URL generation
+- **`saveDownloadMetadata()`**: MongoDB persistence for download metadata
+- **`enrichWebhookMessage()`**: Message enhancement for webhook delivery
+
+### Common Debug Patterns
+- Check `global.whatsappSessions` for active connections
+- Monitor `downloads/` directory for media files
+- Verify MongoDB collections: `downloads`, `sessions`, `users`
+- Watch webhook delivery logs with session and priority information
+- Check QR code generation in `auth_sessions/` directory
+
+### Important Async Patterns
+- All message processing functions are async
+- Webhook delivery happens asynchronously after message processing
+- Media downloads run in parallel with message processing
+- Database operations have fallback mechanisms for development mode
