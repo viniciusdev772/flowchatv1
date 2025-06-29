@@ -5,27 +5,24 @@ services:
     container_name: baileys_mongodb
     restart: unless-stopped
     environment:
-      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:-admin}
-      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-password123}
-      MONGO_INITDB_DATABASE: ${DB_NAME:-baileys}
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password123
+      MONGO_INITDB_DATABASE: baileys
     ports:
-      - "127.0.0.1:27017:27017"
+      - '127.0.0.1:27017:27017/tcp'
     volumes:
       - mongodb_data:/data/db
-      - mongodb_config:/data/configdb
-    networks:
-      - baileys_network
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: '100m'
+        max-file: '10'
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
-    logging:
-      driver: 'json-file'
-      options:
-        max-size: '100m'
-        max-file: '10'
 
   # Baileys WhatsApp API
   baileys-api:
@@ -36,72 +33,42 @@ services:
     container_name: baileys_api
     restart: unless-stopped
     environment:
-      # Application
-      NODE_ENV: ${NODE_ENV:-production}
-      PORT: ${PORT:-3000}
-      TZ: ${TZ:-America/Sao_Paulo}
-      
-      # Database
-      MONGODB_URI: mongodb://${MONGO_ROOT_USER:-admin}:${MONGO_ROOT_PASSWORD:-password123}@mongodb:27017/${DB_NAME:-baileys}?authSource=admin
-      DB_NAME: ${DB_NAME:-baileys}
-      
-      # Security
-      SESSION_SECRET: ${SESSION_SECRET:-your-super-secret-session-key-change-this}
-      COOKIE_SECRET: ${COOKIE_SECRET:-your-super-secret-cookie-key-change-this}
-      
-      # CORS
-      CORS_ORIGIN: ${CORS_ORIGIN:-http://localhost:3000}
-      
-      # AI Assistant
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      NODE_ENV: production
+      PORT: 3000
+      TZ: America/Sao_Paulo
+      MONGODB_URI: mongodb://admin:password123@mongodb:27017/baileys?authSource=admin
+      DB_NAME: baileys
+      SESSION_SECRET: baileys-default-session-secret-change-in-production
+      COOKIE_SECRET: baileys-default-cookie-secret-change-in-production
+      CORS_ORIGIN: http://localhost:3000
     ports:
-      - "127.0.0.1:3000:3000"
+      - '127.0.0.1:3000:3000/tcp'
     volumes:
-      # Sessions storage (like WAHA)
-      - baileys_sessions:/app/.sessions
-      - baileys_media:/app/.media
-      # Legacy volumes for compatibility
+      - './sessions:/app/.sessions'
+      - './.media:/app/.media'
       - baileys_uploads:/app/uploads
       - baileys_downloads:/app/downloads
       - baileys_auth:/app/auth_sessions
       - baileys_logs:/app/logs
-    networks:
-      - baileys_network
     depends_on:
       mongodb:
         condition: service_healthy
+    logging:
+      driver: 'json-file'
+      options:
+        max-size: '100m'
+        max-file: '10'
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3000/api/management/health"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 60s
-    logging:
-      driver: 'json-file'
-      options:
-        max-size: '100m'
-        max-file: '10'
-    env_file:
-      - .env
 
-networks:
-  baileys_network:
-    driver: bridge
 
 volumes:
-  mongodb_data:
-    driver: local
-  mongodb_config:
-    driver: local
-  baileys_sessions:
-    driver: local
-  baileys_media:
-    driver: local
-  baileys_uploads:
-    driver: local
-  baileys_downloads:
-    driver: local
-  baileys_auth:
-    driver: local
-  baileys_logs:
-    driver: local
+  mongodb_data: {}
+  baileys_uploads: {}
+  baileys_downloads: {}
+  baileys_auth: {}
+  baileys_logs: {}

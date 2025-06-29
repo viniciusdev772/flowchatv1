@@ -13,10 +13,14 @@ class Database {
         return this.db;
       }
 
+      // Use default MongoDB URI if not provided
+      const mongoUri = process.env.MONGODB_URI || 'mongodb://admin:password123@localhost:27017/baileys?authSource=admin';
+      const dbName = process.env.DB_NAME || 'baileys';
+
       console.log('🔄 Connecting to MongoDB...');
-      console.log(`📍 Connection URI: ${process.env.MONGODB_URI}`);
+      console.log(`📍 Connection URI: ${mongoUri}`);
       
-      this.client = new MongoClient(process.env.MONGODB_URI, {
+      this.client = new MongoClient(mongoUri, {
         maxPoolSize: 10,
         serverSelectionTimeoutMS: 8000,
         socketTimeoutMS: 45000,
@@ -26,30 +30,22 @@ class Database {
       await this.client.connect();
       
       // Test the connection
-      await this.client.db(process.env.DB_NAME).admin().ping();
+      await this.client.db(dbName).admin().ping();
       
-      this.db = this.client.db(process.env.DB_NAME);
+      this.db = this.client.db(dbName);
       
       console.log('✅ Connected to MongoDB successfully');
-      console.log(`📂 Database: ${process.env.DB_NAME}`);
+      console.log(`📂 Database: ${dbName}`);
       return this.db;
     } catch (error) {
       console.error('❌ MongoDB connection error:', error.message);
       
-      if (error.message.includes('ECONNREFUSED')) {
-        console.log('💡 Make sure MongoDB is running on your system');
-        console.log('   - Windows: net start mongodb');
-        console.log('   - macOS/Linux: brew services start mongodb-community');
-        console.log('   - Docker: docker run -d -p 27017:27017 mongo');
-      }
+      console.log('⚠️  Using memory store for sessions (no database connection)');
+      console.log('💡 To use MongoDB persistence, start with:');
+      console.log('   docker run -d --name mongodb -p 27017:27017 -e MONGO_INITDB_ROOT_USERNAME=admin -e MONGO_INITDB_ROOT_PASSWORD=password123 mongo:7-jammy');
       
-      // Don't throw in development, continue without database
-      if (process.env.NODE_ENV === 'development') {
-        console.log('⚠️  Running without database connection in development mode');
-        return null;
-      }
-      
-      throw error;
+      // Always continue without database - use memory store
+      return null;
     }
   }
 
