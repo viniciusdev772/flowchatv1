@@ -9,55 +9,89 @@ start_mongodb() {
     
     # Criar diretórios necessários
     mkdir -p /data/db /var/log/mongodb
+    chmod 755 /data/db /var/log/mongodb
     
     # Iniciar MongoDB em background
+    echo "📂 Iniciando mongod..."
     mongod --dbpath /data/db \
            --logpath /var/log/mongodb/mongod.log \
            --bind_ip_all \
            --fork \
+           --auth \
            --quiet
     
-    # Aguardar MongoDB inicializar
-    echo "⏳ Aguardando MongoDB..."
+    # Aguardar MongoDB inicializar (sem auth primeiro)
+    echo "⏳ Aguardando MongoDB inicializar..."
+    sleep 5
+    
+    # Verificar se processo está rodando
+    if ! pgrep mongod >/dev/null; then
+        echo "❌ Processo mongod não está rodando!"
+        echo "📋 Log do MongoDB:"
+        cat /var/log/mongodb/mongod.log
+        exit 1
+    fi
+    
+    # Tentar conectar sem auth primeiro
     for i in {1..30}; do
         if mongosh --eval "db.adminCommand('ping')" >/dev/null 2>&1; then
-            echo "✅ MongoDB pronto!"
+            echo "✅ MongoDB conectou sem auth!"
             break
         fi
-        sleep 1
+        echo "   Tentativa $i/30..."
+        sleep 2
     done
     
-    # Criar usuário admin se não existir
-    echo "👤 Configurando usuário MongoDB..."
-    mongosh --eval "
+    # Criar usuário admin
+    echo "👤 Criando usuário mongouser..."
+    mongosh admin --eval "
     try {
-        db.getSiblingDB('admin').createUser({
+        db.createUser({
             user: 'mongouser',
             pwd: 'mongopassword',
             roles: [{role: 'root', db: 'admin'}]
         });
-        print('✅ Usuário mongouser criado');
+        print('✅ Usuário mongouser criado com sucesso');
     } catch(e) {
-        if (e.code !== 11000) {
-            print('❌ Erro ao criar usuário:', e.message);
-        } else {
+        if (e.code === 11000) {
             print('ℹ️ Usuário mongouser já existe');
+        } else {
+            print('❌ Erro ao criar usuário:', e.message);
+            throw e;
         }
     }
-    " >/dev/null 2>&1
+    " || {
+        echo "❌ Falha ao criar usuário"
+        exit 1
+    }
+    
+    # Testar conexão com auth
+    echo "🔐 Testando conexão com autenticação..."
+    if mongosh "mongodb://mongouser:mongopassword@localhost:27017/admin" --eval "db.adminCommand('ping')" >/dev/null 2>&1; then
+        echo "✅ MongoDB com auth funcionando!"
+    else
+        echo "❌ MongoDB auth falhou!"
+        exit 1
+    fi
 }
 
-# Verificar se MongoDB está disponível
+# MongoDB é obrigatório - deve sempre funcionar
 if ! command -v mongod >/dev/null 2>&1; then
-    echo "⚠️  MongoDB não encontrado, usando memory store"
-    export MONGODB_URI=""
-else
-    # Iniciar MongoDB
-    start_mongodb
-    
-    # Configurar URI para localhost (mesmo container)
-    export MONGODB_URI="mongodb://mongouser:mongopassword@localhost:27017/baileys?authSource=admin"
+    echo "❌ MongoDB não encontrado no container!"
+    exit 1
 fi
+
+# Iniciar MongoDB (obrigatório)
+start_mongodb
+
+# Verificar se MongoDB está realmente funcionando
+if ! mongosh --eval "db.adminCommand('ping')" >/dev/null 2>&1; then
+    echo "❌ MongoDB falhou ao iniciar!"
+    exit 1
+fi
+
+# Configurar URI para localhost (mesmo container)
+export MONGODB_URI="mongodb://mongouser:mongopassword@localhost:27017/baileys?authSource=admin"
 
 # Configurar variáveis de ambiente padrão
 export NODE_ENV=${NODE_ENV:-production}

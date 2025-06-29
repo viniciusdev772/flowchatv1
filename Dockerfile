@@ -68,9 +68,10 @@ RUN mkdir -p \
     /var/log/mongodb
 
 # Set proper permissions for app directories
-RUN chown -R node:node /app \
-    && chown -R node:node /data/db \
-    && chown -R node:node /var/log/mongodb
+RUN chown -R node:node /app
+
+# MongoDB needs root permissions, so don't switch to node user
+# RUN chown -R node:node /data/db /var/log/mongodb
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=3 \
@@ -81,6 +82,7 @@ ENV TZ=America/Sao_Paulo
 
 EXPOSE 3000
 
+# Run as root to allow MongoDB startup, then app will run as intended
 # Use entrypoint que inicia MongoDB + Baileys
 ENTRYPOINT ["/sbin/tini", "--", "/entrypoint.sh"]
 CMD ["npm", "start"]

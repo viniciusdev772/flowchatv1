@@ -39,13 +39,10 @@ class Database {
       return this.db;
     } catch (error) {
       console.error('❌ MongoDB connection error:', error.message);
+      console.error('❌ MongoDB é obrigatório para este sistema funcionar!');
       
-      console.log('⚠️  Using memory store for sessions (no database connection)');
-      console.log('💡 To use MongoDB persistence, start with:');
-      console.log('   docker run -d --name mongodb -p 27017:27017 -e MONGO_INITDB_ROOT_USERNAME=mongouser -e MONGO_INITDB_ROOT_PASSWORD=mongopassword mongo:7-jammy');
-      
-      // Always continue without database - use memory store
-      return null;
+      // MongoDB é obrigatório - não continue sem ele
+      throw new Error(`MongoDB connection failed: ${error.message}`);
     }
   }
 
