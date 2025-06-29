@@ -38,6 +38,8 @@ export default function AIStreamingChat() {
     completed: 0,
     total: 0,
   });
+  const [downloadingMedia, setDownloadingMedia] = useState(new Set());
+  const [downloadProgress, setDownloadProgress] = useState({});
 
   // SUGESTÕES DESABILITADAS - Funcionalidade removida
   // const {
@@ -201,6 +203,18 @@ export default function AIStreamingChat() {
               setExecutingTools((prev) => new Set(prev).add(data.tool));
               setToolsProgress((prev) => ({ ...prev, total: data.total }));
               setIsThinking(false);
+
+              // Se for uma tool de download, adicionar ao estado de download
+              if (
+                data.tool === 'downloadFromUrl' ||
+                data.tool === 'downloadAndSend'
+              ) {
+                setDownloadingMedia((prev) => new Set(prev).add(data.tool));
+                setDownloadProgress((prev) => ({
+                  ...prev,
+                  [data.tool]: { status: 'iniciando', progress: 0 },
+                }));
+              }
             } else if (data.type === 'tool_result') {
               toolResults.push(data);
               setStreamingToolCalls((prev) => [...prev, data]);
@@ -214,6 +228,23 @@ export default function AIStreamingChat() {
                 completed: prev.completed + 1,
               }));
               setIsThinking(false);
+
+              // Se for uma tool de download, remover do estado de download
+              if (
+                data.tool === 'downloadFromUrl' ||
+                data.tool === 'downloadAndSend'
+              ) {
+                setDownloadingMedia((prev) => {
+                  const newSet = new Set(prev);
+                  newSet.delete(data.tool);
+                  return newSet;
+                });
+                setDownloadProgress((prev) => {
+                  const newProgress = { ...prev };
+                  delete newProgress[data.tool];
+                  return newProgress;
+                });
+              }
             } else if (data.type === 'tool_error') {
               toolResults.push(data);
               setStreamingToolCalls((prev) => [...prev, data]);
@@ -227,11 +258,44 @@ export default function AIStreamingChat() {
                 completed: prev.completed + 1,
               }));
               setIsThinking(false);
+
+              // Se for uma tool de download, remover do estado de download
+              if (
+                data.tool === 'downloadFromUrl' ||
+                data.tool === 'downloadAndSend'
+              ) {
+                setDownloadingMedia((prev) => {
+                  const newSet = new Set(prev);
+                  newSet.delete(data.tool);
+                  return newSet;
+                });
+                setDownloadProgress((prev) => {
+                  const newProgress = { ...prev };
+                  delete newProgress[data.tool];
+                  return newProgress;
+                });
+              }
+            } else if (data.type === 'download_progress') {
+              // Novo evento para progresso de download
+              if (data.tool && downloadingMedia.has(data.tool)) {
+                setDownloadProgress((prev) => ({
+                  ...prev,
+                  [data.tool]: {
+                    status: data.status || 'baixando',
+                    progress: data.progress || 0,
+                    filename: data.filename,
+                    size: data.size,
+                  },
+                }));
+              }
             } else if (data.type === 'tools_completed') {
               // Todas as tools foram concluídas
               setExecutingTools(new Set());
               setToolsProgress({ completed: data.total, total: data.total });
               setIsThinking(false);
+              setDownloadingMedia(new Set());
+              setDownloadProgress({});
+              break;
             } else if (data.type === 'tools_error') {
               // Erro na execução paralela
               setExecutingTools(new Set());
@@ -278,6 +342,8 @@ export default function AIStreamingChat() {
               setStreamingToolCalls([]);
               setExecutingTools(new Set());
               setToolsProgress({ completed: 0, total: 0 });
+              setDownloadingMedia(new Set());
+              setDownloadProgress({});
               break;
             }
           } catch (e) {
@@ -317,6 +383,8 @@ export default function AIStreamingChat() {
       setStreamingToolCalls([]);
       setExecutingTools(new Set());
       setToolsProgress({ completed: 0, total: 0 });
+      setDownloadingMedia(new Set());
+      setDownloadProgress({});
       abortControllerRef.current = null;
     }
   };
@@ -562,6 +630,90 @@ export default function AIStreamingChat() {
     );
   }, []); // Memorizar o componente
 
+  // Componente para mostrar progresso de download de mídia
+  const MediaDownloadIndicator = () => {
+    if (downloadingMedia.size === 0) return null;
+
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -10 }}
+        className="flex items-center space-x-2 px-4 py-3"
+      >
+        <div className="flex items-center justify-center w-8 h-8 bg-purple-100 rounded-full">
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
+          >
+            <svg
+              className="w-4 h-4 text-purple-600"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+              />
+            </svg>
+          </motion.div>
+        </div>
+        <div className="bg-purple-50 border border-purple-200 rounded-2xl px-4 py-2 flex-1">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <div className="flex space-x-1">
+                {Array.from(downloadingMedia).map((tool, i) => (
+                  <motion.div
+                    key={tool}
+                    className="w-2 h-2 bg-purple-500 rounded-full"
+                    animate={{
+                      scale: [1, 1.3, 1],
+                      opacity: [0.6, 1, 0.6],
+                    }}
+                    transition={{
+                      duration: 1.5,
+                      repeat: Infinity,
+                      delay: i * 0.2,
+                    }}
+                  />
+                ))}
+              </div>
+              <span className="text-sm text-purple-700 font-medium">
+                📥 Baixando mídia do servidor...
+              </span>
+            </div>
+            {Object.keys(downloadProgress).length > 0 && (
+              <div className="text-xs text-purple-600">
+                {Object.entries(downloadProgress).map(([tool, progress]) => (
+                  <div key={tool} className="flex items-center space-x-1">
+                    {progress.filename && (
+                      <span className="truncate max-w-24">
+                        {progress.filename}
+                      </span>
+                    )}
+                    {progress.size && <span>({progress.size})</span>}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          {/* Barra de progresso visual */}
+          <div className="mt-2 w-full bg-purple-200 rounded-full h-1">
+            <motion.div
+              className="bg-purple-500 h-1 rounded-full"
+              initial={{ width: 0 }}
+              animate={{ width: '100%' }}
+              transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+            />
+          </div>
+        </div>
+      </motion.div>
+    );
+  };
+
   return (
     <div className="flex flex-col h-full max-h-screen bg-white">
       {/* Header */}
@@ -611,12 +763,14 @@ export default function AIStreamingChat() {
             <MessageBubble key={message.id} message={message} />
           ))}
           {isThinking && <ThinkingIndicator />}
+          {downloadingMedia.size > 0 && <MediaDownloadIndicator />}
           {(executingTools.size > 0 || toolsProgress.total > 0) && (
             <ToolsProgressIndicator />
           )}
           {streamingToolCalls.length > 0 &&
             !isThinking &&
-            executingTools.size === 0 && (
+            executingTools.size === 0 &&
+            downloadingMedia.size === 0 && (
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -671,6 +825,7 @@ export default function AIStreamingChat() {
                 'Enviar mensagem de exemplo',
                 'Configurar webhook',
                 'Listar grupos',
+                'Baixar mídia de um link e enviar',
               ].map((suggestion) => (
                 <motion.button
                   key={suggestion}

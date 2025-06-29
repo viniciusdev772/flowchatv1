@@ -4,13 +4,19 @@ const { Type } = require('@sinclair/typebox');
 const toolSchemas = {
   // ====== SESSÕES ======
   createSession: Type.Object({
-    sessionId: Type.String({ description: 'ID único para a nova sessão', minLength: 1 }),
+    sessionId: Type.String({
+      description: 'ID único para a nova sessão',
+      minLength: 1,
+    }),
   }),
 
   listSessions: Type.Object({}),
 
   deleteSession: Type.Object({
-    sessionId: Type.String({ description: 'ID da sessão a ser deletada', minLength: 1 }),
+    sessionId: Type.String({
+      description: 'ID da sessão a ser deletada',
+      minLength: 1,
+    }),
   }),
 
   getSessionStatus: Type.Object({
@@ -18,71 +24,150 @@ const toolSchemas = {
   }),
 
   regenerateQRCode: Type.Object({
-    sessionId: Type.String({ description: 'ID da sessão para regenerar QR code', minLength: 1 }),
+    sessionId: Type.String({
+      description: 'ID da sessão para regenerar QR code',
+      minLength: 1,
+    }),
   }),
 
   // ====== MENSAGENS ======
   sendMessage: Type.Object({
     sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
-    phone: Type.String({ description: 'Número de telefone (formato: 5511999999999)', pattern: '^[1-9]\\d{1,14}$' }),
-    message: Type.String({ description: 'Mensagem de texto a ser enviada', minLength: 1 }),
+    phone: Type.String({
+      description: 'Número de telefone (formato: 5511999999999)',
+      pattern: '^[1-9]\\d{1,14}$',
+    }),
+    message: Type.String({
+      description: 'Mensagem de texto a ser enviada',
+      minLength: 1,
+    }),
   }),
 
   sendImage: Type.Object({
     sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
-    phone: Type.String({ description: 'Número de telefone (formato: 5511999999999)', pattern: '^[1-9]\\d{1,14}$' }),
-    imageUrl: Type.String({ description: 'URL da imagem a ser enviada', format: 'uri' }),
-    caption: Type.Optional(Type.String({ description: 'Legenda da imagem (opcional)' })),
+    phone: Type.String({
+      description: 'Número de telefone (formato: 5511999999999)',
+      pattern: '^[1-9]\\d{1,14}$',
+    }),
+    imageUrl: Type.String({
+      description: 'URL da imagem a ser enviada',
+      format: 'uri',
+    }),
+    caption: Type.Optional(
+      Type.String({ description: 'Legenda da imagem (opcional)' })
+    ),
   }),
 
   sendDocument: Type.Object({
     sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
-    phone: Type.String({ description: 'Número de telefone (formato: 5511999999999)', pattern: '^[1-9]\\d{1,14}$' }),
-    documentUrl: Type.String({ description: 'URL do documento a ser enviado', format: 'uri' }),
+    phone: Type.String({
+      description: 'Número de telefone (formato: 5511999999999)',
+      pattern: '^[1-9]\\d{1,14}$',
+    }),
+    documentUrl: Type.String({
+      description: 'URL do documento a ser enviado',
+      format: 'uri',
+    }),
     fileName: Type.String({ description: 'Nome do arquivo', minLength: 1 }),
-    caption: Type.Optional(Type.String({ description: 'Legenda do documento (opcional)' })),
+    caption: Type.Optional(
+      Type.String({ description: 'Legenda do documento (opcional)' })
+    ),
   }),
 
   sendSticker: Type.Object({
     sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
-    phone: Type.String({ description: 'Número de telefone (formato: 5511999999999)', pattern: '^[1-9]\\d{1,14}$' }),
-    stickerUrl: Type.String({ description: 'URL do sticker (WebP) a ser enviado', format: 'uri' }),
+    phone: Type.String({
+      description: 'Número de telefone (formato: 5511999999999)',
+      pattern: '^[1-9]\\d{1,14}$',
+    }),
+    stickerUrl: Type.String({
+      description: 'URL do sticker (WebP) a ser enviado',
+      format: 'uri',
+    }),
   }),
 
   // Novas ferramentas para mensagens avançadas
   replyMessage: Type.Object({
     sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
-    phone: Type.String({ description: 'Número de telefone (formato: 5511999999999)', pattern: '^[1-9]\\d{1,14}$' }),
+    phone: Type.String({
+      description: 'Número de telefone (formato: 5511999999999)',
+      pattern: '^[1-9]\\d{1,14}$',
+    }),
     message: Type.String({ description: 'Mensagem de resposta', minLength: 1 }),
-    quotedMessageId: Type.String({ description: 'ID da mensagem sendo respondida', minLength: 1 }),
+    quotedMessageId: Type.String({
+      description: 'ID da mensagem sendo respondida',
+      minLength: 1,
+    }),
   }),
 
   sendMedia: Type.Object({
     sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
-    phone: Type.String({ description: 'Número de telefone (formato: 5511999999999)', pattern: '^[1-9]\\d{1,14}$' }),
-    mediaUrl: Type.String({ description: 'URL da mídia a ser enviada', format: 'uri' }),
-    mediaType: Type.Union([Type.Literal('image'), Type.Literal('video'), Type.Literal('audio'), Type.Literal('document')], { description: 'Tipo de mídia' }),
-    caption: Type.Optional(Type.String({ description: 'Legenda da mídia (opcional)' })),
-    fileName: Type.Optional(Type.String({ description: 'Nome do arquivo (opcional)' })),
+    phone: Type.String({
+      description: 'Número de telefone (formato: 5511999999999)',
+      pattern: '^[1-9]\\d{1,14}$',
+    }),
+    mediaUrl: Type.String({
+      description: 'URL da mídia a ser enviada',
+      format: 'uri',
+    }),
+    mediaType: Type.Union(
+      [
+        Type.Literal('image'),
+        Type.Literal('video'),
+        Type.Literal('audio'),
+        Type.Literal('document'),
+      ],
+      { description: 'Tipo de mídia' }
+    ),
+    caption: Type.Optional(
+      Type.String({ description: 'Legenda da mídia (opcional)' })
+    ),
+    fileName: Type.Optional(
+      Type.String({ description: 'Nome do arquivo (opcional)' })
+    ),
   }),
 
   markAsRead: Type.Object({
     sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
-    phone: Type.String({ description: 'Número de telefone (formato: 5511999999999)', pattern: '^[1-9]\\d{1,14}$' }),
-    messageId: Type.String({ description: 'ID da mensagem específica (obrigatório)', minLength: 1 }),
+    phone: Type.String({
+      description: 'Número de telefone (formato: 5511999999999)',
+      pattern: '^[1-9]\\d{1,14}$',
+    }),
+    messageId: Type.String({
+      description: 'ID da mensagem específica (obrigatório)',
+      minLength: 1,
+    }),
   }),
 
   setTypingStatus: Type.Object({
     sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
-    phone: Type.String({ description: 'Número de telefone (formato: 5511999999999)', pattern: '^[1-9]\\d{1,14}$' }),
+    phone: Type.String({
+      description: 'Número de telefone (formato: 5511999999999)',
+      pattern: '^[1-9]\\d{1,14}$',
+    }),
     isTyping: Type.Boolean({ description: 'Status de digitação (true/false)' }),
   }),
 
   getMessageHistory: Type.Object({
     sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
-    phone: Type.Optional(Type.String({ description: 'Número de telefone específico (opcional)', pattern: '^[1-9]\\d{1,14}$' })),
-    limit: Type.Optional(Type.Number({ description: 'Limite de mensagens (padrão: 50)', minimum: 1, maximum: 1000 })),
-    before: Type.Optional(Type.String({ description: 'Buscar mensagens antes de um timestamp específico' })),
+    phone: Type.Optional(
+      Type.String({
+        description: 'Número de telefone específico (opcional)',
+        pattern: '^[1-9]\\d{1,14}$',
+      })
+    ),
+    limit: Type.Optional(
+      Type.Number({
+        description: 'Limite de mensagens (padrão: 50)',
+        minimum: 1,
+        maximum: 1000,
+      })
+    ),
+    before: Type.Optional(
+      Type.String({
+        description: 'Buscar mensagens antes de um timestamp específico',
+      })
+    ),
   }),
 
   // ====== WEBHOOKS AVANÇADOS ======
@@ -90,9 +175,23 @@ const toolSchemas = {
   createWebhook: Type.Object({
     sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
     webhookUrl: Type.String({ description: 'URL do webhook', format: 'uri' }),
-    priority: Type.Number({ description: 'Prioridade do webhook (1-3)', minimum: 1, maximum: 3, default: 1 }),
-    events: Type.Optional(Type.Array(Type.String(), { description: 'Eventos específicos para escutar (opcional)' })),
-    isActive: Type.Optional(Type.Boolean({ description: 'Status ativo do webhook (padrão: true)', default: true })),
+    priority: Type.Number({
+      description: 'Prioridade do webhook (1-3)',
+      minimum: 1,
+      maximum: 3,
+      default: 1,
+    }),
+    events: Type.Optional(
+      Type.Array(Type.String(), {
+        description: 'Eventos específicos para escutar (opcional)',
+      })
+    ),
+    isActive: Type.Optional(
+      Type.Boolean({
+        description: 'Status ativo do webhook (padrão: true)',
+        default: true,
+      })
+    ),
   }),
 
   listWebhooks: Type.Object({
@@ -107,9 +206,19 @@ const toolSchemas = {
   updateWebhook: Type.Object({
     sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
     webhookId: Type.String({ description: 'ID do webhook', minLength: 1 }),
-    webhookUrl: Type.Optional(Type.String({ description: 'Nova URL do webhook', format: 'uri' })),
-    priority: Type.Optional(Type.Number({ description: 'Nova prioridade (1-3)', minimum: 1, maximum: 3 })),
-    events: Type.Optional(Type.Array(Type.String(), { description: 'Novos eventos para escutar' })),
+    webhookUrl: Type.Optional(
+      Type.String({ description: 'Nova URL do webhook', format: 'uri' })
+    ),
+    priority: Type.Optional(
+      Type.Number({
+        description: 'Nova prioridade (1-3)',
+        minimum: 1,
+        maximum: 3,
+      })
+    ),
+    events: Type.Optional(
+      Type.Array(Type.String(), { description: 'Novos eventos para escutar' })
+    ),
   }),
 
   deleteWebhook: Type.Object({
@@ -126,14 +235,26 @@ const toolSchemas = {
   testWebhook: Type.Object({
     sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
     webhookId: Type.String({ description: 'ID do webhook', minLength: 1 }),
-    testData: Type.Optional(Type.Object({}, { description: 'Dados de teste personalizados (opcional)' })),
+    testData: Type.Optional(
+      Type.Object(
+        {},
+        { description: 'Dados de teste personalizados (opcional)' }
+      )
+    ),
   }),
 
   // Legacy webhook support
   setWebhook: Type.Object({
     sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
     webhookUrl: Type.String({ description: 'URL do webhook', format: 'uri' }),
-    priority: Type.Optional(Type.Number({ description: 'Prioridade do webhook (1-3)', minimum: 1, maximum: 3, default: 1 })),
+    priority: Type.Optional(
+      Type.Number({
+        description: 'Prioridade do webhook (1-3)',
+        minimum: 1,
+        maximum: 3,
+        default: 1,
+      })
+    ),
   }),
 
   removeWebhook: Type.Object({
@@ -143,77 +264,125 @@ const toolSchemas = {
   // ====== GRUPOS AVANÇADOS ======
   listGroups: Type.Object({
     sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
-    includeParticipants: Type.Optional(Type.Boolean({ description: 'Incluir lista de participantes (padrão: false)' })),
-    filter: Type.Optional(Type.String({ description: 'Filtro por nome do grupo (opcional)' })),
-    limit: Type.Optional(Type.Number({ 
-      description: 'Número máximo de grupos a retornar (1-50, padrão: 10)', 
-      minimum: 1, 
-      maximum: 50 
-    })),
-    offset: Type.Optional(Type.Number({ 
-      description: 'Posição inicial para paginação (padrão: 0)', 
-      minimum: 0 
-    })),
-    search: Type.Optional(Type.String({ 
-      description: 'Buscar grupos por nome (parcial, case-insensitive)',
-      minLength: 1
-    })),
+    includeParticipants: Type.Optional(
+      Type.Boolean({
+        description: 'Incluir lista de participantes (padrão: false)',
+      })
+    ),
+    filter: Type.Optional(
+      Type.String({ description: 'Filtro por nome do grupo (opcional)' })
+    ),
+    limit: Type.Optional(
+      Type.Number({
+        description: 'Número máximo de grupos a retornar (1-50, padrão: 10)',
+        minimum: 1,
+        maximum: 50,
+      })
+    ),
+    offset: Type.Optional(
+      Type.Number({
+        description: 'Posição inicial para paginação (padrão: 0)',
+        minimum: 0,
+      })
+    ),
+    search: Type.Optional(
+      Type.String({
+        description: 'Buscar grupos por nome (parcial, case-insensitive)',
+        minLength: 1,
+      })
+    ),
   }),
 
   createGroup: Type.Object({
     sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
-    groupName: Type.String({ description: 'Nome do grupo', minLength: 1, maxLength: 100 }),
-    participants: Type.Array(Type.String({ pattern: '^[1-9]\\d{1,14}$' }), { description: 'Array de números dos participantes', minItems: 1 }),
-    description: Type.Optional(Type.String({ description: 'Descrição inicial do grupo (opcional)' })),
+    groupName: Type.String({
+      description: 'Nome do grupo',
+      minLength: 1,
+      maxLength: 100,
+    }),
+    participants: Type.Array(Type.String({ pattern: '^[1-9]\\d{1,14}$' }), {
+      description: 'Array de números dos participantes',
+      minItems: 1,
+    }),
+    description: Type.Optional(
+      Type.String({ description: 'Descrição inicial do grupo (opcional)' })
+    ),
   }),
 
   getGroupInfo: Type.Object({
     sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
     groupId: Type.String({ description: 'ID do grupo', minLength: 1 }),
-    includeParticipants: Type.Optional(Type.Boolean({ description: 'Incluir lista detalhada de participantes (padrão: true)' })),
+    includeParticipants: Type.Optional(
+      Type.Boolean({
+        description: 'Incluir lista detalhada de participantes (padrão: true)',
+      })
+    ),
   }),
 
   addGroupParticipants: Type.Object({
     sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
     groupId: Type.String({ description: 'ID do grupo', minLength: 1 }),
-    participants: Type.Array(Type.String({ pattern: '^[1-9]\\d{1,14}$' }), { description: 'Array de números a serem adicionados', minItems: 1 }),
+    participants: Type.Array(Type.String({ pattern: '^[1-9]\\d{1,14}$' }), {
+      description: 'Array de números a serem adicionados',
+      minItems: 1,
+    }),
   }),
 
   removeGroupParticipants: Type.Object({
     sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
     groupId: Type.String({ description: 'ID do grupo', minLength: 1 }),
-    participants: Type.Array(Type.String({ pattern: '^[1-9]\\d{1,14}$' }), { description: 'Array de números a serem removidos', minItems: 1 }),
+    participants: Type.Array(Type.String({ pattern: '^[1-9]\\d{1,14}$' }), {
+      description: 'Array de números a serem removidos',
+      minItems: 1,
+    }),
   }),
 
   promoteGroupParticipants: Type.Object({
     sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
     groupId: Type.String({ description: 'ID do grupo', minLength: 1 }),
-    participants: Type.Array(Type.String({ pattern: '^[1-9]\\d{1,14}$' }), { description: 'Array de números a serem promovidos a admin', minItems: 1 }),
+    participants: Type.Array(Type.String({ pattern: '^[1-9]\\d{1,14}$' }), {
+      description: 'Array de números a serem promovidos a admin',
+      minItems: 1,
+    }),
   }),
 
   demoteGroupParticipants: Type.Object({
     sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
     groupId: Type.String({ description: 'ID do grupo', minLength: 1 }),
-    participants: Type.Array(Type.String({ pattern: '^[1-9]\\d{1,14}$' }), { description: 'Array de números a serem despromovidos', minItems: 1 }),
+    participants: Type.Array(Type.String({ pattern: '^[1-9]\\d{1,14}$' }), {
+      description: 'Array de números a serem despromovidos',
+      minItems: 1,
+    }),
   }),
 
   updateGroupName: Type.Object({
     sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
     groupId: Type.String({ description: 'ID do grupo', minLength: 1 }),
-    subject: Type.String({ description: 'Novo nome do grupo', minLength: 1, maxLength: 100 }),
+    subject: Type.String({
+      description: 'Novo nome do grupo',
+      minLength: 1,
+      maxLength: 100,
+    }),
   }),
 
   updateGroupDescription: Type.Object({
     sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
     groupId: Type.String({ description: 'ID do grupo', minLength: 1 }),
-    description: Type.String({ description: 'Nova descrição do grupo', maxLength: 500 }),
+    description: Type.String({
+      description: 'Nova descrição do grupo',
+      maxLength: 500,
+    }),
   }),
 
   updateGroupSettings: Type.Object({
     sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
     groupId: Type.String({ description: 'ID do grupo', minLength: 1 }),
-    onlyAdminsCanSend: Type.Optional(Type.Boolean({ description: 'Se apenas admins podem enviar mensagens' })),
-    onlyAdminsCanEditInfo: Type.Optional(Type.Boolean({ description: 'Se apenas admins podem editar informações' })),
+    onlyAdminsCanSend: Type.Optional(
+      Type.Boolean({ description: 'Se apenas admins podem enviar mensagens' })
+    ),
+    onlyAdminsCanEditInfo: Type.Optional(
+      Type.Boolean({ description: 'Se apenas admins podem editar informações' })
+    ),
   }),
 
   leaveGroup: Type.Object({
@@ -235,44 +404,120 @@ const toolSchemas = {
   sendGroupMessage: Type.Object({
     sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
     groupId: Type.String({ description: 'ID do grupo', minLength: 1 }),
-    message: Type.String({ description: 'Mensagem para o grupo', minLength: 1 }),
-    mentionAll: Type.Optional(Type.Boolean({ description: 'Mencionar todos os participantes (padrão: false)' })),
-    mentions: Type.Optional(Type.Array(Type.String({ pattern: '^[1-9]\\d{1,14}$' }), { description: 'Lista de participantes para mencionar' })),
+    message: Type.String({
+      description: 'Mensagem para o grupo',
+      minLength: 1,
+    }),
+    mentionAll: Type.Optional(
+      Type.Boolean({
+        description: 'Mencionar todos os participantes (padrão: false)',
+      })
+    ),
+    mentions: Type.Optional(
+      Type.Array(Type.String({ pattern: '^[1-9]\\d{1,14}$' }), {
+        description: 'Lista de participantes para mencionar',
+      })
+    ),
   }),
 
   getGroupMessages: Type.Object({
     sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
     groupId: Type.String({ description: 'ID do grupo', minLength: 1 }),
-    limit: Type.Optional(Type.Number({ description: 'Limite de mensagens (padrão: 50)', minimum: 1, maximum: 1000 })),
-    before: Type.Optional(Type.String({ description: 'Buscar mensagens antes de um timestamp específico' })),
+    limit: Type.Optional(
+      Type.Number({
+        description: 'Limite de mensagens (padrão: 50)',
+        minimum: 1,
+        maximum: 1000,
+      })
+    ),
+    before: Type.Optional(
+      Type.String({
+        description: 'Buscar mensagens antes de um timestamp específico',
+      })
+    ),
   }),
 
   // ====== SISTEMA E MONITORAMENTO ======
   getSystemInfo: Type.Object({
-    includeStats: Type.Optional(Type.Boolean({ description: 'Incluir estatísticas detalhadas (padrão: true)' })),
-    includeMemory: Type.Optional(Type.Boolean({ description: 'Incluir informações de memória (padrão: true)' })),
+    includeStats: Type.Optional(
+      Type.Boolean({
+        description: 'Incluir estatísticas detalhadas (padrão: true)',
+      })
+    ),
+    includeMemory: Type.Optional(
+      Type.Boolean({
+        description: 'Incluir informações de memória (padrão: true)',
+      })
+    ),
   }),
 
   cleanupOrphanedSessions: Type.Object({
-    force: Type.Optional(Type.Boolean({ description: 'Forçar limpeza de todas as sessões órfãs (padrão: false)' })),
+    force: Type.Optional(
+      Type.Boolean({
+        description: 'Forçar limpeza de todas as sessões órfãs (padrão: false)',
+      })
+    ),
   }),
 
   getSessionStats: Type.Object({
-    sessionId: Type.Optional(Type.String({ description: 'ID da sessão específica (opcional para estatísticas globais)', minLength: 1 })),
-    period: Type.Optional(Type.Union([Type.Literal('1h'), Type.Literal('24h'), Type.Literal('7d'), Type.Literal('30d')], { description: 'Período para estatísticas (padrão: 24h)' })),
+    sessionId: Type.Optional(
+      Type.String({
+        description:
+          'ID da sessão específica (opcional para estatísticas globais)',
+        minLength: 1,
+      })
+    ),
+    period: Type.Optional(
+      Type.Union(
+        [
+          Type.Literal('1h'),
+          Type.Literal('24h'),
+          Type.Literal('7d'),
+          Type.Literal('30d'),
+        ],
+        { description: 'Período para estatísticas (padrão: 24h)' }
+      )
+    ),
   }),
 
   // ====== DOWNLOADS E MÍDIA ======
   downloadMedia: Type.Object({
     sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
-    messageId: Type.String({ description: 'ID da mensagem com mídia', minLength: 1 }),
-    phone: Type.String({ description: 'Número de telefone origem', pattern: '^[1-9]\\d{1,14}$' }),
+    messageId: Type.String({
+      description: 'ID da mensagem com mídia',
+      minLength: 1,
+    }),
+    phone: Type.String({
+      description: 'Número de telefone origem',
+      pattern: '^[1-9]\\d{1,14}$',
+    }),
   }),
 
   listDownloads: Type.Object({
-    sessionId: Type.Optional(Type.String({ description: 'Filtrar por sessão específica (opcional)', minLength: 1 })),
-    limit: Type.Optional(Type.Number({ description: 'Limite de resultados (padrão: 50)', minimum: 1, maximum: 1000 })),
-    mediaType: Type.Optional(Type.Union([Type.Literal('image'), Type.Literal('video'), Type.Literal('audio'), Type.Literal('document')], { description: 'Filtrar por tipo de mídia' })),
+    sessionId: Type.Optional(
+      Type.String({
+        description: 'Filtrar por sessão específica (opcional)',
+        minLength: 1,
+      })
+    ),
+    limit: Type.Optional(
+      Type.Number({
+        description: 'Limite de resultados (padrão: 50)',
+        minimum: 1,
+        maximum: 1000,
+      })
+    ),
+    mediaType: Type.Optional(
+      Type.Union(
+        [
+          Type.Literal('image'),
+          Type.Literal('video'),
+          Type.Literal('audio'),
+          Type.Literal('document'),
+        ],
+        { description: 'Filtrar por tipo de mídia' }
+      )
+    ),
   }),
 
   getDownloadInfo: Type.Object({
@@ -280,7 +525,65 @@ const toolSchemas = {
   }),
 
   cleanupExpiredDownloads: Type.Object({
-    olderThan: Type.Optional(Type.Number({ description: 'Limpar downloads mais antigos que X dias (padrão: 7)', minimum: 1 })),
+    olderThan: Type.Optional(
+      Type.Number({
+        description: 'Limpar downloads mais antigos que X dias (padrão: 7)',
+        minimum: 1,
+      })
+    ),
+  }),
+
+  // ====== DOWNLOAD DE MÍDIA EXTERNA ======
+  downloadFromUrl: Type.Object({
+    url: Type.String({
+      description: 'URL da mídia para baixar',
+      format: 'uri',
+    }),
+    filename: Type.Optional(
+      Type.String({
+        description:
+          'Nome do arquivo (opcional, será detectado automaticamente)',
+        minLength: 1,
+      })
+    ),
+    maxSize: Type.Optional(
+      Type.Number({
+        description: 'Tamanho máximo em MB (padrão: 50)',
+        minimum: 1,
+        maximum: 100,
+      })
+    ),
+  }),
+
+  downloadAndSend: Type.Object({
+    url: Type.String({
+      description: 'URL da mídia para baixar e enviar',
+      format: 'uri',
+    }),
+    sessionId: Type.String({
+      description: 'ID da sessão WhatsApp',
+      minLength: 1,
+    }),
+    phone: Type.String({
+      description: 'Número de telefone no formato internacional',
+      pattern: '^[1-9]\\d{1,14}$',
+    }),
+    caption: Type.Optional(
+      Type.String({
+        description: 'Legenda da mídia (opcional)',
+        maxLength: 1000,
+      })
+    ),
+    filename: Type.Optional(
+      Type.String({ description: 'Nome do arquivo (opcional)', minLength: 1 })
+    ),
+    maxSize: Type.Optional(
+      Type.Number({
+        description: 'Tamanho máximo em MB (padrão: 50)',
+        minimum: 1,
+        maximum: 100,
+      })
+    ),
   }),
 };
 
@@ -549,7 +852,7 @@ const toolImplementations = {
             to: phone,
             media: imageUrl,
             caption,
-            filename: 'image.jpg'
+            filename: 'image.jpg',
           }),
         }
       );
@@ -640,7 +943,7 @@ const toolImplementations = {
           body: JSON.stringify({
             to: phone,
             media: stickerUrl,
-            filename: 'sticker.webp'
+            filename: 'sticker.webp',
           }),
         }
       );
@@ -746,13 +1049,13 @@ const toolImplementations = {
     }
   },
   // ====== GRUPOS ======
-  async listGroups({ 
-    sessionId, 
-    includeParticipants = false, 
-    filter, 
-    limit = 10, 
-    offset = 0, 
-    search 
+  async listGroups({
+    sessionId,
+    includeParticipants = false,
+    filter,
+    limit = 10,
+    offset = 0,
+    search,
   }) {
     try {
       const userToken =
@@ -767,7 +1070,8 @@ const toolImplementations = {
       });
 
       // Adicionar parâmetros opcionais
-      if (includeParticipants) queryParams.append('includeParticipants', 'true');
+      if (includeParticipants)
+        queryParams.append('includeParticipants', 'true');
       if (filter) queryParams.append('filter', filter);
       if (search) queryParams.append('search', search);
 
@@ -787,7 +1091,7 @@ const toolImplementations = {
 
       const result = await response.json();
       const pagination = result.pagination || {};
-      
+
       return {
         success: true,
         groups: result.groups || [],
@@ -795,12 +1099,18 @@ const toolImplementations = {
           total: pagination.total || 0,
           limit: pagination.limit || limit,
           offset: pagination.offset || offset,
-          returned: pagination.returned || (result.groups?.length || 0),
+          returned: pagination.returned || result.groups?.length || 0,
           hasMore: pagination.hasMore || false,
           currentPage: Math.floor(offset / limit) + 1,
           totalPages: Math.ceil((pagination.total || 0) / limit),
         },
-        message: `Página ${Math.floor(offset / limit) + 1}: ${pagination.returned || 0} de ${pagination.total || 0} grupos encontrados na sessão '${sessionId}'${search ? ` (busca: "${search}")` : ''}${pagination.hasMore ? ' - Use offset para ver mais grupos' : ''}`,
+        message: `Página ${Math.floor(offset / limit) + 1}: ${
+          pagination.returned || 0
+        } de ${
+          pagination.total || 0
+        } grupos encontrados na sessão '${sessionId}'${
+          search ? ` (busca: "${search}")` : ''
+        }${pagination.hasMore ? ' - Use offset para ver mais grupos' : ''}`,
       };
     } catch (error) {
       return {
@@ -817,15 +1127,23 @@ const toolImplementations = {
       if (!sessionId || typeof sessionId !== 'string') {
         throw new Error('sessionId é obrigatório e deve ser uma string');
       }
-      if (!groupName || typeof groupName !== 'string' || groupName.trim().length === 0) {
-        throw new Error('groupName é obrigatório e deve ser uma string não vazia');
+      if (
+        !groupName ||
+        typeof groupName !== 'string' ||
+        groupName.trim().length === 0
+      ) {
+        throw new Error(
+          'groupName é obrigatório e deve ser uma string não vazia'
+        );
       }
       if (!Array.isArray(participants) || participants.length === 0) {
-        throw new Error('participants deve ser um array não vazio de números de telefone');
+        throw new Error(
+          'participants deve ser um array não vazio de números de telefone'
+        );
       }
 
       // Validar formato dos números de telefone
-      const validParticipants = participants.filter(phone => {
+      const validParticipants = participants.filter((phone) => {
         if (typeof phone !== 'string') return false;
         // Aceitar números com ou sem código do país
         const cleanPhone = phone.replace(/\D/g, ''); // Remove caracteres não numéricos
@@ -833,7 +1151,9 @@ const toolImplementations = {
       });
 
       if (validParticipants.length === 0) {
-        throw new Error('Nenhum número de telefone válido encontrado nos participantes');
+        throw new Error(
+          'Nenhum número de telefone válido encontrado nos participantes'
+        );
       }
 
       const userToken =
@@ -846,7 +1166,9 @@ const toolImplementations = {
         participants: validParticipants,
       };
 
-      console.log(`[createGroup] Criando grupo '${groupName}' com ${validParticipants.length} participantes`);
+      console.log(
+        `[createGroup] Criando grupo '${groupName}' com ${validParticipants.length} participantes`
+      );
 
       // Verificar status da sessão antes de tentar criar grupo
       const statusResponse = await fetch(
@@ -861,7 +1183,9 @@ const toolImplementations = {
       if (statusResponse.ok) {
         const statusData = await statusResponse.json();
         if (!statusData.isConnected) {
-          throw new Error(`Sessão '${sessionId}' não está conectada ao WhatsApp. Conecte a sessão primeiro.`);
+          throw new Error(
+            `Sessão '${sessionId}' não está conectada ao WhatsApp. Conecte a sessão primeiro.`
+          );
         }
       }
 
@@ -879,7 +1203,10 @@ const toolImplementations = {
 
       if (!response.ok) {
         const errorData = await response.json();
-        const errorMessage = errorData.message || errorData.error || `Erro HTTP: ${response.status}`;
+        const errorMessage =
+          errorData.message ||
+          errorData.error ||
+          `Erro HTTP: ${response.status}`;
         throw new Error(errorMessage);
       }
 
@@ -892,7 +1219,10 @@ const toolImplementations = {
         data: result,
       };
     } catch (error) {
-      console.error(`[createGroup] Erro ao criar grupo '${groupName}':`, error.message);
+      console.error(
+        `[createGroup] Erro ao criar grupo '${groupName}':`,
+        error.message
+      );
       return {
         success: false,
         error: error.message,
@@ -1434,7 +1764,10 @@ const toolImplementations = {
   // Mensagens avançadas
   async replyMessage({ sessionId, phone, message, quotedMessageId }) {
     try {
-      const userToken = this.getUserToken?.() || process.env.BAILEYS_API_TOKEN || 'baileys_default_token';
+      const userToken =
+        this.getUserToken?.() ||
+        process.env.BAILEYS_API_TOKEN ||
+        'baileys_default_token';
 
       const response = await fetch(
         `http://localhost:3000/api/baileys/session/${sessionId}/reply-message`,
@@ -1471,9 +1804,19 @@ const toolImplementations = {
     }
   },
 
-  async sendMedia({ sessionId, phone, mediaUrl, mediaType, caption, fileName }) {
+  async sendMedia({
+    sessionId,
+    phone,
+    mediaUrl,
+    mediaType,
+    caption,
+    fileName,
+  }) {
     try {
-      const userToken = this.getUserToken?.() || process.env.BAILEYS_API_TOKEN || 'baileys_default_token';
+      const userToken =
+        this.getUserToken?.() ||
+        process.env.BAILEYS_API_TOKEN ||
+        'baileys_default_token';
 
       const response = await fetch(
         `http://localhost:3000/api/baileys/session/${sessionId}/send-media`,
@@ -1488,7 +1831,7 @@ const toolImplementations = {
             media: mediaUrl,
             caption,
             filename: fileName,
-            voiceMessage: mediaType === 'audio'
+            voiceMessage: mediaType === 'audio',
           }),
         }
       );
@@ -1515,13 +1858,18 @@ const toolImplementations = {
 
   async markAsRead({ sessionId, phone, messageId }) {
     try {
-      const userToken = this.getUserToken?.() || process.env.BAILEYS_API_TOKEN || 'baileys_default_token';
+      const userToken =
+        this.getUserToken?.() ||
+        process.env.BAILEYS_API_TOKEN ||
+        'baileys_default_token';
 
       // Converter número para formato JID se necessário
       const jid = formatPhoneToJid(phone);
 
       if (!messageId) {
-        throw new Error('messageId é obrigatório para marcar mensagem como lida');
+        throw new Error(
+          'messageId é obrigatório para marcar mensagem como lida'
+        );
       }
 
       const response = await fetch(
@@ -1559,7 +1907,10 @@ const toolImplementations = {
 
   async setTypingStatus({ sessionId, phone, isTyping }) {
     try {
-      const userToken = this.getUserToken?.() || process.env.BAILEYS_API_TOKEN || 'baileys_default_token';
+      const userToken =
+        this.getUserToken?.() ||
+        process.env.BAILEYS_API_TOKEN ||
+        'baileys_default_token';
 
       // Converter número para formato JID se necessário
       const jid = formatPhoneToJid(phone);
@@ -1586,7 +1937,9 @@ const toolImplementations = {
 
       return {
         success: true,
-        message: `Status de digitação ${isTyping ? 'ativado' : 'desativado'} para ${phone}`,
+        message: `Status de digitação ${
+          isTyping ? 'ativado' : 'desativado'
+        } para ${phone}`,
       };
     } catch (error) {
       return {
@@ -1599,7 +1952,10 @@ const toolImplementations = {
 
   async getMessageHistory({ sessionId, phone, limit = 50, before }) {
     try {
-      const userToken = this.getUserToken?.() || process.env.BAILEYS_API_TOKEN || 'baileys_default_token';
+      const userToken =
+        this.getUserToken?.() ||
+        process.env.BAILEYS_API_TOKEN ||
+        'baileys_default_token';
 
       const params = new URLSearchParams();
       if (phone) params.append('phone', phone);
@@ -1636,10 +1992,279 @@ const toolImplementations = {
     }
   },
 
-  // Webhooks avançados
-  async createWebhook({ sessionId, webhookUrl, priority = 1, events, isActive = true }) {
+  // ====== DOWNLOAD DE MÍDIA EXTERNA ======
+  async downloadFromUrl({ url, filename, maxSize = 50 }) {
     try {
-      const userToken = this.getUserToken?.() || process.env.BAILEYS_API_TOKEN || 'baileys_default_token';
+      const https = require('https');
+      const http = require('http');
+      const fs = require('fs');
+      const path = require('path');
+      const crypto = require('crypto');
+
+      console.log(`📥 Iniciando download de: ${url}`);
+
+      // Detectar protocolo
+      const isHttps = url.startsWith('https://');
+      const httpModule = isHttps ? https : http;
+
+      return new Promise((resolve, reject) => {
+        const request = httpModule.get(url, (response) => {
+          // Verificar status HTTP
+          if (response.statusCode !== 200) {
+            reject(
+              new Error(
+                `Erro HTTP ${response.statusCode}: ${response.statusMessage}`
+              )
+            );
+            return;
+          }
+
+          // Obter informações do arquivo
+          const contentLength = parseInt(
+            response.headers['content-length'] || '0'
+          );
+          const contentType =
+            response.headers['content-type'] || 'application/octet-stream';
+
+          // Verificar tamanho máximo
+          const maxSizeBytes = maxSize * 1024 * 1024; // Converter MB para bytes
+          if (contentLength > maxSizeBytes) {
+            reject(
+              new Error(
+                `Arquivo muito grande: ${(contentLength / 1024 / 1024).toFixed(
+                  2
+                )}MB (máximo: ${maxSize}MB)`
+              )
+            );
+            return;
+          }
+
+          // Detectar tipo de mídia e extensão
+          let mediaType = 'document';
+          let fileExtension = 'bin';
+
+          if (contentType.startsWith('image/')) {
+            mediaType = 'image';
+            fileExtension = contentType.split('/')[1] || 'jpg';
+          } else if (contentType.startsWith('video/')) {
+            mediaType = 'video';
+            fileExtension = contentType.split('/')[1] || 'mp4';
+          } else if (contentType.startsWith('audio/')) {
+            mediaType = 'audio';
+            fileExtension = contentType.split('/')[1] || 'mp3';
+          } else if (contentType.includes('pdf')) {
+            fileExtension = 'pdf';
+          } else if (contentType.includes('zip')) {
+            fileExtension = 'zip';
+          }
+
+          // Gerar nome do arquivo se não fornecido
+          const downloadId = crypto.randomBytes(16).toString('hex');
+          const finalFilename =
+            filename || `download_${downloadId}.${fileExtension}`;
+
+          // Criar diretório de downloads se não existir
+          const downloadsDir = path.join(process.cwd(), 'downloads');
+          if (!fs.existsSync(downloadsDir)) {
+            fs.mkdirSync(downloadsDir, { recursive: true });
+          }
+
+          const safeFileName = `${downloadId}_${finalFilename.replace(
+            /[^a-zA-Z0-9._-]/g,
+            '_'
+          )}`;
+          const filePath = path.join(downloadsDir, safeFileName);
+
+          // Stream para arquivo
+          const fileStream = fs.createWriteStream(filePath);
+          let downloadedBytes = 0;
+
+          response.on('data', (chunk) => {
+            downloadedBytes += chunk.length;
+
+            // Verificar limite durante download
+            if (downloadedBytes > maxSizeBytes) {
+              fileStream.destroy();
+              fs.unlinkSync(filePath);
+              reject(
+                new Error(`Download cancelado: excedeu limite de ${maxSize}MB`)
+              );
+              return;
+            }
+          });
+
+          response.pipe(fileStream);
+
+          fileStream.on('finish', () => {
+            console.log(
+              `✅ Download concluído: ${finalFilename} (${(
+                downloadedBytes / 1024
+              ).toFixed(2)}KB)`
+            );
+
+            // Gerar URL de download
+            const baseUrl =
+              process.env.CORS_ORIGIN ||
+              `http://localhost:${process.env.PORT || 3000}`;
+            const serverUrl = baseUrl.replace(
+              '5173',
+              process.env.PORT || '3000'
+            );
+            const downloadUrl = `${serverUrl}/api/baileys/download/${downloadId}`;
+
+            resolve({
+              success: true,
+              downloadId,
+              filename: finalFilename,
+              safeFileName,
+              filePath,
+              downloadUrl,
+              mediaType,
+              contentType,
+              size: downloadedBytes,
+              sizeFormatted: `${(downloadedBytes / 1024).toFixed(2)}KB`,
+              message: `Mídia baixada com sucesso: ${finalFilename} (${mediaType})`,
+            });
+          });
+
+          fileStream.on('error', (error) => {
+            fs.unlinkSync(filePath);
+            reject(error);
+          });
+        });
+
+        request.on('error', (error) => {
+          reject(new Error(`Erro na requisição: ${error.message}`));
+        });
+
+        // Timeout de 30 segundos
+        request.setTimeout(30000, () => {
+          request.destroy();
+          reject(new Error('Timeout: download demorou mais de 30 segundos'));
+        });
+      });
+    } catch (error) {
+      console.error('Erro no download:', error);
+      return {
+        success: false,
+        error: error.message,
+        message: `Falha ao baixar mídia de ${url}: ${error.message}`,
+      };
+    }
+  },
+
+  async downloadAndSend({
+    url,
+    sessionId,
+    phone,
+    caption,
+    filename,
+    maxSize = 50,
+  }) {
+    try {
+      console.log(`🚀 Baixando e enviando mídia de ${url} para ${phone}`);
+
+      // Primeiro, baixar a mídia
+      const downloadResult = await this.downloadFromUrl({
+        url,
+        filename,
+        maxSize,
+      });
+
+      if (!downloadResult.success) {
+        return downloadResult;
+      }
+
+      // Determinar o método de envio baseado no tipo de mídia
+      const {
+        mediaType,
+        downloadUrl,
+        filename: finalFilename,
+      } = downloadResult;
+
+      const userToken =
+        this.getUserToken?.() ||
+        process.env.BAILEYS_API_TOKEN ||
+        'baileys_default_token';
+
+      let sendResult;
+
+      // Enviar usando o método apropriado
+      if (mediaType === 'image') {
+        sendResult = await this.sendImage({
+          sessionId,
+          phone,
+          imageUrl: downloadUrl,
+          caption,
+        });
+      } else if (mediaType === 'video') {
+        sendResult = await this.sendMedia({
+          sessionId,
+          phone,
+          mediaUrl: downloadUrl,
+          mediaType: 'video',
+          caption,
+          fileName: finalFilename,
+        });
+      } else if (mediaType === 'audio') {
+        sendResult = await this.sendMedia({
+          sessionId,
+          phone,
+          mediaUrl: downloadUrl,
+          mediaType: 'audio',
+          caption,
+          fileName: finalFilename,
+        });
+      } else {
+        // Documento
+        sendResult = await this.sendDocument({
+          sessionId,
+          phone,
+          documentUrl: downloadUrl,
+          fileName: finalFilename,
+          caption,
+        });
+      }
+
+      if (sendResult.success) {
+        return {
+          success: true,
+          downloadInfo: downloadResult,
+          sendInfo: sendResult,
+          message: `Mídia baixada e enviada com sucesso! ${finalFilename} (${downloadResult.sizeFormatted}) → ${phone}`,
+        };
+      } else {
+        return {
+          success: false,
+          downloadInfo: downloadResult,
+          sendError: sendResult,
+          error: sendResult.error,
+          message: `Mídia baixada mas falhou ao enviar: ${sendResult.message}`,
+        };
+      }
+    } catch (error) {
+      console.error('Erro no downloadAndSend:', error);
+      return {
+        success: false,
+        error: error.message,
+        message: `Falha ao baixar e enviar mídia: ${error.message}`,
+      };
+    }
+  },
+
+  // Webhooks avançados
+  async createWebhook({
+    sessionId,
+    webhookUrl,
+    priority = 1,
+    events,
+    isActive = true,
+  }) {
+    try {
+      const userToken =
+        this.getUserToken?.() ||
+        process.env.BAILEYS_API_TOKEN ||
+        'baileys_default_token';
 
       const response = await fetch(
         `http://localhost:3000/api/baileys/session/${sessionId}/webhooks`,
@@ -1681,7 +2306,10 @@ const toolImplementations = {
 
   async listWebhooks({ sessionId }) {
     try {
-      const userToken = this.getUserToken?.() || process.env.BAILEYS_API_TOKEN || 'baileys_default_token';
+      const userToken =
+        this.getUserToken?.() ||
+        process.env.BAILEYS_API_TOKEN ||
+        'baileys_default_token';
 
       const response = await fetch(
         `http://localhost:3000/api/baileys/session/${sessionId}/webhooks`,
@@ -1702,7 +2330,9 @@ const toolImplementations = {
         success: true,
         webhooks: result.webhooks || [],
         total: result.total || 0,
-        message: `${result.total || 0} webhooks encontrados para sessão '${sessionId}'`,
+        message: `${
+          result.total || 0
+        } webhooks encontrados para sessão '${sessionId}'`,
       };
     } catch (error) {
       return {
@@ -1715,7 +2345,10 @@ const toolImplementations = {
 
   async getWebhook({ sessionId, webhookId }) {
     try {
-      const userToken = this.getUserToken?.() || process.env.BAILEYS_API_TOKEN || 'baileys_default_token';
+      const userToken =
+        this.getUserToken?.() ||
+        process.env.BAILEYS_API_TOKEN ||
+        'baileys_default_token';
 
       const response = await fetch(
         `http://localhost:3000/api/baileys/session/${sessionId}/webhooks/${webhookId}`,
@@ -1748,7 +2381,10 @@ const toolImplementations = {
 
   async updateWebhook({ sessionId, webhookId, webhookUrl, priority, events }) {
     try {
-      const userToken = this.getUserToken?.() || process.env.BAILEYS_API_TOKEN || 'baileys_default_token';
+      const userToken =
+        this.getUserToken?.() ||
+        process.env.BAILEYS_API_TOKEN ||
+        'baileys_default_token';
 
       const response = await fetch(
         `http://localhost:3000/api/baileys/session/${sessionId}/webhooks/${webhookId}`,
@@ -1788,7 +2424,10 @@ const toolImplementations = {
 
   async deleteWebhook({ sessionId, webhookId }) {
     try {
-      const userToken = this.getUserToken?.() || process.env.BAILEYS_API_TOKEN || 'baileys_default_token';
+      const userToken =
+        this.getUserToken?.() ||
+        process.env.BAILEYS_API_TOKEN ||
+        'baileys_default_token';
 
       const response = await fetch(
         `http://localhost:3000/api/baileys/session/${sessionId}/webhooks/${webhookId}`,
@@ -1820,7 +2459,10 @@ const toolImplementations = {
 
   async toggleWebhook({ sessionId, webhookId, isActive }) {
     try {
-      const userToken = this.getUserToken?.() || process.env.BAILEYS_API_TOKEN || 'baileys_default_token';
+      const userToken =
+        this.getUserToken?.() ||
+        process.env.BAILEYS_API_TOKEN ||
+        'baileys_default_token';
 
       const response = await fetch(
         `http://localhost:3000/api/baileys/session/${sessionId}/webhooks/${webhookId}/toggle`,
@@ -1843,20 +2485,27 @@ const toolImplementations = {
 
       return {
         success: true,
-        message: `Webhook ${webhookId} ${isActive ? 'ativado' : 'desativado'} com sucesso`,
+        message: `Webhook ${webhookId} ${
+          isActive ? 'ativado' : 'desativado'
+        } com sucesso`,
       };
     } catch (error) {
       return {
         success: false,
         error: error.message,
-        message: `Falha ao ${isActive ? 'ativar' : 'desativar'} webhook ${webhookId}: ${error.message}`,
+        message: `Falha ao ${
+          isActive ? 'ativar' : 'desativar'
+        } webhook ${webhookId}: ${error.message}`,
       };
     }
   },
 
   async testWebhook({ sessionId, webhookId, testData }) {
     try {
-      const userToken = this.getUserToken?.() || process.env.BAILEYS_API_TOKEN || 'baileys_default_token';
+      const userToken =
+        this.getUserToken?.() ||
+        process.env.BAILEYS_API_TOKEN ||
+        'baileys_default_token';
 
       const response = await fetch(
         `http://localhost:3000/api/baileys/session/${sessionId}/webhooks/${webhookId}/test`,
@@ -1867,7 +2516,10 @@ const toolImplementations = {
             Authorization: `Bearer ${userToken}`,
           },
           body: JSON.stringify({
-            testData: testData || { test: true, timestamp: new Date().toISOString() },
+            testData: testData || {
+              test: true,
+              timestamp: new Date().toISOString(),
+            },
           }),
         }
       );
@@ -2793,6 +3445,81 @@ const openAITools = [
           },
         },
         required: ['sessionId'],
+      },
+    },
+  },
+
+  // ====== DOWNLOAD DE MÍDIA EXTERNA ======
+  {
+    type: 'function',
+    function: {
+      name: 'downloadFromUrl',
+      description:
+        'Baixa mídia de uma URL externa e salva no servidor para uso posterior',
+      parameters: {
+        type: 'object',
+        properties: {
+          url: {
+            type: 'string',
+            format: 'uri',
+            description: 'URL da mídia para baixar',
+          },
+          filename: {
+            type: 'string',
+            description:
+              'Nome do arquivo (opcional, será detectado automaticamente)',
+          },
+          maxSize: {
+            type: 'number',
+            minimum: 1,
+            maximum: 100,
+            description: 'Tamanho máximo em MB (padrão: 50)',
+          },
+        },
+        required: ['url'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'downloadAndSend',
+      description:
+        'Baixa mídia de uma URL externa e envia diretamente para um contato WhatsApp',
+      parameters: {
+        type: 'object',
+        properties: {
+          url: {
+            type: 'string',
+            format: 'uri',
+            description: 'URL da mídia para baixar e enviar',
+          },
+          sessionId: {
+            type: 'string',
+            description: 'ID da sessão WhatsApp',
+          },
+          phone: {
+            type: 'string',
+            pattern: '^[1-9]\\d{1,14}$',
+            description: 'Número de telefone no formato internacional',
+          },
+          caption: {
+            type: 'string',
+            maxLength: 1000,
+            description: 'Legenda da mídia (opcional)',
+          },
+          filename: {
+            type: 'string',
+            description: 'Nome do arquivo (opcional)',
+          },
+          maxSize: {
+            type: 'number',
+            minimum: 1,
+            maximum: 100,
+            description: 'Tamanho máximo em MB (padrão: 50)',
+          },
+        },
+        required: ['url', 'sessionId', 'phone'],
       },
     },
   },
