@@ -95,7 +95,8 @@ const toolSchemas = {
     }),
     message: Type.String({ description: 'Mensagem de resposta', minLength: 1 }),
     quotedMessageId: Type.String({
-      description: 'ID da mensagem sendo respondida',
+      description:
+        'ID da mensagem sendo respondida (use getMessageHistory para obter messageIds válidos)',
       minLength: 1,
     }),
   }),
@@ -134,7 +135,8 @@ const toolSchemas = {
       pattern: '^[1-9]\\d{1,14}$',
     }),
     messageId: Type.String({
-      description: 'ID da mensagem específica (obrigatório)',
+      description:
+        'ID da mensagem específica para marcar como lida (use getMessageHistory para obter messageIds válidos)',
       minLength: 1,
     }),
   }),
@@ -1893,6 +1895,9 @@ const toolImplementations = {
         process.env.BAILEYS_API_TOKEN ||
         'baileys_default_token';
 
+      // Primeiro, verificar se o messageId existe usando o endpoint de mensagens
+      console.log(`🔍 Verificando messageId: ${quotedMessageId} para resposta`);
+
       const response = await fetch(
         `http://localhost:3000/api/baileys/session/${sessionId}/reply-message`,
         {
@@ -1910,6 +1915,17 @@ const toolImplementations = {
 
       if (!response.ok) {
         const error = await response.json();
+
+        // Se o messageId não for encontrado, sugerir buscar mensagens
+        if (error.error && error.error.includes('not found')) {
+          return {
+            success: false,
+            error: error.error,
+            message: `Mensagem ${quotedMessageId} não encontrada. Use getMessageHistory para obter mensagens recentes e seus messageIds corretos. Endpoint: /api/baileys/session/${sessionId}/messages?limit=50`,
+            suggestion: `Para obter o messageId correto, use: getMessageHistory com sessionId: ${sessionId}`,
+          };
+        }
+
         throw new Error(error.error || `Erro HTTP: ${response.status}`);
       }
 
@@ -1923,7 +1939,7 @@ const toolImplementations = {
       return {
         success: false,
         error: error.message,
-        message: `Falha ao enviar resposta para mensagem ${quotedMessageId}: ${error.message}`,
+        message: `Falha ao enviar resposta para mensagem ${quotedMessageId}: ${error.message}. Dica: Use getMessageHistory para obter o messageId correto das mensagens recentes.`,
       };
     }
   },
@@ -1992,9 +2008,13 @@ const toolImplementations = {
 
       if (!messageId) {
         throw new Error(
-          'messageId é obrigatório para marcar mensagem como lida'
+          'messageId é obrigatório para marcar mensagem como lida. Use getMessageHistory para obter messageIds válidos.'
         );
       }
+
+      console.log(
+        `📖 Marcando como lida - messageId: ${messageId}, jid: ${jid}`
+      );
 
       const response = await fetch(
         `http://localhost:3000/api/baileys/session/${sessionId}/mark-read`,
@@ -2013,6 +2033,17 @@ const toolImplementations = {
 
       if (!response.ok) {
         const error = await response.json();
+
+        // Se o messageId não for encontrado, sugerir buscar mensagens
+        if (error.error && error.error.includes('not found')) {
+          return {
+            success: false,
+            error: error.error,
+            message: `Mensagem ${messageId} não encontrada. Use getMessageHistory para obter mensagens recentes e seus messageIds corretos. Endpoint: /api/baileys/session/${sessionId}/messages?limit=50`,
+            suggestion: `Para obter o messageId correto, use: getMessageHistory com sessionId: ${sessionId}`,
+          };
+        }
+
         throw new Error(error.error || `Erro HTTP: ${response.status}`);
       }
 
@@ -2024,7 +2055,7 @@ const toolImplementations = {
       return {
         success: false,
         error: error.message,
-        message: `Falha ao marcar como lida para ${phone}: ${error.message}`,
+        message: `Falha ao marcar como lida para ${phone}: ${error.message}. Dica: Use getMessageHistory para obter o messageId correto.`,
       };
     }
   },
@@ -3841,7 +3872,9 @@ const openAITools = [
           },
           quotedMessageId: {
             type: 'string',
-            description: 'ID da mensagem sendo respondida',
+            description:
+              'ID da mensagem sendo respondida (use getMessageHistory para obter messageIds válidos)',
+            minLength: 1,
           },
         },
         required: ['sessionId', 'phone', 'message', 'quotedMessageId'],
@@ -3904,7 +3937,9 @@ const openAITools = [
           },
           messageId: {
             type: 'string',
-            description: 'ID da mensagem específica (obrigatório)',
+            description:
+              'ID da mensagem específica para marcar como lida (use getMessageHistory para obter messageIds válidos)',
+            minLength: 1,
           },
         },
         required: ['sessionId', 'phone', 'messageId'],
