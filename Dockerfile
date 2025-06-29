@@ -1,14 +1,16 @@
 # Multi-stage build for production optimization
 FROM node:20-alpine AS base
 
-# Install system dependencies
+# Install system dependencies INCLUDING MongoDB
 RUN apk add --no-cache \
     ffmpeg \
     imagemagick \
     python3 \
     make \
     g++ \
-    curl
+    curl \
+    mongodb \
+    mongodb-tools
 
 WORKDIR /app
 
@@ -40,17 +42,21 @@ COPY --from=frontend-build /app/frontend/dist ./frontend/dist
 # Copy application code
 COPY . .
 
-# Create necessary directories
-RUN mkdir -p uploads downloads auth_sessions logs
+# Copy startup script
+COPY start-all.sh ./
+RUN chmod +x start-all.sh
+
+# Create necessary directories for MongoDB and app
+RUN mkdir -p uploads downloads auth_sessions logs /data/db /var/log/mongodb
 
 # Set proper permissions
-RUN chown -R node:node /app
-USER node
+RUN chown -R node:node /app/uploads /app/downloads /app/auth_sessions /app/logs
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:${PORT:-3000}/api/management/health || exit 1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:3000/api/management/health || exit 1
 
 EXPOSE 3000
 
-CMD ["npm", "start"]
+# Use script que inicia MongoDB + Baileys
+CMD ["./start-all.sh"]

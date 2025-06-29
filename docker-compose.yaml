@@ -1,0 +1,75 @@
+services:
+  # MongoDB Database - SEMPRE criado automaticamente
+  mongodb:
+    image: mongo:7-jammy
+    container_name: baileys_mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password123
+      MONGO_INITDB_DATABASE: baileys
+    volumes:
+      - mongodb_data:/data/db
+      - mongodb_config:/data/configdb
+    networks:
+      - baileys_network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Baileys WhatsApp API - Container principal
+  baileys-api:
+    image: vinicius666/baileys-api
+    container_name: baileys_api
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      # MongoDB connection - conecta automaticamente ao container mongodb
+      MONGODB_URI: mongodb://admin:password123@mongodb:27017/baileys?authSource=admin
+      DB_NAME: baileys
+      # Security keys - geradas automaticamente
+      SESSION_SECRET: auto-generated-session-secret-change-in-production
+      COOKIE_SECRET: auto-generated-cookie-secret-change-in-production
+      CORS_ORIGIN: http://localhost:3000
+      # OpenAI - adicione sua chave aqui
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-sk-dummy-key-for-production-please-set-real-key}
+    ports:
+      - "3000:3000"
+    volumes:
+      - baileys_uploads:/app/uploads
+      - baileys_downloads:/app/downloads
+      - baileys_auth:/app/auth_sessions
+      - baileys_logs:/app/logs
+    networks:
+      - baileys_network
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/api/management/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+networks:
+  baileys_network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
+    driver: local
+  mongodb_config:
+    driver: local
+  baileys_uploads:
+    driver: local
+  baileys_downloads:
+    driver: local
+  baileys_auth:
+    driver: local
+  baileys_logs:
+    driver: local
