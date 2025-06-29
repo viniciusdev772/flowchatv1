@@ -94,8 +94,8 @@ class AuthController {
         // Set secure HTTP-only cookie
         res.cookie('authToken', token, {
           httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'strict',
+          secure: 'auto',
+          sameSite: 'lax', // Permitir cookies entre subdomínios
           maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
           signed: true
         });
@@ -128,8 +128,8 @@ class AuthController {
           // Set secure HTTP-only cookie
           res.cookie('authToken', token, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
+            secure: 'auto',
+            sameSite: 'lax',
             maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
             signed: true
           });
@@ -229,8 +229,8 @@ class AuthController {
         const cookieMaxAge = remember ? 30 * 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000; // 30 days or 7 days
         res.cookie('authToken', token, {
           httpOnly: true,
-          secure: process.env.NODE_ENV === 'production',
-          sameSite: 'strict',
+          secure: 'auto',
+          sameSite: 'lax',
           maxAge: cookieMaxAge,
           signed: true
         });
@@ -264,8 +264,8 @@ class AuthController {
           const cookieMaxAge = remember ? 30 * 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000; // 30 days or 7 days
           res.cookie('authToken', token, {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'strict',
+            secure: 'auto',
+            sameSite: 'lax',
             maxAge: cookieMaxAge,
             signed: true
           });
@@ -418,8 +418,8 @@ class AuthController {
       // Clear the authentication cookie
       res.clearCookie('authToken', {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
+        secure: 'auto',
+        sameSite: 'lax',
         signed: true
       });
 
