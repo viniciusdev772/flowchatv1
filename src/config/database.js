@@ -14,7 +14,7 @@ class Database {
       }
 
       // Use default MongoDB URI if not provided
-      const mongoUri = process.env.MONGODB_URI || 'mongodb://mongouser:mongopassword@mongodb:27017/baileys?authSource=admin';
+      const mongoUri = process.env.MONGODB_URI || 'mongodb://mongouser:mongopassword@localhost:27017/baileys?authSource=admin';
       const dbName = process.env.DB_NAME || 'baileys';
 
       console.log('🔄 Connecting to MongoDB...');

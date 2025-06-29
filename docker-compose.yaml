@@ -1,30 +1,5 @@
 services:
-  # MongoDB Database
-  mongodb:
-    image: mongo:7-jammy
-    container_name: baileys_mongodb
-    restart: unless-stopped
-    environment:
-      MONGO_INITDB_ROOT_USERNAME: mongouser
-      MONGO_INITDB_ROOT_PASSWORD: mongopassword
-      MONGO_INITDB_DATABASE: baileys
-    ports:
-      - '127.0.0.1:27017:27017/tcp'
-    volumes:
-      - mongodb_data:/data/db
-    logging:
-      driver: 'json-file'
-      options:
-        max-size: '100m'
-        max-file: '10'
-    healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
-
-  # Baileys WhatsApp API
+  # Baileys WhatsApp API (MongoDB incluído)
   baileys-api:
     build:
       context: .
@@ -36,11 +11,6 @@ services:
       NODE_ENV: production
       PORT: 3000
       TZ: America/Sao_Paulo
-      MONGODB_URI: mongodb://mongouser:mongopassword@mongodb:27017/baileys?authSource=admin
-      DB_NAME: baileys
-      SESSION_SECRET: baileys-default-session-secret-change-in-production
-      COOKIE_SECRET: baileys-default-cookie-secret-change-in-production
-      CORS_ORIGIN: http://localhost:3000
     ports:
       - '127.0.0.1:3000:3000/tcp'
     volumes:
@@ -50,9 +20,7 @@ services:
       - baileys_downloads:/app/downloads
       - baileys_auth:/app/auth_sessions
       - baileys_logs:/app/logs
-    depends_on:
-      mongodb:
-        condition: service_healthy
+      - baileys_mongodb:/data/db
     logging:
       driver: 'json-file'
       options:
@@ -63,11 +31,11 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s
+      start_period: 90s
 
 
 volumes:
-  mongodb_data: {}
+  baileys_mongodb: {}
   baileys_uploads: {}
   baileys_downloads: {}
   baileys_auth: {}
