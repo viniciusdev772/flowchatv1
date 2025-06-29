@@ -1,7 +1,7 @@
 # Multi-stage build for production optimization
 FROM node:20-alpine AS base
 
-# Install system dependencies including docker
+# Install system dependencies
 RUN apk add --no-cache \
     ffmpeg \
     imagemagick \
@@ -10,31 +10,32 @@ RUN apk add --no-cache \
     g++ \
     curl \
     bash \
-    docker-cli
+    tzdata \
+    tini
 
 WORKDIR /app
 
 # Copy package files
 COPY package*.json ./
 
-# Stage 1: Backend dependencies
-FROM base AS backend-deps
-RUN npm install --only=production && npm cache clean --force
+# Install dependencies
+FROM base AS dependencies
+RUN npm ci --only=production && npm cache clean --force
 
-# Stage 2: Frontend build
+# Frontend build stage
 FROM base AS frontend-build
 COPY frontend/package*.json frontend/
 WORKDIR /app/frontend
-RUN npm install
+RUN npm ci
 COPY frontend/ .
 RUN npm run build
 
-# Stage 3: Production image
+# Final production stage
 FROM base AS production
 WORKDIR /app
 
-# Copy backend dependencies
-COPY --from=backend-deps /app/node_modules ./node_modules
+# Copy production dependencies
+COPY --from=dependencies /app/node_modules ./node_modules
 
 # Copy built frontend
 COPY --from=frontend-build /app/frontend/dist ./frontend/dist
@@ -42,21 +43,28 @@ COPY --from=frontend-build /app/frontend/dist ./frontend/dist
 # Copy application code
 COPY . .
 
-# Copy startup script
-COPY start-all.sh ./
-RUN chmod +x start-all.sh
-
-# Create necessary directories for MongoDB and app
-RUN mkdir -p uploads downloads auth_sessions logs /data/db /var/log/mongodb
+# Create necessary directories
+RUN mkdir -p \
+    .sessions \
+    .media \
+    uploads \
+    downloads \
+    auth_sessions \
+    logs
 
 # Set proper permissions
-RUN chown -R node:node /app/uploads /app/downloads /app/auth_sessions /app/logs
+RUN chown -R node:node /app
+USER node
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-    CMD curl -f http://localhost:3000/api/management/health || exit 1
+    CMD curl -f http://localhost:${PORT:-3000}/api/management/health || exit 1
+
+# Set timezone
+ENV TZ=America/Sao_Paulo
 
 EXPOSE 3000
 
-# Use script que inicia MongoDB + Baileys
-CMD ["./start-all.sh"]
+# Use tini as init system
+ENTRYPOINT ["/sbin/tini", "--"]
+CMD ["npm", "start"]
