@@ -46,15 +46,22 @@ class Server {
           // Allow requests with no origin (mobile apps, curl, etc.)
           if (!origin) return callback(null, true);
 
-          // Allow all origins
-          return callback(null, true);
+          // Basic allowed origins
+          const allowedOrigins = [
+            'http://localhost:3000',
+            'https://localhost:3000',
+            'http://127.0.0.1:3000',
+          ];
 
           // Add CORS_ORIGIN from environment if it exists
-          if (
-            process.env.CORS_ORIGIN &&
-            !allowedOrigins.includes(process.env.CORS_ORIGIN)
-          ) {
+          if (process.env.CORS_ORIGIN) {
             allowedOrigins.push(process.env.CORS_ORIGIN);
+          }
+
+          // Allow all baileys subdomains
+          if (origin && origin.includes('.baileys.marketcodebrasil.com.br')) {
+            console.log('CORS allowed baileys subdomain:', origin);
+            return callback(null, true);
           }
 
           if (allowedOrigins.includes(origin)) {
@@ -67,7 +74,13 @@ class Server {
               'Allowed:',
               allowedOrigins
             );
-            callback(new Error('Not allowed by CORS'));
+            // Em produção, permitir temporariamente para debug
+            if (process.env.NODE_ENV === 'production') {
+              console.log('⚠️ Allowing origin in production for debug:', origin);
+              callback(null, true);
+            } else {
+              callback(new Error('Not allowed by CORS'));
+            }
           }
         },
         credentials: true,
@@ -108,10 +121,10 @@ class Server {
       resave: false,
       saveUninitialized: false,
       cookie: {
-        secure: process.env.NODE_ENV === 'production',
+        secure: 'auto', // Auto-detect HTTPS
         httpOnly: true,
         maxAge: 24 * 60 * 60 * 1000, // 24 hours
-        sameSite: 'strict',
+        sameSite: 'lax', // Permitir cookies entre subdomínios
       },
       name: 'sessionId', // Hide default session name
     };

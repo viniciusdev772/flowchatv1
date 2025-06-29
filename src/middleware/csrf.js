@@ -132,6 +132,13 @@ class CSRFProtection {
 
         if (!req.session || !req.session.csrfSecret) {
           console.warn(`Tentativa de auth com sessão inválida do IP: ${req.ip}`);
+          console.warn('Debug session:', {
+            hasSession: !!req.session,
+            sessionId: req.session?.id,
+            hasCsrfSecret: !!(req.session?.csrfSecret),
+            cookies: req.headers.cookie,
+            origin: req.headers.origin || req.headers.referer
+          });
           
           return res.status(403).json({
             success: false,
