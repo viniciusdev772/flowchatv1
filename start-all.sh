@@ -3,31 +3,31 @@ set -e
 
 echo "🚀 Iniciando Baileys All-in-One..."
 
-# Criar diretórios necessários
-mkdir -p /data/db /var/log/mongodb
-
-# Configurar MongoDB
-echo "🔄 Iniciando MongoDB..."
-mongod --dbpath /data/db --logpath /var/log/mongodb/mongodb.log --fork --bind_ip_all
-
-# Aguardar MongoDB inicializar
-echo "⏳ Aguardando MongoDB..."
-sleep 5
-
-# Criar usuário admin se não existir
-echo "👤 Configurando usuário MongoDB..."
-mongosh --eval "
-try {
-  db.getSiblingDB('admin').createUser({
-    user: 'admin',
-    pwd: 'password123',
-    roles: [{role: 'root', db: 'admin'}]
-  });
-  print('✅ Usuário admin criado');
-} catch(e) {
-  print('ℹ️ Usuário admin já existe');
+# Função para verificar se MongoDB container existe
+check_mongodb() {
+    docker ps --format "table {{.Names}}" | grep -q "baileys-mongodb-${HOSTNAME}"
 }
-"
+
+# Função para iniciar MongoDB via Docker
+start_mongodb() {
+    echo "🔄 Iniciando MongoDB container..."
+    docker run -d \
+        --name "baileys-mongodb-${HOSTNAME}" \
+        --network container:$(hostname) \
+        -e MONGO_INITDB_ROOT_USERNAME=admin \
+        -e MONGO_INITDB_ROOT_PASSWORD=password123 \
+        -e MONGO_INITDB_DATABASE=baileys \
+        mongo:7-jammy \
+        mongod --bind_ip_all
+    
+    echo "⏳ Aguardando MongoDB inicializar..."
+    sleep 15
+}
+
+# Verificar se MongoDB já está rodando, senão iniciar
+if ! check_mongodb; then
+    start_mongodb
+fi
 
 # Configurar variáveis de ambiente
 export NODE_ENV=production

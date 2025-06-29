@@ -1,7 +1,7 @@
 # Multi-stage build for production optimization
 FROM node:20-alpine AS base
 
-# Install system dependencies INCLUDING MongoDB
+# Install system dependencies including docker
 RUN apk add --no-cache \
     ffmpeg \
     imagemagick \
@@ -9,8 +9,8 @@ RUN apk add --no-cache \
     make \
     g++ \
     curl \
-    mongodb \
-    mongodb-tools
+    bash \
+    docker-cli
 
 WORKDIR /app
 
