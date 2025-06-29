@@ -118,6 +118,8 @@ export default function AIStreamingChat() {
 
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      const customApiKey = localStorage.getItem('openai_api_key');
+      
       const response = await fetch(`${apiUrl}/api/management/ai/chat`, {
         method: 'POST',
         headers: {
@@ -132,6 +134,7 @@ export default function AIStreamingChat() {
             content: msg.content,
           })),
           stream: true,
+          customApiKey: customApiKey || undefined,
         }),
       });
 

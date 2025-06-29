@@ -20,8 +20,19 @@ export default function AIAssistantPage() {
   const checkAIHealth = async () => {
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      const customApiKey = localStorage.getItem('openai_api_key');
+      
+      const headers = {
+        'Content-Type': 'application/json',
+      };
+      
+      if (customApiKey) {
+        headers['x-custom-api-key'] = customApiKey;
+      }
+      
       const response = await fetch(`${apiUrl}/api/management/ai/health`, {
-        credentials: 'include'
+        credentials: 'include',
+        headers
       });
 
       if (response.ok) {
@@ -97,13 +108,27 @@ export default function AIAssistantPage() {
               <InformationCircleIcon className="w-5 h-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" />
               <div>
                 <h3 className="text-sm font-medium text-blue-800 mb-1">
-                  Para usar a assistente de IA:
+                  Configure sua chave da OpenAI:
                 </h3>
-                <ul className="text-sm text-blue-700 space-y-1">
-                  <li>• Configure a variável OPENAI_API_KEY</li>
-                  <li>• Reinicie o servidor backend</li>
-                  <li>• Verifique sua conexão com a internet</li>
-                </ul>
+                <div className="mt-3">
+                  <input
+                    type="password"
+                    placeholder="sk-..."
+                    className="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    onKeyPress={(e) => {
+                      if (e.key === 'Enter') {
+                        const apiKey = e.target.value.trim();
+                        if (apiKey) {
+                          localStorage.setItem('openai_api_key', apiKey);
+                          checkAIHealth();
+                        }
+                      }
+                    }}
+                  />
+                  <p className="text-xs text-blue-600 mt-1">
+                    Pressione Enter para salvar e testar
+                  </p>
+                </div>
               </div>
             </div>
           </div>

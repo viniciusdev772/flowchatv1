@@ -156,13 +156,21 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+// Função para criar instância do OpenAI com chave customizada
+function createOpenAIInstance(customApiKey) {
+  return new OpenAI({
+    apiKey: customApiKey || process.env.OPENAI_API_KEY,
+  });
+}
+
 // Middleware para validar API key do OpenAI
 router.use((req, res, next) => {
-  if (!process.env.OPENAI_API_KEY) {
+  const customApiKey = req.body?.customApiKey;
+  if (!process.env.OPENAI_API_KEY && !customApiKey) {
     return res.status(500).json({
       success: false,
       error: 'OpenAI API key não configurada',
-      message: 'Configure a variável de ambiente OPENAI_API_KEY',
+      message: 'Configure a variável de ambiente OPENAI_API_KEY ou forneça uma chave personalizada',
     });
   }
   next();
@@ -209,7 +217,7 @@ router.use((req, res, next) => {
  */
 router.post('/chat', authenticateToken, async (req, res) => {
   try {
-    const { message, conversation = [], stream = false } = req.body;
+    const { message, conversation = [], stream = false, customApiKey } = req.body;
 
     if (!message) {
       return res.status(400).json({
@@ -234,6 +242,9 @@ router.post('/chat', authenticateToken, async (req, res) => {
         `Falha ao obter token para usuário ${req.user._id}, tools usarão token padrão`
       );
     }
+
+    // Usar instância personalizada do OpenAI se uma chave customizada foi fornecida
+    const openaiInstance = createOpenAIInstance(customApiKey);
 
     // Sistema de prompts para a assistente - ATUALIZADO COM NOVAS FUNCIONALIDADES
     const systemPrompt = `Você é uma assistente de IA especializada EXCLUSIVAMENTE no FlowChat API - um sistema avançado de WhatsApp API multi-sessão.
@@ -313,7 +324,7 @@ Responda em português brasileiro de forma técnica, prática e orientada a resu
         Connection: 'keep-alive',
       });
 
-      const chatStream = await openai.chat.completions.create({
+      const chatStream = await openaiInstance.chat.completions.create({
         model: 'gpt-4o',
         messages,
         tools: openAITools,
@@ -446,7 +457,7 @@ Responda em português brasileiro de forma técnica, prática e orientada a resu
           ];
 
           try {
-            const finalStream = await openai.chat.completions.create({
+            const finalStream = await openaiInstance.chat.completions.create({
               model: 'gpt-4o',
               messages: finalMessages,
               temperature: 0.7,
@@ -504,7 +515,7 @@ Responda em português brasileiro de forma técnica, prática e orientada a resu
       res.end();
     } else {
       // Resposta normal (não streaming)
-      const completion = await openai.chat.completions.create({
+      const completion = await openaiInstance.chat.completions.create({
         model: 'gpt-4o',
         messages,
         tools: openAITools,
@@ -559,7 +570,7 @@ Responda em português brasileiro de forma técnica, prática e orientada a resu
           })),
         ];
 
-        const finalCompletion = await openai.chat.completions.create({
+        const finalCompletion = await openaiInstance.chat.completions.create({
           model: 'gpt-4o',
           messages: finalMessages,
           temperature: 0.7,
@@ -745,8 +756,12 @@ router.post('/save-base64-image', async (req, res) => {
  */
 router.get('/health', async (req, res) => {
   try {
+    // Verificar se há chave customizada no localStorage (passada via header)
+    const customApiKey = req.headers['x-custom-api-key'];
+    const openaiInstance = createOpenAIInstance(customApiKey);
+    
     // Teste simples com OpenAI
-    const testCompletion = await openai.chat.completions.create({
+    const testCompletion = await openaiInstance.chat.completions.create({
       model: 'gpt-3.5-turbo',
       messages: [{ role: 'user', content: 'Test' }],
       max_tokens: 5,
