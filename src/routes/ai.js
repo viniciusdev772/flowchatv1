@@ -21,19 +21,19 @@ async function processBase64Images(content) {
 
   // Regex para detectar imagens base64 em formato markdown
   const base64ImageRegex = /!\[([^\]]*)\]\((data:image\/[^)]+)\)/g;
-  
+
   let processedContent = content;
   let match;
   const promises = [];
-  
+
   // Reset regex
   base64ImageRegex.lastIndex = 0;
-  
+
   while ((match = base64ImageRegex.exec(content)) !== null) {
     const [fullMatch, alt, base64Data] = match;
-    
+
     console.log(`Processing base64 image: ${alt || 'Unnamed'}`);
-    
+
     // Criar promise para salvar a imagem
     const promise = (async () => {
       try {
@@ -41,65 +41,69 @@ async function processBase64Images(content) {
         const matches = base64Data.match(/^data:image\/([^;]+);base64,(.+)$/);
         if (!matches) {
           console.warn('Invalid base64 format:', base64Data.substring(0, 50));
-          return { fullMatch, replacement: `*[Erro: formato de imagem inválido]*` };
+          return {
+            fullMatch,
+            replacement: `*[Erro: formato de imagem inválido]*`,
+          };
         }
 
         const [, imageType, base64String] = matches;
-        
+
         // Gerar nome único do arquivo
         const uniqueId = crypto.randomBytes(16).toString('hex');
         const fileExtension = imageType === 'svg+xml' ? 'svg' : imageType;
         const fileName = `ai-image-${uniqueId}.${fileExtension}`;
-        
+
         // Diretório para salvar imagens temporárias
         const tempDir = path.join(__dirname, '../../temp-images');
-        
+
         // Garantir que o diretório existe
         try {
           await fs.access(tempDir);
         } catch {
           await fs.mkdir(tempDir, { recursive: true });
         }
-        
+
         const filePath = path.join(tempDir, fileName);
-        
+
         // Converter base64 para buffer e salvar
         const imageBuffer = Buffer.from(base64String, 'base64');
         await fs.writeFile(filePath, imageBuffer);
-        
+
         // URL para acessar a imagem
         const imageUrl = `/temp-images/${fileName}`;
-        
-        console.log(`✅ Base64 image saved: ${fileName} (${imageBuffer.length} bytes)`);
-        
-        return { 
-          fullMatch, 
-          replacement: `![${alt}](${imageUrl})` 
+
+        console.log(
+          `✅ Base64 image saved: ${fileName} (${imageBuffer.length} bytes)`
+        );
+
+        return {
+          fullMatch,
+          replacement: `![${alt}](${imageUrl})`,
         };
-        
       } catch (error) {
         console.error('Error processing base64 image:', error);
-        return { 
-          fullMatch, 
-          replacement: `*[Erro ao processar imagem: ${alt}]*` 
+        return {
+          fullMatch,
+          replacement: `*[Erro ao processar imagem: ${alt}]*`,
         };
       }
     })();
-    
+
     promises.push(promise);
   }
 
   // Se encontrou imagens, processar todas
   if (promises.length > 0) {
     console.log(`🖼️  Processing ${promises.length} base64 images...`);
-    
+
     const results = await Promise.all(promises);
-    
+
     // Substituir todas as imagens processadas
     results.forEach(({ fullMatch, replacement }) => {
       processedContent = processedContent.replace(fullMatch, replacement);
     });
-    
+
     console.log('✅ All base64 images processed and replaced with local URLs');
   }
 
@@ -170,7 +174,8 @@ router.use((req, res, next) => {
     return res.status(500).json({
       success: false,
       error: 'OpenAI API key não configurada',
-      message: 'Configure a variável de ambiente OPENAI_API_KEY ou forneça uma chave personalizada',
+      message:
+        'Configure a variável de ambiente OPENAI_API_KEY ou forneça uma chave personalizada',
     });
   }
   next();
@@ -217,7 +222,12 @@ router.use((req, res, next) => {
  */
 router.post('/chat', authenticateToken, async (req, res) => {
   try {
-    const { message, conversation = [], stream = false, customApiKey } = req.body;
+    const {
+      message,
+      conversation = [],
+      stream = false,
+      customApiKey,
+    } = req.body;
 
     if (!message) {
       return res.status(400).json({
@@ -293,6 +303,7 @@ SUAS CAPACIDADES AVANÇADAS INCLUEM:
 - Autenticação por tokens de usuário
 - Fallback graceful para desenvolvimento sem BD
 - Cache inteligente para performance otimizada
+- **EXECUÇÃO PARALELA DE TOOLS**: Múltiplas ferramentas executam simultaneamente para máxima eficiência
 
 REGRAS OBRIGATÓRIAS:
 1. EXCLUSIVAMENTE sobre FlowChat API e WhatsApp
@@ -305,6 +316,8 @@ REGRAS OBRIGATÓRIAS:
 8. Para dúvidas sobre APIs: consultar documentação em /api-docs
 
 IMPORTANTE: Você tem acesso a TODAS as funcionalidades do Baileys API. Use as tools extensivamente para demonstrar as capacidades do sistema.
+
+💡 **DICA DE PERFORMANCE**: Quando possível, combine múltiplas ações em uma única resposta (ex: criar sessão + listar sessões + verificar status). O sistema executará todas as ferramentas em paralelo automaticamente, proporcionando respostas mais rápidas e completas.
 
 Responda em português brasileiro de forma técnica, prática e orientada a resultados.`;
 
@@ -384,49 +397,101 @@ Responda em português brasileiro de forma técnica, prática e orientada a resu
         res.write(
           JSON.stringify({
             type: 'thinking',
-            message: 'Executando ações...',
+            message: `Executando ${functionCalls.length} ação${
+              functionCalls.length > 1 ? 'ões' : ''
+            } em paralelo...`,
           }) + '\n'
         );
 
+        // EXECUÇÃO PARALELA DE TOOLS - Melhor performance
         const toolResults = [];
-        for (const toolCall of functionCalls) {
+        const toolPromises = functionCalls.map(async (toolCall, index) => {
           if (
             toolCall.function.name &&
             toolImplementations[toolCall.function.name]
           ) {
             try {
+              // Notificar início da execução da tool
+              res.write(
+                JSON.stringify({
+                  type: 'tool_start',
+                  tool: toolCall.function.name,
+                  index: index,
+                  total: functionCalls.length,
+                }) + '\n'
+              );
+
               const args = JSON.parse(toolCall.function.arguments);
               const result = await toolImplementations[toolCall.function.name](
                 args
               );
 
-              toolResults.push({
+              const toolResult = {
                 id: toolCall.id,
                 result: JSON.stringify(result),
-              });
+                index: index,
+              };
 
+              // Notificar conclusão da tool
               res.write(
                 JSON.stringify({
                   type: 'tool_result',
                   tool: toolCall.function.name,
                   result,
+                  index: index,
+                  total: functionCalls.length,
                 }) + '\n'
               );
+
+              return toolResult;
             } catch (error) {
-              toolResults.push({
+              const toolResult = {
                 id: toolCall.id,
                 result: JSON.stringify({ error: error.message }),
-              });
+                index: index,
+              };
 
+              // Notificar erro da tool
               res.write(
                 JSON.stringify({
                   type: 'tool_error',
                   tool: toolCall.function.name,
                   error: error.message,
+                  index: index,
+                  total: functionCalls.length,
                 }) + '\n'
               );
+
+              return toolResult;
             }
           }
+          return null;
+        });
+
+        // Aguardar todas as tools completarem em paralelo
+        try {
+          const results = await Promise.all(toolPromises);
+          toolResults.push(...results.filter((r) => r !== null));
+
+          // Notificar que todas as tools foram concluídas
+          res.write(
+            JSON.stringify({
+              type: 'tools_completed',
+              total: toolResults.length,
+              message: `${toolResults.length} ação${
+                toolResults.length > 1 ? 'ões' : ''
+              } executada${toolResults.length > 1 ? 's' : ''} com sucesso!`,
+            }) + '\n'
+          );
+        } catch (error) {
+          console.error('Erro na execução paralela de tools:', error);
+          res.write(
+            JSON.stringify({
+              type: 'tools_error',
+              error: error.message,
+              message: 'Erro durante execução paralela de ferramentas',
+            }) + '\n'
+          );
         }
 
         // Gerar resposta final após executar tools
@@ -494,8 +559,10 @@ Responda em português brasileiro de forma técnica, prática e orientada a resu
       if (accumulatedContent) {
         try {
           console.log('🔍 Checking for base64 images in AI response...');
-          const processedContent = await processBase64Images(accumulatedContent);
-          
+          const processedContent = await processBase64Images(
+            accumulatedContent
+          );
+
           // Se o conteúdo foi modificado (imagens processadas), enviar atualização
           if (processedContent !== accumulatedContent) {
             res.write(
@@ -535,7 +602,8 @@ Responda em português brasileiro de forma técnica, prática e orientada a resu
           toolImplementations.setUserToken(userToken);
         }
 
-        for (const toolCall of toolCalls) {
+        // EXECUÇÃO PARALELA DE TOOLS PARA MODO NÃO-STREAMING
+        const toolPromises = toolCalls.map(async (toolCall) => {
           const functionName = toolCall.function.name;
           const functionArgs = JSON.parse(toolCall.function.arguments);
 
@@ -544,19 +612,35 @@ Responda em português brasileiro de forma técnica, prática e orientada a resu
               const result = await toolImplementations[functionName](
                 functionArgs
               );
-              toolResults.push({
+              return {
                 tool: functionName,
                 args: functionArgs,
                 result,
-              });
+              };
             } catch (error) {
-              toolResults.push({
+              return {
                 tool: functionName,
                 args: functionArgs,
                 error: error.message,
-              });
+              };
             }
           }
+          return null;
+        });
+
+        // Aguardar todas as tools completarem em paralelo
+        try {
+          const results = await Promise.all(toolPromises);
+          toolResults.push(...results.filter((r) => r !== null));
+
+          console.log(
+            `✅ Executed ${toolResults.length} tools in parallel successfully`
+          );
+        } catch (error) {
+          console.error(
+            'Erro na execução paralela de tools (modo não-streaming):',
+            error
+          );
         }
 
         // Se houver tool calls, fazer uma segunda chamada para gerar resposta final
@@ -686,7 +770,7 @@ router.post('/save-base64-image', async (req, res) => {
     if (!base64Data || !base64Data.startsWith('data:image/')) {
       return res.status(400).json({
         success: false,
-        error: 'Invalid base64 image data'
+        error: 'Invalid base64 image data',
       });
     }
 
@@ -695,51 +779,52 @@ router.post('/save-base64-image', async (req, res) => {
     if (!matches) {
       return res.status(400).json({
         success: false,
-        error: 'Invalid base64 format'
+        error: 'Invalid base64 format',
       });
     }
 
     const [, imageType, base64String] = matches;
-    
+
     // Gerar nome único do arquivo
     const uniqueId = crypto.randomBytes(16).toString('hex');
     const fileExtension = imageType === 'svg+xml' ? 'svg' : imageType;
     const fileName = filename || `image-${uniqueId}.${fileExtension}`;
-    
+
     // Diretório para salvar imagens temporárias
     const tempDir = path.join(__dirname, '../../temp-images');
-    
+
     // Garantir que o diretório existe
     try {
       await fs.access(tempDir);
     } catch {
       await fs.mkdir(tempDir, { recursive: true });
     }
-    
+
     const filePath = path.join(tempDir, fileName);
-    
+
     // Converter base64 para buffer e salvar
     const imageBuffer = Buffer.from(base64String, 'base64');
     await fs.writeFile(filePath, imageBuffer);
-    
+
     // URL para acessar a imagem
     const imageUrl = `/temp-images/${fileName}`;
-    
-    console.log(`Base64 image saved: ${fileName} (${imageBuffer.length} bytes)`);
-    
+
+    console.log(
+      `Base64 image saved: ${fileName} (${imageBuffer.length} bytes)`
+    );
+
     res.json({
       success: true,
       url: imageUrl,
       filename: fileName,
-      size: imageBuffer.length
+      size: imageBuffer.length,
     });
-
   } catch (error) {
     console.error('Error saving base64 image:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to save image',
-      details: error.message
+      details: error.message,
     });
   }
 });
@@ -759,7 +844,7 @@ router.get('/health', async (req, res) => {
     // Verificar se há chave customizada no localStorage (passada via header)
     const customApiKey = req.headers['x-custom-api-key'];
     const openaiInstance = createOpenAIInstance(customApiKey);
-    
+
     // Teste simples com OpenAI
     const testCompletion = await openaiInstance.chat.completions.create({
       model: 'gpt-3.5-turbo',

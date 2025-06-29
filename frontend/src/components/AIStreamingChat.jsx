@@ -2,7 +2,6 @@ import {
   ClockIcon,
   CpuChipIcon,
   ExclamationTriangleIcon,
-  LightBulbIcon,
   PaperAirplaneIcon,
   SparklesIcon,
   StopIcon,
@@ -34,6 +33,11 @@ export default function AIStreamingChat() {
   const [streamingContent, setStreamingContent] = useState('');
   const [isThinking, setIsThinking] = useState(false);
   const [streamingToolCalls, setStreamingToolCalls] = useState([]);
+  const [executingTools, setExecutingTools] = useState(new Set());
+  const [toolsProgress, setToolsProgress] = useState({
+    completed: 0,
+    total: 0,
+  });
 
   // SUGESTÕES DESABILITADAS - Funcionalidade removida
   // const {
@@ -42,7 +46,7 @@ export default function AIStreamingChat() {
   //   generateSmartSuggestions,
   //   clearSuggestions,
   // } = useSmartSuggestions();
-  
+
   // Mock para manter compatibilidade
   const smartSuggestions = [];
   const isGeneratingSuggestions = false;
@@ -119,7 +123,7 @@ export default function AIStreamingChat() {
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
       const customApiKey = localStorage.getItem('openai_api_key');
-      
+
       const response = await fetch(`${apiUrl}/api/management/ai/chat`, {
         method: 'POST',
         headers: {
@@ -192,14 +196,47 @@ export default function AIStreamingChat() {
               });
             } else if (data.type === 'thinking') {
               setIsThinking(true);
+            } else if (data.type === 'tool_start') {
+              // Nova tool iniciando execução
+              setExecutingTools((prev) => new Set(prev).add(data.tool));
+              setToolsProgress((prev) => ({ ...prev, total: data.total }));
+              setIsThinking(false);
             } else if (data.type === 'tool_result') {
               toolResults.push(data);
               setStreamingToolCalls((prev) => [...prev, data]);
+              setExecutingTools((prev) => {
+                const newSet = new Set(prev);
+                newSet.delete(data.tool);
+                return newSet;
+              });
+              setToolsProgress((prev) => ({
+                ...prev,
+                completed: prev.completed + 1,
+              }));
               setIsThinking(false);
             } else if (data.type === 'tool_error') {
               toolResults.push(data);
               setStreamingToolCalls((prev) => [...prev, data]);
+              setExecutingTools((prev) => {
+                const newSet = new Set(prev);
+                newSet.delete(data.tool);
+                return newSet;
+              });
+              setToolsProgress((prev) => ({
+                ...prev,
+                completed: prev.completed + 1,
+              }));
               setIsThinking(false);
+            } else if (data.type === 'tools_completed') {
+              // Todas as tools foram concluídas
+              setExecutingTools(new Set());
+              setToolsProgress({ completed: data.total, total: data.total });
+              setIsThinking(false);
+            } else if (data.type === 'tools_error') {
+              // Erro na execução paralela
+              setExecutingTools(new Set());
+              setIsThinking(false);
+              console.error('Erro na execução de tools:', data.error);
             } else if (data.type === 'content_update') {
               // Backend processou imagens base64 e enviou conteúdo atualizado
               console.log('📸 Received content update with processed images');
@@ -239,6 +276,8 @@ export default function AIStreamingChat() {
               setStreamingContent('');
               setIsThinking(false);
               setStreamingToolCalls([]);
+              setExecutingTools(new Set());
+              setToolsProgress({ completed: 0, total: 0 });
               break;
             }
           } catch (e) {
@@ -276,6 +315,8 @@ export default function AIStreamingChat() {
       setCurrentStreamingId(null);
       setStreamingContent('');
       setStreamingToolCalls([]);
+      setExecutingTools(new Set());
+      setToolsProgress({ completed: 0, total: 0 });
       abortControllerRef.current = null;
     }
   };
@@ -339,6 +380,70 @@ export default function AIStreamingChat() {
     </motion.div>
   );
 
+  const ToolsProgressIndicator = () => {
+    if (executingTools.size === 0 && toolsProgress.total === 0) return null;
+
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -10 }}
+        className="flex items-center space-x-2 px-4 py-3"
+      >
+        <div className="flex items-center justify-center w-8 h-8 bg-green-100 rounded-full">
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+          >
+            <SparklesIcon className="w-4 h-4 text-green-600" />
+          </motion.div>
+        </div>
+        <div className="bg-green-50 border border-green-200 rounded-2xl px-4 py-2">
+          <div className="flex items-center space-x-2">
+            <div className="flex space-x-1">
+              {Array.from(executingTools).map((tool, i) => (
+                <motion.div
+                  key={tool}
+                  className="w-2 h-2 bg-green-500 rounded-full"
+                  animate={{
+                    scale: [1, 1.2, 1],
+                    opacity: [0.7, 1, 0.7],
+                  }}
+                  transition={{
+                    duration: 1,
+                    repeat: Infinity,
+                    delay: i * 0.3,
+                  }}
+                />
+              ))}
+            </div>
+            <span className="text-sm text-green-700">
+              {executingTools.size > 0
+                ? `Executando ${executingTools.size} ferramenta${
+                    executingTools.size > 1 ? 's' : ''
+                  }...`
+                : `${toolsProgress.completed}/${toolsProgress.total} ferramentas concluídas`}
+            </span>
+            {toolsProgress.total > 0 && (
+              <div className="w-16 bg-green-200 rounded-full h-1.5 ml-2">
+                <motion.div
+                  className="bg-green-500 h-1.5 rounded-full"
+                  initial={{ width: 0 }}
+                  animate={{
+                    width: `${
+                      (toolsProgress.completed / toolsProgress.total) * 100
+                    }%`,
+                  }}
+                  transition={{ duration: 0.3 }}
+                />
+              </div>
+            )}
+          </div>
+        </div>
+      </motion.div>
+    );
+  };
+
   const ToolCallsDisplay = ({ toolCalls }) => {
     if (!toolCalls || toolCalls.length === 0) return null;
 
@@ -377,7 +482,6 @@ export default function AIStreamingChat() {
       </div>
     );
   };
-
 
   const MessageBubble = useCallback(({ message }) => {
     const isUser = message.role === 'user';
@@ -507,16 +611,21 @@ export default function AIStreamingChat() {
             <MessageBubble key={message.id} message={message} />
           ))}
           {isThinking && <ThinkingIndicator />}
-          {streamingToolCalls.length > 0 && !isThinking && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              className="px-4 py-2"
-            >
-              <ToolCallsDisplay toolCalls={streamingToolCalls} />
-            </motion.div>
+          {(executingTools.size > 0 || toolsProgress.total > 0) && (
+            <ToolsProgressIndicator />
           )}
+          {streamingToolCalls.length > 0 &&
+            !isThinking &&
+            executingTools.size === 0 && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="px-4 py-2"
+              >
+                <ToolCallsDisplay toolCalls={streamingToolCalls} />
+              </motion.div>
+            )}
         </AnimatePresence>
         <div ref={messagesEndRef} />
       </div>
