@@ -823,9 +823,14 @@ export default function AIStreamingChat() {
                 'Criar uma nova sessão',
                 'Verificar status do sistema',
                 'Enviar mensagem de exemplo',
-                'Configurar webhook',
-                'Listar grupos',
+                'Listar grupos da sessão',
                 'Baixar mídia de um link e enviar',
+                'Configurar webhook para sessão',
+                'Verificar status da sessão',
+                'Criar grupo com participantes',
+                'Mencionar todos no grupo',
+                'Mostrar histórico de mensagens',
+                'Marcar mensagem como lida',
               ].map((suggestion) => (
                 <motion.button
                   key={suggestion}

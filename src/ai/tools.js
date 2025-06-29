@@ -585,6 +585,130 @@ const toolSchemas = {
       })
     ),
   }),
+
+  // ====== CONTROLES DE CHAT (IMPLEMENTADOS) ======
+  setTypingStatus: Type.Object({
+    sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
+    phone: Type.String({
+      description: 'Número de telefone no formato internacional',
+      pattern: '^[1-9]\\d{1,14}$',
+    }),
+    isTyping: Type.Optional(
+      Type.Boolean({ description: 'Se está digitando (padrão: true)' })
+    ),
+  }),
+
+  markAsRead: Type.Object({
+    sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
+    phone: Type.String({
+      description: 'Número de telefone no formato internacional',
+      pattern: '^[1-9]\\d{1,14}$',
+    }),
+    messageId: Type.String({
+      description: 'ID da mensagem para marcar como lida',
+      minLength: 1,
+    }),
+  }),
+
+  mentionAll: Type.Object({
+    sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
+    groupId: Type.String({ description: 'ID do grupo', minLength: 1 }),
+    message: Type.String({
+      description: 'Mensagem para mencionar todos',
+      minLength: 1,
+    }),
+    silentMode: Type.Optional(
+      Type.Boolean({ description: 'Usar menções silenciosas (padrão: true)' })
+    ),
+  }),
+
+  // ====== WEBHOOKS AVANÇADOS COMPLETOS ======
+  createAdvancedWebhook: Type.Object({
+    sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
+    name: Type.String({
+      description: 'Nome identificador do webhook',
+      minLength: 1,
+    }),
+    url: Type.String({ description: 'URL do webhook', format: 'uri' }),
+    priority: Type.Optional(
+      Type.Number({
+        description: 'Prioridade (1-3, padrão: 1)',
+        minimum: 1,
+        maximum: 3,
+      })
+    ),
+    events: Type.Optional(
+      Type.Array(Type.String(), {
+        description: 'Eventos específicos (padrão: todos)',
+      })
+    ),
+    active: Type.Optional(
+      Type.Boolean({ description: 'Ativar webhook (padrão: true)' })
+    ),
+  }),
+
+  updateAdvancedWebhook: Type.Object({
+    sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
+    webhookId: Type.String({ description: 'ID do webhook', minLength: 1 }),
+    name: Type.Optional(Type.String({ description: 'Novo nome do webhook' })),
+    url: Type.Optional(
+      Type.String({ description: 'Nova URL do webhook', format: 'uri' })
+    ),
+    priority: Type.Optional(
+      Type.Number({
+        description: 'Nova prioridade (1-3)',
+        minimum: 1,
+        maximum: 3,
+      })
+    ),
+    events: Type.Optional(
+      Type.Array(Type.String(), { description: 'Novos eventos' })
+    ),
+    active: Type.Optional(Type.Boolean({ description: 'Novo status ativo' })),
+  }),
+
+  deleteAdvancedWebhook: Type.Object({
+    sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
+    webhookId: Type.String({ description: 'ID do webhook', minLength: 1 }),
+  }),
+
+  testAdvancedWebhook: Type.Object({
+    sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
+    webhookId: Type.String({ description: 'ID do webhook', minLength: 1 }),
+    testData: Type.Optional(
+      Type.Object({}, { description: 'Dados de teste personalizados' })
+    ),
+  }),
+
+  // ====== ESTATÍSTICAS E MONITORAMENTO ======
+  getSessionStats: Type.Object({
+    sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
+    period: Type.Optional(
+      Type.Union(
+        [
+          Type.Literal('1h'),
+          Type.Literal('24h'),
+          Type.Literal('7d'),
+          Type.Literal('30d'),
+        ],
+        { description: 'Período para estatísticas (padrão: 24h)' }
+      )
+    ),
+  }),
+
+  getWebhookLogs: Type.Object({
+    sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
+    webhookId: Type.Optional(
+      Type.String({ description: 'ID específico do webhook (opcional)' })
+    ),
+    limit: Type.Optional(
+      Type.Number({
+        description: 'Limite de logs (padrão: 50)',
+        minimum: 1,
+        maximum: 1000,
+      })
+    ),
+  }),
 };
 
 // Funções auxiliares
@@ -2543,6 +2667,401 @@ const toolImplementations = {
       };
     }
   },
+
+  // ====== CONTROLES DE CHAT ======
+  async setPresence({ sessionId, phone, presence }) {
+    try {
+      const userToken =
+        this.getUserToken?.() ||
+        process.env.BAILEYS_API_TOKEN ||
+        'baileys_default_token';
+
+      const response = await fetch(
+        `http://localhost:3000/api/baileys/session/${sessionId}/presence`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${userToken}`,
+          },
+          body: JSON.stringify({
+            phone,
+            presence,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || `Erro HTTP: ${response.status}`);
+      }
+
+      return {
+        success: true,
+        message: `Status de presença atualizado para ${phone}: ${presence}`,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        message: `Falha ao atualizar status de presença para ${phone}: ${error.message}`,
+      };
+    }
+  },
+
+  async sendPresenceUpdate({ sessionId, phone, type }) {
+    try {
+      const userToken =
+        this.getUserToken?.() ||
+        process.env.BAILEYS_API_TOKEN ||
+        'baileys_default_token';
+
+      const response = await fetch(
+        `http://localhost:3000/api/baileys/session/${sessionId}/presence-update`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${userToken}`,
+          },
+          body: JSON.stringify({
+            phone,
+            type,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || `Erro HTTP: ${response.status}`);
+      }
+
+      return {
+        success: true,
+        message: `Status de presença atualizado para ${phone}: ${type}`,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        message: `Falha ao enviar atualização de status de presença para ${phone}: ${error.message}`,
+      };
+    }
+  },
+
+  // ====== MENSAGENS AVANÇADAS ======
+  async sendLocation({ sessionId, phone, latitude, longitude, name, address }) {
+    return {
+      success: false,
+      error: 'Endpoint não implementado',
+      message: `Envio de localização não está implementado ainda. Use sendMessage para enviar texto com coordenadas: "Localização: ${latitude}, ${longitude} ${
+        name ? '- ' + name : ''
+      }${address ? ' (' + address + ')' : ''}"`,
+    };
+  },
+
+  async sendContact({ sessionId, phone, contactName, contactPhone }) {
+    return {
+      success: false,
+      error: 'Endpoint não implementado',
+      message: `Envio de contato não está implementado ainda. Use sendMessage para enviar: "Contato: ${contactName} - ${contactPhone}"`,
+    };
+  },
+
+  async sendReaction({ sessionId, messageId, emoji }) {
+    return {
+      success: false,
+      error: 'Endpoint não implementado',
+      message: `Envio de reações não está implementado ainda. Funcionalidade será adicionada em versão futura.`,
+    };
+  },
+
+  async mentionAll({ sessionId, groupId, message, silentMode }) {
+    try {
+      const userToken =
+        this.getUserToken?.() ||
+        process.env.BAILEYS_API_TOKEN ||
+        'baileys_default_token';
+
+      const response = await fetch(
+        `http://localhost:3000/api/baileys/session/${sessionId}/mention-all`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${userToken}`,
+          },
+          body: JSON.stringify({
+            groupId,
+            message,
+            silentMode,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || `Erro HTTP: ${response.status}`);
+      }
+
+      return {
+        success: true,
+        message: `Mensagem para mencionar todos enviada para o grupo ${groupId}`,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        message: `Falha ao enviar mensagem para mencionar todos: ${error.message}`,
+      };
+    }
+  },
+
+  // ====== WEBHOOKS AVANÇADOS COMPLETOS ======
+  async createAdvancedWebhook({
+    sessionId,
+    name,
+    url,
+    priority,
+    events,
+    active,
+  }) {
+    try {
+      const userToken =
+        this.getUserToken?.() ||
+        process.env.BAILEYS_API_TOKEN ||
+        'baileys_default_token';
+
+      const response = await fetch(
+        `http://localhost:3000/api/baileys/session/${sessionId}/webhooks`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${userToken}`,
+          },
+          body: JSON.stringify({
+            name,
+            url,
+            priority: priority || 1,
+            events: events || ['*'],
+            active: active !== false,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || `Erro HTTP: ${response.status}`);
+      }
+
+      const result = await response.json();
+      return {
+        success: true,
+        webhookId: result.webhook?.id,
+        message: `Webhook '${name}' criado com sucesso para sessão '${sessionId}'`,
+        data: result,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        message: `Falha ao criar webhook '${name}' para '${sessionId}': ${error.message}`,
+      };
+    }
+  },
+
+  async updateAdvancedWebhook({
+    sessionId,
+    webhookId,
+    name,
+    url,
+    priority,
+    events,
+    active,
+  }) {
+    try {
+      const userToken =
+        this.getUserToken?.() ||
+        process.env.BAILEYS_API_TOKEN ||
+        'baileys_default_token';
+
+      const response = await fetch(
+        `http://localhost:3000/api/baileys/session/${sessionId}/webhooks/${webhookId}`,
+        {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${userToken}`,
+          },
+          body: JSON.stringify({
+            name,
+            url,
+            priority,
+            events,
+            active,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || `Erro HTTP: ${response.status}`);
+      }
+
+      const result = await response.json();
+      return {
+        success: true,
+        message: `Webhook ${webhookId} atualizado com sucesso`,
+        data: result,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        message: `Falha ao atualizar webhook ${webhookId}: ${error.message}`,
+      };
+    }
+  },
+
+  async deleteAdvancedWebhook({ sessionId, webhookId }) {
+    try {
+      const userToken =
+        this.getUserToken?.() ||
+        process.env.BAILEYS_API_TOKEN ||
+        'baileys_default_token';
+
+      const response = await fetch(
+        `http://localhost:3000/api/baileys/session/${sessionId}/webhooks/${webhookId}`,
+        {
+          method: 'DELETE',
+          headers: {
+            Authorization: `Bearer ${userToken}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || `Erro HTTP: ${response.status}`);
+      }
+
+      return {
+        success: true,
+        message: `Webhook ${webhookId} deletado com sucesso`,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        message: `Falha ao deletar webhook ${webhookId}: ${error.message}`,
+      };
+    }
+  },
+
+  async testAdvancedWebhook({ sessionId, webhookId, testData }) {
+    try {
+      const userToken =
+        this.getUserToken?.() ||
+        process.env.BAILEYS_API_TOKEN ||
+        'baileys_default_token';
+
+      const response = await fetch(
+        `http://localhost:3000/api/baileys/session/${sessionId}/webhooks/${webhookId}/test`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${userToken}`,
+          },
+          body: JSON.stringify({
+            testData: testData || {
+              test: true,
+              timestamp: new Date().toISOString(),
+            },
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || `Erro HTTP: ${response.status}`);
+      }
+
+      const result = await response.json();
+      return {
+        success: true,
+        message: `Teste do webhook ${webhookId} executado com sucesso`,
+        testResult: result,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        message: `Falha no teste do webhook ${webhookId}: ${error.message}`,
+      };
+    }
+  },
+
+  // ====== ESTATÍSTICAS E MONITORAMENTO ======
+  async getSessionStats({ sessionId, period }) {
+    try {
+      // Usar o endpoint de status que existe para obter informações básicas
+      const userToken =
+        this.getUserToken?.() ||
+        process.env.BAILEYS_API_TOKEN ||
+        'baileys_default_token';
+
+      const response = await fetch(
+        `http://localhost:3000/api/baileys/session/${sessionId}/status`,
+        {
+          headers: {
+            Authorization: `Bearer ${userToken}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || `Erro HTTP: ${response.status}`);
+      }
+
+      const result = await response.json();
+      return {
+        success: true,
+        stats: {
+          sessionId: result.sessionId,
+          isConnected: result.isConnected,
+          connectionState: result.connectionState,
+          messageCount: result.messageCount || 0,
+          queueLength: result.queueLength || 0,
+          reconnectionAttempts: result.reconnectionAttempts || 0,
+          createdAt: result.createdAt,
+          connectedAt: result.connectedAt,
+          lastError: result.lastError,
+          user: result.user,
+          note: `Estatísticas básicas obtidas do status da sessão (período ${
+            period || '24h'
+          } não implementado ainda)`,
+        },
+        message: `Estatísticas básicas da sessão '${sessionId}' obtidas`,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        message: `Falha ao obter estatísticas da sessão '${sessionId}': ${error.message}`,
+      };
+    }
+  },
+
+  async getWebhookLogs({ sessionId, webhookId, limit }) {
+    return {
+      success: false,
+      error: 'Endpoint não implementado',
+      message: `Logs de webhook não estão implementados ainda. Use listWebhooks para ver webhooks ativos da sessão '${sessionId}'.`,
+    };
+  },
 };
 
 // Definição das tools para OpenAI
@@ -3545,6 +4064,364 @@ const openAITools = [
       parameters: {
         type: 'object',
         properties: {},
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'setPresence',
+      description: 'Definir o status de presença de um contato',
+      parameters: {
+        type: 'object',
+        properties: {
+          sessionId: {
+            type: 'string',
+            description: 'ID da sessão',
+          },
+          phone: {
+            type: 'string',
+            description: 'Número de telefone no formato internacional',
+          },
+          presence: {
+            type: 'string',
+            enum: [
+              'available',
+              'unavailable',
+              'composing',
+              'recording',
+              'paused',
+            ],
+            description: 'Tipo de presença a definir',
+          },
+        },
+        required: ['sessionId', 'phone', 'presence'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'sendPresenceUpdate',
+      description: 'Enviar atualização de status de presença',
+      parameters: {
+        type: 'object',
+        properties: {
+          sessionId: {
+            type: 'string',
+            description: 'ID da sessão',
+          },
+          phone: {
+            type: 'string',
+            description: 'Número de telefone no formato internacional',
+          },
+          type: {
+            type: 'string',
+            enum: ['composing', 'recording', 'paused'],
+            description:
+              'Tipo de presença (composing=digitando, recording=gravando)',
+          },
+        },
+        required: ['sessionId', 'phone', 'type'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'sendLocation',
+      description: 'Enviar localização',
+      parameters: {
+        type: 'object',
+        properties: {
+          sessionId: {
+            type: 'string',
+            description: 'ID da sessão',
+          },
+          phone: {
+            type: 'string',
+            description: 'Número de telefone no formato internacional',
+          },
+          latitude: {
+            type: 'number',
+            description: 'Latitude da localização',
+          },
+          longitude: {
+            type: 'number',
+            description: 'Longitude da localização',
+          },
+          name: {
+            type: 'string',
+            description: 'Nome do local (opcional)',
+          },
+          address: {
+            type: 'string',
+            description: 'Endereço do local (opcional)',
+          },
+        },
+        required: ['sessionId', 'phone', 'latitude', 'longitude'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'sendContact',
+      description: 'Enviar contato',
+      parameters: {
+        type: 'object',
+        properties: {
+          sessionId: {
+            type: 'string',
+            description: 'ID da sessão',
+          },
+          phone: {
+            type: 'string',
+            description: 'Número de telefone no formato internacional',
+          },
+          contactName: {
+            type: 'string',
+            description: 'Nome do contato',
+          },
+          contactPhone: {
+            type: 'string',
+            description: 'Telefone do contato no formato internacional',
+          },
+        },
+        required: ['sessionId', 'phone', 'contactName', 'contactPhone'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'sendReaction',
+      description: 'Enviar reação',
+      parameters: {
+        type: 'object',
+        properties: {
+          sessionId: {
+            type: 'string',
+            description: 'ID da sessão',
+          },
+          messageId: {
+            type: 'string',
+            description: 'ID da mensagem para reagir',
+          },
+          emoji: {
+            type: 'string',
+            description: 'Emoji da reação (ex: 👍, ❤️, 😂)',
+          },
+        },
+        required: ['sessionId', 'messageId', 'emoji'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'mentionAll',
+      description: 'Mencionar todos',
+      parameters: {
+        type: 'object',
+        properties: {
+          sessionId: {
+            type: 'string',
+            description: 'ID da sessão',
+          },
+          groupId: {
+            type: 'string',
+            description: 'ID do grupo',
+          },
+          message: {
+            type: 'string',
+            description: 'Mensagem para mencionar todos',
+          },
+          silentMode: {
+            type: 'boolean',
+            description: 'Usar menções silenciosas (padrão: true)',
+          },
+        },
+        required: ['sessionId', 'groupId', 'message'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'createAdvancedWebhook',
+      description: 'Criar um novo webhook avançado',
+      parameters: {
+        type: 'object',
+        properties: {
+          sessionId: {
+            type: 'string',
+            description: 'ID da sessão',
+          },
+          name: {
+            type: 'string',
+            description: 'Nome identificador do webhook',
+          },
+          url: {
+            type: 'string',
+            description: 'URL do webhook',
+          },
+          priority: {
+            type: 'number',
+            description: 'Prioridade (1-3, padrão: 1)',
+            minimum: 1,
+            maximum: 3,
+          },
+          events: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Eventos específicos (padrão: todos)',
+          },
+          active: {
+            type: 'boolean',
+            description: 'Ativar webhook (padrão: true)',
+          },
+        },
+        required: ['sessionId', 'name', 'url'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'updateAdvancedWebhook',
+      description: 'Atualizar configurações de um webhook avançado',
+      parameters: {
+        type: 'object',
+        properties: {
+          sessionId: {
+            type: 'string',
+            description: 'ID da sessão',
+          },
+          webhookId: {
+            type: 'string',
+            description: 'ID do webhook',
+          },
+          name: {
+            type: 'string',
+            description: 'Novo nome do webhook',
+          },
+          url: {
+            type: 'string',
+            description: 'Nova URL do webhook',
+          },
+          priority: {
+            type: 'number',
+            description: 'Nova prioridade (1-3)',
+            minimum: 1,
+            maximum: 3,
+          },
+          events: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Novos eventos',
+          },
+          active: {
+            type: 'boolean',
+            description: 'Novo status ativo',
+          },
+        },
+        required: ['sessionId', 'webhookId'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'deleteAdvancedWebhook',
+      description: 'Deletar um webhook avançado',
+      parameters: {
+        type: 'object',
+        properties: {
+          sessionId: {
+            type: 'string',
+            description: 'ID da sessão',
+          },
+          webhookId: {
+            type: 'string',
+            description: 'ID do webhook',
+          },
+        },
+        required: ['sessionId', 'webhookId'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'testAdvancedWebhook',
+      description: 'Testar um webhook avançado enviando dados de teste',
+      parameters: {
+        type: 'object',
+        properties: {
+          sessionId: {
+            type: 'string',
+            description: 'ID da sessão',
+          },
+          webhookId: {
+            type: 'string',
+            description: 'ID do webhook',
+          },
+          testData: {
+            type: 'object',
+            description: 'Dados de teste personalizados',
+          },
+        },
+        required: ['sessionId', 'webhookId'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'getSessionStats',
+      description: 'Obter estatísticas de uma sessão',
+      parameters: {
+        type: 'object',
+        properties: {
+          sessionId: {
+            type: 'string',
+            description: 'ID da sessão',
+          },
+          period: {
+            type: 'string',
+            enum: ['1h', '24h', '7d', '30d'],
+            description: 'Período para estatísticas (padrão: 24h)',
+          },
+        },
+        required: ['sessionId'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'getWebhookLogs',
+      description: 'Obter logs de um webhook específico',
+      parameters: {
+        type: 'object',
+        properties: {
+          sessionId: {
+            type: 'string',
+            description: 'ID da sessão',
+          },
+          webhookId: {
+            type: 'string',
+            description: 'ID específico do webhook (opcional)',
+          },
+          limit: {
+            type: 'number',
+            description: 'Limite de logs (padrão: 50)',
+            minimum: 1,
+            maximum: 1000,
+          },
+        },
+        required: ['sessionId'],
       },
     },
   },
