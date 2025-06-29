@@ -43,6 +43,10 @@ COPY --from=frontend-build /app/frontend/dist ./frontend/dist
 # Copy application code
 COPY . .
 
+# Copy entrypoint script
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
 # Create necessary directories
 RUN mkdir -p \
     .sessions \
@@ -53,7 +57,8 @@ RUN mkdir -p \
     logs
 
 # Set proper permissions
-RUN chown -R node:node /app
+RUN chown -R node:node /app && \
+    chown node:node /entrypoint.sh
 USER node
 
 # Health check
@@ -65,6 +70,6 @@ ENV TZ=America/Sao_Paulo
 
 EXPOSE 3000
 
-# Use tini as init system
-ENTRYPOINT ["/sbin/tini", "--"]
+# Use entrypoint to configure frontend URLs
+ENTRYPOINT ["/sbin/tini", "--", "/entrypoint.sh"]
 CMD ["npm", "start"]

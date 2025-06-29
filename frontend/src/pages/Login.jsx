@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { EyeIcon, EyeSlashIcon, UserIcon, EnvelopeIcon, LockClosedIcon, ChatBubbleLeftRightIcon } from '@heroicons/react/24/outline';
 import { motion, AnimatePresence } from 'framer-motion';
+import { getApiUrl, apiRequest } from '../utils/api';
 
 export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
@@ -20,10 +21,8 @@ export default function Login() {
     const fetchCSRFToken = async () => {
       setCsrfLoading(true);
       try {
-        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-        const response = await fetch(`${apiUrl}/api/management/auth/csrf-token`, {
-          method: 'GET',
-          credentials: 'include'
+        const response = await apiRequest('/api/management/auth/csrf-token', {
+          method: 'GET'
         });
         
         if (response.ok) {
@@ -57,17 +56,13 @@ export default function Login() {
     }
     
     try {
-      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-      
       if (isLogin) {
         // Login API call
-        const response = await fetch(`${apiUrl}/api/management/auth/login`, {
+        const response = await apiRequest('/api/management/auth/login', {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
             'X-CSRF-Token': csrfToken
           },
-          credentials: 'include', // Include cookies in request
           body: JSON.stringify({
             email: data.email,
             password: data.password,
@@ -131,13 +126,11 @@ export default function Login() {
         }
       } else {
         // Register API call
-        const response = await fetch(`${apiUrl}/api/management/auth/register`, {
+        const response = await apiRequest('/api/management/auth/register', {
           method: 'POST',
           headers: {
-            'Content-Type': 'application/json',
             'X-CSRF-Token': csrfToken
           },
-          credentials: 'include', // Include cookies in request
           body: JSON.stringify({
             name: data.name,
             email: data.email,

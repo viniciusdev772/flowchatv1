@@ -27,6 +27,7 @@ import {
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 import WebhookManager from '../components/WebhookManager';
+import { getApiUrl, apiRequest } from '../utils/api';
 
 export default function Dashboard() {
   // Estado principal
@@ -93,13 +94,8 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchUserProfile = async () => {
       try {
-        const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-        const response = await fetch(`${apiUrl}/api/management/auth/profile`, {
-          method: 'GET',
-          credentials: 'include', // Include cookies for authentication
-          headers: {
-            'Content-Type': 'application/json',
-          },
+        const response = await apiRequest('/api/management/auth/profile', {
+          method: 'GET'
         });
 
         if (response.ok) {
