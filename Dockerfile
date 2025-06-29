@@ -1,7 +1,7 @@
 # Multi-stage build for production optimization
 FROM node:20-alpine AS base
 
-# Install system dependencies including MongoDB
+# Install system dependencies
 RUN apk add --no-cache \
     ffmpeg \
     imagemagick \
@@ -11,16 +11,7 @@ RUN apk add --no-cache \
     curl \
     bash \
     tzdata \
-    tini \
-    wget \
-    tar
-
-# Install MongoDB manually
-RUN mkdir -p /tmp/mongodb && \
-    wget -qO- https://fastdl.mongodb.org/linux/mongodb-linux-x86_64-alpine-7.0.14.tgz | tar xz -C /tmp/mongodb --strip-components=1 && \
-    mv /tmp/mongodb/bin/* /usr/local/bin/ && \
-    rm -rf /tmp/mongodb && \
-    mkdir -p /data/db /var/log/mongodb
+    tini
 
 WORKDIR /app
 
@@ -52,29 +43,21 @@ COPY --from=frontend-build /app/frontend/dist ./frontend/dist
 # Copy application code
 COPY . .
 
-# Copy and set up entrypoint
-COPY entrypoint.sh /entrypoint.sh
-RUN chmod +x /entrypoint.sh
-
-# Create necessary directories (including MongoDB dirs)
+# Create necessary directories
 RUN mkdir -p \
     .sessions \
     .media \
     uploads \
     downloads \
     auth_sessions \
-    logs \
-    /data/db \
-    /var/log/mongodb
+    logs
 
-# Set proper permissions for app directories
+# Set proper permissions
 RUN chown -R node:node /app
-
-# MongoDB needs root permissions, so don't switch to node user
-# RUN chown -R node:node /data/db /var/log/mongodb
+USER node
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:3000/api/management/health || exit 1
 
 # Set timezone
@@ -82,7 +65,6 @@ ENV TZ=America/Sao_Paulo
 
 EXPOSE 3000
 
-# Run as root to allow MongoDB startup, then app will run as intended
-# Use entrypoint que inicia MongoDB + Baileys
-ENTRYPOINT ["/sbin/tini", "--", "/entrypoint.sh"]
+# Use tini as init system
+ENTRYPOINT ["/sbin/tini", "--"]
 CMD ["npm", "start"]
