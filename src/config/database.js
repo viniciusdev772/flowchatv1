@@ -14,7 +14,7 @@ class Database {
       }
 
       // Use default MongoDB URI if not provided
-      const mongoUri = process.env.MONGODB_URI || 'mongodb://admin:password123@localhost:27017/baileys?authSource=admin';
+      const mongoUri = process.env.MONGODB_URI || 'mongodb://mongouser:mongopassword@mongodb:27017/baileys?authSource=admin';
       const dbName = process.env.DB_NAME || 'baileys';
 
       console.log('🔄 Connecting to MongoDB...');
@@ -42,7 +42,7 @@ class Database {
       
       console.log('⚠️  Using memory store for sessions (no database connection)');
       console.log('💡 To use MongoDB persistence, start with:');
-      console.log('   docker run -d --name mongodb -p 27017:27017 -e MONGO_INITDB_ROOT_USERNAME=admin -e MONGO_INITDB_ROOT_PASSWORD=password123 mongo:7-jammy');
+      console.log('   docker run -d --name mongodb -p 27017:27017 -e MONGO_INITDB_ROOT_USERNAME=mongouser -e MONGO_INITDB_ROOT_PASSWORD=mongopassword mongo:7-jammy');
       
       // Always continue without database - use memory store
       return null;
