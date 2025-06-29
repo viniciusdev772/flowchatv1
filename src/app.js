@@ -71,9 +71,7 @@ app.use(
 );
 
 // Rota raiz redireciona para documentação
-app.get('/', (req, res) => {
-  res.redirect('/api-docs');
-});
+
 
 // Storage para uploads
 const storage = multer.diskStorage({
