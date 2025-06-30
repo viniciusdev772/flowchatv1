@@ -1934,7 +1934,7 @@ const toolImplementations = {
       const result = await response.json();
       return {
         success: true,
-        message: `✅ Resposta enviada com sucesso para mensagem ${quotedMessageId}. Continue com outras ações se necessário.`,
+        message: `✅ Resposta enviada com sucesso para mensagem ${quotedMessageId}.`,
         data: result,
       };
     } catch (error) {
@@ -2052,7 +2052,7 @@ const toolImplementations = {
 
       return {
         success: true,
-        message: `✅ Mensagem ${messageId} marcada como lida para ${phone}. Continue com outras ações se necessário.`,
+        message: `✅ Mensagem ${messageId} marcada como lida para ${phone}.`,
       };
     } catch (error) {
       return {
@@ -2184,19 +2184,13 @@ const toolImplementations = {
         total: result.total || 0,
         message: `✅ ${
           result.total || 0
-        } mensagens encontradas com messageIds válidos. EXECUTE IMEDIATAMENTE a próxima ação usando os messageIds retornados. NÃO PARE AQUI. CONTINUE AGORA!`,
+        } mensagens encontradas com messageIds válidos. Use os messageIds retornados para executar ações como sendMessage, replyMessage ou markAsRead conforme necessário.`,
         nextAction:
-          'CONTINUE AUTOMATICAMENTE - Execute replyMessage, markAsRead ou outras ações usando os messageIds disponíveis',
+          'Continue com replyMessage, markAsRead ou outras ações usando os messageIds disponíveis',
         availableMessageIds: messageIds.slice(0, 5).map((m) => m.messageId), // Primeiros 5 IDs para uso imediato
         instruction:
-          'PROSSIGA IMEDIATAMENTE com a ação solicitada usando um dos messageIds retornados',
+          'Prossiga com a ação solicitada usando um dos messageIds retornados',
         suggestedAction: suggestedAction,
-        URGENT:
-          '🚨 NÃO PARE AQUI - CONTINUE COM A PRÓXIMA FERRAMENTA IMEDIATAMENTE',
-        FORCE_CONTINUE: true,
-        AUTO_PROCEED:
-          'Esta ferramenta é apenas preparatória. EXECUTE a próxima ação automaticamente.',
-        WARNING: '⚠️ PARAR AQUI É UM ERRO - A IA DEVE CONTINUAR IMEDIATAMENTE',
       };
     } catch (error) {
       return {

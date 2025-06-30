@@ -549,6 +549,18 @@ Responda em português brasileiro de forma técnica, prática e orientada a resu
             }) + '\n'
           );
 
+          // Verificar se o usuário quer enviar mensagem após getMessageHistory
+          const hasGetMessageHistory = functionCalls.some(
+            (fc) => fc.function.name === 'getMessageHistory'
+          );
+          const lastUserMessage = messages[messages.length - 1]?.content || '';
+          const userWantsToSend =
+            hasGetMessageHistory &&
+            (lastUserMessage.includes('envie') ||
+              lastUserMessage.includes('mande') ||
+              lastUserMessage.includes('send') ||
+              lastUserMessage.toLowerCase().includes('grupo'));
+
           // Preparar mensagens para resposta final
           const finalMessages = [
             ...messages,
@@ -566,6 +578,18 @@ Responda em português brasileiro de forma técnica, prática e orientada a resu
               content: tr.result,
             })),
           ];
+
+          // Se o usuário quer enviar mensagem, adicionar contexto para a IA
+          if (userWantsToSend) {
+            console.log(
+              '🎯 Detectado pedido para enviar mensagem - adicionando contexto'
+            );
+            const sendInstruction = {
+              role: 'system',
+              content: `O usuário solicitou enviar uma mensagem. Após obter o histórico com getMessageHistory, continue com sendMessage usando os dados fornecidos (sessionId e phone) para completar a solicitação.`,
+            };
+            finalMessages.push(sendInstruction);
+          }
 
           console.log(
             `📝 Mensagens finais preparadas: ${finalMessages.length} mensagens`
