@@ -4,13 +4,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This is a sophisticated WhatsApp multi-session API built with Node.js, Express, and Baileys library. It provides:
+This is FlowChat API - a sophisticated WhatsApp multi-session API built with Node.js, Express, and Baileys library. It provides:
 - Multi-session WhatsApp bot management with QR code authentication
 - Group management functionality with comprehensive operations
 - Media handling, file uploads, and Base64 encoding for webhooks
 - Webhook system supporting up to 3 webhooks per session with priorities
 - MongoDB integration with graceful development fallback
 - React 19 frontend with Apple Liquid Glass design and Framer Motion
+- Integrated AI Assistant with streaming chat interface and OpenAI integration
 
 ## Architecture
 
@@ -18,7 +19,7 @@ This is a sophisticated WhatsApp multi-session API built with Node.js, Express, 
 The project follows a class-based Express.js architecture with singleton patterns:
 
 - **main.js** - Server entry point with class-based Express setup
-- **src/app.js** - Core Baileys WhatsApp logic (34K+ lines) with global session management
+- **src/app.js** - Core Baileys WhatsApp logic with global session management
 - **src/api/groups.js** - WhatsApp group operations API handler
 - **src/config/** - Database connection with fallback and Swagger configuration
 - **src/middleware/** - Layered security: CSRF, API token auth, security headers
@@ -29,8 +30,10 @@ The project follows a class-based Express.js architecture with singleton pattern
 React 19 + Vite with performance-conscious design:
 
 - **frontend/src/App.jsx** - Main app with React Router and Apple-inspired UI
-- **frontend/src/pages/** - Login and Dashboard pages
+- **frontend/src/pages/** - Login, Dashboard, and AI Assistant pages
 - **frontend/src/components/WebhookManager.jsx** - Webhook configuration component
+- **frontend/src/components/AIStreamingChat.jsx** - Streaming AI chat interface with tool execution
+- **frontend/src/components/MarkdownRenderer.jsx** - Rich markdown rendering for AI responses
 - **Styling**: Tailwind CSS with custom Apple Liquid Glass theme
 - **Animation**: Framer Motion with device performance detection
 
@@ -72,7 +75,7 @@ node -c main.js                         # Check main entry point
 ## Key Technical Details
 
 ### Session Management
-- In-memory sessions stored in `sessions` Map (src/app.js:34K+ lines)
+- In-memory sessions stored in `sessions` Map
 - WhatsApp auth persistence in `auth_sessions/` directory
 - Global `whatsappSessions` object accessible across all modules
 - Automatic reconnection handling and QR code authentication
@@ -169,6 +172,17 @@ The `/api/management/auth/profile` endpoint has been optimized for faster respon
 - **Memory efficient** caching with automatic cleanup
 - **Graceful degradation** maintains functionality if caching fails
 
+### AI Assistant Integration
+The frontend now includes a comprehensive AI Assistant feature:
+
+1. **Streaming Chat Interface**: Real-time message streaming with tool execution visualization
+2. **OpenAI Integration**: Configurable API key support with custom model selection
+3. **Tool Execution**: Visual feedback for AI tool usage and execution status
+4. **Markdown Rendering**: Rich text rendering with syntax highlighting for code blocks
+5. **Auto-scroll Management**: Intelligent scrolling behavior during streaming responses
+6. **Performance Detection**: Adaptive UI based on device performance capabilities
+7. **FlowChat API Integration**: AI can interact with WhatsApp sessions, groups, and webhooks
+
 ## Important Architectural Patterns
 
 ### Global State Management
@@ -187,7 +201,7 @@ The `/api/management/auth/profile` endpoint has been optimized for faster respon
 - **Development Fallbacks**: Memory stores when database unavailable
 
 ### Critical Implementation Details
-- **Core Logic Location**: The main business logic resides in `src/app.js` (2000+ lines)
+- **Core Logic Location**: The main business logic resides in `src/app.js`
 - **Message Processing**: `extractMessageData()` function handles all message types and webhook delivery
 - **Media Processing**: `downloadMediaToFile()` and `extractQuotedMessage()` handle media downloads
 - **Global Sessions**: `global.whatsappSessions` Map stores all active WhatsApp connections
