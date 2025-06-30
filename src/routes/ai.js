@@ -310,7 +310,8 @@ SUAS CAPACIDADES AVANÇADAS INCLUEM:
 📱 **FUNCIONALIDADES IMPLEMENTADAS DO WHATSAPP**:
 🔗 **SESSÕES**: Criar, listar, deletar, regenerar QR, verificar status
 📤 **MENSAGENS**: Texto, imagem, documento, sticker, resposta, mídia com upload
-👥 **GRUPOS**: Criar, listar, gerenciar participantes, promover/despromover admins, configurações, mencionar todos
+👥 **GRUPOS**: Criar, listar com filtros (search, includeParticipants), gerenciar participantes, promover/despromover admins, configurações, mencionar todos
+📨 **MENSAGENS DE GRUPOS**: Obter mensagens por grupo específico, buscar mensagens em todos os grupos, filtros avançados
 🔔 **WEBHOOKS**: Configurar webhook principal, webhooks múltiplos (máx 3), teste de webhook
 📊 **MONITORAMENTO**: Status de sessão, informações do sistema, limpeza de sessões órfãs
 💾 **MÍDIA**: Download de URLs externas, envio direto, download de mídia de mensagens
@@ -343,9 +344,16 @@ IMPORTANTE: Você tem acesso a TODAS as funcionalidades do Baileys API. Use as t
 
 **Gerenciamento de Grupos:**
 - "Criar grupo 'Equipe' com participantes [5511999999999, 5511888888888]"
+- "Listar grupos com busca 'trabalho' e incluir participantes"
+- "Obter informações do grupo com detalhes dos participantes"
 - "Mencionar todos no grupo com mensagem silenciosa"
 - "Promover 5511999999999 a admin do grupo"
-- "Listar todos os grupos da sessão"
+
+**Mensagens de Grupos:**
+- "Obter mensagens do grupo 120363043716731234@g.us com busca por 'reunião'"
+- "Buscar 'projeto' em todos os grupos da sessão"
+- "Filtrar mensagens por grupo 'Equipe' com participantes incluídos"
+- "Ver últimas 100 mensagens do grupo com paginação"
 
 **Webhooks:**
 - "Configurar webhook https://meusite.com/webhook para a sessão"

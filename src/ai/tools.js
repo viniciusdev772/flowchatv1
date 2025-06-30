@@ -433,9 +433,67 @@ const toolSchemas = {
         maximum: 1000,
       })
     ),
+    offset: Type.Optional(
+      Type.Number({
+        description: 'Posição inicial para paginação (padrão: 0)',
+        minimum: 0,
+      })
+    ),
     before: Type.Optional(
       Type.String({
         description: 'Buscar mensagens antes de um timestamp específico',
+      })
+    ),
+    search: Type.Optional(
+      Type.String({
+        description: 'Buscar mensagens por texto (parcial, case-insensitive)',
+        minLength: 1,
+      })
+    ),
+    includeParticipants: Type.Optional(
+      Type.Boolean({
+        description:
+          'Incluir informações detalhadas dos participantes do grupo (padrão: false)',
+      })
+    ),
+  }),
+
+  searchGroupMessages: Type.Object({
+    sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
+    search: Type.Optional(
+      Type.String({
+        description: 'Buscar mensagens por texto em todos os grupos',
+        minLength: 1,
+      })
+    ),
+    groupName: Type.Optional(
+      Type.String({
+        description: 'Filtrar por nome do grupo (parcial, case-insensitive)',
+        minLength: 1,
+      })
+    ),
+    limit: Type.Optional(
+      Type.Number({
+        description: 'Limite de mensagens (padrão: 50)',
+        minimum: 1,
+        maximum: 500,
+      })
+    ),
+    offset: Type.Optional(
+      Type.Number({
+        description: 'Posição inicial para paginação (padrão: 0)',
+        minimum: 0,
+      })
+    ),
+    before: Type.Optional(
+      Type.String({
+        description: 'Buscar mensagens antes de um timestamp específico',
+      })
+    ),
+    includeParticipants: Type.Optional(
+      Type.Boolean({
+        description:
+          'Incluir informações detalhadas dos participantes dos grupos (padrão: false)',
       })
     ),
   }),
@@ -1196,11 +1254,13 @@ const toolImplementations = {
         offset: Math.max(offset, 0).toString(),
       });
 
-      // Adicionar parâmetros opcionais
+      // Adicionar parâmetros opcionais - usar APENAS search e includeParticipants conforme solicitado
       if (includeParticipants)
         queryParams.append('includeParticipants', 'true');
-      if (filter) queryParams.append('filter', filter);
+
+      // Usar search como parâmetro principal para busca (substituindo filter deprecated)
       if (search) queryParams.append('search', search);
+      else if (filter) queryParams.append('search', filter); // Fallback para compatibilidade
 
       const response = await fetch(
         `http://localhost:3000/api/baileys/groups/${sessionId}/list?${queryParams}`,
@@ -1218,26 +1278,84 @@ const toolImplementations = {
 
       const result = await response.json();
       const pagination = result.pagination || {};
+      const filters = result.filters || {};
+
+      // Extrair informações úteis dos grupos para sugestões
+      const groupSummary = (result.groups || []).map((group) => ({
+        jid: group.jid,
+        name: group.name,
+        participantCount: group.participants?.total || 0,
+        isAdmin: group.participants?.admins?.length > 0,
+        hasDescription: !!group.description,
+      }));
+
+      // Sugerir próximas ações baseadas nos grupos encontrados
+      const suggestedActions = [];
+      if (groupSummary.length > 0) {
+        suggestedActions.push(
+          `getGroupMessages para ver mensagens de um grupo específico`
+        );
+        suggestedActions.push(`sendMessage para enviar mensagem a um grupo`);
+        suggestedActions.push(`getGroupInfo para obter detalhes de um grupo`);
+        if (groupSummary.some((g) => g.isAdmin)) {
+          suggestedActions.push(`addGroupParticipants para adicionar membros`);
+          suggestedActions.push(
+            `mentionAll para mencionar todos os participantes`
+          );
+        }
+      }
 
       return {
         success: true,
         groups: result.groups || [],
+        groupSummary: groupSummary,
         pagination: {
           total: pagination.total || 0,
           limit: pagination.limit || limit,
           offset: pagination.offset || offset,
           returned: pagination.returned || result.groups?.length || 0,
           hasMore: pagination.hasMore || false,
-          currentPage: Math.floor(offset / limit) + 1,
-          totalPages: Math.ceil((pagination.total || 0) / limit),
+          currentPage: pagination.currentPage || Math.floor(offset / limit) + 1,
+          totalPages:
+            pagination.totalPages || Math.ceil((pagination.total || 0) / limit),
+          nextOffset: pagination.nextOffset,
+          prevOffset: pagination.prevOffset,
         },
-        message: `Página ${Math.floor(offset / limit) + 1}: ${
-          pagination.returned || 0
-        } de ${
+        filters: {
+          search: filters.search || search || filter || null,
+          includeParticipants:
+            filters.includeParticipants || includeParticipants,
+        },
+        message: `📋 Página ${
+          pagination.currentPage || Math.floor(offset / limit) + 1
+        }: ${pagination.returned || 0} de ${
           pagination.total || 0
         } grupos encontrados na sessão '${sessionId}'${
-          search ? ` (busca: "${search}")` : ''
-        }${pagination.hasMore ? ' - Use offset para ver mais grupos' : ''}`,
+          filters.search ? ` (busca: "${filters.search}")` : ''
+        }${
+          filters.includeParticipants ? ' (com detalhes dos participantes)' : ''
+        }${
+          pagination.hasMore
+            ? ` - Use offset ${pagination.nextOffset} para ver mais grupos`
+            : ''
+        }`,
+        availableActions: suggestedActions,
+        source: result.source || 'baileys',
+        statistics: {
+          totalGroups: pagination.total || 0,
+          groupsWithParticipants: groupSummary.filter(
+            (g) => g.participantCount > 0
+          ).length,
+          groupsWithDescription: groupSummary.filter((g) => g.hasDescription)
+            .length,
+          averageParticipants:
+            groupSummary.length > 0
+              ? Math.round(
+                  groupSummary.reduce((sum, g) => sum + g.participantCount, 0) /
+                    groupSummary.length
+                )
+              : 0,
+        },
       };
     } catch (error) {
       return {
@@ -1358,21 +1476,28 @@ const toolImplementations = {
     }
   },
 
-  async getGroupInfo({ sessionId, groupId }) {
+  async getGroupInfo({ sessionId, groupId, includeParticipants = true }) {
     try {
       const userToken =
         this.getUserToken?.() ||
         process.env.BAILEYS_API_TOKEN ||
         'baileys_default_token';
 
-      const response = await fetch(
-        `http://localhost:3000/api/baileys/groups/${sessionId}/${groupId}/info`,
-        {
-          headers: {
-            Authorization: `Bearer ${userToken}`,
-          },
-        }
-      );
+      // Construir query parameters para incluir participantes se solicitado
+      const queryParams = new URLSearchParams();
+      if (includeParticipants) {
+        queryParams.append('includeParticipants', 'true');
+      }
+
+      const url = `http://localhost:3000/api/baileys/groups/${sessionId}/${groupId}/info${
+        queryParams.toString() ? `?${queryParams}` : ''
+      }`;
+
+      const response = await fetch(url, {
+        headers: {
+          Authorization: `Bearer ${userToken}`,
+        },
+      });
 
       if (!response.ok) {
         const error = await response.json();
@@ -1380,16 +1505,81 @@ const toolImplementations = {
       }
 
       const result = await response.json();
+      const groupInfo = result.groupInfo || {};
+
+      // Extrair estatísticas úteis
+      const stats = {
+        totalParticipants: groupInfo.participants?.length || 0,
+        admins: groupInfo.participants?.filter((p) => p.isAdmin)?.length || 0,
+        superAdmins:
+          groupInfo.participants?.filter((p) => p.isSuperAdmin)?.length || 0,
+        regularMembers:
+          groupInfo.participants?.filter((p) => !p.isAdmin && !p.isSuperAdmin)
+            ?.length || 0,
+        hasDescription: !!groupInfo.description,
+        isAnnounceOnly: groupInfo.settings?.announce || false,
+        isRestrictedEdit: groupInfo.settings?.restrict || false,
+      };
+
+      // Sugerir próximas ações baseadas no contexto
+      const suggestedActions = [];
+      if (stats.totalParticipants > 0) {
+        suggestedActions.push(`getGroupMessages para ver mensagens do grupo`);
+        suggestedActions.push(`sendMessage para enviar mensagem ao grupo`);
+        suggestedActions.push(
+          `mentionAll para mencionar todos os participantes`
+        );
+      }
+
+      if (stats.admins > 0 || stats.superAdmins > 0) {
+        suggestedActions.push(
+          `addGroupParticipants para adicionar novos membros`
+        );
+        suggestedActions.push(`updateGroupName para alterar o nome do grupo`);
+        suggestedActions.push(
+          `updateGroupDescription para alterar a descrição`
+        );
+      }
+
       return {
         success: true,
-        groupInfo: result.groupInfo,
-        message: `Informações do grupo obtidas com sucesso`,
+        groupInfo: groupInfo,
+        statistics: stats,
+        message: `ℹ️ Informações do grupo "${
+          groupInfo.subject || 'Sem nome'
+        }" obtidas com sucesso. ${stats.totalParticipants} participantes (${
+          stats.admins
+        } admins, ${stats.superAdmins} super admins)${
+          includeParticipants ? ' com lista detalhada de participantes' : ''
+        }.`,
+        availableActions: suggestedActions,
+        participantsSummary: includeParticipants
+          ? {
+              total: stats.totalParticipants,
+              admins: stats.admins,
+              superAdmins: stats.superAdmins,
+              regular: stats.regularMembers,
+              adminList:
+                groupInfo.participants
+                  ?.filter((p) => p.isAdmin)
+                  ?.map((p) => p.id) || [],
+              superAdminList:
+                groupInfo.participants
+                  ?.filter((p) => p.isSuperAdmin)
+                  ?.map((p) => p.id) || [],
+            }
+          : null,
+        groupSettings: {
+          announceOnly: stats.isAnnounceOnly,
+          restrictedEdit: stats.isRestrictedEdit,
+          hasDescription: stats.hasDescription,
+        },
       };
     } catch (error) {
       return {
         success: false,
         error: error.message,
-        message: `Falha ao obter informações do grupo: ${error.message}`,
+        message: `Falha ao obter informações do grupo '${groupId}': ${error.message}`,
       };
     }
   },
@@ -2197,6 +2387,289 @@ const toolImplementations = {
         success: false,
         error: error.message,
         message: `Falha ao obter histórico de mensagens: ${error.message}`,
+      };
+    }
+  },
+
+  // ====== MENSAGENS DE GRUPOS ======
+  async getGroupMessages({
+    sessionId,
+    groupId,
+    limit = 50,
+    offset = 0,
+    before,
+    search,
+    includeParticipants = false,
+  }) {
+    try {
+      const userToken =
+        this.getUserToken?.() ||
+        process.env.BAILEYS_API_TOKEN ||
+        'baileys_default_token';
+
+      // Construir query parameters
+      const queryParams = new URLSearchParams({
+        limit: Math.min(Math.max(limit, 1), 1000).toString(),
+        offset: Math.max(offset, 0).toString(),
+      });
+
+      // Adicionar parâmetros opcionais
+      if (before) queryParams.append('before', before);
+      if (search) queryParams.append('search', search);
+      if (includeParticipants)
+        queryParams.append('includeParticipants', 'true');
+
+      const response = await fetch(
+        `http://localhost:3000/api/baileys/groups/${sessionId}/${groupId}/messages?${queryParams}`,
+        {
+          headers: {
+            Authorization: `Bearer ${userToken}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || `Erro HTTP: ${response.status}`);
+      }
+
+      const result = await response.json();
+      const pagination = result.pagination || {};
+      const filters = result.filters || {};
+
+      // Extrair messageIds para facilitar o uso posterior
+      const messageIds = (result.messages || []).map((msg) => ({
+        messageId: msg.messageId,
+        text: msg.messageText,
+        timestamp: msg.timestamp,
+        isFromMe: msg.isFromMe,
+        participant: msg.participant || null,
+        groupId: result.groupId,
+      }));
+
+      // Sugerir próximas ações baseadas no contexto
+      const latestMessage = messageIds[0];
+      let suggestedActions = [];
+
+      if (latestMessage && !latestMessage.isFromMe) {
+        suggestedActions.push(
+          `replyMessage para responder à mensagem mais recente`
+        );
+        suggestedActions.push(`sendMessage para enviar nova mensagem ao grupo`);
+      }
+
+      if (result.groupInfo) {
+        suggestedActions.push(
+          `mentionAll para mencionar todos os participantes`
+        );
+        suggestedActions.push(
+          `addGroupParticipants para adicionar novos membros`
+        );
+      }
+
+      return {
+        success: true,
+        messages: result.messages || [],
+        groupInfo: result.groupInfo || null,
+        messageIds: messageIds,
+        pagination: {
+          total: pagination.total || 0,
+          limit: pagination.limit || limit,
+          offset: pagination.offset || offset,
+          returned: pagination.returned || result.messages?.length || 0,
+          hasMore: pagination.hasMore || false,
+          currentPage: pagination.currentPage || 1,
+          totalPages: pagination.totalPages || 1,
+          nextOffset: pagination.nextOffset,
+          prevOffset: pagination.prevOffset,
+        },
+        filters: {
+          search: filters.search || search,
+          includeParticipants:
+            filters.includeParticipants || includeParticipants,
+          before: filters.before || before,
+        },
+        message: `✅ ${
+          pagination.returned || 0
+        } mensagens encontradas no grupo${
+          search ? ` (busca: "${search}")` : ''
+        }. Página ${pagination.currentPage || 1} de ${
+          pagination.totalPages || 1
+        }.${
+          pagination.hasMore
+            ? ` Use offset ${pagination.nextOffset} para ver mais mensagens.`
+            : ''
+        }`,
+        availableActions: suggestedActions,
+        source: result.source || 'api',
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        message: `Falha ao obter mensagens do grupo '${groupId}': ${error.message}`,
+      };
+    }
+  },
+
+  async searchGroupMessages({
+    sessionId,
+    search,
+    groupName,
+    limit = 50,
+    offset = 0,
+    before,
+    includeParticipants = false,
+  }) {
+    try {
+      const userToken =
+        this.getUserToken?.() ||
+        process.env.BAILEYS_API_TOKEN ||
+        'baileys_default_token';
+
+      // Verificar se pelo menos um critério de busca foi fornecido
+      if (!search && !groupName) {
+        throw new Error(
+          'Pelo menos um critério de busca é obrigatório: search (texto) ou groupName (nome do grupo)'
+        );
+      }
+
+      // Construir query parameters
+      const queryParams = new URLSearchParams({
+        limit: Math.min(Math.max(limit, 1), 500).toString(),
+        offset: Math.max(offset, 0).toString(),
+      });
+
+      // Adicionar parâmetros opcionais
+      if (search) queryParams.append('search', search);
+      if (groupName) queryParams.append('groupName', groupName);
+      if (before) queryParams.append('before', before);
+      if (includeParticipants)
+        queryParams.append('includeParticipants', 'true');
+
+      const response = await fetch(
+        `http://localhost:3000/api/baileys/groups/${sessionId}/messages/search?${queryParams}`,
+        {
+          headers: {
+            Authorization: `Bearer ${userToken}`,
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || `Erro HTTP: ${response.status}`);
+      }
+
+      const result = await response.json();
+      const pagination = result.pagination || {};
+      const filters = result.filters || {};
+
+      // Extrair messageIds e informações dos grupos
+      const messageIds = (result.messages || []).map((msg) => ({
+        messageId: msg.messageId,
+        text: msg.messageText,
+        timestamp: msg.timestamp,
+        isFromMe: msg.isFromMe,
+        participant: msg.participant || null,
+        groupId: msg.jid,
+        groupName: msg.chatInfo?.name || 'Grupo',
+      }));
+
+      // Agrupar mensagens por grupo para estatísticas
+      const groupStats = {};
+      messageIds.forEach((msg) => {
+        const groupId = msg.groupId;
+        if (!groupStats[groupId]) {
+          groupStats[groupId] = {
+            groupId: groupId,
+            groupName: msg.groupName,
+            messageCount: 0,
+            latestMessage: null,
+          };
+        }
+        groupStats[groupId].messageCount++;
+        if (
+          !groupStats[groupId].latestMessage ||
+          msg.timestamp > groupStats[groupId].latestMessage.timestamp
+        ) {
+          groupStats[groupId].latestMessage = msg;
+        }
+      });
+
+      const groupStatsList = Object.values(groupStats);
+
+      // Sugerir próximas ações
+      const suggestedActions = [];
+      if (messageIds.length > 0) {
+        suggestedActions.push(
+          `getGroupMessages para ver mais mensagens de um grupo específico`
+        );
+        suggestedActions.push(
+          `sendMessage para responder em um grupo específico`
+        );
+        suggestedActions.push(`listGroups para ver todos os grupos da sessão`);
+      }
+
+      return {
+        success: true,
+        messages: result.messages || [],
+        groups: result.groups || [],
+        groupStats: groupStatsList,
+        messageIds: messageIds,
+        pagination: {
+          total: pagination.total || 0,
+          limit: pagination.limit || limit,
+          offset: pagination.offset || offset,
+          returned: pagination.returned || result.messages?.length || 0,
+          hasMore: pagination.hasMore || false,
+          currentPage: pagination.currentPage || 1,
+          totalPages: pagination.totalPages || 1,
+          nextOffset: pagination.nextOffset,
+          prevOffset: pagination.prevOffset,
+        },
+        filters: {
+          search: filters.search || search,
+          groupName: filters.groupName || groupName,
+          includeParticipants:
+            filters.includeParticipants || includeParticipants,
+          before: filters.before || before,
+        },
+        message: `🔍 ${pagination.returned || 0} mensagens encontradas em ${
+          (result.groups || []).length
+        } grupos${search ? ` (busca: "${search}")` : ''}${
+          groupName ? ` (grupo: "${groupName}")` : ''
+        }. Página ${pagination.currentPage || 1} de ${
+          pagination.totalPages || 1
+        }.${
+          pagination.hasMore
+            ? ` Use offset ${pagination.nextOffset} para ver mais resultados.`
+            : ''
+        }`,
+        availableActions: suggestedActions,
+        source: result.source || 'api',
+        summary: {
+          totalMessages: pagination.total || 0,
+          totalGroups: (result.groups || []).length,
+          searchCriteria: {
+            textSearch: search || null,
+            groupNameFilter: groupName || null,
+          },
+          topGroups: groupStatsList
+            .sort((a, b) => b.messageCount - a.messageCount)
+            .slice(0, 3)
+            .map((g) => ({
+              name: g.groupName,
+              messageCount: g.messageCount,
+              groupId: g.groupId,
+            })),
+        },
+      };
+    } catch (error) {
+      return {
+        success: false,
+        error: error.message,
+        message: `Falha ao buscar mensagens em grupos da sessão '${sessionId}': ${error.message}`,
       };
     }
   },
@@ -3401,13 +3874,35 @@ const openAITools = [
     type: 'function',
     function: {
       name: 'listGroups',
-      description: 'Lista todos os grupos WhatsApp de uma sessão',
+      description:
+        'Lista grupos WhatsApp de uma sessão com filtros search e includeParticipants',
       parameters: {
         type: 'object',
         properties: {
           sessionId: {
             type: 'string',
             description: 'ID da sessão',
+          },
+          search: {
+            type: 'string',
+            description: 'Buscar grupos por nome (parcial, case-insensitive)',
+            minLength: 1,
+          },
+          includeParticipants: {
+            type: 'boolean',
+            description: 'Incluir lista de participantes (padrão: false)',
+          },
+          limit: {
+            type: 'number',
+            description:
+              'Número máximo de grupos a retornar (1-50, padrão: 10)',
+            minimum: 1,
+            maximum: 50,
+          },
+          offset: {
+            type: 'number',
+            description: 'Posição inicial para paginação (padrão: 0)',
+            minimum: 0,
           },
         },
         required: ['sessionId'],
@@ -3446,7 +3941,8 @@ const openAITools = [
     type: 'function',
     function: {
       name: 'getGroupInfo',
-      description: 'Obtém informações detalhadas de um grupo específico',
+      description:
+        'Obtém informações detalhadas de um grupo específico com opção includeParticipants',
       parameters: {
         type: 'object',
         properties: {
@@ -3457,6 +3953,11 @@ const openAITools = [
           groupId: {
             type: 'string',
             description: 'ID do grupo',
+          },
+          includeParticipants: {
+            type: 'boolean',
+            description:
+              'Incluir lista detalhada de participantes (padrão: true)',
           },
         },
         required: ['sessionId', 'groupId'],
@@ -4051,6 +4552,105 @@ const openAITools = [
           before: {
             type: 'string',
             description: 'Buscar mensagens antes de um timestamp específico',
+          },
+        },
+        required: ['sessionId'],
+      },
+    },
+  },
+
+  // ====== MENSAGENS DE GRUPOS ======
+  {
+    type: 'function',
+    function: {
+      name: 'getGroupMessages',
+      description:
+        'Obter mensagens de um grupo específico com filtros search e includeParticipants. Use search para buscar texto nas mensagens e includeParticipants para obter detalhes dos participantes.',
+      parameters: {
+        type: 'object',
+        properties: {
+          sessionId: {
+            type: 'string',
+            description: 'ID da sessão',
+          },
+          groupId: {
+            type: 'string',
+            description: 'ID do grupo',
+          },
+          limit: {
+            type: 'number',
+            description: 'Limite de mensagens (padrão: 50)',
+            minimum: 1,
+            maximum: 1000,
+          },
+          offset: {
+            type: 'number',
+            description: 'Posição inicial para paginação (padrão: 0)',
+            minimum: 0,
+          },
+          before: {
+            type: 'string',
+            description: 'Buscar mensagens antes de um timestamp específico',
+          },
+          search: {
+            type: 'string',
+            description:
+              'Buscar mensagens por texto (parcial, case-insensitive)',
+            minLength: 1,
+          },
+          includeParticipants: {
+            type: 'boolean',
+            description:
+              'Incluir informações detalhadas dos participantes do grupo (padrão: false)',
+          },
+        },
+        required: ['sessionId', 'groupId'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'searchGroupMessages',
+      description:
+        'Buscar mensagens em todos os grupos da sessão por texto ou nome do grupo. Use search para buscar texto nas mensagens e groupName para filtrar por nome do grupo.',
+      parameters: {
+        type: 'object',
+        properties: {
+          sessionId: {
+            type: 'string',
+            description: 'ID da sessão',
+          },
+          search: {
+            type: 'string',
+            description: 'Buscar mensagens por texto em todos os grupos',
+            minLength: 1,
+          },
+          groupName: {
+            type: 'string',
+            description:
+              'Filtrar por nome do grupo (parcial, case-insensitive)',
+            minLength: 1,
+          },
+          limit: {
+            type: 'number',
+            description: 'Limite de mensagens (padrão: 50)',
+            minimum: 1,
+            maximum: 500,
+          },
+          offset: {
+            type: 'number',
+            description: 'Posição inicial para paginação (padrão: 0)',
+            minimum: 0,
+          },
+          before: {
+            type: 'string',
+            description: 'Buscar mensagens antes de um timestamp específico',
+          },
+          includeParticipants: {
+            type: 'boolean',
+            description:
+              'Incluir informações detalhadas dos participantes dos grupos (padrão: false)',
           },
         },
         required: ['sessionId'],
