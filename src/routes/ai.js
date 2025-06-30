@@ -384,7 +384,7 @@ Responda em português brasileiro de forma técnica, prática e orientada a resu
       });
 
       const chatStream = await openaiInstance.chat.completions.create({
-        model: 'gpt-4o',
+        model: 'gpt-4.1',
         messages,
         tools: openAITools,
         tool_choice: 'auto',
@@ -605,7 +605,7 @@ Responda em português brasileiro de forma técnica, prática e orientada a resu
 
           try {
             const finalStream = await openaiInstance.chat.completions.create({
-              model: 'gpt-4o',
+              model: 'gpt-4.1',
               messages: finalMessages,
               temperature: 0.7,
               max_tokens: 1500,
@@ -647,7 +647,7 @@ Responda em português brasileiro de forma técnica, prática e orientada a resu
             try {
               const simpleResponse =
                 await openaiInstance.chat.completions.create({
-                  model: 'gpt-4o',
+                  model: 'gpt-4.1',
                   messages: finalMessages,
                   temperature: 0.7,
                   max_tokens: 800,
@@ -713,7 +713,7 @@ Responda em português brasileiro de forma técnica, prática e orientada a resu
     } else {
       // Resposta normal (não streaming)
       const completion = await openaiInstance.chat.completions.create({
-        model: 'gpt-4o',
+        model: 'gpt-4.1',
         messages,
         tools: openAITools,
         tool_choice: 'auto',
@@ -785,7 +785,7 @@ Responda em português brasileiro de forma técnica, prática e orientada a resu
         ];
 
         const finalCompletion = await openaiInstance.chat.completions.create({
-          model: 'gpt-4o',
+          model: 'gpt-4.1',
           messages: finalMessages,
           temperature: 0.7,
           max_tokens: 1500,
@@ -977,7 +977,7 @@ router.get('/health', async (req, res) => {
 
     // Teste simples com OpenAI
     const testCompletion = await openaiInstance.chat.completions.create({
-      model: 'gpt-3.5-turbo',
+      model: 'gpt-4.1',
       messages: [{ role: 'user', content: 'Test' }],
       max_tokens: 5,
     });
