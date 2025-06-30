@@ -512,6 +512,10 @@ Responda em português brasileiro de forma técnica, prática e orientada a resu
           toolResults.push(...results.filter((r) => r !== null));
 
           // Notificar que todas as tools foram concluídas
+          console.log(
+            `✅ ${toolResults.length} tools executadas com sucesso em paralelo`
+          );
+
           res.write(
             JSON.stringify({
               type: 'tools_completed',
@@ -534,6 +538,10 @@ Responda em português brasileiro de forma técnica, prática e orientada a resu
 
         // Gerar resposta final após executar tools
         if (toolResults.length > 0) {
+          console.log(
+            `🔄 Gerando resposta final para ${toolResults.length} tools executadas`
+          );
+
           res.write(
             JSON.stringify({
               type: 'thinking',
@@ -559,6 +567,10 @@ Responda em português brasileiro de forma técnica, prática e orientada a resu
             })),
           ];
 
+          console.log(
+            `📝 Mensagens finais preparadas: ${finalMessages.length} mensagens`
+          );
+
           try {
             const finalStream = await openaiInstance.chat.completions.create({
               model: 'gpt-4o',
@@ -568,9 +580,11 @@ Responda em português brasileiro de forma técnica, prática e orientada a resu
               stream: true,
             });
 
+            let hasContent = false;
             for await (const chunk of finalStream) {
               const delta = chunk.choices[0]?.delta;
               if (delta?.content) {
+                hasContent = true;
                 accumulatedContent += delta.content;
                 res.write(
                   JSON.stringify({
@@ -580,15 +594,61 @@ Responda em português brasileiro de forma técnica, prática e orientada a resu
                 );
               }
             }
+
+            // Se não houve conteúdo da IA, mostrar resumo das tools executadas
+            if (!hasContent) {
+              res.write(
+                JSON.stringify({
+                  type: 'content',
+                  content: `\n\n✅ Ferramentas executadas com sucesso: ${functionCalls
+                    .map((fc) => fc.function.name)
+                    .join(
+                      ', '
+                    )}\n\nResultados processados. Continue com as próximas ações conforme necessário.`,
+                }) + '\n'
+              );
+            }
           } catch (error) {
-            res.write(
-              JSON.stringify({
-                type: 'content',
-                content: `\n\nAções executadas com sucesso! ${functionCalls
-                  .map((fc) => `✅ ${fc.function.name}`)
-                  .join(', ')}`,
-              }) + '\n'
-            );
+            console.error('Erro na resposta final da IA:', error);
+
+            // Tentar uma resposta mais simples sem streaming
+            try {
+              const simpleResponse =
+                await openaiInstance.chat.completions.create({
+                  model: 'gpt-4o',
+                  messages: finalMessages,
+                  temperature: 0.7,
+                  max_tokens: 800,
+                  stream: false,
+                });
+
+              const content = simpleResponse.choices[0]?.message?.content;
+              if (content) {
+                accumulatedContent += content;
+                res.write(
+                  JSON.stringify({
+                    type: 'content',
+                    content: content,
+                  }) + '\n'
+                );
+              } else {
+                throw new Error('Resposta vazia da IA');
+              }
+            } catch (fallbackError) {
+              console.error('Erro na resposta de fallback:', fallbackError);
+
+              // Última tentativa: mostrar resumo das tools executadas
+              res.write(
+                JSON.stringify({
+                  type: 'content',
+                  content: `\n\n✅ Ferramentas executadas com sucesso: ${functionCalls
+                    .map((fc) => fc.function.name)
+                    .join(
+                      ', '
+                    )}\n\n🔄 Resultados processados. Continue automaticamente com as próximas ações usando os dados obtidos.`,
+                }) + '\n'
+              );
+            }
           }
         }
       }
