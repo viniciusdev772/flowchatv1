@@ -1089,30 +1089,28 @@ export default function Dashboard() {
 
       {/* Header */}
       <motion.header
-        className={`${
-          performanceMode ? 'glass-performance' : 'glass-morphism'
-        } mx-4 mt-4 mb-6`}
+        className="glass-performance mx-2 md:mx-4 mt-2 md:mt-4 mb-4 md:mb-6"
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: performanceMode ? 0.2 : 0.4 }}
+        transition={{ duration: 0.2 }}
       >
-        <div className="px-6 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
-                <ChatBubbleLeftRightIcon className="w-6 h-6 text-white" />
+        <div className="px-3 md:px-6 py-3 md:py-4">
+          <div className="flex items-center justify-between flex-wrap gap-4">
+            <div className="flex items-center space-x-3 md:space-x-4">
+              <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
+                <ChatBubbleLeftRightIcon className="w-5 h-5 md:w-6 md:h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-white">
-                  FlowChat API Dashboard
+                <h1 className="text-lg md:text-2xl font-bold text-white">
+                  FlowChat API
                 </h1>
-                <p className="text-white/70">
-                  Gerencie seus fluxos de mensagens e automações
+                <p className="text-xs md:text-sm text-white/70 hidden sm:block">
+                  Gerencie seus fluxos de mensagens
                 </p>
               </div>
             </div>
 
-            <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2 md:space-x-4 flex-wrap">
               {/* Performance Mode Toggle */}
               <motion.button
                 onClick={() => setPerformanceMode(!performanceMode)}
@@ -1135,7 +1133,7 @@ export default function Dashboard() {
               {/* Status Indicator */}
               <div
                 className={`${
-                  performanceMode ? 'glass-ultra' : 'glass-ultra'
+                  performanceMode ? 'glass-performance' : 'glass-performance'
                 } px-4 py-2 rounded-xl`}
               >
                 <div className="flex items-center space-x-2">
@@ -1206,19 +1204,44 @@ export default function Dashboard() {
         </div>
       </motion.header>
 
-      <div className="flex">
-        {/* Sidebar Navigation */}
+      <div className="flex flex-col lg:flex-row">
+        {/* Sidebar Navigation - Desktop */}
         <motion.nav
-          className={`w-64 ${
-            performanceMode ? 'glass-performance' : 'glass-morphism'
-          } mx-4 mb-4 p-4`}
+          className="hidden lg:block lg:w-64 glass-performance mx-2 md:mx-4 mb-4 p-3 md:p-4"
           initial={{ opacity: 0, x: -10 }}
           animate={{ opacity: 1, x: 0 }}
-          transition={{
-            duration: performanceMode ? 0.2 : 0.4,
-            delay: performanceMode ? 0 : 0.1,
-          }}
+          transition={{ duration: 0.2 }}
         >
+        
+        {/* Mobile Tab Navigation */}
+        <motion.nav
+          className="lg:hidden glass-performance mx-2 md:mx-4 mb-4 p-3"
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.2 }}
+        >
+          <div className="flex overflow-x-auto space-x-2 pb-2 scrollbar-hide">
+            {tabs.map((tab) => {
+              const Icon = tab.icon;
+              return (
+                <motion.button
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id)}
+                  className={`flex-shrink-0 flex items-center space-x-2 px-3 py-2 rounded-lg text-sm transition-all duration-200 ${
+                    activeTab === tab.id
+                      ? 'bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-white border border-blue-500/30'
+                      : 'text-white/70 hover:text-white hover:bg-white/5'
+                  }`}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  <Icon className="w-4 h-4" />
+                  <span className="font-medium whitespace-nowrap">{tab.name}</span>
+                </motion.button>
+              );
+            })}
+          </div>
+        </motion.nav>
+
           <div className="space-y-2">
             {tabs.map((tab) => {
               const Icon = tab.icon;
@@ -1231,8 +1254,8 @@ export default function Dashboard() {
                       ? 'bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-white border border-blue-500/30'
                       : 'text-white/70 hover:text-white hover:bg-white/5'
                   }`}
-                  whileHover={performanceMode ? {} : { scale: 1.01 }}
-                  whileTap={performanceMode ? {} : { scale: 0.99 }}
+                  whileHover={{ scale: 1.01 }}
+                  whileTap={{ scale: 0.99 }}
                 >
                   <Icon className="w-5 h-5" />
                   <span className="font-medium">{tab.name}</span>
@@ -1244,7 +1267,7 @@ export default function Dashboard() {
           {/* Quick Stats */}
           <div
             className={`mt-8 ${
-              performanceMode ? 'glass-performance' : 'glass-ultra'
+              performanceMode ? 'glass-performance' : 'glass-performance'
             } p-4 rounded-xl`}
           >
             <h3 className="text-sm font-semibold text-white/80 mb-3">
@@ -1275,13 +1298,10 @@ export default function Dashboard() {
 
         {/* Main Content */}
         <motion.main
-          className="flex-1 mr-4 mb-4"
+          className="flex-1 mx-2 md:mx-4 mb-4"
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{
-            duration: performanceMode ? 0.2 : 0.4,
-            delay: performanceMode ? 0 : 0.1,
-          }}
+          transition={{ duration: 0.2 }}
         >
           <AnimatePresence mode="wait">
             {activeTab === 'overview' && (
@@ -1405,7 +1425,7 @@ export default function Dashboard() {
                           className={`flex items-center justify-between p-4 ${
                             performanceMode
                               ? 'glass-performance'
-                              : 'glass-ultra'
+                              : 'glass-performance'
                           } rounded-xl`}
                           whileHover={performanceMode ? {} : { scale: 1.005 }}
                         >
@@ -1665,7 +1685,7 @@ export default function Dashboard() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                       <div
                         className={`${
-                          performanceMode ? 'glass-performance' : 'glass-ultra'
+                          performanceMode ? 'glass-performance' : 'glass-performance'
                         } p-4 rounded-xl`}
                       >
                         <h4 className="text-white font-semibold mb-2 flex items-center">
@@ -1682,7 +1702,7 @@ export default function Dashboard() {
 
                       <div
                         className={`${
-                          performanceMode ? 'glass-performance' : 'glass-ultra'
+                          performanceMode ? 'glass-performance' : 'glass-performance'
                         } p-4 rounded-xl`}
                       >
                         <h4 className="text-white font-semibold mb-2 flex items-center">
@@ -1740,7 +1760,7 @@ export default function Dashboard() {
                           className={`${
                             performanceMode
                               ? 'glass-performance'
-                              : 'glass-ultra'
+                              : 'glass-performance'
                           } p-4 rounded-xl`}
                           whileHover={performanceMode ? {} : { scale: 1.01 }}
                         >
@@ -1905,7 +1925,7 @@ export default function Dashboard() {
                           className={`${
                             performanceMode
                               ? 'glass-performance'
-                              : 'glass-ultra'
+                              : 'glass-performance'
                           } p-6 rounded-xl hover:shadow-lg transition-all cursor-pointer`}
                           whileHover={performanceMode ? {} : { scale: 1.02 }}
                           whileTap={performanceMode ? {} : { scale: 0.98 }}
@@ -2039,7 +2059,7 @@ export default function Dashboard() {
                   <input
                     type="text"
                     className={`w-full px-4 py-3 ${
-                      performanceMode ? 'glass-performance' : 'glass-ultra'
+                      performanceMode ? 'glass-performance' : 'glass-performance'
                     } rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-500 focus:outline-none`}
                     placeholder="Ex: Vendas, Suporte, Marketing..."
                   />
@@ -2092,7 +2112,7 @@ export default function Dashboard() {
               </h3>
               <div
                 className={`w-64 h-64 mx-auto mb-4 ${
-                  performanceMode ? 'glass-performance' : 'glass-ultra'
+                  performanceMode ? 'glass-performance' : 'glass-performance'
                 } rounded-xl flex items-center justify-center p-4`}
               >
                 {loadingQrCode ? (
@@ -2216,7 +2236,7 @@ export default function Dashboard() {
                 </label>
                 <div
                   className={`${
-                    performanceMode ? 'glass-performance' : 'glass-ultra'
+                    performanceMode ? 'glass-performance' : 'glass-performance'
                   } p-4 rounded-xl`}
                 >
                   <div className="flex items-center justify-between">
@@ -2246,7 +2266,7 @@ export default function Dashboard() {
                 </p>
                 <div
                   className={`${
-                    performanceMode ? 'glass-performance' : 'glass-ultra'
+                    performanceMode ? 'glass-performance' : 'glass-performance'
                   } p-4 rounded-xl font-mono text-sm`}
                 >
                   <div className="text-white/80">
@@ -2271,7 +2291,7 @@ export default function Dashboard() {
                     setNewToken(null);
                   }}
                   className={`px-4 py-3 ${
-                    performanceMode ? 'glass-performance' : 'glass-ultra'
+                    performanceMode ? 'glass-performance' : 'glass-performance'
                   } rounded-xl text-white/70 hover:text-white transition-colors`}
                   whileHover={performanceMode ? {} : { scale: 1.02 }}
                   whileTap={performanceMode ? {} : { scale: 0.98 }}
@@ -2322,7 +2342,7 @@ export default function Dashboard() {
                       }))
                     }
                     className={`w-full px-4 py-3 ${
-                      performanceMode ? 'glass-performance' : 'glass-ultra'
+                      performanceMode ? 'glass-performance' : 'glass-performance'
                     } rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-500 focus:outline-none`}
                     placeholder="Ex: API Principal, Bot Vendas, Sistema..."
                     maxLength={50}
@@ -2342,7 +2362,7 @@ export default function Dashboard() {
                       }))
                     }
                     className={`w-full px-4 py-3 ${
-                      performanceMode ? 'glass-performance' : 'glass-ultra'
+                      performanceMode ? 'glass-performance' : 'glass-performance'
                     } rounded-xl text-white bg-transparent focus:ring-2 focus:ring-blue-500 focus:outline-none`}
                   >
                     <option value="never" className="bg-slate-800">
@@ -2365,7 +2385,7 @@ export default function Dashboard() {
 
                 <div
                   className={`${
-                    performanceMode ? 'glass-performance' : 'glass-ultra'
+                    performanceMode ? 'glass-performance' : 'glass-performance'
                   } p-4 rounded-xl`}
                 >
                   <div className="flex items-center space-x-2 mb-2">
@@ -2463,7 +2483,7 @@ export default function Dashboard() {
                       }))
                     }
                     className={`w-full px-4 py-3 ${
-                      performanceMode ? 'glass-performance' : 'glass-ultra'
+                      performanceMode ? 'glass-performance' : 'glass-performance'
                     } rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-500 focus:outline-none`}
                     placeholder="Ex: vendas-bot, suporte-cliente, marketing..."
                     maxLength={30}
@@ -2472,7 +2492,7 @@ export default function Dashboard() {
 
                 <div
                   className={`${
-                    performanceMode ? 'glass-performance' : 'glass-ultra'
+                    performanceMode ? 'glass-performance' : 'glass-performance'
                   } p-4 rounded-xl`}
                 >
                   <div className="flex items-center space-x-2 mb-2">
@@ -2612,7 +2632,7 @@ export default function Dashboard() {
               {/* Session Status Overview */}
               <div
                 className={`${
-                  performanceMode ? 'glass-performance' : 'glass-ultra'
+                  performanceMode ? 'glass-performance' : 'glass-performance'
                 } p-4 rounded-xl mb-6`}
               >
                 <h4 className="text-lg font-semibold text-white mb-4">
@@ -2664,7 +2684,7 @@ export default function Dashboard() {
                 {/* Session Actions */}
                 <div
                   className={`${
-                    performanceMode ? 'glass-performance' : 'glass-ultra'
+                    performanceMode ? 'glass-performance' : 'glass-performance'
                   } p-4 rounded-xl`}
                 >
                   <h4 className="text-lg font-semibold text-white mb-4 flex items-center">
@@ -2724,7 +2744,7 @@ export default function Dashboard() {
                 {/* Session Information */}
                 <div
                   className={`${
-                    performanceMode ? 'glass-performance' : 'glass-ultra'
+                    performanceMode ? 'glass-performance' : 'glass-performance'
                   } p-4 rounded-xl`}
                 >
                   <h4 className="text-lg font-semibold text-white mb-4 flex items-center">
@@ -2765,7 +2785,7 @@ export default function Dashboard() {
               {/* API Usage Examples */}
               <div
                 className={`${
-                  performanceMode ? 'glass-performance' : 'glass-ultra'
+                  performanceMode ? 'glass-performance' : 'glass-performance'
                 } p-4 rounded-xl mt-6`}
               >
                 <div className="flex items-center justify-between mb-4">
@@ -2781,7 +2801,7 @@ export default function Dashboard() {
                         setSelectedTokenForExamples(e.target.value)
                       }
                       className={`px-3 py-2 ${
-                        performanceMode ? 'glass-performance' : 'glass-ultra'
+                        performanceMode ? 'glass-performance' : 'glass-performance'
                       } rounded-lg text-white text-sm bg-transparent focus:ring-2 focus:ring-blue-500 focus:outline-none min-w-[200px]`}
                     >
                       <option value="" className="bg-slate-800">
@@ -2967,7 +2987,7 @@ export default function Dashboard() {
                 )}
                 <div
                   className={`${
-                    performanceMode ? 'glass-performance' : 'glass-ultra'
+                    performanceMode ? 'glass-performance' : 'glass-performance'
                   } p-3 rounded-xl mt-4`}
                 >
                   <div className="flex items-center space-x-2 mb-2">
@@ -3101,7 +3121,7 @@ export default function Dashboard() {
                 <div className="space-y-4">
                   <div
                     className={`${
-                      performanceMode ? 'glass-performance' : 'glass-ultra'
+                      performanceMode ? 'glass-performance' : 'glass-performance'
                     } p-4 rounded-xl`}
                   >
                     <h4 className="text-sm font-semibold text-white/80 mb-3">
@@ -3156,7 +3176,7 @@ export default function Dashboard() {
                   {/* Estatísticas da API */}
                   <div
                     className={`${
-                      performanceMode ? 'glass-performance' : 'glass-ultra'
+                      performanceMode ? 'glass-performance' : 'glass-performance'
                     } p-4 rounded-xl`}
                   >
                     <h4 className="text-sm font-semibold text-white/80 mb-3">
@@ -3188,7 +3208,7 @@ export default function Dashboard() {
                   {user.settings && (
                     <div
                       className={`${
-                        performanceMode ? 'glass-performance' : 'glass-ultra'
+                        performanceMode ? 'glass-performance' : 'glass-performance'
                       } p-4 rounded-xl`}
                     >
                       <h4 className="text-sm font-semibold text-white/80 mb-3">
@@ -3238,7 +3258,7 @@ export default function Dashboard() {
                   {/* Informações Adicionais */}
                   <div
                     className={`${
-                      performanceMode ? 'glass-performance' : 'glass-ultra'
+                      performanceMode ? 'glass-performance' : 'glass-performance'
                     } p-4 rounded-xl`}
                   >
                     <h4 className="text-sm font-semibold text-white/80 mb-3">
@@ -3263,7 +3283,7 @@ export default function Dashboard() {
                   {/* Atividade Recente */}
                   <div
                     className={`${
-                      performanceMode ? 'glass-performance' : 'glass-ultra'
+                      performanceMode ? 'glass-performance' : 'glass-performance'
                     } p-4 rounded-xl`}
                   >
                     <h4 className="text-sm font-semibold text-white/80 mb-3">

@@ -298,7 +298,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
 
   if (tokenLoading || loading) {
     return (
-      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="fixed inset-0 bg-black/60  flex items-center justify-center z-50">
         <div className={`${performanceMode ? 'glass-performance' : 'glass-card'} p-8 max-w-md w-full mx-4 rounded-xl`}>
           <div className="flex items-center justify-center">
             <ArrowPathIcon className="h-8 w-8 animate-spin text-blue-400" />
@@ -313,7 +313,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
 
   if (!token) {
     return (
-      <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50">
+      <div className="fixed inset-0 bg-black/60  flex items-center justify-center z-50">
         <div className={`${performanceMode ? 'glass-performance' : 'glass-card'} p-8 max-w-md w-full mx-4 rounded-xl`}>
           <div className="flex items-center justify-center text-center">
             <div>
@@ -346,7 +346,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
         exit={{ opacity: 0 }}
         transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
       >
-        <div className="absolute inset-0 bg-black/30 backdrop-blur-md" />
+        <div className="absolute inset-0 bg-black/40" />
         <motion.div
           initial={{ opacity: 0, scale: 0.9, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -364,7 +364,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
           }}
         >
         {/* Header */}
-        <div className={`sticky top-0 ${performanceMode ? 'glass-performance' : 'glass-ultra'} border-b border-white/10 px-8 py-6 z-10`}>
+        <div className={`sticky top-0 ${performanceMode ? 'glass-performance' : 'glass-performance'} border-b border-white/10 px-4 md:px-8 py-4 md:py-6 z-10`}>
           <div className="flex items-center justify-between">
             <div className="flex items-center">
               <LinkIcon className="h-8 w-8 text-blue-400 mr-3" />
@@ -416,7 +416,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
         </div>
 
         {/* Content */}
-        <div className="p-8">
+        <div className="p-4 md:p-8">
 
           {/* Webhooks List */}
           <div className="space-y-4">
@@ -453,7 +453,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                     duration: 0.3,
                     ease: [0.16, 1, 0.3, 1]
                   }}
-                  className={`${performanceMode ? 'glass-performance' : 'glass-ultra'} rounded-xl p-6 border border-white/10 hover:border-white/20 transition-all duration-300 hover:scale-[1.01]`}
+                  className={`${performanceMode ? 'glass-performance' : 'glass-performance'} rounded-xl p-6 border border-white/10 hover:border-white/20 transition-all duration-300 hover:scale-[1.01]`}
                 >
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
@@ -589,7 +589,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
             duration: 0.2,
             ease: [0.16, 1, 0.3, 1]
           }}
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[60]"
+          className="fixed inset-0 bg-black/60  flex items-center justify-center z-[60]"
           onClick={() => {
             setShowCreateModal(false);
             setEditingWebhook(null);
@@ -653,7 +653,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                       value={webhookForm.name}
                       onChange={(e) => setWebhookForm(prev => ({ ...prev, name: e.target.value }))}
                       placeholder="Ex: Webhook Principal"
-                      className={`w-full px-4 py-3 ${performanceMode ? 'glass-performance' : 'glass-ultra'} rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-500 focus:outline-none border border-white/10 focus:border-blue-400`}
+                      className={`w-full px-4 py-3 ${performanceMode ? 'glass-performance' : 'glass-performance'} rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-500 focus:outline-none border border-white/10 focus:border-blue-400`}
                     />
                   </div>
 
@@ -666,7 +666,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                       value={webhookForm.url}
                       onChange={(e) => setWebhookForm(prev => ({ ...prev, url: e.target.value }))}
                       placeholder="https://meusite.com/webhook"
-                      className={`w-full px-4 py-3 ${performanceMode ? 'glass-performance' : 'glass-ultra'} rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-500 focus:outline-none border border-white/10 focus:border-blue-400`}
+                      className={`w-full px-4 py-3 ${performanceMode ? 'glass-performance' : 'glass-performance'} rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-500 focus:outline-none border border-white/10 focus:border-blue-400`}
                       required
                     />
                   </div>
@@ -678,7 +678,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                     <select
                       value={webhookForm.priority}
                       onChange={(e) => setWebhookForm(prev => ({ ...prev, priority: parseInt(e.target.value) }))}
-                      className={`w-full px-4 py-3 ${performanceMode ? 'glass-performance' : 'glass-ultra'} rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-500 focus:outline-none border border-white/10 focus:border-blue-400`}
+                      className={`w-full px-4 py-3 ${performanceMode ? 'glass-performance' : 'glass-performance'} rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-500 focus:outline-none border border-white/10 focus:border-blue-400`}
                     >
                       <option value={1}>1 - Alta</option>
                       <option value={2}>2 - Média</option>
@@ -737,7 +737,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                       setEditingWebhook(null);
                       resetForm();
                     }}
-                    className={`flex-1 py-3 ${performanceMode ? 'glass-performance' : 'glass-ultra'} rounded-xl text-white/70 hover:text-white transition-all duration-200 border border-white/10`}
+                    className={`flex-1 py-3 ${performanceMode ? 'glass-performance' : 'glass-performance'} rounded-xl text-white/70 hover:text-white transition-all duration-200 border border-white/10`}
                     whileHover={{ 
                       scale: 1.05,
                       transition: { type: "spring", damping: 10, stiffness: 400 }
