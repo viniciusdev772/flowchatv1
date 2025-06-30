@@ -2145,16 +2145,58 @@ const toolImplementations = {
         phone: msg.jid,
       }));
 
+      // Sugerir ação específica baseada nas mensagens encontradas
+      const latestMessage = messageIds[0];
+      let suggestedAction = '';
+      let exactCommand = '';
+      if (latestMessage && !latestMessage.isFromMe) {
+        suggestedAction = `EXECUTE AGORA: replyMessage({ sessionId: "${sessionId}", phone: "${latestMessage.phone}", message: "Sua resposta aqui", quotedMessageId: "${latestMessage.messageId}" })`;
+        exactCommand = `replyMessage`;
+      } else if (latestMessage) {
+        suggestedAction = `EXECUTE AGORA: markAsRead({ sessionId: "${sessionId}", phone: "${latestMessage.phone}", messageId: "${latestMessage.messageId}" })`;
+        exactCommand = `markAsRead`;
+      }
+
+      // Criar exemplo prático
+      const practicalExample = latestMessage
+        ? {
+            tool: exactCommand,
+            parameters:
+              exactCommand === 'replyMessage'
+                ? {
+                    sessionId,
+                    phone: latestMessage.phone,
+                    message: 'Sua resposta aqui',
+                    quotedMessageId: latestMessage.messageId,
+                  }
+                : {
+                    sessionId,
+                    phone: latestMessage.phone,
+                    messageId: latestMessage.messageId,
+                  },
+          }
+        : null;
+
       return {
         success: true,
         messages: result.messages || [],
         messageIds: messageIds,
         total: result.total || 0,
-        message: `${
+        message: `✅ ${
           result.total || 0
-        } mensagens encontradas. Use os messageIds retornados para responder ou marcar como lida. Continue com a próxima ação necessária.`,
+        } mensagens encontradas com messageIds válidos. EXECUTE IMEDIATAMENTE a próxima ação usando os messageIds retornados. NÃO PARE AQUI. CONTINUE AGORA!`,
         nextAction:
-          'Use os messageIds disponíveis para executar replyMessage, markAsRead ou outras ações relacionadas às mensagens.',
+          'CONTINUE AUTOMATICAMENTE - Execute replyMessage, markAsRead ou outras ações usando os messageIds disponíveis',
+        availableMessageIds: messageIds.slice(0, 5).map((m) => m.messageId), // Primeiros 5 IDs para uso imediato
+        instruction:
+          'PROSSIGA IMEDIATAMENTE com a ação solicitada usando um dos messageIds retornados',
+        suggestedAction: suggestedAction,
+        URGENT:
+          '🚨 NÃO PARE AQUI - CONTINUE COM A PRÓXIMA FERRAMENTA IMEDIATAMENTE',
+        FORCE_CONTINUE: true,
+        AUTO_PROCEED:
+          'Esta ferramenta é apenas preparatória. EXECUTE a próxima ação automaticamente.',
+        WARNING: '⚠️ PARAR AQUI É UM ERRO - A IA DEVE CONTINUAR IMEDIATAMENTE',
       };
     } catch (error) {
       return {
@@ -3994,7 +4036,7 @@ const openAITools = [
     function: {
       name: 'getMessageHistory',
       description:
-        'Obter histórico de mensagens com filtros e paginação. IMPORTANTE: Após executar esta ferramenta, continue automaticamente com as próximas ações usando os messageIds retornados.',
+        'Obter histórico de mensagens e messageIds válidos. ATENÇÃO: Esta ferramenta é INTERMEDIÁRIA - após executar, você DEVE CONTINUAR IMEDIATAMENTE com replyMessage, markAsRead ou outras ações. NÃO PARE após esta ferramenta.',
       parameters: {
         type: 'object',
         properties: {
