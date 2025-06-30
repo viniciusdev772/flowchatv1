@@ -185,7 +185,7 @@ router.use((req, res, next) => {
  * @swagger
  * /api/ai/chat:
  *   post:
- *     summary: Conversa com a assistente de IA
+ *     summary: Conversa com a assistente de IA (streaming only)
  *     tags: [AI Assistant]
  *     requestBody:
  *       required: true
@@ -210,24 +210,21 @@ router.use((req, res, next) => {
  *                       enum: [user, assistant, system]
  *                     content:
  *                       type: string
- *               stream:
- *                 type: boolean
- *                 description: Se deve retornar resposta em streaming
- *                 default: false
+
  *     responses:
  *       200:
- *         description: Resposta da assistente
+ *         description: Resposta da assistente em streaming (application/x-ndjson)
+ *         content:
+ *           text/plain:
+ *             schema:
+ *               type: string
+ *               description: Stream de objetos JSON separados por nova linha
  *       500:
  *         description: Erro interno
  */
 router.post('/chat', authenticateToken, async (req, res) => {
   try {
-    const {
-      message,
-      conversation = [],
-      stream = false,
-      customApiKey,
-    } = req.body;
+    const { message, conversation = [], customApiKey } = req.body;
 
     if (!message) {
       return res.status(400).json({
@@ -374,448 +371,340 @@ Responda em português brasileiro de forma técnica, prática e orientada a resu
       { role: 'user', content: message },
     ];
 
-    if (stream) {
-      // Configurar streaming
-      res.writeHead(200, {
-        'Content-Type': 'text/plain; charset=utf-8',
-        'Transfer-Encoding': 'chunked',
-        'Cache-Control': 'no-cache',
-        Connection: 'keep-alive',
-      });
+    // Configurar streaming
+    res.writeHead(200, {
+      'Content-Type': 'text/plain; charset=utf-8',
+      'Transfer-Encoding': 'chunked',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive',
+    });
 
-      const chatStream = await openaiInstance.chat.completions.create({
-        model: 'gpt-4.1',
-        messages,
-        tools: openAITools,
-        tool_choice: 'auto',
-        stream: true,
-        temperature: 0.7,
-        max_tokens: 2000,
-      });
+    const chatStream = await openaiInstance.chat.completions.create({
+      model: 'gpt-4.1',
+      messages,
+      tools: openAITools,
+      tool_choice: 'auto',
+      stream: true,
+      temperature: 0.7,
+      max_tokens: 2000,
+    });
 
-      let functionCalls = [];
-      let currentToolCall = null;
-      let accumulatedContent = ''; // Acumular conteúdo para processar imagens
+    let functionCalls = [];
+    let currentToolCall = null;
+    let accumulatedContent = ''; // Acumular conteúdo para processar imagens
 
-      for await (const chunk of chatStream) {
-        const delta = chunk.choices[0]?.delta;
+    for await (const chunk of chatStream) {
+      const delta = chunk.choices[0]?.delta;
 
-        if (delta?.tool_calls) {
-          for (const toolCall of delta.tool_calls) {
-            if (toolCall.index !== undefined) {
-              if (!functionCalls[toolCall.index]) {
-                functionCalls[toolCall.index] = {
-                  id: toolCall.id || '',
-                  function: { name: '', arguments: '' },
-                };
-              }
+      if (delta?.tool_calls) {
+        for (const toolCall of delta.tool_calls) {
+          if (toolCall.index !== undefined) {
+            if (!functionCalls[toolCall.index]) {
+              functionCalls[toolCall.index] = {
+                id: toolCall.id || '',
+                function: { name: '', arguments: '' },
+              };
+            }
 
-              if (toolCall.function?.name) {
-                functionCalls[toolCall.index].function.name +=
-                  toolCall.function.name;
-              }
-              if (toolCall.function?.arguments) {
-                functionCalls[toolCall.index].function.arguments +=
-                  toolCall.function.arguments;
-              }
+            if (toolCall.function?.name) {
+              functionCalls[toolCall.index].function.name +=
+                toolCall.function.name;
+            }
+            if (toolCall.function?.arguments) {
+              functionCalls[toolCall.index].function.arguments +=
+                toolCall.function.arguments;
             }
           }
         }
-
-        if (delta?.content) {
-          accumulatedContent += delta.content;
-          res.write(
-            JSON.stringify({
-              type: 'content',
-              content: delta.content,
-            }) + '\n'
-          );
-        }
       }
 
-      // Executar function calls se houver
-      if (functionCalls.length > 0) {
-        // Injetar token do usuário nas tools (para streaming)
-        if (userToken) {
-          toolImplementations.setUserToken(userToken);
+      if (delta?.content) {
+        accumulatedContent += delta.content;
+        res.write(
+          JSON.stringify({
+            type: 'content',
+            content: delta.content,
+          }) + '\n'
+        );
+      }
+    }
+
+    // Executar function calls se houver
+    if (functionCalls.length > 0) {
+      // Injetar token do usuário nas tools
+      if (userToken) {
+        toolImplementations.setUserToken(userToken);
+      }
+
+      res.write(
+        JSON.stringify({
+          type: 'thinking',
+          message: `Executando ${functionCalls.length} ação${
+            functionCalls.length > 1 ? 'ões' : ''
+          } em paralelo...`,
+        }) + '\n'
+      );
+
+      // EXECUÇÃO PARALELA DE TOOLS - Melhor performance
+      const toolResults = [];
+      const toolPromises = functionCalls.map(async (toolCall, index) => {
+        if (
+          toolCall.function.name &&
+          toolImplementations[toolCall.function.name]
+        ) {
+          try {
+            // Notificar início da execução da tool
+            res.write(
+              JSON.stringify({
+                type: 'tool_start',
+                tool: toolCall.function.name,
+                index: index,
+                total: functionCalls.length,
+              }) + '\n'
+            );
+
+            const args = JSON.parse(toolCall.function.arguments);
+            const result = await toolImplementations[toolCall.function.name](
+              args
+            );
+
+            const toolResult = {
+              id: toolCall.id,
+              result: JSON.stringify(result),
+              index: index,
+            };
+
+            // Notificar conclusão da tool
+            res.write(
+              JSON.stringify({
+                type: 'tool_result',
+                tool: toolCall.function.name,
+                result,
+                index: index,
+                total: functionCalls.length,
+              }) + '\n'
+            );
+
+            return toolResult;
+          } catch (error) {
+            const toolResult = {
+              id: toolCall.id,
+              result: JSON.stringify({ error: error.message }),
+              index: index,
+            };
+
+            // Notificar erro da tool
+            res.write(
+              JSON.stringify({
+                type: 'tool_error',
+                tool: toolCall.function.name,
+                error: error.message,
+                index: index,
+                total: functionCalls.length,
+              }) + '\n'
+            );
+
+            return toolResult;
+          }
         }
+        return null;
+      });
+
+      // Aguardar todas as tools completarem em paralelo
+      try {
+        const results = await Promise.all(toolPromises);
+        toolResults.push(...results.filter((r) => r !== null));
+
+        // Notificar que todas as tools foram concluídas
+        console.log(
+          `✅ ${toolResults.length} tools executadas com sucesso em paralelo`
+        );
+
+        res.write(
+          JSON.stringify({
+            type: 'tools_completed',
+            total: toolResults.length,
+            message: `${toolResults.length} ação${
+              toolResults.length > 1 ? 'ões' : ''
+            } executada${toolResults.length > 1 ? 's' : ''} com sucesso!`,
+          }) + '\n'
+        );
+      } catch (error) {
+        console.error('Erro na execução paralela de tools:', error);
+        res.write(
+          JSON.stringify({
+            type: 'tools_error',
+            error: error.message,
+            message: 'Erro durante execução paralela de ferramentas',
+          }) + '\n'
+        );
+      }
+
+      // Gerar resposta final após executar tools
+      if (toolResults.length > 0) {
+        console.log(
+          `🔄 Gerando resposta final para ${toolResults.length} tools executadas`
+        );
 
         res.write(
           JSON.stringify({
             type: 'thinking',
-            message: `Executando ${functionCalls.length} ação${
-              functionCalls.length > 1 ? 'ões' : ''
-            } em paralelo...`,
+            message: 'Processando resultados...',
           }) + '\n'
         );
 
-        // EXECUÇÃO PARALELA DE TOOLS - Melhor performance
-        const toolResults = [];
-        const toolPromises = functionCalls.map(async (toolCall, index) => {
-          if (
-            toolCall.function.name &&
-            toolImplementations[toolCall.function.name]
-          ) {
-            try {
-              // Notificar início da execução da tool
-              res.write(
-                JSON.stringify({
-                  type: 'tool_start',
-                  tool: toolCall.function.name,
-                  index: index,
-                  total: functionCalls.length,
-                }) + '\n'
-              );
+        // Verificar se o usuário quer enviar mensagem após getMessageHistory
+        const hasGetMessageHistory = functionCalls.some(
+          (fc) => fc.function.name === 'getMessageHistory'
+        );
+        const lastUserMessage = messages[messages.length - 1]?.content || '';
+        const userWantsToSend =
+          hasGetMessageHistory &&
+          (lastUserMessage.includes('envie') ||
+            lastUserMessage.includes('mande') ||
+            lastUserMessage.includes('send') ||
+            lastUserMessage.toLowerCase().includes('grupo'));
 
-              const args = JSON.parse(toolCall.function.arguments);
-              const result = await toolImplementations[toolCall.function.name](
-                args
-              );
-
-              const toolResult = {
-                id: toolCall.id,
-                result: JSON.stringify(result),
-                index: index,
-              };
-
-              // Notificar conclusão da tool
-              res.write(
-                JSON.stringify({
-                  type: 'tool_result',
-                  tool: toolCall.function.name,
-                  result,
-                  index: index,
-                  total: functionCalls.length,
-                }) + '\n'
-              );
-
-              return toolResult;
-            } catch (error) {
-              const toolResult = {
-                id: toolCall.id,
-                result: JSON.stringify({ error: error.message }),
-                index: index,
-              };
-
-              // Notificar erro da tool
-              res.write(
-                JSON.stringify({
-                  type: 'tool_error',
-                  tool: toolCall.function.name,
-                  error: error.message,
-                  index: index,
-                  total: functionCalls.length,
-                }) + '\n'
-              );
-
-              return toolResult;
-            }
-          }
-          return null;
-        });
-
-        // Aguardar todas as tools completarem em paralelo
-        try {
-          const results = await Promise.all(toolPromises);
-          toolResults.push(...results.filter((r) => r !== null));
-
-          // Notificar que todas as tools foram concluídas
-          console.log(
-            `✅ ${toolResults.length} tools executadas com sucesso em paralelo`
-          );
-
-          res.write(
-            JSON.stringify({
-              type: 'tools_completed',
-              total: toolResults.length,
-              message: `${toolResults.length} ação${
-                toolResults.length > 1 ? 'ões' : ''
-              } executada${toolResults.length > 1 ? 's' : ''} com sucesso!`,
-            }) + '\n'
-          );
-        } catch (error) {
-          console.error('Erro na execução paralela de tools:', error);
-          res.write(
-            JSON.stringify({
-              type: 'tools_error',
-              error: error.message,
-              message: 'Erro durante execução paralela de ferramentas',
-            }) + '\n'
-          );
-        }
-
-        // Gerar resposta final após executar tools
-        if (toolResults.length > 0) {
-          console.log(
-            `🔄 Gerando resposta final para ${toolResults.length} tools executadas`
-          );
-
-          res.write(
-            JSON.stringify({
-              type: 'thinking',
-              message: 'Processando resultados...',
-            }) + '\n'
-          );
-
-          // Verificar se o usuário quer enviar mensagem após getMessageHistory
-          const hasGetMessageHistory = functionCalls.some(
-            (fc) => fc.function.name === 'getMessageHistory'
-          );
-          const lastUserMessage = messages[messages.length - 1]?.content || '';
-          const userWantsToSend =
-            hasGetMessageHistory &&
-            (lastUserMessage.includes('envie') ||
-              lastUserMessage.includes('mande') ||
-              lastUserMessage.includes('send') ||
-              lastUserMessage.toLowerCase().includes('grupo'));
-
-          // Preparar mensagens para resposta final
-          const finalMessages = [
-            ...messages,
-            {
-              role: 'assistant',
-              tool_calls: functionCalls.map((fc) => ({
-                id: fc.id,
-                type: 'function',
-                function: fc.function,
-              })),
-            },
-            ...toolResults.map((tr) => ({
-              role: 'tool',
-              tool_call_id: tr.id,
-              content: tr.result,
+        // Preparar mensagens para resposta final
+        const finalMessages = [
+          ...messages,
+          {
+            role: 'assistant',
+            tool_calls: functionCalls.map((fc) => ({
+              id: fc.id,
+              type: 'function',
+              function: fc.function,
             })),
-          ];
+          },
+          ...toolResults.map((tr) => ({
+            role: 'tool',
+            tool_call_id: tr.id,
+            content: tr.result,
+          })),
+        ];
 
-          // Se o usuário quer enviar mensagem, adicionar contexto para a IA
-          if (userWantsToSend) {
-            console.log(
-              '🎯 Detectado pedido para enviar mensagem - adicionando contexto'
-            );
-            const sendInstruction = {
-              role: 'system',
-              content: `O usuário solicitou enviar uma mensagem. Após obter o histórico com getMessageHistory, continue com sendMessage usando os dados fornecidos (sessionId e phone) para completar a solicitação.`,
-            };
-            finalMessages.push(sendInstruction);
-          }
-
+        // Se o usuário quer enviar mensagem, adicionar contexto para a IA
+        if (userWantsToSend) {
           console.log(
-            `📝 Mensagens finais preparadas: ${finalMessages.length} mensagens`
+            '🎯 Detectado pedido para enviar mensagem - adicionando contexto'
           );
+          const sendInstruction = {
+            role: 'system',
+            content: `O usuário solicitou enviar uma mensagem. Após obter o histórico com getMessageHistory, continue com sendMessage usando os dados fornecidos (sessionId e phone) para completar a solicitação.`,
+          };
+          finalMessages.push(sendInstruction);
+        }
 
-          try {
-            const finalStream = await openaiInstance.chat.completions.create({
-              model: 'gpt-4.1',
-              messages: finalMessages,
-              temperature: 0.7,
-              max_tokens: 1500,
-              stream: true,
-            });
+        console.log(
+          `📝 Mensagens finais preparadas: ${finalMessages.length} mensagens`
+        );
 
-            let hasContent = false;
-            for await (const chunk of finalStream) {
-              const delta = chunk.choices[0]?.delta;
-              if (delta?.content) {
-                hasContent = true;
-                accumulatedContent += delta.content;
-                res.write(
-                  JSON.stringify({
-                    type: 'content',
-                    content: delta.content,
-                  }) + '\n'
-                );
-              }
-            }
+        try {
+          const finalStream = await openaiInstance.chat.completions.create({
+            model: 'gpt-4.1',
+            messages: finalMessages,
+            temperature: 0.7,
+            max_tokens: 1500,
+            stream: true,
+          });
 
-            // Se não houve conteúdo da IA, mostrar resumo das tools executadas
-            if (!hasContent) {
+          let hasContent = false;
+          for await (const chunk of finalStream) {
+            const delta = chunk.choices[0]?.delta;
+            if (delta?.content) {
+              hasContent = true;
+              accumulatedContent += delta.content;
               res.write(
                 JSON.stringify({
                   type: 'content',
-                  content: `\n\n✅ Ferramentas executadas com sucesso: ${functionCalls
-                    .map((fc) => fc.function.name)
-                    .join(
-                      ', '
-                    )}\n\nResultados processados. Continue com as próximas ações conforme necessário.`,
-                }) + '\n'
-              );
-            }
-          } catch (error) {
-            console.error('Erro na resposta final da IA:', error);
-
-            // Tentar uma resposta mais simples sem streaming
-            try {
-              const simpleResponse =
-                await openaiInstance.chat.completions.create({
-                  model: 'gpt-4.1',
-                  messages: finalMessages,
-                  temperature: 0.7,
-                  max_tokens: 800,
-                  stream: false,
-                });
-
-              const content = simpleResponse.choices[0]?.message?.content;
-              if (content) {
-                accumulatedContent += content;
-                res.write(
-                  JSON.stringify({
-                    type: 'content',
-                    content: content,
-                  }) + '\n'
-                );
-              } else {
-                throw new Error('Resposta vazia da IA');
-              }
-            } catch (fallbackError) {
-              console.error('Erro na resposta de fallback:', fallbackError);
-
-              // Última tentativa: mostrar resumo das tools executadas
-              res.write(
-                JSON.stringify({
-                  type: 'content',
-                  content: `\n\n✅ Ferramentas executadas com sucesso: ${functionCalls
-                    .map((fc) => fc.function.name)
-                    .join(
-                      ', '
-                    )}\n\n🔄 Resultados processados. Continue automaticamente com as próximas ações usando os dados obtidos.`,
+                  content: delta.content,
                 }) + '\n'
               );
             }
           }
-        }
-      }
 
-      // Processar imagens base64 no conteúdo final
-      if (accumulatedContent) {
-        try {
-          console.log('🔍 Checking for base64 images in AI response...');
-          const processedContent = await processBase64Images(
-            accumulatedContent
-          );
-
-          // Se o conteúdo foi modificado (imagens processadas), enviar atualização
-          if (processedContent !== accumulatedContent) {
+          // Se não houve conteúdo da IA, mostrar resumo das tools executadas
+          if (!hasContent) {
             res.write(
               JSON.stringify({
-                type: 'content_update',
-                content: processedContent,
-                original_content: accumulatedContent,
+                type: 'content',
+                content: `\n\n✅ Ferramentas executadas com sucesso: ${functionCalls
+                  .map((fc) => fc.function.name)
+                  .join(
+                    ', '
+                  )}\n\nResultados processados. Continue com as próximas ações conforme necessário.`,
               }) + '\n'
             );
           }
         } catch (error) {
-          console.error('Error processing base64 images:', error);
-        }
-      }
+          console.error('Erro na resposta final da IA:', error);
 
-      res.write(JSON.stringify({ type: 'done' }) + '\n');
-      res.end();
-    } else {
-      // Resposta normal (não streaming)
-      const completion = await openaiInstance.chat.completions.create({
-        model: 'gpt-4.1',
-        messages,
-        tools: openAITools,
-        tool_choice: 'auto',
-        temperature: 0.7,
-        max_tokens: 2000,
-      });
+          // Tentar uma resposta mais simples sem streaming
+          try {
+            const simpleResponse = await openaiInstance.chat.completions.create(
+              {
+                model: 'gpt-4.1',
+                messages: finalMessages,
+                temperature: 0.7,
+                max_tokens: 800,
+                stream: false,
+              }
+            );
 
-      const response = completion.choices[0].message;
-      const toolCalls = response.tool_calls || [];
-
-      // Executar function calls
-      const toolResults = [];
-      if (toolCalls.length > 0) {
-        // Injetar token do usuário nas tools (para execução sem streaming)
-        if (userToken) {
-          toolImplementations.setUserToken(userToken);
-        }
-
-        // EXECUÇÃO PARALELA DE TOOLS PARA MODO NÃO-STREAMING
-        const toolPromises = toolCalls.map(async (toolCall) => {
-          const functionName = toolCall.function.name;
-          const functionArgs = JSON.parse(toolCall.function.arguments);
-
-          if (toolImplementations[functionName]) {
-            try {
-              const result = await toolImplementations[functionName](
-                functionArgs
+            const content = simpleResponse.choices[0]?.message?.content;
+            if (content) {
+              accumulatedContent += content;
+              res.write(
+                JSON.stringify({
+                  type: 'content',
+                  content: content,
+                }) + '\n'
               );
-              return {
-                tool: functionName,
-                args: functionArgs,
-                result,
-              };
-            } catch (error) {
-              return {
-                tool: functionName,
-                args: functionArgs,
-                error: error.message,
-              };
+            } else {
+              throw new Error('Resposta vazia da IA');
             }
+          } catch (fallbackError) {
+            console.error('Erro na resposta de fallback:', fallbackError);
+
+            // Última tentativa: mostrar resumo das tools executadas
+            res.write(
+              JSON.stringify({
+                type: 'content',
+                content: `\n\n✅ Ferramentas executadas com sucesso: ${functionCalls
+                  .map((fc) => fc.function.name)
+                  .join(
+                    ', '
+                  )}\n\n🔄 Resultados processados. Continue automaticamente com as próximas ações usando os dados obtidos.`,
+              }) + '\n'
+            );
           }
-          return null;
-        });
+        }
+      }
+    }
 
-        // Aguardar todas as tools completarem em paralelo
-        try {
-          const results = await Promise.all(toolPromises);
-          toolResults.push(...results.filter((r) => r !== null));
+    // Processar imagens base64 no conteúdo final
+    if (accumulatedContent) {
+      try {
+        console.log('🔍 Checking for base64 images in AI response...');
+        const processedContent = await processBase64Images(accumulatedContent);
 
-          console.log(
-            `✅ Executed ${toolResults.length} tools in parallel successfully`
-          );
-        } catch (error) {
-          console.error(
-            'Erro na execução paralela de tools (modo não-streaming):',
-            error
+        // Se o conteúdo foi modificado (imagens processadas), enviar atualização
+        if (processedContent !== accumulatedContent) {
+          res.write(
+            JSON.stringify({
+              type: 'content_update',
+              content: processedContent,
+              original_content: accumulatedContent,
+            }) + '\n'
           );
         }
-
-        // Se houver tool calls, fazer uma segunda chamada para gerar resposta final
-        const finalMessages = [
-          ...messages,
-          response,
-          ...toolCalls.map((call, index) => ({
-            role: 'tool',
-            tool_call_id: call.id,
-            content: JSON.stringify(toolResults[index]),
-          })),
-        ];
-
-        const finalCompletion = await openaiInstance.chat.completions.create({
-          model: 'gpt-4.1',
-          messages: finalMessages,
-          temperature: 0.7,
-          max_tokens: 1500,
-        });
-
-        // Processar imagens base64 na resposta final
-        const finalResponse = finalCompletion.choices[0].message.content;
-        const processedResponse = await processBase64Images(finalResponse);
-
-        return res.json({
-          success: true,
-          response: processedResponse,
-          toolCalls: toolResults,
-          usage: {
-            initial: completion.usage,
-            final: finalCompletion.usage,
-          },
-        });
+      } catch (error) {
+        console.error('Error processing base64 images:', error);
       }
-
-      // Processar imagens base64 na resposta
-      const processedResponse = await processBase64Images(response.content);
-
-      res.json({
-        success: true,
-        response: processedResponse,
-        toolCalls: [],
-        usage: completion.usage,
-      });
     }
+
+    res.write(JSON.stringify({ type: 'done' }) + '\n');
+    res.end();
   } catch (error) {
     console.error('Erro na AI Assistant:', error);
 

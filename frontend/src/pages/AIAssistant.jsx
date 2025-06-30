@@ -1,13 +1,13 @@
-import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
-import AIStreamingChat from '../components/AIStreamingChat';
-import { 
-  SparklesIcon, 
-  CpuChipIcon,
+import {
   CheckCircleIcon,
+  CpuChipIcon,
   ExclamationTriangleIcon,
-  InformationCircleIcon
+  InformationCircleIcon,
+  SparklesIcon,
 } from '@heroicons/react/24/outline';
+import { motion } from 'framer-motion';
+import { useEffect, useState } from 'react';
+import AIStreamingChat from '../components/AIStreamingChat';
 
 export default function AIAssistantPage() {
   const [aiStatus, setAiStatus] = useState('checking');
@@ -21,18 +21,18 @@ export default function AIAssistantPage() {
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
       const customApiKey = localStorage.getItem('openai_api_key');
-      
+
       const headers = {
         'Content-Type': 'application/json',
       };
-      
+
       if (customApiKey) {
         headers['x-custom-api-key'] = customApiKey;
       }
-      
+
       const response = await fetch(`${apiUrl}/api/management/ai/health`, {
         credentials: 'include',
-        headers
+        headers,
       });
 
       if (response.ok) {
@@ -57,7 +57,7 @@ export default function AIAssistantPage() {
         return (
           <motion.div
             animate={{ rotate: 360 }}
-            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
             className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-yellow-100 text-yellow-800"
           >
             <CpuChipIcon className="w-4 h-4 mr-2" />
@@ -68,7 +68,7 @@ export default function AIAssistantPage() {
         return (
           <div className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-green-100 text-green-800">
             <CheckCircleIcon className="w-4 h-4 mr-2" />
-            IA Online
+            IA Online (Streaming Only)
           </div>
         );
       case 'unhealthy':
@@ -94,11 +94,11 @@ export default function AIAssistantPage() {
           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
             <ExclamationTriangleIcon className="w-8 h-8 text-red-600" />
           </div>
-          
+
           <h2 className="text-xl font-bold text-gray-900 mb-2">
             Assistente de IA Indisponível
           </h2>
-          
+
           <p className="text-gray-600 mb-6">
             {error || 'A assistente de IA não está disponível no momento.'}
           </p>
@@ -156,7 +156,7 @@ export default function AIAssistantPage() {
         >
           <motion.div
             animate={{ rotate: 360 }}
-            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+            transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
             className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4"
           >
             <CpuChipIcon className="w-6 h-6 text-blue-600" />
@@ -168,126 +168,62 @@ export default function AIAssistantPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center space-x-4">
+    <div className="h-screen bg-gray-50 flex flex-col">
+      {/* Header - Compacto */}
+      <div className="bg-white border-b border-gray-200 flex-shrink-0">
+        <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-14">
+            <div className="flex items-center space-x-3">
               <motion.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
-                transition={{ type: "spring", stiffness: 260, damping: 20 }}
-                className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center"
+                transition={{ type: 'spring', stiffness: 260, damping: 20 }}
+                className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center"
               >
-                <SparklesIcon className="w-5 h-5 text-white" />
+                <SparklesIcon className="w-4 h-4 text-white" />
               </motion.div>
-              
+
               <div>
-                <h1 className="text-xl font-bold text-gray-900">
-                  Assistente de IA
+                <h1 className="text-lg font-bold text-gray-900">
+                  FlowChat AI Assistant
                 </h1>
-                <p className="text-sm text-gray-500">
-                  Gerencie seu FlowChat API com inteligência artificial
+                <p className="text-xs text-gray-500">
+                  Streaming only • Execução paralela • WhatsApp API completa
                 </p>
               </div>
             </div>
 
-            <StatusBadge />
+            <div className="flex items-center space-x-4">
+              <StatusBadge />
+
+              {/* Dicas rápidas */}
+              <div className="hidden lg:flex items-center space-x-2 text-xs text-gray-500">
+                <span className="bg-gray-100 px-2 py-1 rounded">
+                  📱 Sessões
+                </span>
+                <span className="bg-gray-100 px-2 py-1 rounded">
+                  💬 Mensagens
+                </span>
+                <span className="bg-gray-100 px-2 py-1 rounded">👥 Grupos</span>
+                <span className="bg-gray-100 px-2 py-1 rounded">
+                  🔗 Webhooks
+                </span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* Info Panel */}
-          <div className="lg:col-span-1">
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.2 }}
-              className="bg-white rounded-xl shadow-sm border border-gray-200 p-6"
-            >
-              <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                Capacidades da IA
-              </h3>
-              
-              <div className="space-y-4">
-                {[
-                  {
-                    title: 'Gerenciar Sessões',
-                    description: 'Criar, listar e deletar sessões WhatsApp',
-                    icon: '📱'
-                  },
-                  {
-                    title: 'Enviar Mensagens',
-                    description: 'Enviar mensagens via WhatsApp',
-                    icon: '💬'
-                  },
-                  {
-                    title: 'Configurar Webhooks',
-                    description: 'Configurar e gerenciar webhooks',
-                    icon: '🔗'
-                  },
-                  {
-                    title: 'Gerenciar Grupos',
-                    description: 'Criar e administrar grupos',
-                    icon: '👥'
-                  },
-                  {
-                    title: 'QR Codes',
-                    description: 'Gerar e obter QR codes',
-                    icon: '📲'
-                  },
-                  {
-                    title: 'Status do Sistema',
-                    description: 'Monitorar e verificar status',
-                    icon: '📊'
-                  }
-                ].map((capability, index) => (
-                  <motion.div
-                    key={capability.title}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.3 + index * 0.1 }}
-                    className="flex items-start space-x-3"
-                  >
-                    <span className="text-2xl">{capability.icon}</span>
-                    <div>
-                      <h4 className="text-sm font-medium text-gray-900">
-                        {capability.title}
-                      </h4>
-                      <p className="text-xs text-gray-500">
-                        {capability.description}
-                      </p>
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-
-              <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-                <p className="text-xs text-blue-700">
-                  💡 <strong>Dica:</strong> Você pode pedir para a IA fazer qualquer 
-                  operação relacionada ao WhatsApp API. Ela executará as ações 
-                  reais no sistema!
-                </p>
-              </div>
-            </motion.div>
-          </div>
-
-          {/* Chat Interface */}
-          <div className="lg:col-span-3">
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.3 }}
-              className="bg-white rounded-xl shadow-sm border border-gray-200 h-[600px]"
-            >
-              <AIStreamingChat />
-            </motion.div>
-          </div>
-        </div>
+      {/* Chat Interface - Ocupa todo o espaço restante */}
+      <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="flex-1 bg-white border-0 h-full min-h-0"
+        >
+          <AIStreamingChat />
+        </motion.div>
       </div>
     </div>
   );
