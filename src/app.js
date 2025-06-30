@@ -394,6 +394,7 @@ const HUMAN_BEHAVIOR = {
   MAX_DELAY_BETWEEN_MESSAGES: 5000, // Delay máximo entre mensagens (5s)
   MAX_MESSAGES_PER_MINUTE: 10, // Máximo 10 mensagens por minuto
   SEEN_DELAY: 500, // Delay antes de marcar como visto (0.5s)
+  AUTO_MARK_READ: false, // Desabilitado permanentemente
 };
 
 // Configurações de reconexão
@@ -462,14 +463,16 @@ async function sendMessageWithHumanBehavior(
       );
     }
 
-    // 1. Marcar como visto primeiro (simula usuário lendo)
-    await delay(HUMAN_BEHAVIOR.SEEN_DELAY);
-    await sock.readMessages([
-      {
-        remoteJid: jid,
-        id: message.id || crypto.randomBytes(10).toString('hex'),
-      },
-    ]);
+    // 1. Marcar como visto primeiro (simula usuário lendo) - apenas se configurado
+    if (HUMAN_BEHAVIOR.AUTO_MARK_READ) {
+      await delay(HUMAN_BEHAVIOR.SEEN_DELAY);
+      await sock.readMessages([
+        {
+          remoteJid: jid,
+          id: message.id || crypto.randomBytes(10).toString('hex'),
+        },
+      ]);
+    }
 
     // 2. Iniciar indicador de digitação
     await sock.sendPresenceUpdate('composing', jid);
@@ -2542,8 +2545,10 @@ async function handleIncomingMessage(sock, message, sessionId) {
     // Simular delay de leitura humana
     await delay(500 + Math.random() * 1500);
 
-    // Marcar como visto
-    await sock.readMessages([message.key]);
+    // Marcar como visto apenas se configurado para auto-read
+    if (HUMAN_BEHAVIOR.AUTO_MARK_READ) {
+      await sock.readMessages([message.key]);
+    }
 
     // Aqui você pode implementar sua lógica de resposta automática
     // Por exemplo, responder apenas se a mensagem contém certas palavras-chave
@@ -4592,14 +4597,16 @@ async function sendMessageWithAdvancedHumanBehavior(
       await delay(thinkingDelay);
     }
 
-    // 3. MARCAR COMO VISTO
-    await delay(300 + Math.random() * 200); // Delay natural antes de marcar como visto
-    await sock.readMessages([
-      {
-        remoteJid: jid,
-        id: message.id || crypto.randomBytes(10).toString('hex'),
-      },
-    ]);
+    // 3. MARCAR COMO VISTO - apenas se configurado
+    if (HUMAN_BEHAVIOR.AUTO_MARK_READ) {
+      await delay(300 + Math.random() * 200); // Delay natural antes de marcar como visto
+      await sock.readMessages([
+        {
+          remoteJid: jid,
+          id: message.id || crypto.randomBytes(10).toString('hex'),
+        },
+      ]);
+    }
 
     // 4. INICIAR DIGITAÇÃO
     await sock.sendPresenceUpdate('composing', jid);

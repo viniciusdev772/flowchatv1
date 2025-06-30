@@ -117,6 +117,7 @@ Required environment variables:
 - `COOKIE_SECRET` - Cookie signing secret
 - `CORS_ORIGIN` - Frontend URL (default: http://localhost:5173)
 - `PORT` - Server port (default: 3000)
+- `AUTO_MARK_READ` - Controls automatic read receipts (default: true, set to 'false' to disable)
 
 ## API Structure
 
