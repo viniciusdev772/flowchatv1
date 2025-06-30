@@ -59,14 +59,72 @@ export default function AIStreamingChat() {
   const inputRef = useRef(null);
   const abortControllerRef = useRef(null);
   const suggestionsGeneratedFor = useRef(null);
+  const autoScrollIntervalRef = useRef(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  const scrollToBottomInstant = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'auto' });
+  };
+
+  const scrollToBottomSmart = () => {
+    // Durante streaming usa scroll instantâneo, senão usa smooth
+    if (isStreaming) {
+      scrollToBottomInstant();
+    } else {
+      scrollToBottom();
+    }
+  };
+
   useEffect(() => {
-    scrollToBottom();
+    scrollToBottomSmart();
   }, [messages.length, isThinking]);
+
+  // Scroll automático durante streaming de conteúdo
+  useEffect(() => {
+    if (isStreaming && streamingContent) {
+      scrollToBottomInstant();
+    }
+  }, [streamingContent, isStreaming]);
+
+  // Scroll automático quando tools estão executando
+  useEffect(() => {
+    if (executingTools.size > 0 || downloadingMedia.size > 0) {
+      scrollToBottom();
+    }
+  }, [executingTools.size, downloadingMedia.size]);
+
+  // Scroll automático quando tool calls são atualizados
+  useEffect(() => {
+    if (streamingToolCalls.length > 0) {
+      scrollToBottom();
+    }
+  }, [streamingToolCalls.length]);
+
+  // Auto-scroll contínuo durante streaming
+  useEffect(() => {
+    if (isStreaming) {
+      // Scroll automático a cada 100ms durante streaming
+      autoScrollIntervalRef.current = setInterval(() => {
+        scrollToBottomInstant();
+      }, 100);
+    } else {
+      // Limpar intervalo quando não está streaming
+      if (autoScrollIntervalRef.current) {
+        clearInterval(autoScrollIntervalRef.current);
+        autoScrollIntervalRef.current = null;
+      }
+    }
+
+    // Cleanup no unmount
+    return () => {
+      if (autoScrollIntervalRef.current) {
+        clearInterval(autoScrollIntervalRef.current);
+      }
+    };
+  }, [isStreaming]);
 
   // SUGESTÕES DESABILITADAS - useEffect removido
   // useEffect(() => {
@@ -116,6 +174,9 @@ export default function AIStreamingChat() {
     setIsStreaming(true);
     setIsThinking(true);
 
+    // Scroll imediato após enviar mensagem
+    setTimeout(() => scrollToBottom(), 50);
+
     // Create abort controller for this request
     abortControllerRef.current = new AbortController();
 
@@ -161,6 +222,9 @@ export default function AIStreamingChat() {
       setMessages((prev) => [...prev, streamingMessage]);
       setIsThinking(false);
 
+      // Scroll quando mensagem streaming inicia
+      setTimeout(() => scrollToBottom(), 50);
+
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let accumulatedContent = '';
@@ -195,8 +259,11 @@ export default function AIStreamingChat() {
                 }
                 return newMessages;
               });
+              // Scroll automático imediato durante streaming
+              setTimeout(() => scrollToBottomInstant(), 10);
             } else if (data.type === 'thinking') {
               setIsThinking(true);
+              setTimeout(() => scrollToBottom(), 50);
             } else if (data.type === 'tool_start') {
               // Nova tool iniciando execução
               setExecutingTools((prev) => new Set(prev).add(data.tool));
@@ -214,6 +281,8 @@ export default function AIStreamingChat() {
                   [data.tool]: { status: 'iniciando', progress: 0 },
                 }));
               }
+              // Scroll quando nova tool inicia
+              setTimeout(() => scrollToBottom(), 50);
             } else if (data.type === 'tool_result') {
               toolResults.push(data);
               setStreamingToolCalls((prev) => [...prev, data]);
@@ -227,6 +296,8 @@ export default function AIStreamingChat() {
                 completed: prev.completed + 1,
               }));
               setIsThinking(false);
+              // Scroll quando tool completa
+              setTimeout(() => scrollToBottom(), 50);
 
               // Se for uma tool de download, remover do estado de download
               if (
@@ -257,6 +328,8 @@ export default function AIStreamingChat() {
                 completed: prev.completed + 1,
               }));
               setIsThinking(false);
+              // Scroll quando tool tem erro
+              setTimeout(() => scrollToBottom(), 50);
 
               // Se for uma tool de download, remover do estado de download
               if (
@@ -294,6 +367,8 @@ export default function AIStreamingChat() {
               setIsThinking(false);
               setDownloadingMedia(new Set());
               setDownloadProgress({});
+              // Scroll quando todas as tools completam
+              setTimeout(() => scrollToBottom(), 100);
 
               // Verificar se getMessageHistory foi executado e adicionar contexto visual
               const hasGetMessageHistory = toolResults.some(
@@ -333,6 +408,8 @@ export default function AIStreamingChat() {
                 }
                 return newMessages;
               });
+              // Scroll após processar imagens
+              setTimeout(() => scrollToBottom(), 100);
             } else if (data.type === 'done') {
               // Finalize the message
               setMessages((prev) =>
@@ -357,6 +434,8 @@ export default function AIStreamingChat() {
               setToolsProgress({ completed: 0, total: 0 });
               setDownloadingMedia(new Set());
               setDownloadProgress({});
+              // Scroll final quando mensagem completa
+              setTimeout(() => scrollToBottom(), 200);
               break;
             }
           } catch (e) {
@@ -809,6 +888,18 @@ export default function AIStreamingChat() {
               )}
           </AnimatePresence>
           <div ref={messagesEndRef} />
+
+          {/* Indicador de scroll automático */}
+          {isStreaming && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed bottom-20 right-4 bg-blue-100 text-blue-700 px-3 py-1 rounded-full text-xs font-medium shadow-lg border border-blue-200"
+            >
+              📜 Auto-scroll ativo
+            </motion.div>
+          )}
         </div>
       </div>
 
