@@ -295,6 +295,20 @@ export default function AIStreamingChat() {
               setIsThinking(false);
               setDownloadingMedia(new Set());
               setDownloadProgress({});
+
+              // Verificar se getMessageHistory foi executado e adicionar contexto visual
+              const hasGetMessageHistory = toolResults.some(
+                (tr) => tr.tool === 'getMessageHistory'
+              );
+              if (hasGetMessageHistory) {
+                console.log(
+                  '🔍 getMessageHistory executado - IA deve continuar automaticamente'
+                );
+                // Adicionar feedback visual de que a IA deve continuar
+                setIsThinking(true);
+                setTimeout(() => setIsThinking(false), 2000); // Mostrar "pensando" por 2s
+              }
+
               break;
             } else if (data.type === 'tools_error') {
               // Erro na execução paralela
@@ -408,48 +422,65 @@ export default function AIStreamingChat() {
     }).format(timestamp);
   };
 
-  const ThinkingIndicator = () => (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -10 }}
-      className="flex items-center space-x-2 px-4 py-3"
-    >
-      <div className="flex items-center justify-center w-8 h-8 bg-blue-100 rounded-full">
-        <motion.div
-          animate={{ rotate: 360 }}
-          transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-        >
-          <CpuChipIcon className="w-4 h-4 text-blue-600" />
-        </motion.div>
-      </div>
-      <div className="bg-gray-100 rounded-2xl px-4 py-2">
-        <div className="flex items-center space-x-2">
-          <div className="flex space-x-1">
-            {[0, 1, 2].map((i) => (
-              <motion.div
-                key={i}
-                className="w-2 h-2 bg-blue-500 rounded-full"
-                animate={{
-                  scale: [1, 1.5, 1],
-                  opacity: [0.5, 1, 0.5],
-                }}
-                transition={{
-                  duration: 1.5,
-                  repeat: Infinity,
-                  delay: i * 0.2,
-                }}
-              />
-            ))}
-          </div>
-          <span className="text-sm text-gray-600">Pensando...</span>
+  const ThinkingIndicator = () => {
+    // Verificar se acabou de executar getMessageHistory
+    const hasRecentGetHistory = streamingToolCalls.some(
+      (tc) => tc.tool === 'getMessageHistory'
+    );
+
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -10 }}
+        className="flex items-center space-x-2 px-4 py-3"
+      >
+        <div className="flex items-center justify-center w-8 h-8 bg-blue-100 rounded-full">
+          <motion.div
+            animate={{ rotate: 360 }}
+            transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+          >
+            <CpuChipIcon className="w-4 h-4 text-blue-600" />
+          </motion.div>
         </div>
-      </div>
-    </motion.div>
-  );
+        <div className="bg-gray-100 rounded-2xl px-4 py-2">
+          <div className="flex items-center space-x-2">
+            <div className="flex space-x-1">
+              {[0, 1, 2].map((i) => (
+                <motion.div
+                  key={i}
+                  className="w-2 h-2 bg-blue-500 rounded-full"
+                  animate={{
+                    scale: [1, 1.5, 1],
+                    opacity: [0.5, 1, 0.5],
+                  }}
+                  transition={{
+                    duration: 1.5,
+                    repeat: Infinity,
+                    delay: i * 0.2,
+                  }}
+                />
+              ))}
+            </div>
+            <span className="text-sm text-gray-600">
+              {hasRecentGetHistory
+                ? 'Analisando mensagens e decidindo próxima ação...'
+                : 'Pensando...'}
+            </span>
+          </div>
+        </div>
+      </motion.div>
+    );
+  };
 
   const ToolsProgressIndicator = () => {
     if (executingTools.size === 0 && toolsProgress.total === 0) return null;
+
+    // Verificar se getMessageHistory está sendo executado
+    const isExecutingGetHistory = executingTools.has('getMessageHistory');
+    const hasCompletedGetHistory =
+      toolsProgress.completed > 0 &&
+      streamingToolCalls.some((tc) => tc.tool === 'getMessageHistory');
 
     return (
       <motion.div
@@ -487,9 +518,13 @@ export default function AIStreamingChat() {
             </div>
             <span className="text-sm text-green-700">
               {executingTools.size > 0
-                ? `Executando ${executingTools.size} ferramenta${
-                    executingTools.size > 1 ? 's' : ''
-                  }...`
+                ? isExecutingGetHistory
+                  ? `🔍 Obtendo histórico de mensagens...`
+                  : `Executando ${executingTools.size} ferramenta${
+                      executingTools.size > 1 ? 's' : ''
+                    }...`
+                : hasCompletedGetHistory
+                ? `✅ Histórico obtido - IA continuará automaticamente`
                 : `${toolsProgress.completed}/${toolsProgress.total} ferramentas concluídas`}
             </span>
             {toolsProgress.total > 0 && (
@@ -831,11 +866,17 @@ export default function AIStreamingChat() {
                 'Mencionar todos no grupo',
                 'Mostrar histórico de mensagens',
                 'Marcar mensagem como lida',
+                'obtenha 686191ff31d679b27dcf47e5_sessao_teste_2 120363403310858554@g.us',
+                'envie "Teste de continuidade automática" ao grupo 120363403310858554@g.us na sessão 686191ff31d679b27dcf47e5_sessao_teste_2',
               ].map((suggestion) => (
                 <motion.button
                   key={suggestion}
                   onClick={() => setInputValue(suggestion)}
-                  className="text-xs bg-white border border-gray-300 rounded-full px-3 py-1 text-gray-600 hover:bg-gray-50 transition-colors"
+                  className={`text-xs border rounded-full px-3 py-1 transition-colors ${
+                    suggestion.includes('686191ff31d679b27dcf47e5')
+                      ? 'bg-blue-50 border-blue-300 text-blue-700 hover:bg-blue-100'
+                      : 'bg-white border-gray-300 text-gray-600 hover:bg-gray-50'
+                  }`}
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                 >
