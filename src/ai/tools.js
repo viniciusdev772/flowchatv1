@@ -160,7 +160,8 @@ const toolSchemas = {
     ),
     limit: Type.Optional(
       Type.Number({
-        description: 'Limite de mensagens (padrão: 50)',
+        description:
+          'Limite de mensagens para buscar messageIds (padrão: 50) - Continue automaticamente após obter os resultados',
         minimum: 1,
         maximum: 1000,
       })
@@ -1921,8 +1922,9 @@ const toolImplementations = {
           return {
             success: false,
             error: error.error,
-            message: `Mensagem ${quotedMessageId} não encontrada. Use getMessageHistory para obter mensagens recentes e seus messageIds corretos. Endpoint: /api/baileys/session/${sessionId}/messages?limit=50`,
-            suggestion: `Para obter o messageId correto, use: getMessageHistory com sessionId: ${sessionId}`,
+            message: `Mensagem ${quotedMessageId} não encontrada. Execute getMessageHistory agora para obter messageIds válidos e continue automaticamente com a resposta.`,
+            suggestion: `Execute imediatamente: getMessageHistory({ sessionId: "${sessionId}", limit: 50 }) e depois use um messageId válido`,
+            nextAction: 'getMessageHistory',
           };
         }
 
@@ -1932,7 +1934,7 @@ const toolImplementations = {
       const result = await response.json();
       return {
         success: true,
-        message: `Resposta enviada para mensagem ${quotedMessageId}`,
+        message: `✅ Resposta enviada com sucesso para mensagem ${quotedMessageId}. Continue com outras ações se necessário.`,
         data: result,
       };
     } catch (error) {
@@ -2039,8 +2041,9 @@ const toolImplementations = {
           return {
             success: false,
             error: error.error,
-            message: `Mensagem ${messageId} não encontrada. Use getMessageHistory para obter mensagens recentes e seus messageIds corretos. Endpoint: /api/baileys/session/${sessionId}/messages?limit=50`,
-            suggestion: `Para obter o messageId correto, use: getMessageHistory com sessionId: ${sessionId}`,
+            message: `Mensagem ${messageId} não encontrada. Execute getMessageHistory agora para obter messageIds válidos e continue automaticamente marcando como lida.`,
+            suggestion: `Execute imediatamente: getMessageHistory({ sessionId: "${sessionId}", limit: 50 }) e depois use um messageId válido`,
+            nextAction: 'getMessageHistory',
           };
         }
 
@@ -2049,7 +2052,7 @@ const toolImplementations = {
 
       return {
         success: true,
-        message: `Mensagem ${messageId} marcada como lida para ${phone}`,
+        message: `✅ Mensagem ${messageId} marcada como lida para ${phone}. Continue com outras ações se necessário.`,
       };
     } catch (error) {
       return {
@@ -2132,11 +2135,26 @@ const toolImplementations = {
       }
 
       const result = await response.json();
+
+      // Extrair messageIds para facilitar o uso posterior
+      const messageIds = (result.messages || []).map((msg) => ({
+        messageId: msg.messageId,
+        text: msg.messageText,
+        timestamp: msg.timestamp,
+        isFromMe: msg.isFromMe,
+        phone: msg.jid,
+      }));
+
       return {
         success: true,
         messages: result.messages || [],
+        messageIds: messageIds,
         total: result.total || 0,
-        message: `${result.total || 0} mensagens encontradas`,
+        message: `${
+          result.total || 0
+        } mensagens encontradas. Use os messageIds retornados para responder ou marcar como lida. Continue com a próxima ação necessária.`,
+        nextAction:
+          'Use os messageIds disponíveis para executar replyMessage, markAsRead ou outras ações relacionadas às mensagens.',
       };
     } catch (error) {
       return {
@@ -3975,7 +3993,8 @@ const openAITools = [
     type: 'function',
     function: {
       name: 'getMessageHistory',
-      description: 'Obter histórico de mensagens com filtros e paginação',
+      description:
+        'Obter histórico de mensagens com filtros e paginação. IMPORTANTE: Após executar esta ferramenta, continue automaticamente com as próximas ações usando os messageIds retornados.',
       parameters: {
         type: 'object',
         properties: {
