@@ -94,7 +94,27 @@ class MessageCollector {
   }
 }
 
-// Usar authenticateToken do middleware padrão (mesma autenticação da API da IA)
+// Função auxiliar para verificar se o usuário possui a sessão (mesma lógica do app principal)
+function checkUserSessionPermission(sessionId, userId) {
+  if (!global.whatsappSessions) {
+    return { success: false, error: 'Sistema de sessões não inicializado', status: 500 };
+  }
+
+  const session = global.whatsappSessions.get(sessionId);
+  if (!session || !session.userId) {
+    return { success: false, error: 'Sessão não encontrada', status: 404 };
+  }
+
+  // Verificar se o usuário é dono da sessão
+  const sessionUserId = session.userId.toString();
+  const requestUserId = userId.toString();
+  
+  if (sessionUserId !== requestUserId) {
+    return { success: false, error: 'Você não tem permissão para essa sessão', status: 403 };
+  }
+
+  return { success: true, session };
+}
 
 // POST /api/message-collector/start
 // Iniciar coleta de mensagens para um grupo
@@ -111,16 +131,11 @@ router.post('/start', authenticateToken, async (req, res) => {
     }
 
     // Verificar se o usuário possui a sessão
-    const db = database.getDb();
-    const userSession = await db.collection('userSessions').findOne({
-      userId: new ObjectId(userId),
-      sessionId: sessionId
-    });
-
-    if (!userSession) {
-      return res.status(403).json({
+    const sessionCheck = checkUserSessionPermission(sessionId, userId);
+    if (!sessionCheck.success) {
+      return res.status(sessionCheck.status).json({
         success: false,
-        message: 'Você não tem permissão para essa sessão'
+        message: sessionCheck.error
       });
     }
 
@@ -173,6 +188,15 @@ router.post('/stop', authenticateToken, async (req, res) => {
   try {
     const { sessionId, groupId } = req.body;
     const userId = req.user._id;
+
+    // Verificar se o usuário possui a sessão
+    const sessionCheck = checkUserSessionPermission(sessionId, userId);
+    if (!sessionCheck.success) {
+      return res.status(sessionCheck.status).json({
+        success: false,
+        message: sessionCheck.error
+      });
+    }
 
     const collectorKey = `${sessionId}:${groupId}`;
     const collector = activeCollectors.get(collectorKey);
