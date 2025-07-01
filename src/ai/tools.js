@@ -2777,7 +2777,7 @@ const toolImplementations = {
 
           response.pipe(fileStream);
 
-          fileStream.on('finish', () => {
+          fileStream.on('finish', async () => {
             console.log(
               `✅ Download concluído: ${finalFilename} (${(
                 downloadedBytes / 1024
@@ -2793,6 +2793,30 @@ const toolImplementations = {
               process.env.PORT || '3000'
             );
             const downloadUrl = `${serverUrl}/api/baileys/download/${downloadId}`;
+
+            // Salvar metadados no banco para permitir acesso via URL
+            try {
+              const { saveDownloadMetadata } = require('../app.js');
+              const fileMetadata = {
+                downloadId,
+                originalFileName: finalFilename,
+                safeFileName,
+                filePath,
+                mimetype: contentType,
+                size: downloadedBytes,
+                downloadUrl,
+                sessionId: 'ai-download',
+                messageId: `ai-${downloadId}`,
+                messageType: 'external-download',
+                isPtt: false,
+                uploadedAt: new Date(),
+                expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 dias
+              };
+              
+              await saveDownloadMetadata(fileMetadata);
+            } catch (dbError) {
+              console.warn('Aviso: Não foi possível salvar metadados do download:', dbError.message);
+            }
 
             resolve({
               success: true,

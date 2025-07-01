@@ -19,6 +19,7 @@ function getOpenAIClient(customApiKey = null) {
   return new OpenAI({
     apiKey: apiKey,
   });
+
 }
 
 // Prompts para diferentes tipos de resumo
