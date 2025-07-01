@@ -32,8 +32,10 @@ React 19 + Vite with performance-conscious design:
 - **frontend/src/App.jsx** - Main app with React Router and Apple-inspired UI
 - **frontend/src/pages/** - Login, Dashboard, and AI Assistant pages
 - **frontend/src/components/WebhookManager.jsx** - Webhook configuration component
-- **frontend/src/components/AIStreamingChat.jsx** - Streaming AI chat interface with tool execution
+- **frontend/src/components/AIStreamingChat.jsx** - Streaming AI chat interface with tool execution and message collector integration
 - **frontend/src/components/MarkdownRenderer.jsx** - Rich markdown rendering for AI responses
+- **frontend/src/components/MessageCollectorManager.jsx** - Group message collection management interface
+- **frontend/src/components/AISummaryPanel.jsx** - AI-powered message summarization with multiple tones
 - **Styling**: Tailwind CSS with custom Apple Liquid Glass theme
 - **Animation**: Framer Motion with device performance detection
 
@@ -124,6 +126,8 @@ Required environment variables:
 - **Management API**: `/api/management/*` - User authentication, tokens, sessions
 - **Baileys API**: `/api/baileys/*` - WhatsApp operations (messages, media, QR codes)
 - **Groups API**: `/api/baileys/groups/*` - Group management with comprehensive operations
+- **Message Collector API**: `/api/message-collector/*` - Automated group message collection
+- **AI Summary API**: `/api/ai-summary/*` - AI-powered message summarization and analysis
 - **Documentation**: `/api-docs` - Swagger UI with complete API reference
 - **Health Check**: `/api/management/health` - Server status endpoint
 
@@ -183,6 +187,20 @@ The frontend now includes a comprehensive AI Assistant feature:
 5. **Auto-scroll Management**: Intelligent scrolling behavior during streaming responses
 6. **Performance Detection**: Adaptive UI based on device performance capabilities
 7. **FlowChat API Integration**: AI can interact with WhatsApp sessions, groups, and webhooks
+
+### Message Collector & AI Summarization System
+Advanced group message monitoring and intelligent analysis:
+
+1. **Automated Message Collection**: Schedule collection tasks to monitor group messages during specified hours
+2. **Smart Filtering**: Captures all text messages including spam for comprehensive analysis  
+3. **Time-based Collection**: Configure start/end hours with timezone support for precise monitoring
+4. **Real-time Monitoring**: Server-side collection runs continuously during configured periods
+5. **AI-Powered Summarization**: Multiple summary tones (Professional, Casual, Analytical, Brief)
+6. **Streaming Summaries**: Real-time summary generation with progress feedback
+7. **Sentiment Analysis**: Advanced emotion and theme detection in group conversations
+8. **Export Capabilities**: Download summaries in markdown format for external use
+9. **Batch Processing**: Intelligent handling of large message volumes (thousands per day)
+10. **Custom Prompts**: User-defined AI instructions for specialized analysis
 
 ## Important Architectural Patterns
 

@@ -5,11 +5,15 @@ import {
   PaperAirplaneIcon,
   SparklesIcon,
   StopIcon,
+  DocumentTextIcon,
+  ChatBubbleLeftEllipsisIcon,
 } from '@heroicons/react/24/outline';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useCallback, useEffect, useRef, useState } from 'react';
 // import { useSmartSuggestions } from '../hooks/useSmartSuggestions'; // DESABILITADO
 import MarkdownRenderer, { ToolResponseBlock } from './MarkdownRenderer';
+import MessageCollectorManager from './MessageCollectorManager';
+import AISummaryPanel from './AISummaryPanel';
 
 // Componente simplificado para renderizar mensagens (backend processa base64 automaticamente)
 const MessageContentRenderer = ({ content }) => {
@@ -40,6 +44,10 @@ export default function AIStreamingChat() {
   });
   const [downloadingMedia, setDownloadingMedia] = useState(new Set());
   const [downloadProgress, setDownloadProgress] = useState({});
+  
+  // Estado para as abas (chat IA e coletor de mensagens)
+  const [activeTab, setActiveTab] = useState('chat'); // 'chat' ou 'collector'
+  const [selectedCollectorData, setSelectedCollectorData] = useState(null);
 
   // SUGESTÕES DESABILITADAS - Funcionalidade removida
   // const {
@@ -831,10 +839,51 @@ export default function AIStreamingChat() {
     );
   };
 
+  const tabs = [
+    { id: 'chat', name: 'Chat IA', icon: ChatBubbleLeftEllipsisIcon },
+    { id: 'collector', name: 'Coletor de Mensagens', icon: DocumentTextIcon },
+  ];
+
   return (
     <div className="flex flex-col h-full bg-white min-h-0">
-      {/* Header compacto */}
-      {isStreaming && (
+      {/* Tab Navigation */}
+      <div className="border-b border-gray-200 bg-gray-50 flex-shrink-0">
+        <div className="flex">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <motion.button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center px-4 py-3 text-sm font-medium border-b-2 transition-colors ${
+                  activeTab === tab.id
+                    ? 'border-blue-500 text-blue-600 bg-white'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <Icon className="w-4 h-4 mr-2" />
+                {tab.name}
+              </motion.button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Tab Content */}
+      <AnimatePresence mode="wait">
+        {activeTab === 'chat' ? (
+          <motion.div
+            key="chat"
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: 20 }}
+            transition={{ duration: 0.2 }}
+            className="flex flex-col h-full min-h-0"
+          >
+            {/* Header compacto */}
+            {isStreaming && (
         <div className="bg-blue-50 border-b border-blue-200 px-4 py-2 flex-shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
@@ -967,6 +1016,34 @@ export default function AIStreamingChat() {
           )}
         </div>
       </div>
+          </motion.div>
+        ) : (
+          <motion.div
+            key="collector"
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            transition={{ duration: 0.2 }}
+            className="flex flex-col h-full min-h-0 overflow-hidden"
+          >
+            <div className="flex-1 overflow-auto p-4">
+              <div className="max-w-6xl mx-auto">
+                <MessageCollectorManager />
+                
+                {/* Integração com o painel de resumo */}
+                {selectedCollectorData && (
+                  <div className="mt-6">
+                    <AISummaryPanel
+                      collectedMessages={selectedCollectorData.messages}
+                      collectorId={selectedCollectorData.id}
+                    />
+                  </div>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

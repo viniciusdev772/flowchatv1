@@ -385,6 +385,10 @@ async function getActiveWebhooksFromDB(sessionId, eventType = null) {
 // Importar rotas de grupos
 const groupsRouter = require('./api/groups');
 
+// Importar novas APIs para coleta e resumo de mensagens
+const { router: messageCollectorRouter, integrateWithMainApp } = require('./api/messageCollector');
+const aiSummaryRouter = require('./api/aiSummary');
+
 // Configurações de comportamento humano
 const HUMAN_BEHAVIOR = {
   MIN_TYPING_TIME: 1000, // Tempo mínimo digitando (1s)
@@ -4978,6 +4982,10 @@ app.get('/api/baileys/info', (req, res) => {
 // Usar rotas de grupos
 app.use('/api/baileys/groups', groupsRouter);
 
+// Usar novas APIs para coleta e resumo de mensagens
+app.use('/api/message-collector', messageCollectorRouter);
+app.use('/api/ai-summary', aiSummaryRouter);
+
 // Middleware de tratamento de erros
 app.use((error, req, res, next) => {
   logger.error(`Erro não tratado: ${error.message}`);
@@ -5052,6 +5060,15 @@ async function initializeApp() {
   }, 10 * 60 * 1000); // 10 minutes
   
   logger.info('Carregamento de sessões concluído!');
+  
+  // Integrar sistema de coleta de mensagens
+  logger.info('Integrando sistema de coleta de mensagens...');
+  try {
+    integrateWithMainApp(app);
+    logger.info('Sistema de coleta de mensagens integrado com sucesso!');
+  } catch (error) {
+    logger.error(`Erro ao integrar sistema de coleta: ${error.message}`);
+  }
 }
 
 // Limpeza ao fechar aplicação
