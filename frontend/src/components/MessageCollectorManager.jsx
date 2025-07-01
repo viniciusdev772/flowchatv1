@@ -66,7 +66,7 @@ export default function MessageCollectorManager() {
 
   const loadCollectors = async () => {
     try {
-      const response = await fetch(`${apiUrl}/api/message-collector/list`, {
+      const response = await fetch(`${apiUrl}/api/management/message-collector/list`, {
         credentials: 'include'
       });
       
@@ -101,7 +101,7 @@ export default function MessageCollectorManager() {
 
   const createCollector = async () => {
     try {
-      const response = await fetch(`${apiUrl}/api/message-collector/start`, {
+      const response = await fetch(`${apiUrl}/api/management/message-collector/start`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -134,7 +134,7 @@ export default function MessageCollectorManager() {
 
   const stopCollector = async (sessionId, groupId) => {
     try {
-      const response = await fetch(`${apiUrl}/api/message-collector/stop`, {
+      const response = await fetch(`${apiUrl}/api/management/message-collector/stop`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
@@ -151,7 +151,7 @@ export default function MessageCollectorManager() {
 
   const viewMessages = async (collectorId) => {
     try {
-      const response = await fetch(`${apiUrl}/api/message-collector/messages/${collectorId}`, {
+      const response = await fetch(`${apiUrl}/api/management/message-collector/messages/${collectorId}`, {
         credentials: 'include'
       });
 

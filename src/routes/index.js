@@ -3,6 +3,8 @@ const authRoutes = require('./auth');
 const tokenRoutes = require('./tokens');
 const sessionRoutes = require('./sessions');
 const aiRoutes = require('./ai');
+const messageCollectorRoutes = require('../api/messageCollector');
+const aiSummaryRoutes = require('../api/aiSummary');
 
 const router = express.Router();
 
@@ -27,6 +29,12 @@ router.use('/sessions', sessionRoutes);
 
 // AI Assistant routes
 router.use('/ai', aiRoutes);
+
+// Message Collector routes
+router.use('/message-collector', messageCollectorRoutes);
+
+// AI Summary routes
+router.use('/ai-summary', aiSummaryRoutes);
 
 // API info endpoint
 router.get('/info', (req, res) => {
@@ -59,6 +67,19 @@ router.get('/info', (req, res) => {
           chat: 'POST /api/management/ai/chat',
           tools: 'GET /api/management/ai/tools',
           health: 'GET /api/management/ai/health'
+        },
+        messageCollector: {
+          start: 'POST /api/management/message-collector/start',
+          stop: 'POST /api/management/message-collector/stop',
+          list: 'GET /api/management/message-collector/list',
+          messages: 'GET /api/management/message-collector/messages/:collectorId'
+        },
+        aiSummary: {
+          summarize: 'POST /api/management/ai-summary/summarize',
+          list: 'GET /api/management/ai-summary/list',
+          get: 'GET /api/management/ai-summary/:summaryId',
+          delete: 'DELETE /api/management/ai-summary/:summaryId',
+          sentiment: 'POST /api/management/ai-summary/analyze-sentiment'
         }
       }
     }

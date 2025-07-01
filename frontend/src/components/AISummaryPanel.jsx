@@ -47,7 +47,7 @@ export default function AISummaryPanel({ collectedMessages, collectorId }) {
 
   const loadSummaries = async () => {
     try {
-      const response = await fetch(`${apiUrl}/api/ai-summary/list`, {
+      const response = await fetch(`${apiUrl}/api/management/ai-summary/list`, {
         credentials: 'include'
       });
       
@@ -80,7 +80,7 @@ export default function AISummaryPanel({ collectedMessages, collectorId }) {
         headers['Accept'] = 'text/stream';
       }
 
-      const response = await fetch(`${apiUrl}/api/ai-summary/summarize`, {
+      const response = await fetch(`${apiUrl}/api/management/ai-summary/summarize`, {
         method: 'POST',
         headers,
         credentials: 'include',
@@ -147,7 +147,7 @@ export default function AISummaryPanel({ collectedMessages, collectorId }) {
 
   const viewSummary = async (summaryId) => {
     try {
-      const response = await fetch(`${apiUrl}/api/ai-summary/${summaryId}`, {
+      const response = await fetch(`${apiUrl}/api/management/ai-summary/${summaryId}`, {
         credentials: 'include'
       });
       
@@ -167,7 +167,7 @@ export default function AISummaryPanel({ collectedMessages, collectorId }) {
     if (!confirm('Tem certeza que deseja deletar este resumo?')) return;
 
     try {
-      const response = await fetch(`${apiUrl}/api/ai-summary/${summaryId}`, {
+      const response = await fetch(`${apiUrl}/api/management/ai-summary/${summaryId}`, {
         method: 'DELETE',
         credentials: 'include'
       });
@@ -185,7 +185,7 @@ export default function AISummaryPanel({ collectedMessages, collectorId }) {
 
     setIsGenerating(true);
     try {
-      const response = await fetch(`${apiUrl}/api/ai-summary/analyze-sentiment`, {
+      const response = await fetch(`${apiUrl}/api/management/ai-summary/analyze-sentiment`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',

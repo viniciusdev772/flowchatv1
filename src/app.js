@@ -4982,9 +4982,7 @@ app.get('/api/baileys/info', (req, res) => {
 // Usar rotas de grupos
 app.use('/api/baileys/groups', groupsRouter);
 
-// Usar novas APIs para coleta e resumo de mensagens
-app.use('/api/message-collector', messageCollectorRouter);
-app.use('/api/ai-summary', aiSummaryRouter);
+// APIs movidas para /api/management para usar autenticação consistente
 
 // Middleware de tratamento de erros
 app.use((error, req, res, next) => {

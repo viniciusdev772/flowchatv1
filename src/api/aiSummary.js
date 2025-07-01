@@ -3,27 +3,10 @@ const router = express.Router();
 const { ObjectId } = require('mongodb');
 const database = require('../config/database');
 const logger = require('pino')();
+const { authenticateToken } = require('../middleware/auth');
 
 // Configuração do OpenAI
 const OpenAI = require('openai');
-
-// Middleware para verificar autenticação
-const requireAuth = async (req, res, next) => {
-  try {
-    if (!req.session || !req.session.userId) {
-      return res.status(401).json({
-        success: false,
-        message: 'Usuário não autenticado'
-      });
-    }
-    next();
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Erro na verificação de autenticação'
-    });
-  }
-};
 
 // Função para obter cliente OpenAI
 function getOpenAIClient(customApiKey = null) {
@@ -81,7 +64,7 @@ function formatMessagesForPrompt(messages) {
 
 // POST /api/ai-summary/summarize
 // Criar resumo com IA das mensagens coletadas
-router.post('/summarize', requireAuth, async (req, res) => {
+router.post('/summarize', authenticateToken, async (req, res) => {
   try {
     const { 
       collectorId, 
@@ -92,7 +75,7 @@ router.post('/summarize', requireAuth, async (req, res) => {
       customApiKey 
     } = req.body;
     
-    const userId = req.session.userId;
+    const userId = req.user._id;
 
     if (!collectorId) {
       return res.status(400).json({
@@ -102,7 +85,7 @@ router.post('/summarize', requireAuth, async (req, res) => {
     }
 
     // Buscar mensagens coletadas
-    const { db } = database.getDatabase();
+    const db = database.getDb();
     const collectedData = await db.collection('collectedMessages').findOne({
       $or: [
         { _id: collectorId },
@@ -298,10 +281,10 @@ router.post('/summarize', requireAuth, async (req, res) => {
 
 // GET /api/ai-summary/list
 // Listar resumos do usuário
-router.get('/list', requireAuth, async (req, res) => {
+router.get('/list', authenticateToken, async (req, res) => {
   try {
-    const userId = req.session.userId;
-    const { db } = database.getDatabase();
+    const userId = req.user._id;
+    const db = database.getDb();
 
     const summaries = await db.collection('aiSummaries')
       .find({ userId: new ObjectId(userId) })
@@ -336,11 +319,11 @@ router.get('/list', requireAuth, async (req, res) => {
 
 // GET /api/ai-summary/:summaryId
 // Obter resumo específico
-router.get('/:summaryId', requireAuth, async (req, res) => {
+router.get('/:summaryId', authenticateToken, async (req, res) => {
   try {
     const { summaryId } = req.params;
-    const userId = req.session.userId;
-    const { db } = database.getDatabase();
+    const userId = req.user._id;
+    const db = database.getDb();
 
     const summary = await db.collection('aiSummaries').findOne({
       _id: new ObjectId(summaryId),
@@ -370,11 +353,11 @@ router.get('/:summaryId', requireAuth, async (req, res) => {
 
 // DELETE /api/ai-summary/:summaryId
 // Deletar resumo
-router.delete('/:summaryId', requireAuth, async (req, res) => {
+router.delete('/:summaryId', authenticateToken, async (req, res) => {
   try {
     const { summaryId } = req.params;
-    const userId = req.session.userId;
-    const { db } = database.getDatabase();
+    const userId = req.user._id;
+    const db = database.getDb();
 
     const result = await db.collection('aiSummaries').deleteOne({
       _id: new ObjectId(summaryId),
@@ -404,13 +387,13 @@ router.delete('/:summaryId', requireAuth, async (req, res) => {
 
 // POST /api/ai-summary/analyze-sentiment
 // Análise de sentimento das mensagens
-router.post('/analyze-sentiment', requireAuth, async (req, res) => {
+router.post('/analyze-sentiment', authenticateToken, async (req, res) => {
   try {
     const { collectorId, customApiKey } = req.body;
-    const userId = req.session.userId;
+    const userId = req.user._id;
 
     // Buscar mensagens
-    const { db } = database.getDatabase();
+    const db = database.getDb();
     const collectedData = await db.collection('collectedMessages').findOne({
       $or: [
         { _id: collectorId },

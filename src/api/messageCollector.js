@@ -3,6 +3,7 @@ const router = express.Router();
 const { ObjectId } = require('mongodb');
 const database = require('../config/database');
 const logger = require('pino')();
+const { authenticateToken } = require('../middleware/auth');
 
 // Simulação de cron até conseguirmos instalar a dependência
 const activeCollectors = new Map(); // sessionId -> collector config
@@ -93,31 +94,14 @@ class MessageCollector {
   }
 }
 
-// Middleware para verificar autenticação
-const requireAuth = async (req, res, next) => {
-  try {
-    // Usar a mesma verificação de sessão do sistema principal
-    if (!req.session || !req.session.userId) {
-      return res.status(401).json({
-        success: false,
-        message: 'Usuário não autenticado'
-      });
-    }
-    next();
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: 'Erro na verificação de autenticação'
-    });
-  }
-};
+// Usar authenticateToken do middleware padrão (mesma autenticação da API da IA)
 
 // POST /api/message-collector/start
 // Iniciar coleta de mensagens para um grupo
-router.post('/start', requireAuth, async (req, res) => {
+router.post('/start', authenticateToken, async (req, res) => {
   try {
     const { sessionId, groupId, startHour, endHour, timezone, name } = req.body;
-    const userId = req.session.userId;
+    const userId = req.user._id;
 
     if (!sessionId || !groupId || startHour === undefined || endHour === undefined) {
       return res.status(400).json({
@@ -127,7 +111,7 @@ router.post('/start', requireAuth, async (req, res) => {
     }
 
     // Verificar se o usuário possui a sessão
-    const { db } = database.getDatabase();
+    const db = database.getDb();
     const userSession = await db.collection('userSessions').findOne({
       userId: new ObjectId(userId),
       sessionId: sessionId
@@ -185,10 +169,10 @@ router.post('/start', requireAuth, async (req, res) => {
 
 // POST /api/message-collector/stop
 // Parar coleta de mensagens
-router.post('/stop', requireAuth, async (req, res) => {
+router.post('/stop', authenticateToken, async (req, res) => {
   try {
     const { sessionId, groupId } = req.body;
-    const userId = req.session.userId;
+    const userId = req.user._id;
 
     const collectorKey = `${sessionId}:${groupId}`;
     const collector = activeCollectors.get(collectorKey);
@@ -203,7 +187,7 @@ router.post('/stop', requireAuth, async (req, res) => {
     collector.stop();
 
     // Salvar mensagens coletadas no banco
-    const { db } = database.getDatabase();
+    const db = database.getDb();
     const collectedData = collector.getCollectedMessages();
     
     await db.collection('collectedMessages').insertOne({
@@ -248,10 +232,10 @@ router.post('/stop', requireAuth, async (req, res) => {
 
 // GET /api/message-collector/list
 // Listar coletores do usuário
-router.get('/list', requireAuth, async (req, res) => {
+router.get('/list', authenticateToken, async (req, res) => {
   try {
-    const userId = req.session.userId;
-    const { db } = database.getDatabase();
+    const userId = req.user._id;
+    const db = database.getDb();
 
     const collectors = await db.collection('messageCollectors')
       .find({ userId: new ObjectId(userId) })
@@ -284,11 +268,11 @@ router.get('/list', requireAuth, async (req, res) => {
 
 // GET /api/message-collector/messages/:collectorId
 // Obter mensagens coletadas
-router.get('/messages/:collectorId', requireAuth, async (req, res) => {
+router.get('/messages/:collectorId', authenticateToken, async (req, res) => {
   try {
     const { collectorId } = req.params;
-    const userId = req.session.userId;
-    const { db } = database.getDatabase();
+    const userId = req.user._id;
+    const db = database.getDb();
 
     // Verificar se é um coletor ativo
     const activeCollector = activeCollectors.get(collectorId);
