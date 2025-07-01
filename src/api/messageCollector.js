@@ -285,21 +285,11 @@ router.post('/start', authenticateToken, async (req, res) => {
 // Parar coleta de mensagens
 router.post('/stop', authenticateToken, async (req, res) => {
   try {
-    const { sessionId, groupId } = req.body;
+    const { collectorId } = req.body;
     const userId = req.user._id;
 
-    // Verificar se o usuário possui a sessão
-    const sessionCheck = checkUserSessionPermission(sessionId, userId);
-    if (!sessionCheck.success) {
-      return res.status(sessionCheck.status).json({
-        success: false,
-        message: sessionCheck.error,
-      });
-    }
-
-    const collectorId = `${sessionId}:${groupId}`;
-
-    // Verificar se o coletor existe no banco
+    // Buscar coletor pelo UUID
+    let collector;
     try {
       const db = database.getDb();
       if (!db) {
@@ -308,8 +298,7 @@ router.post('/stop', authenticateToken, async (req, res) => {
           message: 'Banco de dados não disponível',
         });
       }
-
-      const collector = await db
+      collector = await db
         .collection('messageCollectors')
         .findOne({ _id: collectorId });
       if (!collector) {
@@ -318,7 +307,13 @@ router.post('/stop', authenticateToken, async (req, res) => {
           message: 'Coletor não encontrado',
         });
       }
-
+      // Verificar permissão do usuário
+      if (collector.userId.toString() !== userId.toString()) {
+        return res.status(403).json({
+          success: false,
+          message: 'Você não tem permissão para esse coletor',
+        });
+      }
       // Parar cron jobs
       const cronJobs = activeCronJobs.get(collectorId);
       if (cronJobs) {
@@ -326,7 +321,6 @@ router.post('/stop', authenticateToken, async (req, res) => {
         cronJobs.stopJob.stop();
         activeCronJobs.delete(collectorId);
       }
-
       // Atualizar status para completed
       await updateCollectorStatus(collectorId, {
         status: 'completed',
@@ -340,15 +334,17 @@ router.post('/stop', authenticateToken, async (req, res) => {
         message: 'Erro interno do servidor',
       });
     }
-
     res.json({
       success: true,
       message: 'Coletor parado e mensagens salvas',
       summary: {
-        totalMessages: collectedData.totalMessages,
-        duration: collectedData.endTime - collectedData.startTime,
-        startTime: collectedData.startTime,
-        endTime: collectedData.endTime,
+        totalMessages: collector.totalMessages,
+        duration:
+          collector.endTime && collector.startTime
+            ? collector.endTime - collector.startTime
+            : null,
+        startTime: collector.startTime,
+        endTime: collector.endTime,
       },
     });
   } catch (error) {
@@ -411,8 +407,7 @@ router.get('/messages/:collectorId', authenticateToken, async (req, res) => {
   try {
     const { collectorId } = req.params;
     const userId = req.user._id;
-
-    // Buscar coletor no banco
+    // Buscar coletor pelo UUID
     let collector = null;
     try {
       const db = database.getDb();
@@ -424,8 +419,14 @@ router.get('/messages/:collectorId', authenticateToken, async (req, res) => {
     } catch (dbError) {
       logger.warn('Erro ao buscar coletor:', dbError.message);
     }
-
     if (collector) {
+      // Verificar permissão do usuário
+      if (collector.userId.toString() !== userId.toString()) {
+        return res.status(403).json({
+          success: false,
+          message: 'Você não tem permissão para esse coletor',
+        });
+      }
       // Buscar mensagens coletadas
       let messages = [];
       try {
@@ -440,7 +441,6 @@ router.get('/messages/:collectorId', authenticateToken, async (req, res) => {
       } catch (dbError) {
         logger.warn('Erro ao buscar mensagens:', dbError.message);
       }
-
       return res.json({
         success: true,
         data: {
@@ -455,38 +455,10 @@ router.get('/messages/:collectorId', authenticateToken, async (req, res) => {
         isActive: collector.isActive,
       });
     }
-
-    // Buscar nas mensagens salvas
-    let collectedData = null;
-    try {
-      const db = database.getDb();
-      if (db) {
-        collectedData = await db.collection('collectedMessages').findOne({
-          $or: [
-            { _id: collectorId },
-            {
-              sessionId: collectorId.split(':')[0],
-              groupId: collectorId.split(':')[1],
-            },
-          ],
-          userId: new ObjectId(userId),
-        });
-      }
-    } catch (dbError) {
-      logger.warn('Erro ao buscar mensagens no banco:', dbError.message);
-    }
-
-    if (!collectedData) {
-      return res.status(404).json({
-        success: false,
-        message: 'Mensagens coletadas não encontradas',
-      });
-    }
-
-    res.json({
-      success: true,
-      data: collectedData,
-      isActive: false,
+    // Caso não encontre o coletor
+    return res.status(404).json({
+      success: false,
+      message: 'Coletor não encontrado',
     });
   } catch (error) {
     logger.error('Erro ao obter mensagens:', error);
@@ -507,23 +479,19 @@ function integrateWithMainApp(app) {
       if (message.key.remoteJid && message.key.remoteJid.endsWith('@g.us')) {
         // É uma mensagem de grupo
         const groupId = message.key.remoteJid;
-        const collectorId = `${sessionId}:${groupId}`;
-
-        // Verificar se existe coletor ativo para este grupo
+        // Buscar coletor ativo por sessionId e groupId
         const db = database.getDb();
         if (!db) return;
-
         const collector = await db.collection('messageCollectors').findOne({
-          _id: collectorId,
+          sessionId,
+          groupId,
           status: 'active',
           isActive: true,
         });
-
         if (collector) {
           // Extrair dados da mensagem
           const messageText = extractTextFromMessage(message);
           if (!messageText) return;
-
           const messageData = {
             id: message.key.id,
             timestamp: new Date(message.messageTimestamp * 1000),
@@ -533,11 +501,10 @@ function integrateWithMainApp(app) {
             sessionId: sessionId,
             groupId: groupId,
           };
-
           // Salvar mensagem no banco
-          await addMessageToDB(collectorId, messageData);
+          await addMessageToDB(collector._id, messageData);
           logger.debug(
-            `📨 Mensagem coletada para ${collectorId} - Total: ${
+            `📨 Mensagem coletada para ${collector._id} - Total: ${
               collector.totalMessages + 1
             }`
           );
