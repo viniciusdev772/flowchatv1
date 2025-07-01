@@ -4,13 +4,15 @@ const { ObjectId } = require('mongodb');
 const database = require('../config/database');
 const logger = require('pino')();
 const { authenticateToken } = require('../middleware/auth');
+const cron = require('node-cron');
 
-// Simulação de cron até conseguirmos instalar a dependência
-const activeCollectors = new Map(); // sessionId -> collector config
+// Map para armazenar coletores ativos e seus jobs de cron
+const activeCollectors = new Map(); // collectorKey -> collector config
+const activeCronJobs = new Map(); // collectorKey -> cron job
 
 /**
- * Coletor de mensagens para grupos
- * Coleta mensagens durante horário especificado
+ * Coletor de mensagens para grupos com agendamento real
+ * Coleta mensagens durante horário especificado usando node-cron
  */
 class MessageCollector {
   constructor(sessionId, groupId, config) {
@@ -21,19 +23,80 @@ class MessageCollector {
     this.messages = [];
     this.startTime = null;
     this.endTime = null;
+    this.startCronJob = null;
+    this.stopCronJob = null;
+  }
+
+  // Criar expressões cron para início e fim
+  createCronExpression(hour) {
+    return `0 ${hour} * * *`; // A cada dia no horário especificado
   }
 
   start() {
     this.isActive = true;
     this.startTime = new Date();
     this.messages = [];
-    logger.info(`Coletor iniciado para grupo ${this.groupId} na sessão ${this.sessionId}`);
+    
+    // Configurar cron jobs para início e fim da coleta
+    const startCron = this.createCronExpression(this.config.startHour);
+    const stopCron = this.createCronExpression(this.config.endHour);
+    
+    // Job para iniciar coleta diariamente
+    this.startCronJob = cron.schedule(startCron, () => {
+      if (!this.isActive) {
+        this.isActive = true;
+        this.messages = [];
+        logger.info(`🕒 Cron: Iniciando coleta para grupo ${this.groupId} às ${this.config.startHour}h`);
+      }
+    }, {
+      scheduled: true,
+      timezone: this.config.timezone || 'America/Sao_Paulo'
+    });
+
+    // Job para parar coleta diariamente
+    this.stopCronJob = cron.schedule(stopCron, () => {
+      if (this.isActive) {
+        this.stop();
+        logger.info(`🕒 Cron: Parando coleta para grupo ${this.groupId} às ${this.config.endHour}h`);
+      }
+    }, {
+      scheduled: true,
+      timezone: this.config.timezone || 'America/Sao_Paulo'
+    });
+
+    // Verificar se deve estar ativo agora
+    const now = new Date();
+    const currentHour = now.getHours();
+    if (currentHour >= this.config.startHour && currentHour < this.config.endHour) {
+      this.isActive = true;
+    } else {
+      this.isActive = false;
+    }
+    
+    logger.info(`Coletor configurado para grupo ${this.groupId} na sessão ${this.sessionId} (${this.config.startHour}h-${this.config.endHour}h) - Ativo: ${this.isActive}`);
   }
 
   stop() {
     this.isActive = false;
     this.endTime = new Date();
+    
+    // Parar cron jobs
+    if (this.startCronJob) {
+      this.startCronJob.stop();
+      this.startCronJob = null;
+    }
+    if (this.stopCronJob) {
+      this.stopCronJob.stop();
+      this.stopCronJob = null;
+    }
+    
     logger.info(`Coletor parado para grupo ${this.groupId}. Total de mensagens: ${this.messages.length}`);
+  }
+
+  destroy() {
+    // Limpar recursos completamente
+    this.stop();
+    this.messages = [];
   }
 
   addMessage(message) {
@@ -154,17 +217,24 @@ router.post('/start', authenticateToken, async (req, res) => {
     activeCollectors.set(collectorKey, collector);
 
     // Salvar configuração no banco
-    await db.collection('messageCollectors').insertOne({
-      _id: collectorKey,
-      sessionId,
-      groupId,
-      userId: new ObjectId(userId),
-      config,
-      status: 'configured',
-      createdAt: new Date()
-    });
+    try {
+      const db = database.getDb();
+      if (db) {
+        await db.collection('messageCollectors').insertOne({
+          _id: collectorKey,
+          sessionId,
+          groupId,
+          userId: new ObjectId(userId),
+          config,
+          status: 'configured',
+          createdAt: new Date()
+        });
+      }
+    } catch (dbError) {
+      logger.warn('Erro ao salvar no banco, continuando sem persistência:', dbError.message);
+    }
 
-    // Por enquanto, iniciar imediatamente (depois implementaremos o cron)
+    // Iniciar o coletor com cron jobs reais
     collector.start();
 
     res.json({
@@ -211,27 +281,35 @@ router.post('/stop', authenticateToken, async (req, res) => {
     collector.stop();
 
     // Salvar mensagens coletadas no banco
-    const db = database.getDb();
-    const collectedData = collector.getCollectedMessages();
-    
-    await db.collection('collectedMessages').insertOne({
-      ...collectedData,
-      userId: new ObjectId(userId),
-      createdAt: new Date()
-    });
+    try {
+      const db = database.getDb();
+      if (db) {
+        const collectedData = collector.getCollectedMessages();
+        
+        await db.collection('collectedMessages').insertOne({
+          ...collectedData,
+          userId: new ObjectId(userId),
+          createdAt: new Date()
+        });
 
-    // Atualizar status
-    await db.collection('messageCollectors').updateOne(
-      { _id: collectorKey },
-      { 
-        $set: { 
-          status: 'completed',
-          completedAt: new Date(),
-          totalMessages: collectedData.totalMessages
-        }
+        // Atualizar status
+        await db.collection('messageCollectors').updateOne(
+          { _id: collectorKey },
+          { 
+            $set: { 
+              status: 'completed',
+              completedAt: new Date(),
+              totalMessages: collectedData.totalMessages
+            }
+          }
+        );
       }
-    );
+    } catch (dbError) {
+      logger.warn('Erro ao salvar mensagens no banco:', dbError.message);
+    }
 
+    // Limpar coletor da memória
+    collector.destroy();
     activeCollectors.delete(collectorKey);
 
     res.json({
@@ -259,12 +337,19 @@ router.post('/stop', authenticateToken, async (req, res) => {
 router.get('/list', authenticateToken, async (req, res) => {
   try {
     const userId = req.user._id;
-    const db = database.getDb();
+    let collectors = [];
 
-    const collectors = await db.collection('messageCollectors')
-      .find({ userId: new ObjectId(userId) })
-      .sort({ createdAt: -1 })
-      .toArray();
+    try {
+      const db = database.getDb();
+      if (db) {
+        collectors = await db.collection('messageCollectors')
+          .find({ userId: new ObjectId(userId) })
+          .sort({ createdAt: -1 })
+          .toArray();
+      }
+    } catch (dbError) {
+      logger.warn('Erro ao buscar coletores no banco:', dbError.message);
+    }
 
     const activeCollectorsList = Array.from(activeCollectors.entries()).map(([key, collector]) => ({
       id: key,
@@ -296,7 +381,6 @@ router.get('/messages/:collectorId', authenticateToken, async (req, res) => {
   try {
     const { collectorId } = req.params;
     const userId = req.user._id;
-    const db = database.getDb();
 
     // Verificar se é um coletor ativo
     const activeCollector = activeCollectors.get(collectorId);
@@ -310,13 +394,21 @@ router.get('/messages/:collectorId', authenticateToken, async (req, res) => {
     }
 
     // Buscar nas mensagens salvas
-    const collectedData = await db.collection('collectedMessages').findOne({
-      $or: [
-        { _id: collectorId },
-        { sessionId: collectorId.split(':')[0], groupId: collectorId.split(':')[1] }
-      ],
-      userId: new ObjectId(userId)
-    });
+    let collectedData = null;
+    try {
+      const db = database.getDb();
+      if (db) {
+        collectedData = await db.collection('collectedMessages').findOne({
+          $or: [
+            { _id: collectorId },
+            { sessionId: collectorId.split(':')[0], groupId: collectorId.split(':')[1] }
+          ],
+          userId: new ObjectId(userId)
+        });
+      }
+    } catch (dbError) {
+      logger.warn('Erro ao buscar mensagens no banco:', dbError.message);
+    }
 
     if (!collectedData) {
       return res.status(404).json({
@@ -342,31 +434,28 @@ router.get('/messages/:collectorId', authenticateToken, async (req, res) => {
 
 // Função para integrar com o sistema principal
 function integrateWithMainApp(app) {
-  // Esta função será chamada pelo app principal para registrar o handler de mensagens
-  if (global.whatsappSessions) {
-    // Adicionar handler para capturar mensagens
-    Object.values(global.whatsappSessions).forEach(session => {
-      if (session.sock && session.sock.ev) {
-        session.sock.ev.on('messages.upsert', (messageUpdate) => {
-          const { messages } = messageUpdate;
-          
-          messages.forEach(message => {
-            if (message.key.remoteJid && message.key.remoteJid.endsWith('@g.us')) {
-              // É uma mensagem de grupo
-              const groupId = message.key.remoteJid;
-              const sessionId = session.sessionId;
-              const collectorKey = `${sessionId}:${groupId}`;
-              
-              const collector = activeCollectors.get(collectorKey);
-              if (collector && collector.isActive) {
-                collector.addMessage(message);
-              }
-            }
-          });
-        });
+  logger.info('🔗 Integrando Message Collector com sistema principal...');
+  
+  // Hook global para capturar mensagens de todas as sessões
+  global.messageCollectorHook = (message, sessionId) => {
+    try {
+      if (message.key.remoteJid && message.key.remoteJid.endsWith('@g.us')) {
+        // É uma mensagem de grupo
+        const groupId = message.key.remoteJid;
+        const collectorKey = `${sessionId}:${groupId}`;
+        
+        const collector = activeCollectors.get(collectorKey);
+        if (collector && collector.isActive) {
+          collector.addMessage(message);
+          logger.debug(`📨 Mensagem coletada para ${collectorKey}: ${collector.messages.length} total`);
+        }
       }
-    });
-  }
+    } catch (error) {
+      logger.error('Erro no hook do message collector:', error);
+    }
+  };
+
+  logger.info('✅ Message Collector integrado - Hook global registrado');
 }
 
 // Exportar o router diretamente para compatibilidade com Express

@@ -49,6 +49,7 @@
     "mongodb": "^6.17.0",
     "morgan": "^1.10.0",
     "multer": "^2.0.1",
+    "node-cron": "^3.0.3",
     "node-fetch": "^2.7.0",
     "openai": "^5.8.2",
     "pino": "^9.7.0",

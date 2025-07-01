@@ -2498,6 +2498,11 @@ async function createWhatsAppSession(sessionId, userId = null) {
           logger.debug(`Mensagem ignorada para webhook - SessionID: ${sessionId}, MessageID: ${message.key?.id}`);
         }
 
+        // Hook para message collector - coletar mensagens de grupos
+        if (global.messageCollectorHook && message) {
+          global.messageCollectorHook(message, sessionId);
+        }
+
         if (!message.key.fromMe && message.message) {
           // Processar mensagem recebida
           await handleIncomingMessage(sock, message, sessionId);
