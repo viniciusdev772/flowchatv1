@@ -170,10 +170,14 @@ export default function MessageCollectorManager() {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'active': return 'text-green-400 bg-green-500/20';
-      case 'configured': return 'text-blue-400 bg-blue-500/20';
-      case 'completed': return 'text-gray-400 bg-gray-500/20';
-      default: return 'text-yellow-400 bg-yellow-500/20';
+      case 'active':
+        return 'text-green-600 bg-green-100';
+      case 'configured':
+        return 'text-blue-600 bg-blue-100';
+      case 'completed':
+        return 'text-gray-600 bg-gray-100';
+      default:
+        return 'text-yellow-600 bg-yellow-100';
     }
   };
 
@@ -211,7 +215,7 @@ export default function MessageCollectorManager() {
         
         <motion.button
           onClick={() => setShowCreateModal(true)}
-          className="flex items-center px-4 py-2 bg-blue-500/20 text-blue-400 rounded-xl hover:bg-blue-500/30 transition-colors"
+          className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
         >
@@ -222,7 +226,7 @@ export default function MessageCollectorManager() {
 
       {/* Active Collectors */}
       {activeCollectors.length > 0 && (
-        <div className="glass-performance p-4 rounded-xl">
+        <div className="bg-gray-800 p-4 rounded-xl">
           <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
             <PlayIcon className="w-5 h-5 mr-2 text-green-400" />
             Coletores Ativos ({activeCollectors.length})
@@ -232,7 +236,7 @@ export default function MessageCollectorManager() {
             {activeCollectors.map((collector) => (
               <motion.div
                 key={collector.id}
-                className="glass-performance p-4 rounded-lg border border-green-500/30"
+                className="bg-gray-700 p-4 rounded-lg border border-green-600"
                 whileHover={{ scale: 1.02 }}
               >
                 <div className="flex items-center justify-between mb-2">
@@ -277,7 +281,7 @@ export default function MessageCollectorManager() {
       )}
 
       {/* Collectors List */}
-      <div className="glass-performance p-4 rounded-xl">
+      <div className="bg-gray-800 p-4 rounded-xl">
         <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
           <DocumentTextIcon className="w-5 h-5 mr-2 text-blue-400" />
           Histórico de Coletas ({collectors.length})
@@ -296,7 +300,7 @@ export default function MessageCollectorManager() {
             {collectors.map((collector) => (
               <motion.div
                 key={collector._id}
-                className="glass-performance p-4 rounded-lg border border-white/10 hover:border-white/20 transition-colors"
+                className="bg-gray-700 p-4 rounded-lg border border-gray-600 hover:border-gray-500"
                 whileHover={{ scale: 1.01 }}
               >
                 <div className="flex items-center justify-between">
@@ -334,7 +338,7 @@ export default function MessageCollectorManager() {
                   <div className="flex items-center gap-2 ml-4">
                     <motion.button
                       onClick={() => viewMessages(collector._id)}
-                      className="p-2 text-blue-400 hover:bg-blue-500/20 rounded-lg transition-colors"
+                      className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg"
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.9 }}
                       title="Ver mensagens"
@@ -353,14 +357,14 @@ export default function MessageCollectorManager() {
       <AnimatePresence>
         {showCreateModal && (
           <motion.div
-            className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
+            className="fixed inset-0 bg-gray-800 flex items-center justify-center z-50"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setShowCreateModal(false)}
           >
             <motion.div
-              className="glass-performance p-6 rounded-xl max-w-md w-full mx-4"
+              className="bg-gray-700 p-6 rounded-xl max-w-md w-full mx-4"
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
@@ -380,7 +384,7 @@ export default function MessageCollectorManager() {
                     value={formData.name}
                     onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                     placeholder="Ex: Coleta Grupo Marketing"
-                    className="w-full px-4 py-3 glass-performance rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-500 focus:outline-none border border-white/10"
+                    className="w-full px-4 py-3 bg-gray-700 rounded-xl text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:outline-none border border-gray-600"
                   />
                 </div>
 
@@ -391,7 +395,7 @@ export default function MessageCollectorManager() {
                   <select
                     value={formData.sessionId}
                     onChange={(e) => setFormData(prev => ({ ...prev, sessionId: e.target.value }))}
-                    className="w-full px-4 py-3 glass-performance rounded-xl text-white focus:ring-2 focus:ring-blue-500 focus:outline-none border border-white/10"
+                    className="w-full px-4 py-3 bg-gray-700 rounded-xl text-white focus:ring-2 focus:ring-blue-500 focus:outline-none border border-gray-600"
                   >
                     <option value="">Selecione uma sessão</option>
                     {sessions.map((session) => (
@@ -411,7 +415,7 @@ export default function MessageCollectorManager() {
                     value={formData.groupId}
                     onChange={(e) => setFormData(prev => ({ ...prev, groupId: e.target.value }))}
                     placeholder="120123456789@g.us"
-                    className="w-full px-4 py-3 glass-performance rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-500 focus:outline-none border border-white/10"
+                    className="w-full px-4 py-3 bg-gray-700 rounded-xl text-white placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:outline-none border border-gray-600"
                   />
                 </div>
 
@@ -426,7 +430,7 @@ export default function MessageCollectorManager() {
                       max="23"
                       value={formData.startHour}
                       onChange={(e) => setFormData(prev => ({ ...prev, startHour: parseInt(e.target.value) }))}
-                      className="w-full px-4 py-3 glass-performance rounded-xl text-white focus:ring-2 focus:ring-blue-500 focus:outline-none border border-white/10"
+                      className="w-full px-4 py-3 bg-gray-700 rounded-xl text-white focus:ring-2 focus:ring-blue-500 focus:outline-none border border-gray-600"
                     />
                   </div>
 
@@ -440,13 +444,13 @@ export default function MessageCollectorManager() {
                       max="23"
                       value={formData.endHour}
                       onChange={(e) => setFormData(prev => ({ ...prev, endHour: parseInt(e.target.value) }))}
-                      className="w-full px-4 py-3 glass-performance rounded-xl text-white focus:ring-2 focus:ring-blue-500 focus:outline-none border border-white/10"
+                      className="w-full px-4 py-3 bg-gray-700 rounded-xl text-white focus:ring-2 focus:ring-blue-500 focus:outline-none border border-gray-600"
                     />
                   </div>
                 </div>
 
-                <div className="bg-blue-500/20 p-4 rounded-xl border border-blue-500/30">
-                  <p className="text-blue-300 text-sm">
+                <div className="bg-blue-100 p-4 rounded-xl border border-blue-200">
+                  <p className="text-blue-700 text-sm">
                     <strong>Importante:</strong> O coletor capturará TODAS as mensagens de texto do grupo durante o horário especificado, incluindo spam.
                   </p>
                 </div>
@@ -456,16 +460,16 @@ export default function MessageCollectorManager() {
                 <motion.button
                   onClick={createCollector}
                   disabled={!formData.sessionId || !formData.groupId}
-                  className="flex-1 py-3 bg-blue-500/20 text-blue-400 rounded-xl hover:bg-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  className="flex-1 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                 >
                   Criar Coletor
                 </motion.button>
-                
+
                 <motion.button
                   onClick={() => setShowCreateModal(false)}
-                  className="flex-1 py-3 glass-performance rounded-xl text-white/70 hover:text-white transition-colors"
+                  className="flex-1 py-3 bg-gray-600 rounded-xl text-white hover:bg-gray-700"
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                 >
@@ -481,14 +485,14 @@ export default function MessageCollectorManager() {
       <AnimatePresence>
         {showMessagesModal && (
           <motion.div
-            className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
+            className="fixed inset-0 bg-gray-800 flex items-center justify-center z-50"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setShowMessagesModal(false)}
           >
             <motion.div
-              className="glass-performance rounded-xl max-w-4xl w-full mx-4 max-h-[80vh] overflow-hidden flex flex-col"
+              className="bg-gray-700 rounded-xl max-w-4xl w-full mx-4 max-h-[80vh] overflow-hidden flex flex-col"
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.9 }}
@@ -509,7 +513,7 @@ export default function MessageCollectorManager() {
                   
                   <motion.button
                     onClick={() => setShowMessagesModal(false)}
-                    className="p-2 text-white/70 hover:text-white rounded-lg hover:bg-white/10 transition-colors"
+                    className="p-2 text-gray-300 hover:text-white rounded-lg hover:bg-gray-600"
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
                   >
@@ -529,7 +533,7 @@ export default function MessageCollectorManager() {
                     {collectedMessages.map((message, index) => (
                       <motion.div
                         key={index}
-                        className="glass-performance p-3 rounded-lg border border-white/10"
+                        className="bg-gray-600 p-3 rounded-lg border border-gray-500"
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: index * 0.05 }}
