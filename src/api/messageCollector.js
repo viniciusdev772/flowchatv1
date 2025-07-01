@@ -5,22 +5,25 @@ const database = require('../config/database');
 const logger = require('pino')();
 const { authenticateToken } = require('../middleware/auth');
 const cron = require('node-cron');
+const { v4: uuidv4 } = require('uuid');
 
 // Map apenas para jobs de cron (não podem ser persistidos no DB)
 const activeCronJobs = new Map(); // collectorKey -> cron job
 
 // Funções auxiliares para persistência no MongoDB
-async function createCollectorInDB(collectorKey, sessionId, groupId, userId, config) {
+async function createCollectorInDB(sessionId, groupId, userId, config) {
   try {
     const db = database.getDb();
     if (!db) throw new Error('Database não disponível');
 
     const now = new Date();
     const currentHour = now.getHours();
-    const isActive = currentHour >= config.startHour && currentHour < config.endHour;
+    const isActive =
+      currentHour >= config.startHour && currentHour < config.endHour;
+    const collectorId = uuidv4();
 
     await db.collection('messageCollectors').insertOne({
-      _id: collectorKey,
+      _id: collectorId,
       sessionId,
       groupId,
       userId: new ObjectId(userId),
@@ -31,28 +34,28 @@ async function createCollectorInDB(collectorKey, sessionId, groupId, userId, con
       startTime: isActive ? now : null,
       endTime: null,
       createdAt: now,
-      lastActivity: now
+      lastActivity: now,
     });
 
-    return true;
+    return collectorId;
   } catch (error) {
     logger.error('Erro ao criar coletor no DB:', error);
-    return false;
+    return null;
   }
 }
 
-async function updateCollectorStatus(collectorKey, updates) {
+async function updateCollectorStatus(collectorId, updates) {
   try {
     const db = database.getDb();
     if (!db) return false;
 
     await db.collection('messageCollectors').updateOne(
-      { _id: collectorKey },
-      { 
-        $set: { 
+      { _id: collectorId },
+      {
+        $set: {
           ...updates,
-          lastActivity: new Date()
-        }
+          lastActivity: new Date(),
+        },
       }
     );
     return true;
@@ -62,24 +65,24 @@ async function updateCollectorStatus(collectorKey, updates) {
   }
 }
 
-async function addMessageToDB(collectorKey, messageData) {
+async function addMessageToDB(collectorId, messageData) {
   try {
     const db = database.getDb();
     if (!db) return false;
 
     // Adicionar mensagem à collection de mensagens coletadas
     await db.collection('collectedMessages').insertOne({
-      collectorKey,
+      collectorId,
       ...messageData,
-      collectedAt: new Date()
+      collectedAt: new Date(),
     });
 
     // Incrementar contador no coletor
     await db.collection('messageCollectors').updateOne(
-      { _id: collectorKey },
-      { 
+      { _id: collectorId },
+      {
         $inc: { totalMessages: 1 },
-        $set: { lastActivity: new Date() }
+        $set: { lastActivity: new Date() },
       }
     );
 
@@ -95,7 +98,8 @@ async function getActiveCollectors() {
     const db = database.getDb();
     if (!db) return [];
 
-    return await db.collection('messageCollectors')
+    return await db
+      .collection('messageCollectors')
       .find({ status: 'active' })
       .toArray();
   } catch (error) {
@@ -112,7 +116,7 @@ function extractTextFromMessage(message) {
   if (message.message.conversation) {
     return message.message.conversation;
   }
-  
+
   if (message.message.extendedTextMessage) {
     return message.message.extendedTextMessage.text;
   }
@@ -133,43 +137,59 @@ function extractTextFromMessage(message) {
 }
 
 // Função para configurar cron jobs
-function setupCronJobs(collectorKey, config) {
+function setupCronJobs(collectorId, config) {
   const startCron = `0 ${config.startHour} * * *`;
   const stopCron = `0 ${config.endHour} * * *`;
-  
+
   // Job para iniciar coleta diariamente
-  const startJob = cron.schedule(startCron, async () => {
-    await updateCollectorStatus(collectorKey, { 
-      isActive: true, 
-      startTime: new Date(),
-      totalMessages: 0 
-    });
-    logger.info(`🕒 Cron: Iniciando coleta para ${collectorKey} às ${config.startHour}h`);
-  }, {
-    scheduled: true,
-    timezone: config.timezone || 'America/Sao_Paulo'
-  });
+  const startJob = cron.schedule(
+    startCron,
+    async () => {
+      await updateCollectorStatus(collectorId, {
+        isActive: true,
+        startTime: new Date(),
+        totalMessages: 0,
+      });
+      logger.info(
+        `🕒 Cron: Iniciando coleta para ${collectorId} às ${config.startHour}h`
+      );
+    },
+    {
+      scheduled: true,
+      timezone: config.timezone || 'America/Sao_Paulo',
+    }
+  );
 
   // Job para parar coleta diariamente
-  const stopJob = cron.schedule(stopCron, async () => {
-    await updateCollectorStatus(collectorKey, { 
-      isActive: false, 
-      endTime: new Date() 
-    });
-    logger.info(`🕒 Cron: Parando coleta para ${collectorKey} às ${config.endHour}h`);
-  }, {
-    scheduled: true,
-    timezone: config.timezone || 'America/Sao_Paulo'
-  });
+  const stopJob = cron.schedule(
+    stopCron,
+    async () => {
+      await updateCollectorStatus(collectorId, {
+        isActive: false,
+        endTime: new Date(),
+      });
+      logger.info(
+        `🕒 Cron: Parando coleta para ${collectorId} às ${config.endHour}h`
+      );
+    },
+    {
+      scheduled: true,
+      timezone: config.timezone || 'America/Sao_Paulo',
+    }
+  );
 
   // Armazenar jobs para cleanup posterior
-  activeCronJobs.set(collectorKey, { startJob, stopJob });
+  activeCronJobs.set(collectorId, { startJob, stopJob });
 }
 
 // Função auxiliar para verificar se o usuário possui a sessão (mesma lógica do app principal)
 function checkUserSessionPermission(sessionId, userId) {
   if (!global.whatsappSessions) {
-    return { success: false, error: 'Sistema de sessões não inicializado', status: 500 };
+    return {
+      success: false,
+      error: 'Sistema de sessões não inicializado',
+      status: 500,
+    };
   }
 
   const session = global.whatsappSessions.get(sessionId);
@@ -180,9 +200,13 @@ function checkUserSessionPermission(sessionId, userId) {
   // Verificar se o usuário é dono da sessão
   const sessionUserId = session.userId.toString();
   const requestUserId = userId.toString();
-  
+
   if (sessionUserId !== requestUserId) {
-    return { success: false, error: 'Você não tem permissão para essa sessão', status: 403 };
+    return {
+      success: false,
+      error: 'Você não tem permissão para essa sessão',
+      status: 403,
+    };
   }
 
   return { success: true, session };
@@ -195,10 +219,16 @@ router.post('/start', authenticateToken, async (req, res) => {
     const { sessionId, groupId, startHour, endHour, timezone, name } = req.body;
     const userId = req.user._id;
 
-    if (!sessionId || !groupId || startHour === undefined || endHour === undefined) {
+    if (
+      !sessionId ||
+      !groupId ||
+      startHour === undefined ||
+      endHour === undefined
+    ) {
       return res.status(400).json({
         success: false,
-        message: 'Parâmetros obrigatórios: sessionId, groupId, startHour, endHour'
+        message:
+          'Parâmetros obrigatórios: sessionId, groupId, startHour, endHour',
       });
     }
 
@@ -207,7 +237,7 @@ router.post('/start', authenticateToken, async (req, res) => {
     if (!sessionCheck.success) {
       return res.status(sessionCheck.status).json({
         success: false,
-        message: sessionCheck.error
+        message: sessionCheck.error,
       });
     }
 
@@ -217,34 +247,36 @@ router.post('/start', authenticateToken, async (req, res) => {
       endHour,
       timezone: timezone || 'America/Sao_Paulo',
       createdAt: new Date(),
-      userId: new ObjectId(userId)
+      userId: new ObjectId(userId),
     };
 
     // Criar coletor no banco de dados
-    const collectorKey = `${sessionId}:${groupId}`;
-    
-    const success = await createCollectorInDB(collectorKey, sessionId, groupId, userId, config);
-    if (!success) {
+    const collectorId = await createCollectorInDB(
+      sessionId,
+      groupId,
+      userId,
+      config
+    );
+    if (!collectorId) {
       return res.status(500).json({
         success: false,
-        message: 'Erro ao criar coletor no banco de dados'
+        message: 'Erro ao criar coletor no banco de dados',
       });
     }
 
     // Configurar cron jobs
-    setupCronJobs(collectorKey, config);
+    setupCronJobs(collectorId, config);
 
     res.json({
       success: true,
       message: 'Coletor de mensagens configurado e iniciado',
-      collectorId: collectorKey
+      collectorId: collectorId,
     });
-
   } catch (error) {
     logger.error('Erro ao iniciar coletor:', error);
     res.status(500).json({
       success: false,
-      message: 'Erro interno do servidor'
+      message: 'Erro interno do servidor',
     });
   }
 });
@@ -261,50 +293,51 @@ router.post('/stop', authenticateToken, async (req, res) => {
     if (!sessionCheck.success) {
       return res.status(sessionCheck.status).json({
         success: false,
-        message: sessionCheck.error
+        message: sessionCheck.error,
       });
     }
 
-    const collectorKey = `${sessionId}:${groupId}`;
-    
+    const collectorId = `${sessionId}:${groupId}`;
+
     // Verificar se o coletor existe no banco
     try {
       const db = database.getDb();
       if (!db) {
         return res.status(500).json({
           success: false,
-          message: 'Banco de dados não disponível'
+          message: 'Banco de dados não disponível',
         });
       }
 
-      const collector = await db.collection('messageCollectors').findOne({ _id: collectorKey });
+      const collector = await db
+        .collection('messageCollectors')
+        .findOne({ _id: collectorId });
       if (!collector) {
         return res.status(404).json({
           success: false,
-          message: 'Coletor não encontrado'
+          message: 'Coletor não encontrado',
         });
       }
 
       // Parar cron jobs
-      const cronJobs = activeCronJobs.get(collectorKey);
+      const cronJobs = activeCronJobs.get(collectorId);
       if (cronJobs) {
         cronJobs.startJob.stop();
         cronJobs.stopJob.stop();
-        activeCronJobs.delete(collectorKey);
+        activeCronJobs.delete(collectorId);
       }
 
       // Atualizar status para completed
-      await updateCollectorStatus(collectorKey, {
+      await updateCollectorStatus(collectorId, {
         status: 'completed',
         isActive: false,
-        endTime: new Date()
+        endTime: new Date(),
       });
-
     } catch (dbError) {
       logger.error('Erro ao parar coletor:', dbError);
       return res.status(500).json({
         success: false,
-        message: 'Erro interno do servidor'
+        message: 'Erro interno do servidor',
       });
     }
 
@@ -315,15 +348,14 @@ router.post('/stop', authenticateToken, async (req, res) => {
         totalMessages: collectedData.totalMessages,
         duration: collectedData.endTime - collectedData.startTime,
         startTime: collectedData.startTime,
-        endTime: collectedData.endTime
-      }
+        endTime: collectedData.endTime,
+      },
     });
-
   } catch (error) {
     logger.error('Erro ao parar coletor:', error);
     res.status(500).json({
       success: false,
-      message: 'Erro interno do servidor'
+      message: 'Erro interno do servidor',
     });
   }
 });
@@ -338,7 +370,8 @@ router.get('/list', authenticateToken, async (req, res) => {
     try {
       const db = database.getDb();
       if (db) {
-        collectors = await db.collection('messageCollectors')
+        collectors = await db
+          .collection('messageCollectors')
           .find({ userId: new ObjectId(userId) })
           .sort({ createdAt: -1 })
           .toArray();
@@ -349,26 +382,25 @@ router.get('/list', authenticateToken, async (req, res) => {
 
     // Buscar coletores ativos diretamente do banco
     const activeCollectorsList = await getActiveCollectors();
-    const activeFormatted = activeCollectorsList.map(collector => ({
+    const activeFormatted = activeCollectorsList.map((collector) => ({
       id: collector._id,
       sessionId: collector.sessionId,
       groupId: collector.groupId,
       isActive: collector.isActive,
       currentMessages: collector.totalMessages || 0,
-      startTime: collector.startTime
+      startTime: collector.startTime,
     }));
 
     res.json({
       success: true,
       collectors,
-      active: activeFormatted
+      active: activeFormatted,
     });
-
   } catch (error) {
     logger.error('Erro ao listar coletores:', error);
     res.status(500).json({
       success: false,
-      message: 'Erro interno do servidor'
+      message: 'Erro interno do servidor',
     });
   }
 });
@@ -385,7 +417,9 @@ router.get('/messages/:collectorId', authenticateToken, async (req, res) => {
     try {
       const db = database.getDb();
       if (db) {
-        collector = await db.collection('messageCollectors').findOne({ _id: collectorId });
+        collector = await db
+          .collection('messageCollectors')
+          .findOne({ _id: collectorId });
       }
     } catch (dbError) {
       logger.warn('Erro ao buscar coletor:', dbError.message);
@@ -397,8 +431,9 @@ router.get('/messages/:collectorId', authenticateToken, async (req, res) => {
       try {
         const db = database.getDb();
         if (db) {
-          messages = await db.collection('collectedMessages')
-            .find({ collectorKey: collectorId })
+          messages = await db
+            .collection('collectedMessages')
+            .find({ collectorId })
             .sort({ collectedAt: 1 })
             .toArray();
         }
@@ -415,9 +450,9 @@ router.get('/messages/:collectorId', authenticateToken, async (req, res) => {
           totalMessages: collector.totalMessages || 0,
           startTime: collector.startTime,
           endTime: collector.endTime,
-          messages: messages
+          messages: messages,
         },
-        isActive: collector.isActive
+        isActive: collector.isActive,
       });
     }
 
@@ -429,9 +464,12 @@ router.get('/messages/:collectorId', authenticateToken, async (req, res) => {
         collectedData = await db.collection('collectedMessages').findOne({
           $or: [
             { _id: collectorId },
-            { sessionId: collectorId.split(':')[0], groupId: collectorId.split(':')[1] }
+            {
+              sessionId: collectorId.split(':')[0],
+              groupId: collectorId.split(':')[1],
+            },
           ],
-          userId: new ObjectId(userId)
+          userId: new ObjectId(userId),
         });
       }
     } catch (dbError) {
@@ -441,21 +479,20 @@ router.get('/messages/:collectorId', authenticateToken, async (req, res) => {
     if (!collectedData) {
       return res.status(404).json({
         success: false,
-        message: 'Mensagens coletadas não encontradas'
+        message: 'Mensagens coletadas não encontradas',
       });
     }
 
     res.json({
       success: true,
       data: collectedData,
-      isActive: false
+      isActive: false,
     });
-
   } catch (error) {
     logger.error('Erro ao obter mensagens:', error);
     res.status(500).json({
       success: false,
-      message: 'Erro interno do servidor'
+      message: 'Erro interno do servidor',
     });
   }
 });
@@ -463,23 +500,23 @@ router.get('/messages/:collectorId', authenticateToken, async (req, res) => {
 // Função para integrar com o sistema principal
 function integrateWithMainApp(app) {
   logger.info('🔗 Integrando Message Collector com sistema principal...');
-  
+
   // Hook global para capturar mensagens de todas as sessões - agora usando MongoDB
   global.messageCollectorHook = async (message, sessionId) => {
     try {
       if (message.key.remoteJid && message.key.remoteJid.endsWith('@g.us')) {
         // É uma mensagem de grupo
         const groupId = message.key.remoteJid;
-        const collectorKey = `${sessionId}:${groupId}`;
-        
+        const collectorId = `${sessionId}:${groupId}`;
+
         // Verificar se existe coletor ativo para este grupo
         const db = database.getDb();
         if (!db) return;
 
         const collector = await db.collection('messageCollectors').findOne({
-          _id: collectorKey,
+          _id: collectorId,
           status: 'active',
-          isActive: true
+          isActive: true,
         });
 
         if (collector) {
@@ -494,12 +531,16 @@ function integrateWithMainApp(app) {
             text: messageText,
             pushName: message.pushName || 'Usuário',
             sessionId: sessionId,
-            groupId: groupId
+            groupId: groupId,
           };
 
           // Salvar mensagem no banco
-          await addMessageToDB(collectorKey, messageData);
-          logger.debug(`📨 Mensagem coletada para ${collectorKey} - Total: ${collector.totalMessages + 1}`);
+          await addMessageToDB(collectorId, messageData);
+          logger.debug(
+            `📨 Mensagem coletada para ${collectorId} - Total: ${
+              collector.totalMessages + 1
+            }`
+          );
         }
       }
     } catch (error) {
