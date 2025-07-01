@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(rg:*)",
+      "Bash(if [ -f .env ])",
+      "Bash(then grep -E \"MONGODB_URI|DB_NAME\" .env)",
+      "Bash(else echo \"No .env file found\")",
+      "Bash(fi)",
+      "Bash(echo:*)",
+      "Bash(grep:*)"
+    ],
+    "deny": []
+  }
+}
