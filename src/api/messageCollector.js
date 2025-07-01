@@ -345,9 +345,10 @@ function integrateWithMainApp(app) {
   }
 }
 
-module.exports = {
-  router,
-  integrateWithMainApp,
-  MessageCollector,
-  activeCollectors
-};
+// Exportar o router diretamente para compatibilidade com Express
+module.exports = router;
+
+// Exportar outras funcionalidades como propriedades do router
+router.integrateWithMainApp = integrateWithMainApp;
+router.MessageCollector = MessageCollector;
+router.activeCollectors = activeCollectors;
