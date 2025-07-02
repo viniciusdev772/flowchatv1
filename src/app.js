@@ -5095,4 +5095,4 @@ process.on('SIGINT', async () => {
 // Disponibilizar função de criação de sessão globalmente
 global.createWhatsAppSession = createWhatsAppSession;
 
-module.exports = { app, getSessions, initializeApp, createWhatsAppSession, getEnrichedSessionData };
+module.exports = { app, getSessions, initializeApp, createWhatsAppSession, getEnrichedSessionData, saveDownloadMetadata };

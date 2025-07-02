@@ -2750,6 +2750,8 @@ const toolImplementations = {
           if (!fs.existsSync(downloadsDir)) {
             fs.mkdirSync(downloadsDir, { recursive: true });
           }
+          
+          console.log(`📁 Salvando download em: ${downloadsDir}`);
 
           const safeFileName = `${downloadId}_${finalFilename.replace(
             /[^a-zA-Z0-9._-]/g,
@@ -2784,14 +2786,17 @@ const toolImplementations = {
               ).toFixed(2)}KB)`
             );
 
-            // Gerar URL de download
-            const baseUrl =
-              process.env.CORS_ORIGIN ||
-              `http://localhost:${process.env.PORT || 3000}`;
-            const serverUrl = baseUrl.replace(
-              '5173',
-              process.env.PORT || '3000'
-            );
+            // Gerar URL de download - usar sempre a URL do backend
+            const serverPort = process.env.PORT || 3000;
+            let serverUrl;
+            
+            // Se CORS_ORIGIN é de produção, usar ela; senão usar localhost com porta do backend
+            if (process.env.CORS_ORIGIN && !process.env.CORS_ORIGIN.includes('localhost:5173')) {
+              serverUrl = process.env.CORS_ORIGIN;
+            } else {
+              serverUrl = `http://localhost:${serverPort}`;
+            }
+            
             const downloadUrl = `${serverUrl}/api/baileys/download/${downloadId}`;
 
             // Salvar metadados no banco para permitir acesso via URL
