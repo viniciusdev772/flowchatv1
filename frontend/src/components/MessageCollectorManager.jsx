@@ -215,24 +215,28 @@ export default function MessageCollectorManager() {
 
     const sortedMessages = [...messages].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
     
-    let content = `# Conversa WhatsApp - ${collectorInfo?.sessionId || 'Coletor'}\\n\\n`;
-    content += `**Data de Exportação:** ${new Date().toLocaleString('pt-BR')}\\n`;
-    content += `**Total de Mensagens:** ${messages.length}\\n`;
-    content += `**Sessão:** ${collectorInfo?.sessionId || 'N/A'}\\n`;
-    content += `**Grupo:** ${collectorInfo?.groupId?.split('@')[0] || 'N/A'}\\n`;
+    let content = `CONVERSA WHATSAPP - ${collectorInfo?.sessionId || 'COLETOR'}\n`;
+    content += `${'='.repeat(60)}\n\n`;
+    content += `Data de Exportação: ${new Date().toLocaleString('pt-BR')}\n`;
+    content += `Total de Mensagens: ${messages.length}\n`;
+    content += `Sessão: ${collectorInfo?.sessionId || 'N/A'}\n`;
+    content += `Grupo: ${collectorInfo?.groupId?.split('@')[0] || 'N/A'}\n`;
     
     if (sortedMessages.length > 0) {
-      content += `**Período:** ${new Date(sortedMessages[0]?.timestamp).toLocaleString('pt-BR')} até ${new Date(sortedMessages[sortedMessages.length - 1]?.timestamp).toLocaleString('pt-BR')}\\n\\n`;
+      content += `Período: ${new Date(sortedMessages[0]?.timestamp).toLocaleString('pt-BR')} até ${new Date(sortedMessages[sortedMessages.length - 1]?.timestamp).toLocaleString('pt-BR')}\n\n`;
     }
     
     // Estatísticas de usuários
-    content += `## 📊 Estatísticas de Participantes\\n\\n`;
+    content += `ESTATÍSTICAS DE PARTICIPANTES\n`;
+    content += `${'-'.repeat(35)}\n\n`;
+    content += `Top Participantes:\n`;
     topUsers.forEach(([phone, data], index) => {
       const cleanPhone = phone.replace('@s.whatsapp.net', '').replace('@c.us', '');
-      content += `${index + 1}. **${data.pushName}** (${cleanPhone}) - ${data.count} mensagem${data.count > 1 ? 's' : ''}\\n`;
+      content += `${index + 1}. ${data.pushName} (${cleanPhone}) - ${data.count} mensagem${data.count > 1 ? 's' : ''}\n`;
     });
     
-    content += `\\n## 💬 Mensagens\\n\\n`;
+    content += `\nMENSAGENS\n`;
+    content += `${'-'.repeat(25)}\n\n`;
     
     sortedMessages.forEach((message) => {
       const time = new Date(message.timestamp).toLocaleTimeString('pt-BR', { 
@@ -245,16 +249,19 @@ export default function MessageCollectorManager() {
         .replace('@c.us', '');
       const name = message.pushName || 'Usuário';
       
-      content += `**[${date} ${time}] ${name} (${phone}):** ${message.text || '[Mídia]'}\\n\\n`;
+      content += `[${date} ${time}] ${name} (${phone})\n`;
+      content += `${message.text || '[Mídia não disponível]'}\n`;
+      content += `${'-'.repeat(60)}\n\n`;
     });
     
-    content += `\\n---\\n*Exportado por FlowChat API*`;
+    content += `Exportado por FlowChat API em ${new Date().toLocaleString('pt-BR')}\n`;
+    content += `Esta conversa foi coletada automaticamente.`;
 
-    const blob = new Blob([content], { type: 'text/markdown' });
+    const blob = new Blob([content], { type: 'text/plain; charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `conversa-${collectorInfo?.sessionId || 'coletor'}-${new Date().toISOString().split('T')[0]}.md`;
+    a.download = `conversa-${collectorInfo?.sessionId || 'coletor'}-${new Date().toISOString().split('T')[0]}.txt`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -765,12 +772,13 @@ export default function MessageCollectorManager() {
                   <div className="flex items-center space-x-2">
                     <motion.button
                       onClick={() => exportConversation(collectedMessages, selectedCollector)}
-                      className="flex items-center px-3 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors text-sm font-medium"
+                      className="flex items-center px-3 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors text-sm font-medium"
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
+                      title="Exportar como texto simples"
                     >
                       <ArrowDownTrayIcon className="w-4 h-4 mr-1" />
-                      Exportar Conversa
+                      Exportar TXT
                     </motion.button>
                     
                     {summaryData && (
