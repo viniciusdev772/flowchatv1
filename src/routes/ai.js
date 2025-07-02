@@ -623,18 +623,40 @@ Responda em português brasileiro de forma técnica, prática e orientada a resu
             }
           }
 
-          // Se não houve conteúdo da IA, mostrar resumo das tools executadas
+          // Se não houve conteúdo da IA, forçar nova geração de resposta baseada nos resultados
           if (!hasContent) {
-            res.write(
-              JSON.stringify({
-                type: 'content',
-                content: `\n\n✅ Ferramentas executadas com sucesso: ${functionCalls
-                  .map((fc) => fc.function.name)
-                  .join(
-                    ', '
-                  )}\n\nResultados processados. Continue com as próximas ações conforme necessário.`,
-              }) + '\n'
-            );
+            console.log('⚠️ IA não retornou conteúdo, forçando análise dos resultados das tools');
+            
+            // Criar prompt específico para analisar os resultados das tools
+            const analyzeResults = await openaiInstance.chat.completions.create({
+              model: 'gpt-4.1',
+              messages: [
+                {
+                  role: 'system',
+                  content: `Você é uma IA assistente que deve sempre analisar e explicar os resultados das ferramentas executadas. Nunca apenas confirme que as ferramentas foram executadas - SEMPRE processe e apresente os dados obtidos de forma útil para o usuário.`
+                },
+                {
+                  role: 'user', 
+                  content: `Analise os resultados das seguintes ferramentas que foram executadas: ${functionCalls.map(fc => fc.function.name).join(', ')}.\n\nResultados obtidos:\n${toolResults.map(tr => `${tr.tool}: ${typeof tr.result === 'string' ? tr.result : JSON.stringify(tr.result, null, 2)}`).join('\n\n')}\n\nPor favor, processe esses dados e forneça uma resposta útil baseada nos resultados obtidos.`
+                }
+              ],
+              temperature: 0.7,
+              max_tokens: 1000,
+              stream: true,
+            });
+
+            for await (const chunk of analyzeResults) {
+              const delta = chunk.choices[0]?.delta;
+              if (delta?.content) {
+                accumulatedContent += delta.content;
+                res.write(
+                  JSON.stringify({
+                    type: 'content',
+                    content: delta.content,
+                  }) + '\n'
+                );
+              }
+            }
           }
         } catch (error) {
           console.error('Erro na resposta final da IA:', error);
@@ -666,15 +688,42 @@ Responda em português brasileiro de forma técnica, prática e orientada a resu
           } catch (fallbackError) {
             console.error('Erro na resposta de fallback:', fallbackError);
 
-            // Última tentativa: mostrar resumo das tools executadas
+            // Última tentativa: forçar análise dos resultados mesmo em caso de erro
+            console.log('🚨 Fallback final - gerando resposta baseada nos resultados das tools');
+            
+            const fallbackContent = `Executei as seguintes ferramentas: **${functionCalls.map(fc => fc.function.name).join(', ')}**\n\n` +
+              toolResults.map(tr => {
+                const toolName = tr.tool;
+                let result = tr.result;
+                
+                // Processar resultado baseado no tipo de tool
+                if (toolName === 'listGroups') {
+                  try {
+                    const parsed = typeof result === 'string' ? JSON.parse(result) : result;
+                    if (parsed.groups && Array.isArray(parsed.groups)) {
+                      return `📋 **${toolName}**: Encontrados ${parsed.groups.length} grupos:\n${parsed.groups.slice(0, 3).map(g => `• ${g.name} (${g.participants.total} participantes)`).join('\n')}${parsed.groups.length > 3 ? `\n• ... e mais ${parsed.groups.length - 3} grupos` : ''}`;
+                    }
+                  } catch (e) {}
+                }
+                
+                if (toolName === 'getMessageHistory') {
+                  try {
+                    const parsed = typeof result === 'string' ? JSON.parse(result) : result;
+                    if (parsed.messages && Array.isArray(parsed.messages)) {
+                      return `💬 **${toolName}**: Obtidas ${parsed.messages.length} mensagens do grupo`;
+                    }
+                  } catch (e) {}
+                }
+                
+                // Resultado genérico
+                const resultStr = typeof result === 'string' ? result : JSON.stringify(result, null, 2);
+                return `✅ **${toolName}**: ${resultStr.length > 200 ? resultStr.substring(0, 200) + '...' : resultStr}`;
+              }).join('\n\n');
+              
             res.write(
               JSON.stringify({
                 type: 'content',
-                content: `\n\n✅ Ferramentas executadas com sucesso: ${functionCalls
-                  .map((fc) => fc.function.name)
-                  .join(
-                    ', '
-                  )}\n\n🔄 Resultados processados. Continue automaticamente com as próximas ações usando os dados obtidos.`,
+                content: fallbackContent,
               }) + '\n'
             );
           }
@@ -865,11 +914,7 @@ router.get('/health', async (req, res) => {
     const openaiInstance = createOpenAIInstance(customApiKey);
 
     // Teste simples com OpenAI
-    const testCompletion = await openaiInstance.chat.completions.create({
-      model: 'gpt-4.1',
-      messages: [{ role: 'user', content: 'Test' }],
-      max_tokens: 5,
-    });
+    
 
     res.json({
       success: true,
