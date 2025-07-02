@@ -248,7 +248,7 @@ export default function AISummaryPanel({ collectedMessages, collectorId }) {
     return { phoneStats, hourStats, topUsers };
   };
 
-  const exportConversation = () => {
+  const exportAsText = () => {
     if (!collectedMessages || collectedMessages.length === 0) {
       alert('Nenhuma mensagem para exportar');
       return;
@@ -257,18 +257,31 @@ export default function AISummaryPanel({ collectedMessages, collectorId }) {
     const stats = analyzeMessageStats(collectedMessages);
     const sortedMessages = [...collectedMessages].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
     
-    let content = `# Conversa WhatsApp - Exportação\n\n`;
-    content += `**Data de Exportação:** ${new Date().toLocaleString('pt-BR')}\n\n`;
-    content += `**Total de Mensagens:** ${collectedMessages.length}\n\n`;
-    content += `**Período:** ${new Date(sortedMessages[0]?.timestamp).toLocaleString('pt-BR')} até ${new Date(sortedMessages[sortedMessages.length - 1]?.timestamp).toLocaleString('pt-BR')}\n\n`;
+    let content = `CONVERSA WHATSAPP - EXPORTAÇÃO\n`;
+    content += `${'='.repeat(50)}\n\n`;
+    content += `Data de Exportação: ${new Date().toLocaleString('pt-BR')}\n`;
+    content += `Total de Mensagens: ${collectedMessages.length}\n`;
+    content += `Período: ${new Date(sortedMessages[0]?.timestamp).toLocaleString('pt-BR')} até ${new Date(sortedMessages[sortedMessages.length - 1]?.timestamp).toLocaleString('pt-BR')}\n`;
+    content += `Participantes: ${stats.topUsers.length}\n\n`;
     
     // Estatísticas de usuários
-    content += `## 📊 Estatísticas de Participantes\n\n`;
+    content += `ESTATÍSTICAS DE PARTICIPANTES\n`;
+    content += `${'-'.repeat(30)}\n\n`;
+    content += `Top Participantes:\n`;
     stats.topUsers.forEach(([phone, data], index) => {
-      content += `${index + 1}. **${data.pushName}** (${phone.replace('@s.whatsapp.net', '')}) - ${data.count} mensagem${data.count > 1 ? 's' : ''}\n\n`;
+      content += `${index + 1}. ${data.pushName} (${phone.replace('@s.whatsapp.net', '')}) - ${data.count} mensagem${data.count > 1 ? 's' : ''}\n`;
     });
     
-    content += `## 💬 Mensagens\n\n`;
+    content += `\nHorários Mais Ativos:\n`;
+    Object.entries(stats.hourStats)
+      .sort(([,a], [,b]) => b - a)
+      .slice(0, 8)
+      .forEach(([hour, count]) => {
+        content += `${hour}h: ${count} mensagens\n`;
+      });
+    
+    content += `\nMENSAGENS\n`;
+    content += `${'-'.repeat(20)}\n\n`;
     
     sortedMessages.forEach((message, index) => {
       const time = new Date(message.timestamp).toLocaleTimeString('pt-BR', { 
@@ -279,16 +292,276 @@ export default function AISummaryPanel({ collectedMessages, collectorId }) {
       const phone = (message.phone || message.from || 'Desconhecido').replace('@s.whatsapp.net', '');
       const name = message.pushName || 'Usuário';
       
-      content += `**[${date} ${time}] ${name} (${phone}):**\n\n${message.text || '[Mídia]'}\n\n---\n\n`;
+      content += `[${date} ${time}] ${name} (${phone})\n`;
+      content += `${message.text || '[Mídia não disponível]'}\n`;
+      content += `${'-'.repeat(50)}\n\n`;
     });
     
-    content += `*Exportado por FlowChat API*`;
+    content += `Exportado por FlowChat API em ${new Date().toLocaleString('pt-BR')}\n`;
+    content += `Esta conversa foi coletada automaticamente.`;
 
-    const blob = new Blob([content], { type: 'text/markdown' });
+    const blob = new Blob([content], { type: 'text/plain; charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `conversa-${new Date().toISOString().split('T')[0]}.md`;
+    a.download = `conversa-whatsapp-${new Date().toISOString().split('T')[0]}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const exportConversation = () => {
+    if (!collectedMessages || collectedMessages.length === 0) {
+      alert('Nenhuma mensagem para exportar');
+      return;
+    }
+
+    const stats = analyzeMessageStats(collectedMessages);
+    const sortedMessages = [...collectedMessages].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    
+    // Criar HTML com CSS inline para melhor visualização
+    const htmlContent = `
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Conversa WhatsApp - ${new Date().toLocaleDateString('pt-BR')}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6; 
+            color: #333; 
+            max-width: 800px; 
+            margin: 0 auto; 
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container { 
+            background: white; 
+            border-radius: 12px; 
+            padding: 30px; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 { 
+            color: #25D366; 
+            border-bottom: 3px solid #25D366; 
+            padding-bottom: 10px; 
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+        }
+        h1::before {
+            content: "💬";
+            margin-right: 10px;
+            font-size: 1.2em;
+        }
+        .info-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); 
+            gap: 15px; 
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        .info-item { 
+            display: flex; 
+            flex-direction: column;
+        }
+        .info-label { 
+            font-weight: 600; 
+            color: #666; 
+            font-size: 0.9em;
+            margin-bottom: 5px;
+        }
+        .info-value { 
+            font-weight: 500; 
+            color: #333;
+        }
+        h2 { 
+            color: #128C7E; 
+            margin: 30px 0 15px 0; 
+            display: flex;
+            align-items: center;
+        }
+        .stats-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); 
+            gap: 20px; 
+            margin-bottom: 30px;
+        }
+        .stat-card { 
+            background: #f8f9fa; 
+            padding: 20px; 
+            border-radius: 8px; 
+            border-left: 4px solid #25D366;
+        }
+        .stat-title { 
+            font-weight: 600; 
+            margin-bottom: 10px; 
+            color: #333;
+        }
+        .stat-list { 
+            list-style: none; 
+        }
+        .stat-list li { 
+            padding: 5px 0; 
+            display: flex; 
+            justify-content: space-between;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .stat-list li:last-child { 
+            border-bottom: none; 
+        }
+        .message { 
+            margin: 15px 0; 
+            padding: 15px; 
+            background: #fff; 
+            border-radius: 8px; 
+            border-left: 4px solid #25D366;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .message-header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
+            margin-bottom: 10px;
+            font-size: 0.9em;
+        }
+        .message-author { 
+            font-weight: 600; 
+            color: #128C7E;
+        }
+        .message-time { 
+            color: #666; 
+            font-size: 0.8em;
+        }
+        .message-phone { 
+            color: #999; 
+            font-size: 0.8em;
+        }
+        .message-content { 
+            color: #333; 
+            white-space: pre-wrap; 
+            word-wrap: break-word;
+            background: #f8f9fa;
+            padding: 10px;
+            border-radius: 6px;
+            margin-top: 8px;
+        }
+        .footer { 
+            text-align: center; 
+            margin-top: 40px; 
+            padding-top: 20px; 
+            border-top: 1px solid #e9ecef; 
+            color: #666; 
+            font-size: 0.9em;
+        }
+        @media (max-width: 600px) { 
+            .container { padding: 20px; }
+            .info-grid { grid-template-columns: 1fr; }
+            .stats-grid { grid-template-columns: 1fr; }
+        }
+        @media print {
+            body { background: white; }
+            .container { box-shadow: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Conversa WhatsApp</h1>
+        
+        <div class="info-grid">
+            <div class="info-item">
+                <div class="info-label">📅 Data de Exportação</div>
+                <div class="info-value">${new Date().toLocaleString('pt-BR')}</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">💬 Total de Mensagens</div>
+                <div class="info-value">${collectedMessages.length}</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">⏰ Período</div>
+                <div class="info-value">${new Date(sortedMessages[0]?.timestamp).toLocaleString('pt-BR')} até ${new Date(sortedMessages[sortedMessages.length - 1]?.timestamp).toLocaleString('pt-BR')}</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">👥 Participantes</div>
+                <div class="info-value">${stats.topUsers.length}</div>
+            </div>
+        </div>
+
+        <h2>📊 Estatísticas de Participantes</h2>
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="stat-title">Top Participantes</div>
+                <ul class="stat-list">
+                    ${stats.topUsers.map(([phone, data], index) => `
+                        <li>
+                            <span><strong>${index + 1}.</strong> ${data.pushName}</span>
+                            <span>${data.count} mensagem${data.count > 1 ? 's' : ''}</span>
+                        </li>
+                    `).join('')}
+                </ul>
+            </div>
+            <div class="stat-card">
+                <div class="stat-title">Horários Mais Ativos</div>
+                <ul class="stat-list">
+                    ${Object.entries(stats.hourStats)
+                        .sort(([,a], [,b]) => b - a)
+                        .slice(0, 8)
+                        .map(([hour, count]) => `
+                            <li>
+                                <span>${hour}h</span>
+                                <span>${count} mensagens</span>
+                            </li>
+                        `).join('')}
+                </ul>
+            </div>
+        </div>
+
+        <h2>💬 Mensagens</h2>
+        <div class="messages">
+            ${sortedMessages.map((message, index) => {
+                const time = new Date(message.timestamp).toLocaleTimeString('pt-BR', { 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                });
+                const date = new Date(message.timestamp).toLocaleDateString('pt-BR');
+                const phone = (message.phone || message.from || 'Desconhecido').replace('@s.whatsapp.net', '');
+                const name = message.pushName || 'Usuário';
+                
+                return `
+                    <div class="message">
+                        <div class="message-header">
+                            <div>
+                                <span class="message-author">${name}</span>
+                                <span class="message-phone">(${phone})</span>
+                            </div>
+                            <span class="message-time">${date} ${time}</span>
+                        </div>
+                        <div class="message-content">${message.text || '[Mídia não disponível]'}</div>
+                    </div>
+                `;
+            }).join('')}
+        </div>
+
+        <div class="footer">
+            <p>Exportado por <strong>FlowChat API</strong> • ${new Date().toLocaleString('pt-BR')}</p>
+            <p>Esta conversa foi coletada automaticamente e formatada para visualização.</p>
+        </div>
+    </div>
+</body>
+</html>`;
+
+    const blob = new Blob([htmlContent], { type: 'text/html' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `conversa-whatsapp-${new Date().toISOString().split('T')[0]}.html`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -351,10 +624,21 @@ export default function AISummaryPanel({ collectedMessages, collectorId }) {
             className="flex items-center px-3 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors text-sm font-medium"
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            title="Exportar conversa completa"
+            title="Exportar como HTML (visual)"
           >
             <ArrowDownTrayIcon className="w-4 h-4 mr-1" />
-            Exportar Conversa
+            HTML
+          </motion.button>
+
+          <motion.button
+            onClick={exportAsText}
+            className="flex items-center px-3 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors text-sm font-medium"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            title="Exportar como texto simples"
+          >
+            <ArrowDownTrayIcon className="w-4 h-4 mr-1" />
+            TXT
           </motion.button>
           
           <motion.button
