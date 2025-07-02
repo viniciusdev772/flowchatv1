@@ -258,30 +258,31 @@ export default function AISummaryPanel({ collectedMessages, collectorId }) {
     const sortedMessages = [...collectedMessages].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
     
     let content = `# Conversa WhatsApp - Exportação\n\n`;
-    content += `**Data de Exportação:** ${new Date().toLocaleString('pt-BR')}\n`;
-    content += `**Total de Mensagens:** ${collectedMessages.length}\n`;
+    content += `**Data de Exportação:** ${new Date().toLocaleString('pt-BR')}\n\n`;
+    content += `**Total de Mensagens:** ${collectedMessages.length}\n\n`;
     content += `**Período:** ${new Date(sortedMessages[0]?.timestamp).toLocaleString('pt-BR')} até ${new Date(sortedMessages[sortedMessages.length - 1]?.timestamp).toLocaleString('pt-BR')}\n\n`;
     
     // Estatísticas de usuários
     content += `## 📊 Estatísticas de Participantes\n\n`;
     stats.topUsers.forEach(([phone, data], index) => {
-      content += `${index + 1}. **${data.pushName}** (${phone.replace('@s.whatsapp.net', '')}) - ${data.count} mensagem${data.count > 1 ? 's' : ''}\n`;
+      content += `${index + 1}. **${data.pushName}** (${phone.replace('@s.whatsapp.net', '')}) - ${data.count} mensagem${data.count > 1 ? 's' : ''}\n\n`;
     });
     
-    content += `\n## 💬 Mensagens\n\n`;
+    content += `## 💬 Mensagens\n\n`;
     
     sortedMessages.forEach((message, index) => {
       const time = new Date(message.timestamp).toLocaleTimeString('pt-BR', { 
         hour: '2-digit', 
         minute: '2-digit' 
       });
+      const date = new Date(message.timestamp).toLocaleDateString('pt-BR');
       const phone = (message.phone || message.from || 'Desconhecido').replace('@s.whatsapp.net', '');
       const name = message.pushName || 'Usuário';
       
-      content += `**[${time}] ${name} (${phone}):** ${message.text || '[Mídia]'}\n\n`;
+      content += `**[${date} ${time}] ${name} (${phone}):**\n\n${message.text || '[Mídia]'}\n\n---\n\n`;
     });
     
-    content += `\n---\n*Exportado por FlowChat API*`;
+    content += `*Exportado por FlowChat API*`;
 
     const blob = new Blob([content], { type: 'text/markdown' });
     const url = URL.createObjectURL(blob);
