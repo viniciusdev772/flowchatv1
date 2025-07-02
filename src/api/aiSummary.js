@@ -85,24 +85,25 @@ router.post('/summarize', authenticateToken, async (req, res) => {
       });
     }
 
-    // Buscar mensagens coletadas
+    // Buscar coletor primeiro para verificar permissões
     const db = database.getDb();
-    const collectedData = await db.collection('collectedMessages').findOne({
-      $or: [
-        { _id: collectorId },
-        { sessionId: collectorId.split(':')[0], groupId: collectorId.split(':')[1] }
-      ],
+    const collector = await db.collection('messageCollectors').findOne({
+      _id: collectorId,
       userId: new ObjectId(userId)
     });
 
-    if (!collectedData) {
+    if (!collector) {
       return res.status(404).json({
         success: false,
-        message: 'Mensagens coletadas não encontradas'
+        message: 'Coletor não encontrado ou sem permissão'
       });
     }
 
-    const messages = collectedData.messages || [];
+    // Buscar mensagens coletadas na collection separada
+    const messages = await db.collection('collectedMessages')
+      .find({ collectorId })
+      .sort({ collectedAt: 1 })
+      .toArray();
     
     if (messages.length === 0) {
       return res.status(400).json({
@@ -201,11 +202,11 @@ router.post('/summarize', authenticateToken, async (req, res) => {
       includeStats,
       totalMessages: messages.length,
       createdAt: new Date(),
-      groupId: collectedData.groupId,
-      sessionId: collectedData.sessionId,
+      groupId: collector.groupId,
+      sessionId: collector.sessionId,
       period: {
-        startTime: collectedData.startTime,
-        endTime: collectedData.endTime
+        startTime: collector.startTime,
+        endTime: collector.endTime
       }
     };
 
@@ -393,25 +394,35 @@ router.post('/analyze-sentiment', authenticateToken, async (req, res) => {
     const { collectorId, customApiKey } = req.body;
     const userId = req.user._id;
 
-    // Buscar mensagens
+    // Buscar coletor e mensagens
     const db = database.getDb();
-    const collectedData = await db.collection('collectedMessages').findOne({
-      $or: [
-        { _id: collectorId },
-        { sessionId: collectorId.split(':')[0], groupId: collectorId.split(':')[1] }
-      ],
+    const collector = await db.collection('messageCollectors').findOne({
+      _id: collectorId,
       userId: new ObjectId(userId)
     });
 
-    if (!collectedData || !collectedData.messages.length) {
+    if (!collector) {
       return res.status(404).json({
         success: false,
-        message: 'Mensagens não encontradas'
+        message: 'Coletor não encontrado ou sem permissão'
+      });
+    }
+
+    // Buscar mensagens coletadas
+    const collectedMessages = await db.collection('collectedMessages')
+      .find({ collectorId })
+      .limit(200) // Limitar para análise
+      .toArray();
+
+    if (!collectedMessages.length) {
+      return res.status(404).json({
+        success: false,
+        message: 'Nenhuma mensagem encontrada para análise'
       });
     }
 
     const openai = getOpenAIClient(customApiKey);
-    const messages = collectedData.messages.slice(0, 200); // Limitar para análise
+    const messages = collectedMessages;
     const formattedMessages = formatMessagesForPrompt(messages);
 
     const completion = await openai.chat.completions.create({
@@ -441,6 +452,8 @@ router.post('/analyze-sentiment', authenticateToken, async (req, res) => {
       userId: new ObjectId(userId),
       analysis,
       totalMessages: messages.length,
+      groupId: collector.groupId,
+      sessionId: collector.sessionId,
       createdAt: new Date()
     });
 

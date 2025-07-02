@@ -12,7 +12,8 @@ import {
   CheckCircleIcon,
   XCircleIcon,
   ExclamationTriangleIcon,
-  CpuChipIcon,\n  ArrowDownTrayIcon
+  CpuChipIcon,
+  ArrowDownTrayIcon
 } from '@heroicons/react/24/outline';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
