@@ -9,7 +9,9 @@ import {
   StopIcon,
   EyeIcon,
   TrashIcon,
-  ArrowDownTrayIcon
+  ArrowDownTrayIcon,
+  UserGroupIcon,
+  HashtagIcon
 } from '@heroicons/react/24/outline';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
@@ -214,20 +216,86 @@ export default function AISummaryPanel({ collectedMessages, collectorId }) {
     }
   };
 
+  // Função para analisar estatísticas das mensagens
+  const analyzeMessageStats = (messages) => {
+    const phoneStats = {};
+    const hourStats = {};
+    
+    messages.forEach(msg => {
+      // Estatísticas por número
+      const phone = msg.phone || msg.from || 'Desconhecido';
+      if (!phoneStats[phone]) {
+        phoneStats[phone] = {
+          count: 0,
+          pushName: msg.pushName || 'Usuário',
+          firstMessage: msg.timestamp,
+          lastMessage: msg.timestamp
+        };
+      }
+      phoneStats[phone].count++;
+      phoneStats[phone].lastMessage = msg.timestamp;
+      
+      // Estatísticas por hora
+      const hour = new Date(msg.timestamp).getHours();
+      hourStats[hour] = (hourStats[hour] || 0) + 1;
+    });
+    
+    // Ordenar usuários por quantidade de mensagens
+    const topUsers = Object.entries(phoneStats)
+      .sort(([,a], [,b]) => b.count - a.count)
+      .slice(0, 10);
+    
+    return { phoneStats, hourStats, topUsers };
+  };
+
+  const exportConversation = () => {
+    if (!collectedMessages || collectedMessages.length === 0) {
+      alert('Nenhuma mensagem para exportar');
+      return;
+    }
+
+    const stats = analyzeMessageStats(collectedMessages);
+    const sortedMessages = [...collectedMessages].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    
+    let content = `# Conversa WhatsApp - Exportação\n\n`;
+    content += `**Data de Exportação:** ${new Date().toLocaleString('pt-BR')}\n`;
+    content += `**Total de Mensagens:** ${collectedMessages.length}\n`;
+    content += `**Período:** ${new Date(sortedMessages[0]?.timestamp).toLocaleString('pt-BR')} até ${new Date(sortedMessages[sortedMessages.length - 1]?.timestamp).toLocaleString('pt-BR')}\n\n`;
+    
+    // Estatísticas de usuários
+    content += `## 📊 Estatísticas de Participantes\n\n`;
+    stats.topUsers.forEach(([phone, data], index) => {
+      content += `${index + 1}. **${data.pushName}** (${phone.replace('@s.whatsapp.net', '')}) - ${data.count} mensagem${data.count > 1 ? 's' : ''}\n`;
+    });
+    
+    content += `\n## 💬 Mensagens\n\n`;
+    
+    sortedMessages.forEach((message, index) => {
+      const time = new Date(message.timestamp).toLocaleTimeString('pt-BR', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      });
+      const phone = (message.phone || message.from || 'Desconhecido').replace('@s.whatsapp.net', '');
+      const name = message.pushName || 'Usuário';
+      
+      content += `**[${time}] ${name} (${phone}):** ${message.text || '[Mídia]'}\n\n`;
+    });
+    
+    content += `\n---\n*Exportado por FlowChat API*`;
+
+    const blob = new Blob([content], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `conversa-${new Date().toISOString().split('T')[0]}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   const exportSummary = (summary) => {
-    const content = `# Resumo de Mensagens WhatsApp
-
-**Data:** ${new Date(summary.createdAt).toLocaleString('pt-BR')}
-**Tom:** ${summary.tone || 'N/A'}
-**Total de Mensagens:** ${summary.totalMessages || 'N/A'}
-
-## Resumo
-
-${summary.summary}
-
----
-Gerado por FlowChat AI Assistant
-`;
+    const content = `# Resumo de Mensagens WhatsApp\n\n**Data:** ${new Date(summary.createdAt).toLocaleString('pt-BR')}\n**Tom:** ${summary.tone || 'N/A'}\n**Total de Mensagens:** ${summary.totalMessages || 'N/A'}\n\n## Resumo\n\n${summary.summary}\n\n---\nGerado por FlowChat AI Assistant\n`;
 
     const blob = new Blob([content], { type: 'text/markdown' });
     const url = URL.createObjectURL(blob);
@@ -242,54 +310,127 @@ Gerado por FlowChat AI Assistant
 
   if (!collectedMessages || collectedMessages.length === 0) {
     return (
-      <div className="glass-performance p-6 rounded-xl text-center">
-        <SparklesIcon className="w-16 h-16 text-white/30 mx-auto mb-4" />
-        <h3 className="text-lg font-semibold text-white mb-2">
+      <div className="bg-white border border-gray-200 p-6 rounded-xl text-center">
+        <div className="flex items-center justify-center w-16 h-16 bg-purple-100 rounded-full mx-auto mb-4">
+          <SparklesIcon className="w-8 h-8 text-purple-600" />
+        </div>
+        <h3 className="text-lg font-semibold text-gray-800 mb-2">
           Resumo com IA
         </h3>
-        <p className="text-white/70">
+        <p className="text-gray-600">
           Selecione um coletor com mensagens para gerar resumos inteligentes
         </p>
       </div>
     );
   }
 
+  // Calcular estatísticas das mensagens
+  const messageStats = collectedMessages ? analyzeMessageStats(collectedMessages) : null;
+
   return (
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h3 className="text-xl font-bold text-white flex items-center">
-            <SparklesIcon className="w-6 h-6 mr-2 text-purple-400" />
+          <h3 className="text-xl font-bold text-gray-800 flex items-center">
+            <div className="flex items-center justify-center w-8 h-8 bg-purple-100 rounded-full mr-3">
+              <SparklesIcon className="w-4 h-4 text-purple-600" />
+            </div>
             Resumo com IA
           </h3>
-          <p className="text-white/70 text-sm">
+          <p className="text-gray-600 text-sm mt-1">
             {collectedMessages.length} mensagens coletadas
+            {messageStats && ` • ${messageStats.topUsers.length} participantes`}
           </p>
         </div>
 
-        <motion.button
-          onClick={() => setShowConfigModal(true)}
-          className="p-2 text-blue-400 hover:bg-blue-500/20 rounded-lg transition-colors"
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.9 }}
-          title="Configurações"
-        >
-          <AdjustmentsHorizontalIcon className="w-5 h-5" />
-        </motion.button>
+        <div className="flex items-center space-x-2">
+          <motion.button
+            onClick={exportConversation}
+            className="flex items-center px-3 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors text-sm font-medium"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+            title="Exportar conversa completa"
+          >
+            <ArrowDownTrayIcon className="w-4 h-4 mr-1" />
+            Exportar Conversa
+          </motion.button>
+          
+          <motion.button
+            onClick={() => setShowConfigModal(true)}
+            className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
+            title="Configurações"
+          >
+            <AdjustmentsHorizontalIcon className="w-5 h-5" />
+          </motion.button>
+        </div>
       </div>
+
+      {/* Message Statistics */}
+      {messageStats && (
+        <div className="bg-white border border-gray-200 p-4 rounded-xl">
+          <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+            <div className="flex items-center justify-center w-6 h-6 bg-blue-100 rounded-full mr-2">
+              <HashtagIcon className="w-4 h-4 text-blue-600" />
+            </div>
+            Estatísticas das Mensagens
+          </h4>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <h5 className="font-medium text-gray-700 mb-2 flex items-center">
+                <UserGroupIcon className="w-4 h-4 mr-1" />
+                Top Participantes
+              </h5>
+              <div className="space-y-1">
+                {messageStats.topUsers.slice(0, 5).map(([phone, data], index) => (
+                  <div key={phone} className="flex items-center justify-between text-sm">
+                    <span className="text-gray-700 truncate">
+                      {index + 1}. {data.pushName}
+                    </span>
+                    <span className="text-gray-500 ml-2">
+                      {data.count} msg{data.count > 1 ? 's' : ''}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            <div>
+              <h5 className="font-medium text-gray-700 mb-2 flex items-center">
+                <ClockIcon className="w-4 h-4 mr-1" />
+                Horários mais Ativos
+              </h5>
+              <div className="space-y-1">
+                {Object.entries(messageStats.hourStats)
+                  .sort(([,a], [,b]) => b - a)
+                  .slice(0, 5)
+                  .map(([hour, count]) => (
+                    <div key={hour} className="flex items-center justify-between text-sm">
+                      <span className="text-gray-700">{hour}h</span>
+                      <span className="text-gray-500">{count} mensagens</span>
+                    </div>
+                  ))
+                }
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Action Buttons */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <motion.button
           onClick={() => generateSummary(false)}
           disabled={isGenerating}
-          className="flex items-center justify-center p-4 glass-performance rounded-xl hover:bg-purple-500/20 transition-colors disabled:opacity-50"
+          className="flex items-center justify-center p-4 bg-white border border-purple-200 rounded-xl hover:bg-purple-50 transition-colors disabled:opacity-50"
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
         >
-          <SparklesIcon className="w-5 h-5 mr-2 text-purple-400" />
-          <span className="text-white font-medium">
+          <SparklesIcon className="w-5 h-5 mr-2 text-purple-600" />
+          <span className="text-gray-800 font-medium">
             {isGenerating ? 'Gerando...' : 'Resumir com IA'}
           </span>
         </motion.button>
@@ -297,12 +438,12 @@ Gerado por FlowChat AI Assistant
         <motion.button
           onClick={() => generateSummary(true)}
           disabled={isGenerating}
-          className="flex items-center justify-center p-4 glass-performance rounded-xl hover:bg-green-500/20 transition-colors disabled:opacity-50"
+          className="flex items-center justify-center p-4 bg-white border border-green-200 rounded-xl hover:bg-green-50 transition-colors disabled:opacity-50"
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
         >
-          <PlayIcon className="w-5 h-5 mr-2 text-green-400" />
-          <span className="text-white font-medium">
+          <PlayIcon className="w-5 h-5 mr-2 text-green-600" />
+          <span className="text-gray-800 font-medium">
             Streaming Modo
           </span>
         </motion.button>
@@ -310,12 +451,12 @@ Gerado por FlowChat AI Assistant
         <motion.button
           onClick={analyzeSentiment}
           disabled={isGenerating}
-          className="flex items-center justify-center p-4 glass-performance rounded-xl hover:bg-yellow-500/20 transition-colors disabled:opacity-50"
+          className="flex items-center justify-center p-4 bg-white border border-yellow-200 rounded-xl hover:bg-yellow-50 transition-colors disabled:opacity-50"
           whileHover={{ scale: 1.02 }}
           whileTap={{ scale: 0.98 }}
         >
-          <ChartBarIcon className="w-5 h-5 mr-2 text-yellow-400" />
-          <span className="text-white font-medium">
+          <ChartBarIcon className="w-5 h-5 mr-2 text-yellow-600" />
+          <span className="text-gray-800 font-medium">
             Análise Sentimento
           </span>
         </motion.button>
@@ -324,15 +465,17 @@ Gerado por FlowChat AI Assistant
       {/* Streaming Content */}
       {streamingContent && (
         <motion.div
-          className="glass-performance p-4 rounded-xl"
+          className="bg-white border border-gray-200 p-4 rounded-xl"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
         >
           <div className="flex items-center mb-3">
-            <CpuChipIcon className="w-5 h-5 mr-2 text-green-400 animate-pulse" />
-            <span className="text-white font-medium">Gerando Resumo...</span>
+            <div className="flex items-center justify-center w-6 h-6 bg-green-100 rounded-full mr-2">
+              <CpuChipIcon className="w-4 h-4 text-green-600 animate-pulse" />
+            </div>
+            <span className="text-gray-800 font-medium">Gerando Resumo...</span>
           </div>
-          <div className="prose prose-invert max-w-none">
+          <div className="prose prose-gray max-w-none">
             <MarkdownRenderer content={streamingContent} />
           </div>
         </motion.div>
@@ -340,9 +483,11 @@ Gerado por FlowChat AI Assistant
 
       {/* Previous Summaries */}
       {summaries.length > 0 && (
-        <div className="glass-performance p-4 rounded-xl">
-          <h4 className="text-lg font-semibold text-white mb-4 flex items-center">
-            <DocumentTextIcon className="w-5 h-5 mr-2 text-blue-400" />
+        <div className="bg-white border border-gray-200 p-4 rounded-xl">
+          <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
+            <div className="flex items-center justify-center w-6 h-6 bg-blue-100 rounded-full mr-2">
+              <DocumentTextIcon className="w-4 h-4 text-blue-600" />
+            </div>
             Resumos Anteriores ({summaries.length})
           </h4>
 
@@ -350,25 +495,25 @@ Gerado por FlowChat AI Assistant
             {summaries.map((summary) => (
               <motion.div
                 key={summary.id}
-                className="glass-performance p-4 rounded-lg border border-white/10 hover:border-white/20 transition-colors"
+                className="bg-gray-50 border border-gray-200 p-4 rounded-lg hover:border-gray-300 hover:bg-gray-100 transition-colors"
                 whileHover={{ scale: 1.01 }}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
-                      <span className="text-white font-medium">
+                      <span className="text-gray-800 font-medium">
                         Tom: {summary.tone}
                       </span>
-                      <span className="text-white/70 text-sm">
+                      <span className="text-gray-600 text-sm">
                         {summary.totalMessages} mensagens
                       </span>
                       {summary.isStreamed && (
-                        <span className="px-2 py-1 bg-green-500/20 text-green-400 rounded-full text-xs">
+                        <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs">
                           Streaming
                         </span>
                       )}
                     </div>
-                    <p className="text-white/70 text-sm">
+                    <p className="text-gray-600 text-sm">
                       {new Date(summary.createdAt).toLocaleString('pt-BR')}
                     </p>
                   </div>
@@ -376,7 +521,7 @@ Gerado por FlowChat AI Assistant
                   <div className="flex items-center gap-2 ml-4">
                     <motion.button
                       onClick={() => viewSummary(summary.id)}
-                      className="p-2 text-blue-400 hover:bg-blue-500/20 rounded-lg transition-colors"
+                      className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg transition-colors"
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.9 }}
                       title="Ver resumo"
@@ -386,7 +531,7 @@ Gerado por FlowChat AI Assistant
 
                     <motion.button
                       onClick={() => exportSummary(summary)}
-                      className="p-2 text-green-400 hover:bg-green-500/20 rounded-lg transition-colors"
+                      className="p-2 text-green-600 hover:bg-green-100 rounded-lg transition-colors"
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.9 }}
                       title="Exportar"
@@ -396,7 +541,7 @@ Gerado por FlowChat AI Assistant
 
                     <motion.button
                       onClick={() => deleteSummary(summary.id)}
-                      className="p-2 text-red-400 hover:bg-red-500/20 rounded-lg transition-colors"
+                      className="p-2 text-red-600 hover:bg-red-100 rounded-lg transition-colors"
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.9 }}
                       title="Deletar"
@@ -415,35 +560,35 @@ Gerado por FlowChat AI Assistant
       <AnimatePresence>
         {showConfigModal && (
           <motion.div
-            className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setShowConfigModal(false)}
           >
             <motion.div
-              className="glass-performance p-6 rounded-xl max-w-md w-full mx-4"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
+              className="bg-white p-6 rounded-2xl max-w-md w-full shadow-2xl border border-gray-200"
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 className="text-xl font-bold text-white mb-4">
+              <h3 className="text-xl font-bold text-gray-800 mb-4">
                 Configurações do Resumo
               </h3>
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-white/90 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Tom do Resumo
                   </label>
                   <select
                     value={summaryConfig.tone}
                     onChange={(e) => setSummaryConfig(prev => ({ ...prev, tone: e.target.value }))}
-                    className="w-full px-4 py-3 glass-performance rounded-xl text-white focus:ring-2 focus:ring-blue-500 focus:outline-none border border-white/10"
+                    className="w-full px-4 py-3 bg-gray-50 rounded-xl text-gray-800 focus:ring-2 focus:ring-blue-500 focus:outline-none border border-gray-200 focus:bg-white transition-colors"
                   >
                     {toneOptions.map((option) => (
-                      <option key={option.value} value={option.value} className="bg-gray-800">
+                      <option key={option.value} value={option.value}>
                         {option.label} - {option.description}
                       </option>
                     ))}
@@ -451,7 +596,7 @@ Gerado por FlowChat AI Assistant
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-white/90 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Máximo de Tokens
                   </label>
                   <input
@@ -460,7 +605,7 @@ Gerado por FlowChat AI Assistant
                     max="4000"
                     value={summaryConfig.maxTokens}
                     onChange={(e) => setSummaryConfig(prev => ({ ...prev, maxTokens: parseInt(e.target.value) }))}
-                    className="w-full px-4 py-3 glass-performance rounded-xl text-white focus:ring-2 focus:ring-blue-500 focus:outline-none border border-white/10"
+                    className="w-full px-4 py-3 bg-gray-50 rounded-xl text-gray-800 focus:ring-2 focus:ring-blue-500 focus:outline-none border border-gray-200 focus:bg-white transition-colors"
                   />
                 </div>
 
@@ -470,28 +615,28 @@ Gerado por FlowChat AI Assistant
                       type="checkbox"
                       checked={summaryConfig.includeStats}
                       onChange={(e) => setSummaryConfig(prev => ({ ...prev, includeStats: e.target.checked }))}
-                      className="rounded border-white/30 text-blue-400 focus:ring-blue-500 bg-white/10"
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 bg-white"
                     />
-                    <span className="ml-2 text-sm text-white/90">
+                    <span className="ml-2 text-sm text-gray-700">
                       Incluir estatísticas
                     </span>
                   </label>
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-white/90 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Prompt Personalizado (Opcional)
                   </label>
                   <textarea
                     value={summaryConfig.customPrompt}
                     onChange={(e) => setSummaryConfig(prev => ({ ...prev, customPrompt: e.target.value }))}
                     placeholder="Instruções específicas para o resumo..."
-                    className="w-full px-4 py-3 glass-performance rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-500 focus:outline-none border border-white/10 h-24 resize-none"
+                    className="w-full px-4 py-3 bg-gray-50 rounded-xl text-gray-800 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:outline-none border border-gray-200 focus:bg-white transition-colors h-24 resize-none"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-white/90 mb-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     API Key OpenAI (Opcional)
                   </label>
                   <input
@@ -499,9 +644,9 @@ Gerado por FlowChat AI Assistant
                     value={summaryConfig.customApiKey}
                     onChange={(e) => setSummaryConfig(prev => ({ ...prev, customApiKey: e.target.value }))}
                     placeholder="sk-..."
-                    className="w-full px-4 py-3 glass-performance rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-500 focus:outline-none border border-white/10"
+                    className="w-full px-4 py-3 bg-gray-50 rounded-xl text-gray-800 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:outline-none border border-gray-200 focus:bg-white transition-colors"
                   />
-                  <p className="text-white/50 text-xs mt-1">
+                  <p className="text-gray-500 text-xs mt-1">
                     Deixe vazio para usar a chave do servidor
                   </p>
                 </div>
@@ -510,11 +655,20 @@ Gerado por FlowChat AI Assistant
               <div className="flex gap-3 mt-6">
                 <motion.button
                   onClick={() => setShowConfigModal(false)}
-                  className="flex-1 py-3 bg-blue-500/20 text-blue-400 rounded-xl hover:bg-blue-500/30 transition-colors"
+                  className="flex-1 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-medium transition-colors"
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                 >
                   Salvar
+                </motion.button>
+                
+                <motion.button
+                  onClick={() => setShowConfigModal(false)}
+                  className="flex-1 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 font-medium transition-colors"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  Cancelar
                 </motion.button>
               </div>
             </motion.div>
@@ -526,25 +680,25 @@ Gerado por FlowChat AI Assistant
       <AnimatePresence>
         {showSummaryModal && selectedSummary && (
           <motion.div
-            className="fixed inset-0 bg-black/60 flex items-center justify-center z-50"
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={() => setShowSummaryModal(false)}
           >
             <motion.div
-              className="glass-performance rounded-xl max-w-4xl w-full mx-4 max-h-[80vh] overflow-hidden flex flex-col"
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
+              className="bg-white rounded-2xl max-w-4xl w-full max-h-[85vh] overflow-hidden flex flex-col shadow-2xl border border-gray-200"
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="p-6 border-b border-white/10 flex items-center justify-between">
+              <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-indigo-50 flex items-center justify-between">
                 <div>
-                  <h3 className="text-xl font-bold text-white">
+                  <h3 className="text-xl font-bold text-gray-800">
                     {selectedSummary.type === 'sentiment' ? 'Análise de Sentimento' : 'Resumo IA'}
                   </h3>
-                  <p className="text-white/70 text-sm">
+                  <p className="text-gray-600 text-sm">
                     {new Date(selectedSummary.createdAt).toLocaleString('pt-BR')}
                   </p>
                 </div>
@@ -552,7 +706,7 @@ Gerado por FlowChat AI Assistant
                 <div className="flex items-center gap-2">
                   <motion.button
                     onClick={() => exportSummary(selectedSummary)}
-                    className="p-2 text-green-400 hover:bg-green-500/20 rounded-lg transition-colors"
+                    className="p-2 text-green-600 hover:bg-green-100 rounded-lg transition-colors"
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
                     title="Exportar"
@@ -562,7 +716,7 @@ Gerado por FlowChat AI Assistant
                   
                   <motion.button
                     onClick={() => setShowSummaryModal(false)}
-                    className="p-2 text-white/70 hover:text-white rounded-lg hover:bg-white/10 transition-colors"
+                    className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
                     whileHover={{ scale: 1.1 }}
                     whileTap={{ scale: 0.9 }}
                   >
@@ -571,8 +725,8 @@ Gerado por FlowChat AI Assistant
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-6">
-                <div className="prose prose-invert max-w-none">
+              <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
+                <div className="prose prose-gray max-w-none">
                   <MarkdownRenderer content={selectedSummary.summary} />
                 </div>
               </div>

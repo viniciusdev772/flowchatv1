@@ -12,7 +12,7 @@ import {
   CheckCircleIcon,
   XCircleIcon,
   ExclamationTriangleIcon,
-  CpuChipIcon
+  CpuChipIcon,\n  ArrowDownTrayIcon
 } from '@heroicons/react/24/outline';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
@@ -184,6 +184,80 @@ export default function MessageCollectorManager() {
     } catch (error) {
       console.error('Erro ao carregar mensagens:', error);
     }
+  };
+
+  const exportConversation = (messages, collectorInfo) => {
+    if (!messages || messages.length === 0) {
+      alert('Nenhuma mensagem para exportar');
+      return;
+    }
+
+    // Analisar estatísticas das mensagens
+    const phoneStats = {};
+    messages.forEach(msg => {
+      const phone = msg.phone || msg.from || 'Desconhecido';
+      if (!phoneStats[phone]) {
+        phoneStats[phone] = {
+          count: 0,
+          pushName: msg.pushName || 'Usuário',
+          firstMessage: msg.timestamp,
+          lastMessage: msg.timestamp
+        };
+      }
+      phoneStats[phone].count++;
+      phoneStats[phone].lastMessage = msg.timestamp;
+    });
+
+    const topUsers = Object.entries(phoneStats)
+      .sort(([,a], [,b]) => b.count - a.count)
+      .slice(0, 10);
+
+    const sortedMessages = [...messages].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    
+    let content = `# Conversa WhatsApp - ${collectorInfo?.sessionId || 'Coletor'}\\n\\n`;
+    content += `**Data de Exportação:** ${new Date().toLocaleString('pt-BR')}\\n`;
+    content += `**Total de Mensagens:** ${messages.length}\\n`;
+    content += `**Sessão:** ${collectorInfo?.sessionId || 'N/A'}\\n`;
+    content += `**Grupo:** ${collectorInfo?.groupId?.split('@')[0] || 'N/A'}\\n`;
+    
+    if (sortedMessages.length > 0) {
+      content += `**Período:** ${new Date(sortedMessages[0]?.timestamp).toLocaleString('pt-BR')} até ${new Date(sortedMessages[sortedMessages.length - 1]?.timestamp).toLocaleString('pt-BR')}\\n\\n`;
+    }
+    
+    // Estatísticas de usuários
+    content += `## 📊 Estatísticas de Participantes\\n\\n`;
+    topUsers.forEach(([phone, data], index) => {
+      const cleanPhone = phone.replace('@s.whatsapp.net', '').replace('@c.us', '');
+      content += `${index + 1}. **${data.pushName}** (${cleanPhone}) - ${data.count} mensagem${data.count > 1 ? 's' : ''}\\n`;
+    });
+    
+    content += `\\n## 💬 Mensagens\\n\\n`;
+    
+    sortedMessages.forEach((message) => {
+      const time = new Date(message.timestamp).toLocaleTimeString('pt-BR', { 
+        hour: '2-digit', 
+        minute: '2-digit' 
+      });
+      const date = new Date(message.timestamp).toLocaleDateString('pt-BR');
+      const phone = (message.phone || message.from || 'Desconhecido')
+        .replace('@s.whatsapp.net', '')
+        .replace('@c.us', '');
+      const name = message.pushName || 'Usuário';
+      
+      content += `**[${date} ${time}] ${name} (${phone}):** ${message.text || '[Mídia]'}\\n\\n`;
+    });
+    
+    content += `\\n---\\n*Exportado por FlowChat API*`;
+
+    const blob = new Blob([content], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `conversa-${collectorInfo?.sessionId || 'coletor'}-${new Date().toISOString().split('T')[0]}.md`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const getStatusColor = (status) => {
@@ -688,6 +762,16 @@ export default function MessageCollectorManager() {
                   </div>
                   
                   <div className="flex items-center space-x-2">
+                    <motion.button
+                      onClick={() => exportConversation(collectedMessages, selectedCollector)}
+                      className="flex items-center px-3 py-2 bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors text-sm font-medium"
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      <ArrowDownTrayIcon className="w-4 h-4 mr-1" />
+                      Exportar Conversa
+                    </motion.button>
+                    
                     {summaryData && (
                       <motion.button
                         onClick={() => {
