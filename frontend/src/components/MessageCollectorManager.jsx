@@ -57,6 +57,9 @@ export default function MessageCollectorManager() {
   const [filteredMessages, setFilteredMessages] = useState([]);
   const [messageStats, setMessageStats] = useState(null);
   
+  // Estados para menu de exportação
+  const [showExportMenu, setShowExportMenu] = useState(false);
+  
   // Form states
   const [formData, setFormData] = useState({
     sessionId: '',
@@ -91,6 +94,18 @@ export default function MessageCollectorManager() {
     const interval = setInterval(loadData, 30000); // Atualizar a cada 30s
     return () => clearInterval(interval);
   }, []);
+
+  // Fechar menu de exportação ao clicar fora
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showExportMenu && !event.target.closest('.export-menu-container')) {
+        setShowExportMenu(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showExportMenu]);
 
   const loadData = async () => {
     try {
@@ -487,15 +502,32 @@ export default function MessageCollectorManager() {
     });
   };
 
-  const exportConversation = (messages, collectorInfo) => {
+  const exportConversation = (messages, collectorInfo, exportType = 'all', participantName = null) => {
     if (!messages || messages.length === 0) {
       alert('Nenhuma mensagem para exportar');
       return;
     }
 
+    // Filtrar mensagens baseado no tipo de exportação
+    let messagesToExport = [...messages];
+    let exportTitle = 'CONVERSA WHATSAPP';
+    
+    if (exportType === 'participant' && participantName) {
+      messagesToExport = messages.filter(msg => (msg.pushName || 'Usuário') === participantName);
+      exportTitle = `MENSAGENS DE ${participantName.toUpperCase()}`;
+    } else if (exportType === 'filtered') {
+      messagesToExport = filteredMessages;
+      exportTitle = 'MENSAGENS FILTRADAS';
+    }
+
+    if (messagesToExport.length === 0) {
+      alert('Nenhuma mensagem encontrada para exportar');
+      return;
+    }
+
     // Analisar estatísticas das mensagens
     const phoneStats = {};
-    messages.forEach(msg => {
+    messagesToExport.forEach(msg => {
       const phone = msg.phone || msg.from || 'Desconhecido';
       if (!phoneStats[phone]) {
         phoneStats[phone] = {
@@ -513,27 +545,42 @@ export default function MessageCollectorManager() {
       .sort(([,a], [,b]) => b.count - a.count)
       .slice(0, 10);
 
-    const sortedMessages = [...messages].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    const sortedMessages = [...messagesToExport].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
     
-    let content = `CONVERSA WHATSAPP - ${collectorInfo?.sessionId || 'COLETOR'}\n`;
+    let content = `${exportTitle} - ${collectorInfo?.sessionId || 'COLETOR'}\n`;
     content += `${'='.repeat(60)}\n\n`;
     content += `Data de Exportação: ${new Date().toLocaleString('pt-BR')}\n`;
-    content += `Total de Mensagens: ${messages.length}\n`;
+    content += `Total de Mensagens: ${messagesToExport.length}\n`;
     content += `Sessão: ${collectorInfo?.sessionId || 'N/A'}\n`;
     content += `Grupo: ${collectorInfo?.groupId?.split('@')[0] || 'N/A'}\n`;
+    
+    if (exportType === 'participant' && participantName) {
+      content += `Participante: ${participantName}\n`;
+    } else if (exportType === 'filtered') {
+      content += `Filtros Aplicados: `;
+      const filters = [];
+      if (messageSearch) filters.push(`Busca: "${messageSearch}"`);
+      if (selectedParticipant) filters.push(`Participante: ${selectedParticipant}`);
+      if (selectedTimeFilter !== 'all') filters.push(`Período: ${selectedTimeFilter}`);
+      if (selectedDateRange !== 'all') filters.push(`Data: ${selectedDateRange}`);
+      content += filters.length > 0 ? filters.join(', ') : 'Nenhum';
+      content += `\n`;
+    }
     
     if (sortedMessages.length > 0) {
       content += `Período: ${new Date(sortedMessages[0]?.timestamp).toLocaleString('pt-BR')} até ${new Date(sortedMessages[sortedMessages.length - 1]?.timestamp).toLocaleString('pt-BR')}\n\n`;
     }
     
-    // Estatísticas de usuários
-    content += `ESTATÍSTICAS DE PARTICIPANTES\n`;
-    content += `${'-'.repeat(35)}\n\n`;
-    content += `Top Participantes:\n`;
-    topUsers.forEach(([phone, data], index) => {
-      const cleanPhone = phone.replace('@s.whatsapp.net', '').replace('@c.us', '');
-      content += `${index + 1}. ${data.pushName} (${cleanPhone}) - ${data.count} mensagem${data.count > 1 ? 's' : ''}\n`;
-    });
+    // Estatísticas de usuários (apenas se não for exportação de participante específico)
+    if (exportType !== 'participant') {
+      content += `ESTATÍSTICAS DE PARTICIPANTES\n`;
+      content += `${'-'.repeat(35)}\n\n`;
+      content += `Top Participantes:\n`;
+      topUsers.forEach(([phone, data], index) => {
+        const cleanPhone = phone.replace('@s.whatsapp.net', '').replace('@c.us', '');
+        content += `${index + 1}. ${data.pushName} (${cleanPhone}) - ${data.count} mensagem${data.count > 1 ? 's' : ''}\n`;
+      });
+    }
     
     content += `\nMENSAGENS\n`;
     content += `${'-'.repeat(25)}\n\n`;
@@ -574,11 +621,22 @@ export default function MessageCollectorManager() {
     content += `Exportado por FlowChat API em ${new Date().toLocaleString('pt-BR')}\n`;
     content += `Esta conversa foi coletada automaticamente.`;
 
+    // Nome do arquivo baseado no tipo de exportação
+    let fileName = '';
+    if (exportType === 'participant' && participantName) {
+      const cleanParticipantName = participantName.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
+      fileName = `mensagens-${cleanParticipantName}-${collectorInfo?.sessionId || 'coletor'}-${new Date().toISOString().split('T')[0]}.txt`;
+    } else if (exportType === 'filtered') {
+      fileName = `mensagens-filtradas-${collectorInfo?.sessionId || 'coletor'}-${new Date().toISOString().split('T')[0]}.txt`;
+    } else {
+      fileName = `conversa-${collectorInfo?.sessionId || 'coletor'}-${new Date().toISOString().split('T')[0]}.txt`;
+    }
+
     const blob = new Blob([content], { type: 'text/plain; charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `conversa-${collectorInfo?.sessionId || 'coletor'}-${new Date().toISOString().split('T')[0]}.txt`;
+    a.download = fileName;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
@@ -1385,16 +1443,100 @@ export default function MessageCollectorManager() {
                   </div>
                   
                   <div className="flex items-center space-x-2">
-                    <motion.button
-                      onClick={() => exportConversation(collectedMessages, selectedCollector)}
-                      className="flex items-center px-3 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors text-sm font-medium"
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
-                      title="Exportar como texto simples"
-                    >
-                      <ArrowDownTrayIcon className="w-4 h-4 mr-1" />
-                      Exportar TXT
-                    </motion.button>
+                    {/* Menu de Exportação */}
+                    <div className="relative export-menu-container">
+                      <motion.button
+                        onClick={() => setShowExportMenu(!showExportMenu)}
+                        className="flex items-center px-3 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors text-sm font-medium"
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                        title="Opções de exportação"
+                      >
+                        <ArrowDownTrayIcon className="w-4 h-4 mr-1" />
+                        Exportar
+                        <ChevronDownIcon className="w-3 h-3 ml-1" />
+                      </motion.button>
+                      
+                      <AnimatePresence>
+                        {showExportMenu && (
+                          <motion.div
+                            initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                            animate={{ opacity: 1, y: 0, scale: 1 }}
+                            exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                            transition={{ duration: 0.15 }}
+                            className="absolute top-full left-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-50 min-w-48"
+                            onMouseLeave={() => setShowExportMenu(false)}
+                          >
+                            <div className="py-1">
+                              <button
+                                onClick={() => {
+                                  exportConversation(collectedMessages, selectedCollector, 'all');
+                                  setShowExportMenu(false);
+                                }}
+                                className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center"
+                              >
+                                <DocumentTextIcon className="w-4 h-4 mr-2 text-gray-400" />
+                                Todas as mensagens
+                              </button>
+                              
+                              <button
+                                onClick={() => {
+                                  exportConversation(collectedMessages, selectedCollector, 'filtered');
+                                  setShowExportMenu(false);
+                                }}
+                                className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center"
+                                disabled={filteredMessages.length === collectedMessages.length}
+                              >
+                                <FunnelIcon className="w-4 h-4 mr-2 text-gray-400" />
+                                Mensagens filtradas
+                                <span className="ml-auto text-xs text-gray-500">
+                                  ({filteredMessages.length})
+                                </span>
+                              </button>
+                              
+                              {getParticipants().length > 0 && (
+                                <>
+                                  <div className="border-t border-gray-100 my-1"></div>
+                                  <div className="px-4 py-2 text-xs font-medium text-gray-500 uppercase tracking-wide">
+                                    Por Participante
+                                  </div>
+                                  {getParticipants().slice(0, 5).map((participant) => {
+                                    const participantMessages = collectedMessages.filter(msg => 
+                                      (msg.pushName || 'Usuário') === participant
+                                    );
+                                    return (
+                                      <button
+                                        key={participant}
+                                        onClick={() => {
+                                          exportConversation(collectedMessages, selectedCollector, 'participant', participant);
+                                          setShowExportMenu(false);
+                                        }}
+                                        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 flex items-center"
+                                      >
+                                        <div className="w-4 h-4 mr-2 bg-blue-100 rounded-full flex items-center justify-center">
+                                          <span className="text-xs text-blue-600 font-bold">
+                                            {participant.charAt(0).toUpperCase()}
+                                          </span>
+                                        </div>
+                                        <span className="truncate flex-1">{participant}</span>
+                                        <span className="ml-2 text-xs text-gray-500">
+                                          ({participantMessages.length})
+                                        </span>
+                                      </button>
+                                    );
+                                  })}
+                                  {getParticipants().length > 5 && (
+                                    <div className="px-4 py-2 text-xs text-gray-500 italic">
+                                      +{getParticipants().length - 5} participantes (use filtros)
+                                    </div>
+                                  )}
+                                </>
+                              )}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
                     
                     {summaryData && (
                       <motion.button
@@ -1558,9 +1700,20 @@ export default function MessageCollectorManager() {
                             </div>
                             <div className="border-t border-gray-200 pt-3">
                               <span className="text-xs text-gray-500">Mais ativo</span>
-                              <p className="text-sm font-semibold text-orange-600 truncate mt-1">
-                                {messageStats.topParticipant?.name || 'N/A'}
-                              </p>
+                              <div className="flex items-center justify-between mt-1">
+                                <p className="text-sm font-semibold text-orange-600 truncate">
+                                  {messageStats.topParticipant?.name || 'N/A'}
+                                </p>
+                                {messageStats.topParticipant && (
+                                  <button
+                                    onClick={() => exportConversation(collectedMessages, selectedCollector, 'participant', messageStats.topParticipant.name)}
+                                    className="text-xs text-blue-600 hover:text-blue-800 underline ml-2"
+                                    title={`Exportar mensagens de ${messageStats.topParticipant.name}`}
+                                  >
+                                    Export
+                                  </button>
+                                )}
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -1677,7 +1830,16 @@ export default function MessageCollectorManager() {
                                     </div>
                                     <span className="text-sm font-medium text-gray-800">{participant}</span>
                                   </div>
-                                  <span className="text-xs text-gray-500">{messages.length}</span>
+                                  <div className="flex items-center space-x-2">
+                                    <button
+                                      onClick={() => exportConversation(collectedMessages, selectedCollector, 'participant', participant)}
+                                      className="text-xs text-blue-600 hover:text-blue-800 underline"
+                                      title={`Exportar mensagens de ${participant}`}
+                                    >
+                                      Export
+                                    </button>
+                                    <span className="text-xs text-gray-500">{messages.length}</span>
+                                  </div>
                                 </div>
                                 <div className="p-2 space-y-1 max-h-48 lg:max-h-60 overflow-y-auto">
                                   {messages.map((message, index) => (
