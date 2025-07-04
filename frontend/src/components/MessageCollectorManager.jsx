@@ -1257,13 +1257,13 @@ export default function MessageCollectorManager() {
             onClick={() => setShowMessagesModal(false)}
           >
             <motion.div
-              className="bg-white rounded-2xl max-w-4xl w-full max-h-[85vh] overflow-hidden flex flex-col shadow-2xl border border-gray-200"
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="bg-white rounded-xl w-[95vw] h-[95vh] overflow-hidden flex flex-col shadow-2xl border border-gray-200"
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50">
+              <div className="px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50 flex-shrink-0">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
                     <div className="flex items-center justify-center w-8 h-8 bg-blue-100 rounded-full">
@@ -1339,8 +1339,8 @@ export default function MessageCollectorManager() {
                   <>
                     {/* Estatísticas Rápidas */}
                     {messageStats && (
-                      <div className="bg-white border-b border-gray-200 p-4">
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="bg-white border-b border-gray-200 px-6 py-3 flex-shrink-0">
+                        <div className="grid grid-cols-4 gap-6">
                           <div className="text-center">
                             <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-full mx-auto mb-2">
                               <HashtagIcon className="w-5 h-5 text-blue-600" />
@@ -1374,8 +1374,8 @@ export default function MessageCollectorManager() {
                     )}
 
                     {/* Filtros Avançados */}
-                    <div className="bg-white border-b border-gray-200 p-4">
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="bg-white border-b border-gray-200 px-6 py-3 flex-shrink-0">
+                      <div className="grid grid-cols-4 gap-4">
                         {/* Busca por texto */}
                         <div className="relative">
                           <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -1442,7 +1442,7 @@ export default function MessageCollectorManager() {
                       </div>
 
                       {/* Opções de visualização */}
-                      <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
+                      <div className="flex items-center justify-between mt-3 pt-3 border-t border-gray-100">
                         <div className="flex items-center space-x-4">
                           <label className="flex items-center space-x-2 cursor-pointer">
                             <input
@@ -1474,7 +1474,7 @@ export default function MessageCollectorManager() {
                     </div>
 
                     {/* Lista de Mensagens */}
-                    <div className="flex-1 overflow-y-auto bg-gray-50 p-4">
+                    <div className="flex-1 overflow-y-auto bg-gray-50 p-6 min-h-0">
                       {filteredMessages.length === 0 ? (
                         <div className="text-center py-12">
                           <FunnelIcon className="w-12 h-12 text-gray-300 mx-auto mb-4" />
@@ -1513,7 +1513,7 @@ export default function MessageCollectorManager() {
                                   </div>
                                 </div>
                               </div>
-                              <div className="p-4 space-y-3 max-h-80 overflow-y-auto">
+                              <div className="p-4 space-y-3 max-h-[60vh] overflow-y-auto">
                                 {messages.map((message, index) => (
                                   <div key={index} className="border-l-2 border-blue-200 pl-4 py-2">
                                     <div className="flex items-center justify-between mb-1">
