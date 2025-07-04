@@ -1638,6 +1638,7 @@ export default function MessageCollectorManager() {
                           })}
                         </div>
                       )}
+                      </div>
                     </div>
                   </>
                 )}
