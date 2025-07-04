@@ -698,13 +698,14 @@ export default function MessageCollectorManager() {
             onClick={() => setShowCreateModal(false)}
           >
             <motion.div
-              className="bg-white p-6 rounded-2xl max-w-md w-full shadow-2xl border border-gray-200"
+              className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] shadow-2xl border border-gray-200 flex flex-col"
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center mb-4">
+              {/* Header Fixo */}
+              <div className="flex items-center p-6 pb-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-t-2xl flex-shrink-0">
                 <div className="flex items-center justify-center w-8 h-8 bg-blue-100 rounded-full mr-3">
                   <DocumentTextIcon className="w-4 h-4 text-blue-600" />
                 </div>
@@ -713,7 +714,9 @@ export default function MessageCollectorManager() {
                 </h3>
               </div>
 
-              <div className="space-y-4">
+              {/* Conteúdo com Scroll */}
+              <div className="flex-1 overflow-y-auto px-6 py-4 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 hover:scrollbar-thumb-gray-400">
+                <div className="space-y-6 pb-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Nome do Coletor
@@ -986,23 +989,29 @@ export default function MessageCollectorManager() {
                   )}
                 </div>
 
-                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-xl border border-blue-200">
-                  <div className="flex items-start space-x-2">
-                    <ExclamationTriangleIcon className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                <div className="bg-gradient-to-r from-amber-50 to-orange-50 p-4 rounded-xl border border-amber-200">
+                  <div className="flex items-start space-x-3">
+                    <ExclamationTriangleIcon className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
                     <div>
-                      <p className="text-blue-800 text-sm font-medium mb-1">
-                        Importante
+                      <p className="text-amber-800 text-sm font-semibold mb-2">
+                        ⚠️ Informações Importantes
                       </p>
-                      <p className="text-blue-700 text-sm">
-                        O coletor capturará TODAS as mensagens de texto do grupo durante o horário especificado, incluindo spam.
-                      </p>
+                      <ul className="text-amber-700 text-sm space-y-1">
+                        <li>• Captura TODAS as mensagens de texto do grupo</li>
+                        <li>• Funciona apenas durante os horários configurados</li>
+                        <li>• Inclui mensagens de spam e links</li>
+                        <li>• Não captura mídias (apenas texto)</li>
+                        <li>• O coletor pode ser parado a qualquer momento</li>
+                        <li>• Mensagens já coletadas são preservadas</li>
+                      </ul>
                     </div>
                   </div>
+                </div>
                 </div>
               </div>
 
               {/* Footer Fixo */}
-              <div className="p-6 pt-4 border-t border-gray-200 bg-gray-50">
+              <div className="p-6 pt-4 border-t border-gray-200 bg-gray-50 rounded-b-2xl flex-shrink-0">
                 <div className="flex gap-3">
                   <motion.button
                     onClick={createCollector}
