@@ -3032,6 +3032,145 @@ const swaggerUiOptions = {
  *               $ref: '#/components/schemas/ApiResponse'
  */
 
+/**
+ * @swagger
+ * /api/baileys/download/{downloadId}:
+ *   get:
+ *     tags:
+ *       - Downloads
+ *     summary: Baixar arquivo por ID
+ *     description: Baixa um arquivo previamente processado usando seu ID único
+ *     parameters:
+ *       - in: path
+ *         name: downloadId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID único do download
+ *         example: "download_1234567890abcdef"
+ *     responses:
+ *       200:
+ *         description: Arquivo baixado com sucesso
+ *         content:
+ *           application/octet-stream:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *           image/*:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *           audio/*:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *           video/*:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *       404:
+ *         description: Arquivo não encontrado ou link expirado
+ *         content:
+ *           text/plain:
+ *             schema:
+ *               type: string
+ *               example: "Arquivo não encontrado ou link expirado"
+ *       500:
+ *         description: Erro interno do servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ */
+
+/**
+ * @swagger
+ * /api/baileys/downloads:
+ *   get:
+ *     tags:
+ *       - Downloads
+ *     summary: Listar downloads disponíveis
+ *     description: Lista todos os downloads disponíveis com informações detalhadas
+ *     parameters:
+ *       - in: query
+ *         name: sessionId
+ *         required: false
+ *         schema:
+ *           type: string
+ *         description: ID da sessão para filtrar downloads
+ *         example: "minha-sessao-1"
+ *     responses:
+ *       200:
+ *         description: Lista de downloads obtida com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 downloads:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       downloadId:
+ *                         type: string
+ *                         example: "download_1234567890abcdef"
+ *                       fileName:
+ *                         type: string
+ *                         example: "imagem.jpg"
+ *                       size:
+ *                         type: number
+ *                         example: 1024
+ *                       sizeFormatted:
+ *                         type: string
+ *                         example: "1.00KB"
+ *                       mimetype:
+ *                         type: string
+ *                         example: "image/jpeg"
+ *                       messageType:
+ *                         type: string
+ *                         example: "imageMessage"
+ *                       isPtt:
+ *                         type: boolean
+ *                         example: false
+ *                       sessionId:
+ *                         type: string
+ *                         example: "minha-sessao-1"
+ *                       messageId:
+ *                         type: string
+ *                         example: "msg_id_123"
+ *                       uploadedAt:
+ *                         type: string
+ *                         format: date-time
+ *                         example: "2023-12-01T10:00:00Z"
+ *                       expiresAt:
+ *                         type: string
+ *                         format: date-time
+ *                         example: "2023-12-08T10:00:00Z"
+ *                       isExpired:
+ *                         type: boolean
+ *                         example: false
+ *                       downloadUrl:
+ *                         type: string
+ *                         example: "http://localhost:3000/api/baileys/download/download_1234567890abcdef"
+ *                 total:
+ *                   type: number
+ *                   example: 1
+ *                 sessionId:
+ *                   type: string
+ *                   nullable: true
+ *                   example: "minha-sessao-1"
+ *       500:
+ *         description: Erro interno do servidor
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ */
+
 module.exports = {
   swaggerSpec,
   swaggerUiOptions,
