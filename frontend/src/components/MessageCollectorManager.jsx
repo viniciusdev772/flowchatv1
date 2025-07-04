@@ -71,7 +71,7 @@ export default function MessageCollectorManager() {
     duration: 'unlimited', // unlimited, days, until_date
     durationDays: 7,
     endDate: '',
-    downloadMedia: false // nova opção para baixar mídias automaticamente
+    downloadMedia: true // nova opção para baixar mídias automaticamente (padrão: habilitado)
   });
   
   const [groupSearch, setGroupSearch] = useState('');

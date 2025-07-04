@@ -186,8 +186,10 @@ async function extractMessageData(message, sessionId, collectorConfig) {
       messageData.text = '[Figurinha]';
     }
 
-    // Verificar se deve fazer download da mídia
-    if (collectorConfig && collectorConfig.downloadMedia) {
+    // Verificar se deve fazer download da mídia (padrão: sempre tentar, só pular se explicitamente false)
+    const shouldDownload = !collectorConfig || collectorConfig.downloadMedia !== false;
+    
+    if (shouldDownload) {
       try {
         const sock = global.whatsappSessions?.get(sessionId)?.sock;
         if (sock && typeof global.downloadMediaToFile === 'function') {
@@ -364,7 +366,7 @@ router.post('/start', authenticateToken, async (req, res) => {
       duration = 'unlimited',
       durationDays = 7,
       endDate = '',
-      downloadMedia = false
+      downloadMedia = true
     } = req.body;
     const userId = req.user._id;
 
@@ -423,7 +425,7 @@ router.post('/start', authenticateToken, async (req, res) => {
       duration,
       durationDays: duration === 'days' ? durationDays : null,
       endDate: duration === 'until_date' ? new Date(endDate) : null,
-      downloadMedia: downloadMedia || false,
+      downloadMedia: downloadMedia !== false, // padrão true, só false se explicitamente definido
       createdAt: new Date(),
       userId: new ObjectId(userId),
     };
