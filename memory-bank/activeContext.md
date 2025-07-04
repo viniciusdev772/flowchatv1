@@ -1,5 +1,62 @@
 # Active Context
 
+## Code Changes (2025-07-04 16:18:19)
+
+### Added Files
+- .claude/settings.local.json
+- .github/workflows/docker-image.yml
+- .idea/inspectionProfiles/Project_Default.xml
+- .idea/modules.xml
+- .idea/vcs.xml
+- .idea/workspace.xml
+- .mcp.json
+- docker-compose.dev.yml
+- docker-compose.yaml
+- frontend/eslint.config.js
+- frontend/index.html
+- frontend/package-lock.json
+- frontend/package.json
+- frontend/postcss.config.js
+- frontend/public/config.js
+- frontend/src/App.jsx
+- frontend/src/components/AIStreamingChat.jsx
+- frontend/src/components/AISummaryPanel.jsx
+- frontend/src/components/MarkdownRenderer.jsx
+- frontend/src/components/MessageCollectorManager.jsx
+- frontend/src/components/WebhookManager.jsx
+- frontend/src/hooks/useApi.js
+- frontend/src/hooks/useSmartSuggestions.js
+- frontend/src/index.css
+- frontend/src/main.jsx
+- frontend/src/pages/AIAssistant.jsx
+- frontend/src/pages/Dashboard.jsx
+- frontend/src/pages/Login.jsx
+- frontend/src/utils/api.js
+- frontend/tailwind.config.js
+- frontend/vite.config.js
+- main.js
+- package-lock.json
+- package.json
+- src/ai/tools.js
+- src/api/aiSummary.js
+- src/api/groups.js
+- src/api/messageCollector.js
+- src/app.js
+- src/config/database.js
+- src/config/swagger.js
+- src/controllers/authController.js
+- src/middleware/apiTokenAuth.js
+- src/middleware/auth.js
+- src/middleware/csrf.js
+- src/middleware/security.js
+- src/routes/ai.js
+- src/routes/auth.js
+- src/routes/index.js
+- src/routes/sessions.js
+- src/routes/tokens.js
+- teste.py
+
+
 ## Code Changes (2025-06-28 19:25:46)
 
 ### Added Files

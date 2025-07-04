@@ -11,5 +11,9 @@
       "Bash(ls:*)"
     ],
     "deny": []
-  }
+  },
+  "enabledMcpjsonServers": [
+    "magic-server"
+  ],
+  "enableAllProjectMcpServers": true
 }
