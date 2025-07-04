@@ -16,7 +16,16 @@ import {
   ArrowDownTrayIcon,
   MagnifyingGlassIcon,
   CalendarIcon,
-  CalendarDaysIcon
+  CalendarDaysIcon,
+  FunnelIcon,
+  UsersIcon,
+  ClockIcon as TimeIcon,
+  SunIcon,
+  MoonIcon,
+  AdjustmentsHorizontalIcon,
+  ChevronDownIcon,
+  UserGroupIcon,
+  HashtagIcon
 } from '@heroicons/react/24/outline';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
@@ -37,6 +46,16 @@ export default function MessageCollectorManager() {
   const [showMessagesModal, setShowMessagesModal] = useState(false);
   const [showSummaryPanel, setShowSummaryPanel] = useState(false);
   const [summaryData, setSummaryData] = useState(null);
+  
+  // Estados para filtros das mensagens
+  const [messageSearch, setMessageSearch] = useState('');
+  const [selectedParticipant, setSelectedParticipant] = useState('');
+  const [selectedTimeFilter, setSelectedTimeFilter] = useState('all'); // all, morning, afternoon, evening, night
+  const [selectedDateRange, setSelectedDateRange] = useState('all'); // all, today, yesterday, week, month
+  const [groupByParticipant, setGroupByParticipant] = useState(false);
+  const [sortOrder, setSortOrder] = useState('newest'); // newest, oldest
+  const [filteredMessages, setFilteredMessages] = useState([]);
+  const [messageStats, setMessageStats] = useState(null);
   
   // Form states
   const [formData, setFormData] = useState({
@@ -180,6 +199,118 @@ export default function MessageCollectorManager() {
     setFilteredGroups(filtered);
   };
 
+  const getTimeOfDay = (date) => {
+    const hour = new Date(date).getHours();
+    if (hour >= 6 && hour < 12) return 'morning';
+    if (hour >= 12 && hour < 18) return 'afternoon';
+    if (hour >= 18 && hour < 22) return 'evening';
+    return 'night';
+  };
+
+  const isInDateRange = (messageDate, range) => {
+    const msgDate = new Date(messageDate);
+    const today = new Date();
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    
+    switch (range) {
+      case 'today':
+        return msgDate.toDateString() === today.toDateString();
+      case 'yesterday':
+        return msgDate.toDateString() === yesterday.toDateString();
+      case 'week':
+        const weekAgo = new Date(today);
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        return msgDate >= weekAgo;
+      case 'month':
+        const monthAgo = new Date(today);
+        monthAgo.setMonth(monthAgo.getMonth() - 1);
+        return msgDate >= monthAgo;
+      default:
+        return true;
+    }
+  };
+
+  const applyMessageFilters = () => {
+    let filtered = [...collectedMessages];
+
+    // Filtro por busca de texto
+    if (messageSearch) {
+      const searchLower = messageSearch.toLowerCase();
+      filtered = filtered.filter(msg => 
+        (msg.text || '').toLowerCase().includes(searchLower) ||
+        (msg.pushName || '').toLowerCase().includes(searchLower)
+      );
+    }
+
+    // Filtro por participante
+    if (selectedParticipant && selectedParticipant !== 'all') {
+      filtered = filtered.filter(msg => 
+        (msg.pushName || 'Usuário') === selectedParticipant
+      );
+    }
+
+    // Filtro por período do dia
+    if (selectedTimeFilter !== 'all') {
+      filtered = filtered.filter(msg => 
+        getTimeOfDay(msg.timestamp) === selectedTimeFilter
+      );
+    }
+
+    // Filtro por intervalo de datas
+    if (selectedDateRange !== 'all') {
+      filtered = filtered.filter(msg => 
+        isInDateRange(msg.timestamp, selectedDateRange)
+      );
+    }
+
+    // Ordenação
+    filtered.sort((a, b) => {
+      const dateA = new Date(a.timestamp);
+      const dateB = new Date(b.timestamp);
+      return sortOrder === 'newest' ? dateB - dateA : dateA - dateB;
+    });
+
+    setFilteredMessages(filtered);
+  };
+
+  // Effect para aplicar filtros quando mudarem
+  useEffect(() => {
+    if (collectedMessages.length > 0) {
+      applyMessageFilters();
+    }
+  }, [messageSearch, selectedParticipant, selectedTimeFilter, selectedDateRange, sortOrder, collectedMessages]);
+
+  const getParticipants = () => {
+    const participants = new Set();
+    collectedMessages.forEach(msg => {
+      participants.add(msg.pushName || 'Usuário');
+    });
+    return Array.from(participants).sort();
+  };
+
+  const groupMessagesByParticipant = (messages) => {
+    const grouped = {};
+    messages.forEach(msg => {
+      const participant = msg.pushName || 'Usuário';
+      if (!grouped[participant]) {
+        grouped[participant] = [];
+      }
+      grouped[participant].push(msg);
+    });
+    return grouped;
+  };
+
+  const getTimeIcon = (timeFilter) => {
+    switch (timeFilter) {
+      case 'morning': return <SunIcon className="w-4 h-4 text-gray-400" />;
+      case 'afternoon': return <SunIcon className="w-4 h-4 text-gray-400" />;
+      case 'evening': return <MoonIcon className="w-4 h-4 text-gray-400" />;
+      case 'night': return <MoonIcon className="w-4 h-4 text-gray-400" />;
+      default: return <TimeIcon className="w-4 h-4 text-gray-400" />;
+    }
+  };
+
   const createCollector = async () => {
     try {
       const response = await fetch(`${apiUrl}/api/management/message-collector/start`, {
@@ -266,19 +397,93 @@ export default function MessageCollectorManager() {
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
-          setCollectedMessages(data.data.messages || []);
+          const messages = data.data.messages || [];
+          setCollectedMessages(messages);
+          setFilteredMessages(messages);
           setSelectedCollector(data.data);
           setSummaryData({
-            messages: data.data.messages || [],
+            messages: messages,
             collectorId: collectorId,
             totalMessages: data.data.totalMessages
           });
+          
+          // Calcular estatísticas
+          calculateMessageStats(messages);
+          
+          // Reset filters
+          setMessageSearch('');
+          setSelectedParticipant('');
+          setSelectedTimeFilter('all');
+          setSelectedDateRange('all');
+          setGroupByParticipant(false);
+          setSortOrder('newest');
+          
           setShowMessagesModal(true);
         }
       }
     } catch (error) {
       console.error('Erro ao carregar mensagens:', error);
     }
+  };
+
+  const calculateMessageStats = (messages) => {
+    if (!messages || messages.length === 0) {
+      setMessageStats(null);
+      return;
+    }
+
+    const participantStats = {};
+    const hourlyStats = Array(24).fill(0);
+    const dailyStats = {};
+    
+    messages.forEach(msg => {
+      const participant = msg.pushName || 'Usuário';
+      const date = new Date(msg.timestamp);
+      const hour = date.getHours();
+      const day = date.toDateString();
+      
+      // Estatísticas por participante
+      if (!participantStats[participant]) {
+        participantStats[participant] = {
+          name: participant,
+          count: 0,
+          avgLength: 0,
+          totalLength: 0
+        };
+      }
+      participantStats[participant].count++;
+      participantStats[participant].totalLength += (msg.text || '').length;
+      participantStats[participant].avgLength = Math.round(
+        participantStats[participant].totalLength / participantStats[participant].count
+      );
+      
+      // Estatísticas por hora
+      hourlyStats[hour]++;
+      
+      // Estatísticas por dia
+      if (!dailyStats[day]) {
+        dailyStats[day] = 0;
+      }
+      dailyStats[day]++;
+    });
+
+    const sortedParticipants = Object.values(participantStats)
+      .sort((a, b) => b.count - a.count);
+
+    const peakHour = hourlyStats.indexOf(Math.max(...hourlyStats));
+    
+    setMessageStats({
+      totalMessages: messages.length,
+      participants: sortedParticipants,
+      topParticipant: sortedParticipants[0] || null,
+      peakHour: peakHour,
+      hourlyDistribution: hourlyStats,
+      dailyStats: dailyStats,
+      dateRange: {
+        start: new Date(Math.min(...messages.map(m => new Date(m.timestamp)))),
+        end: new Date(Math.max(...messages.map(m => new Date(m.timestamp))))
+      }
+    });
   };
 
   const exportConversation = (messages, collectorInfo) => {
@@ -1115,53 +1320,212 @@ export default function MessageCollectorManager() {
                 </div>
               </div>
 
-              <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
+              <div className="flex-1 flex flex-col overflow-hidden">
                 {collectedMessages.length === 0 ? (
-                  <div className="text-center py-12">
-                    <div className="flex items-center justify-center w-16 h-16 bg-gray-100 rounded-full mx-auto mb-4">
-                      <DocumentTextIcon className="w-8 h-8 text-gray-400" />
+                  <div className="flex-1 flex items-center justify-center bg-gray-50">
+                    <div className="text-center py-12">
+                      <div className="flex items-center justify-center w-16 h-16 bg-gray-100 rounded-full mx-auto mb-4">
+                        <DocumentTextIcon className="w-8 h-8 text-gray-400" />
+                      </div>
+                      <h4 className="text-lg font-medium text-gray-700 mb-2">
+                        Nenhuma mensagem coletada
+                      </h4>
+                      <p className="text-gray-500">
+                        As mensagens aparecerão aqui quando o coletor estiver ativo
+                      </p>
                     </div>
-                    <h4 className="text-lg font-medium text-gray-700 mb-2">
-                      Nenhuma mensagem coletada
-                    </h4>
-                    <p className="text-gray-500">
-                      As mensagens aparecerão aqui quando o coletor estiver ativo
-                    </p>
                   </div>
                 ) : (
-                  <div className="space-y-3">
-                    {collectedMessages.map((message, index) => (
-                      <motion.div
-                        key={index}
-                        className="bg-white p-4 rounded-xl border border-gray-200 hover:border-gray-300 transition-colors"
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.02 }}
-                        whileHover={{ scale: 1.005 }}
-                      >
-                        <div className="flex items-start justify-between mb-2">
-                          <div className="flex items-center space-x-2">
-                            <div className="flex items-center justify-center w-6 h-6 bg-blue-100 rounded-full">
-                              <span className="text-blue-600 text-xs font-medium">
-                                {message.pushName?.charAt(0) || 'U'}
-                              </span>
+                  <>
+                    {/* Estatísticas Rápidas */}
+                    {messageStats && (
+                      <div className="bg-white border-b border-gray-200 p-4">
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                          <div className="text-center">
+                            <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-full mx-auto mb-2">
+                              <HashtagIcon className="w-5 h-5 text-blue-600" />
                             </div>
-                            <span className="font-medium text-gray-800 text-sm">
-                              {message.pushName || 'Usuário'}
-                            </span>
+                            <p className="text-2xl font-bold text-gray-800">{messageStats.totalMessages}</p>
+                            <p className="text-xs text-gray-500">Total</p>
                           </div>
-                          <span className="text-gray-500 text-xs">
-                            {new Date(message.timestamp).toLocaleTimeString('pt-BR')}
-                          </span>
+                          <div className="text-center">
+                            <div className="flex items-center justify-center w-10 h-10 bg-green-100 rounded-full mx-auto mb-2">
+                              <UserGroupIcon className="w-5 h-5 text-green-600" />
+                            </div>
+                            <p className="text-2xl font-bold text-gray-800">{messageStats.participants.length}</p>
+                            <p className="text-xs text-gray-500">Participantes</p>
+                          </div>
+                          <div className="text-center">
+                            <div className="flex items-center justify-center w-10 h-10 bg-purple-100 rounded-full mx-auto mb-2">
+                              <TimeIcon className="w-5 h-5 text-purple-600" />
+                            </div>
+                            <p className="text-2xl font-bold text-gray-800">{messageStats.peakHour}h</p>
+                            <p className="text-xs text-gray-500">Pico</p>
+                          </div>
+                          <div className="text-center">
+                            <div className="flex items-center justify-center w-10 h-10 bg-orange-100 rounded-full mx-auto mb-2">
+                              <UsersIcon className="w-5 h-5 text-orange-600" />
+                            </div>
+                            <p className="text-lg font-bold text-gray-800 truncate">{messageStats.topParticipant?.name || 'N/A'}</p>
+                            <p className="text-xs text-gray-500">Mais ativo</p>
+                          </div>
                         </div>
-                        <p className="text-gray-700 text-sm leading-relaxed pl-8">
-                          {message.text}
-                        </p>
-                      </motion.div>
-                    ))}
-                  </div>
-                )}
-              </div>
+                      </div>
+                    )}
+
+                    {/* Filtros Avançados */}
+                    <div className="bg-white border-b border-gray-200 p-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        {/* Busca por texto */}
+                        <div className="relative">
+                          <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                          <input
+                            type="text"
+                            value={messageSearch}
+                            onChange={(e) => setMessageSearch(e.target.value)}
+                            placeholder="Buscar mensagens..."
+                            className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </div>
+
+                        {/* Filtro por participante */}
+                        <div className="relative">
+                          <UsersIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                          <select
+                            value={selectedParticipant}
+                            onChange={(e) => setSelectedParticipant(e.target.value)}
+                            className="w-full pl-10 pr-8 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none"
+                          >
+                            <option value="">Todos os participantes</option>
+                            {getParticipants().map(participant => (
+                              <option key={participant} value={participant}>{participant}</option>
+                            ))}
+                          </select>
+                          <ChevronDownIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        </div>
+
+                        {/* Filtro por período do dia */}
+                        <div className="relative">
+                          <div className="absolute left-3 top-1/2 transform -translate-y-1/2">
+                            {getTimeIcon(selectedTimeFilter)}
+                          </div>
+                          <select
+                            value={selectedTimeFilter}
+                            onChange={(e) => setSelectedTimeFilter(e.target.value)}
+                            className="w-full pl-10 pr-8 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none"
+                          >
+                            <option value="all">Todos os períodos</option>
+                            <option value="morning">Manhã (6h-12h)</option>
+                            <option value="afternoon">Tarde (12h-18h)</option>
+                            <option value="evening">Noite (18h-22h)</option>
+                            <option value="night">Madrugada (22h-6h)</option>
+                          </select>
+                          <ChevronDownIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        </div>
+
+                        {/* Filtro por intervalo de tempo */}
+                        <div className="relative">
+                          <CalendarIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                          <select
+                            value={selectedDateRange}
+                            onChange={(e) => setSelectedDateRange(e.target.value)}
+                            className="w-full pl-10 pr-8 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 appearance-none"
+                          >
+                            <option value="all">Todas as datas</option>
+                            <option value="today">Hoje</option>
+                            <option value="yesterday">Ontem</option>
+                            <option value="week">Última semana</option>
+                            <option value="month">Último mês</option>
+                          </select>
+                          <ChevronDownIcon className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        </div>
+                      </div>
+
+                      {/* Opções de visualização */}
+                      <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
+                        <div className="flex items-center space-x-4">
+                          <label className="flex items-center space-x-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={groupByParticipant}
+                              onChange={(e) => setGroupByParticipant(e.target.checked)}
+                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                            />
+                            <span className="text-sm text-gray-700">Agrupar por participante</span>
+                          </label>
+                        </div>
+
+                        <div className="flex items-center space-x-2">
+                          <span className="text-sm text-gray-500">Ordenar:</span>
+                          <select
+                            value={sortOrder}
+                            onChange={(e) => setSortOrder(e.target.value)}
+                            className="border border-gray-200 rounded px-2 py-1 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                          >
+                            <option value="newest">Mais recentes</option>
+                            <option value="oldest">Mais antigas</option>
+                          </select>
+                        </div>
+
+                        <div className="text-sm text-gray-500">
+                          {filteredMessages.length} de {collectedMessages.length} mensagens
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Lista de Mensagens */}
+                    <div className="flex-1 overflow-y-auto bg-gray-50 p-4">
+                      {filteredMessages.length === 0 ? (
+                        <div className="text-center py-12">
+                          <FunnelIcon className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+                          <h4 className="text-lg font-medium text-gray-500 mb-2">
+                            Nenhuma mensagem encontrada
+                          </h4>
+                          <p className="text-gray-400 text-sm">
+                            Tente ajustar os filtros para ver mais resultados
+                          </p>
+                        </div>
+                      ) : groupByParticipant ? (
+                        // Visualização agrupada por participante
+                        <div className="space-y-6">
+                          {Object.entries(groupMessagesByParticipant(filteredMessages)).map(([participant, messages]) => (
+                            <motion.div
+                              key={participant}
+                              className="bg-white rounded-xl border border-gray-200 overflow-hidden"
+                              initial={{ opacity: 0, y: 20 }}
+                              animate={{ opacity: 1, y: 0 }}
+                            >
+                              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 px-6 py-4 border-b border-gray-200">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center space-x-3">
+                                    <div className="flex items-center justify-center w-10 h-10 bg-blue-100 rounded-full">
+                                      <span className="text-blue-600 font-bold">
+                                        {participant.charAt(0).toUpperCase()}
+                                      </span>
+                                    </div>
+                                    <div>
+                                      <h4 className="font-semibold text-gray-800">{participant}</h4>
+                                      <p className="text-sm text-gray-500">{messages.length} mensagens</p>
+                                    </div>
+                                  </div>
+                                  <div className="text-sm text-gray-500">
+                                    {Math.round(messages.reduce((acc, msg) => acc + (msg.text?.length || 0), 0) / messages.length)} chars/msg
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="p-4 space-y-3 max-h-80 overflow-y-auto">
+                                {messages.map((message, index) => (
+                                  <div key={index} className="border-l-2 border-blue-200 pl-4 py-2">
+                                    <div className="flex items-center justify-between mb-1">
+                                      <span className="text-xs text-gray-500">
+                                        {new Date(message.timestamp).toLocaleString('pt-BR')}
+                                      </span>
+                                      <div className="flex items-center space-x-1">
+                                        <div className={`w-2 h-2 rounded-full ${\n                                          getTimeOfDay(message.timestamp) === 'morning' ? 'bg-yellow-400' :\n                                          getTimeOfDay(message.timestamp) === 'afternoon' ? 'bg-orange-400' :\n                                          getTimeOfDay(message.timestamp) === 'evening' ? 'bg-purple-400' :\n                                          'bg-blue-400'\n                                        }`}></div>\n                                      </div>
+                                    </div>
+                                    <p className="text-gray-700 text-sm leading-relaxed">
+                                      {messageSearch && message.text ? (
+                                        message.text.split(new RegExp(`(${messageSearch})`, 'gi')).map((part, i) => \n                                          part.toLowerCase() === messageSearch.toLowerCase() ? \n                                            <mark key={i} className="bg-yellow-200 rounded px-1">{part}</mark> : part\n                                        )\n                                      ) : (\n                                        message.text || '[Mensagem vazia]'\n                                      )}\n                                    </p>\n                                  </div>\n                                ))}\n                              </div>\n                            </motion.div>\n                          ))}\n                        </div>\n                      ) : (\n                        // Visualização linear\n                        <div className="space-y-3">\n                          {filteredMessages.map((message, index) => {\n                            const timeOfDay = getTimeOfDay(message.timestamp);\n                            const timeColor = {\n                              morning: 'border-l-yellow-400 bg-yellow-50',\n                              afternoon: 'border-l-orange-400 bg-orange-50',\n                              evening: 'border-l-purple-400 bg-purple-50',\n                              night: 'border-l-blue-400 bg-blue-50'\n                            }[timeOfDay];\n\n                            return (\n                              <motion.div\n                                key={index}\n                                className={`bg-white p-4 rounded-xl border-l-4 ${timeColor} border-r border-t border-b border-gray-200 hover:shadow-sm transition-all`}\n                                initial={{ opacity: 0, y: 20 }}\n                                animate={{ opacity: 1, y: 0 }}\n                                transition={{ delay: Math.min(index * 0.02, 0.5) }}\n                                whileHover={{ scale: 1.005 }}\n                              >\n                                <div className="flex items-start justify-between mb-3">\n                                  <div className="flex items-center space-x-3">\n                                    <div className="flex items-center justify-center w-8 h-8 bg-gray-100 rounded-full">\n                                      <span className="text-gray-600 text-xs font-medium">\n                                        {message.pushName?.charAt(0) || 'U'}\n                                      </span>\n                                    </div>\n                                    <div>\n                                      <span className="font-medium text-gray-800 text-sm">\n                                        {message.pushName || 'Usuário'}\n                                      </span>\n                                      <div className="flex items-center space-x-2 mt-1">\n                                        <span className="text-gray-500 text-xs">\n                                          {new Date(message.timestamp).toLocaleString('pt-BR')}\n                                        </span>\n                                        <span className={`text-xs px-2 py-1 rounded-full ${\n                                          timeOfDay === 'morning' ? 'bg-yellow-100 text-yellow-700' :\n                                          timeOfDay === 'afternoon' ? 'bg-orange-100 text-orange-700' :\n                                          timeOfDay === 'evening' ? 'bg-purple-100 text-purple-700' :\n                                          'bg-blue-100 text-blue-700'\n                                        }`}>\n                                          {timeOfDay === 'morning' ? '🌅 Manhã' :\n                                           timeOfDay === 'afternoon' ? '☀️ Tarde' :\n                                           timeOfDay === 'evening' ? '🌆 Noite' : '🌙 Madrugada'}\n                                        </span>\n                                      </div>\n                                    </div>\n                                  </div>\n                                  <div className="text-xs text-gray-400">\n                                    {message.text?.length || 0} chars\n                                  </div>\n                                </div>\n                                <div className="pl-11">\n                                  <p className="text-gray-700 text-sm leading-relaxed">\n                                    {messageSearch && message.text ? (\n                                      message.text.split(new RegExp(`(${messageSearch})`, 'gi')).map((part, i) => \n                                        part.toLowerCase() === messageSearch.toLowerCase() ? \n                                          <mark key={i} className="bg-yellow-200 rounded px-1">{part}</mark> : part\n                                      )\n                                    ) : (\n                                      message.text || '[Mensagem vazia]'\n                                    )}\n                                  </p>\n                                </div>\n                              </motion.div>\n                            );\n                          })}\n                        </div>\n                      )}\n                    </div>\n                  </>\n                )}\n              </div>
             </motion.div>
           </motion.div>
         )}
