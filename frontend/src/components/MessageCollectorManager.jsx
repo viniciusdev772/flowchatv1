@@ -129,15 +129,36 @@ export default function MessageCollectorManager() {
     
     setSearchingGroups(true);
     try {
-      const response = await fetch(`${apiUrl}/api/baileys/groups/${sessionId}/list?limit=50`, {
+      console.log('Carregando grupos para sess\u00e3o:', sessionId);
+      const response = await fetch(`${apiUrl}/api/management/sessions/${sessionId}/groups?limit=50`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+        },
         credentials: 'include'
       });
       
+      console.log('Response status:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('Dados dos grupos recebidos:', data);
         if (data.success) {
           setGroups(data.groups || []);
           setFilteredGroups(data.groups || []);
+        } else {
+          console.error('API retornou erro:', data.message);
+        }
+      } else {
+        const errorText = await response.text();
+        console.error('Erro na resposta:', response.status, errorText);
+        // Mostrar mensagem de erro específica baseada no status
+        if (response.status === 404) {
+          console.warn('Sessão não encontrada ou não conectada');
+        } else if (response.status === 403) {
+          console.warn('Sem permissão para acessar esta sessão');
+        } else if (response.status === 400) {
+          console.warn('Sessão não está conectada ao WhatsApp');
         }
       }
     } catch (error) {
@@ -754,9 +775,9 @@ export default function MessageCollectorManager() {
                           <span className="ml-2 text-sm text-gray-600">Carregando grupos...</span>
                         </div>
                       ) : (
-                        <div className="max-h-32 overflow-y-auto border border-gray-200 rounded-xl bg-white">
+                        <div className="max-h-40 overflow-y-auto border border-gray-200 rounded-xl bg-white">
                           {filteredGroups.length > 0 ? (
-                            filteredGroups.slice(0, 10).map((group) => (
+                            filteredGroups.slice(0, 15).map((group) => (
                               <div
                                 key={group.jid}
                                 onClick={() => {
@@ -764,19 +785,28 @@ export default function MessageCollectorManager() {
                                   setGroupSearch(group.name);
                                   setFilteredGroups([]);
                                 }}
-                                className="px-4 py-2 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                                className="px-4 py-3 hover:bg-blue-50 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors"
                               >
-                                <div className="flex items-center space-x-2">
-                                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                                  <span className="font-medium text-sm text-gray-800">{group.name}</span>
-                                  <span className="text-xs text-gray-500">({group.participants.total} membros)</span>
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center space-x-3">
+                                    <div className="w-2 h-2 bg-green-500 rounded-full flex-shrink-0"></div>
+                                    <div className="min-w-0 flex-1">
+                                      <p className="font-medium text-sm text-gray-800 truncate">{group.name}</p>
+                                      <p className="text-xs text-gray-500">{group.participants?.total || 0} membros</p>
+                                    </div>
+                                  </div>
+                                  <div className="text-xs text-blue-600 font-medium">Selecionar</div>
                                 </div>
                               </div>
                             ))
                           ) : (
                             groupSearch && (
-                              <div className="px-4 py-2 text-sm text-gray-500">
-                                Nenhum grupo encontrado
+                              <div className="px-4 py-3 text-sm text-gray-500 text-center">
+                                <div className="flex flex-col items-center space-y-2">
+                                  <MagnifyingGlassIcon className="w-8 h-8 text-gray-300" />
+                                  <span>Nenhum grupo encontrado</span>
+                                  <span className="text-xs">Tente outro termo de busca</span>
+                                </div>
                               </div>
                             )
                           )}
@@ -971,27 +1001,31 @@ export default function MessageCollectorManager() {
                 </div>
               </div>
 
-              <div className="flex gap-3 mt-6">
-                <motion.button
-                  onClick={createCollector}
-                  disabled={!formData.sessionId || !formData.groupId || 
-                    (formData.scheduleType === 'weekly' && formData.weekDays.length === 0) ||
-                    (formData.scheduleType === 'specific_days' && formData.specificDates.length === 0)}
-                  className="flex-1 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  Criar Coletor
-                </motion.button>
+              {/* Footer Fixo */}
+              <div className="p-6 pt-4 border-t border-gray-200 bg-gray-50">
+                <div className="flex gap-3">
+                  <motion.button
+                    onClick={createCollector}
+                    disabled={!formData.sessionId || !formData.groupId || 
+                      (formData.scheduleType === 'weekly' && formData.weekDays.length === 0) ||
+                      (formData.scheduleType === 'specific_days' && formData.specificDates.length === 0) ||
+                      (formData.duration === 'until_date' && !formData.endDate)}
+                    className="flex-1 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    Criar Coletor
+                  </motion.button>
 
-                <motion.button
-                  onClick={() => setShowCreateModal(false)}
-                  className="flex-1 py-3 bg-gray-100 rounded-xl text-gray-700 hover:bg-gray-200 font-medium transition-colors"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  Cancelar
-                </motion.button>
+                  <motion.button
+                    onClick={() => setShowCreateModal(false)}
+                    className="flex-1 py-3 bg-gray-100 rounded-xl text-gray-700 hover:bg-gray-200 font-medium transition-colors"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    Cancelar
+                  </motion.button>
+                </div>
               </div>
             </motion.div>
           </motion.div>
