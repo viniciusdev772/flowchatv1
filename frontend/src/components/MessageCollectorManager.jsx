@@ -550,6 +550,7 @@ export default function MessageCollectorManager() {
       const name = message.pushName || 'Usuário';
       
       content += `[${date} ${time}] ${name} (${phone})\n`;
+      content += `ID: ${message.id}\n`;
       
       // Verificar se é mídia com link
       const isMediaUrl = message.text && message.text.startsWith('http') && message.text.includes('/api/baileys/download/');
@@ -1537,7 +1538,7 @@ export default function MessageCollectorManager() {
                     </div>
 
                     {/* Sidebar Desktop */}
-                    <div className="hidden lg:flex w-80 bg-gray-50 border-r border-gray-200 flex-col flex-shrink-0">
+                    <div className="hidden lg:flex w-80 bg-gray-50 border-r border-gray-200 flex-col flex-shrink-0 overflow-hidden">
                       {/* Estatísticas Compactas */}
                       {messageStats && (
                         <div className="p-4 border-b border-gray-200">
@@ -1565,84 +1566,87 @@ export default function MessageCollectorManager() {
                         </div>
                       )}
 
-                      {/* Filtros Compactos */}
-                      <div className="p-4 border-b border-gray-200">
-                        <h4 className="text-sm font-semibold text-gray-700 mb-3">Filtros</h4>
-                        <div className="space-y-3">
-                          {/* Busca */}
-                          <div className="relative">
-                            <MagnifyingGlassIcon className="absolute left-2 top-1/2 transform -translate-y-1/2 w-3 h-3 text-gray-400" />
-                            <input
-                              type="text"
-                              value={messageSearch}
-                              onChange={(e) => setMessageSearch(e.target.value)}
-                              placeholder="Buscar..."
-                              className="w-full pl-7 pr-2 py-1.5 border border-gray-200 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                            />
+                      {/* Área Scrollável de Filtros */}
+                      <div className="flex-1 overflow-y-auto">
+                        {/* Filtros Compactos */}
+                        <div className="p-4 border-b border-gray-200">
+                          <h4 className="text-sm font-semibold text-gray-700 mb-3">Filtros</h4>
+                          <div className="space-y-3">
+                            {/* Busca */}
+                            <div className="relative">
+                              <MagnifyingGlassIcon className="absolute left-2 top-1/2 transform -translate-y-1/2 w-3 h-3 text-gray-400" />
+                              <input
+                                type="text"
+                                value={messageSearch}
+                                onChange={(e) => setMessageSearch(e.target.value)}
+                                placeholder="Buscar..."
+                                className="w-full pl-7 pr-2 py-1.5 border border-gray-200 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                              />
+                            </div>
+
+                            {/* Participante */}
+                            <select
+                              value={selectedParticipant}
+                              onChange={(e) => setSelectedParticipant(e.target.value)}
+                              className="w-full px-2 py-1.5 border border-gray-200 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                            >
+                              <option value="">Todos participantes</option>
+                              {getParticipants().map(participant => (
+                                <option key={participant} value={participant}>{participant}</option>
+                              ))}
+                            </select>
+
+                            {/* Período */}
+                            <select
+                              value={selectedTimeFilter}
+                              onChange={(e) => setSelectedTimeFilter(e.target.value)}
+                              className="w-full px-2 py-1.5 border border-gray-200 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                            >
+                              <option value="all">Todos períodos</option>
+                              <option value="morning">Manhã</option>
+                              <option value="afternoon">Tarde</option>
+                              <option value="evening">Noite</option>
+                              <option value="night">Madrugada</option>
+                            </select>
+
+                            {/* Data */}
+                            <select
+                              value={selectedDateRange}
+                              onChange={(e) => setSelectedDateRange(e.target.value)}
+                              className="w-full px-2 py-1.5 border border-gray-200 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                            >
+                              <option value="all">Todas datas</option>
+                              <option value="today">Hoje</option>
+                              <option value="yesterday">Ontem</option>
+                              <option value="week">Semana</option>
+                              <option value="month">Mês</option>
+                            </select>
                           </div>
-
-                          {/* Participante */}
-                          <select
-                            value={selectedParticipant}
-                            onChange={(e) => setSelectedParticipant(e.target.value)}
-                            className="w-full px-2 py-1.5 border border-gray-200 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                          >
-                            <option value="">Todos participantes</option>
-                            {getParticipants().map(participant => (
-                              <option key={participant} value={participant}>{participant}</option>
-                            ))}
-                          </select>
-
-                          {/* Período */}
-                          <select
-                            value={selectedTimeFilter}
-                            onChange={(e) => setSelectedTimeFilter(e.target.value)}
-                            className="w-full px-2 py-1.5 border border-gray-200 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                          >
-                            <option value="all">Todos períodos</option>
-                            <option value="morning">Manhã</option>
-                            <option value="afternoon">Tarde</option>
-                            <option value="evening">Noite</option>
-                            <option value="night">Madrugada</option>
-                          </select>
-
-                          {/* Data */}
-                          <select
-                            value={selectedDateRange}
-                            onChange={(e) => setSelectedDateRange(e.target.value)}
-                            className="w-full px-2 py-1.5 border border-gray-200 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                          >
-                            <option value="all">Todas datas</option>
-                            <option value="today">Hoje</option>
-                            <option value="yesterday">Ontem</option>
-                            <option value="week">Semana</option>
-                            <option value="month">Mês</option>
-                          </select>
                         </div>
-                      </div>
 
-                      {/* Opções de View */}
-                      <div className="p-4">
-                        <div className="space-y-2">
-                          <label className="flex items-center space-x-2 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              checked={groupByParticipant}
-                              onChange={(e) => setGroupByParticipant(e.target.checked)}
-                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-3 h-3"
-                            />
-                            <span className="text-xs text-gray-700">Agrupar</span>
-                          </label>
-                          <select
-                            value={sortOrder}
-                            onChange={(e) => setSortOrder(e.target.value)}
-                            className="w-full px-2 py-1.5 border border-gray-200 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                          >
-                            <option value="newest">Mais recentes</option>
-                            <option value="oldest">Mais antigas</option>
-                          </select>
-                          <div className="text-xs text-gray-500 pt-2">
-                            {filteredMessages.length} de {collectedMessages.length}
+                        {/* Opções de View */}
+                        <div className="p-4">
+                          <div className="space-y-2">
+                            <label className="flex items-center space-x-2 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={groupByParticipant}
+                                onChange={(e) => setGroupByParticipant(e.target.checked)}
+                                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-3 h-3"
+                              />
+                              <span className="text-xs text-gray-700">Agrupar</span>
+                            </label>
+                            <select
+                              value={sortOrder}
+                              onChange={(e) => setSortOrder(e.target.value)}
+                              className="w-full px-2 py-1.5 border border-gray-200 rounded text-xs focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                            >
+                              <option value="newest">Mais recentes</option>
+                              <option value="oldest">Mais antigas</option>
+                            </select>
+                            <div className="text-xs text-gray-500 pt-2">
+                              {filteredMessages.length} de {collectedMessages.length}
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -1683,6 +1687,10 @@ export default function MessageCollectorManager() {
                                           {new Date(message.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                                         </span>
                                         <div className={`w-1.5 h-1.5 rounded-full ${getTimeOfDay(message.timestamp) === 'morning' ? 'bg-yellow-400' : getTimeOfDay(message.timestamp) === 'afternoon' ? 'bg-orange-400' : getTimeOfDay(message.timestamp) === 'evening' ? 'bg-purple-400' : 'bg-blue-400'}`}></div>
+                                      </div>
+                                      {/* ID da mensagem */}
+                                      <div className="text-gray-400 text-xs mb-1 font-mono">
+                                        ID: {message.id}
                                       </div>
                                       <div className="text-gray-700 text-xs sm:text-sm leading-relaxed">
                                         {renderMessageContent(message, messageSearch)}
@@ -1725,6 +1733,10 @@ export default function MessageCollectorManager() {
                                       </span>
                                     </div>
                                     <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${timeOfDay === 'morning' ? 'bg-yellow-400' : timeOfDay === 'afternoon' ? 'bg-orange-400' : timeOfDay === 'evening' ? 'bg-purple-400' : 'bg-blue-400'}`}></div>
+                                  </div>
+                                  {/* ID da mensagem */}
+                                  <div className="text-gray-400 text-xs mb-1 pl-7 font-mono">
+                                    ID: {message.id}
                                   </div>
                                   <div className="text-xs sm:text-sm text-gray-700 pl-7 leading-relaxed">
                                     {renderMessageContent(message, messageSearch)}
