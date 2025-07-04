@@ -1521,11 +1521,92 @@ export default function MessageCollectorManager() {
                                         {new Date(message.timestamp).toLocaleString('pt-BR')}
                                       </span>
                                       <div className="flex items-center space-x-1">
-                                        <div className={`w-2 h-2 rounded-full ${\n                                          getTimeOfDay(message.timestamp) === 'morning' ? 'bg-yellow-400' :\n                                          getTimeOfDay(message.timestamp) === 'afternoon' ? 'bg-orange-400' :\n                                          getTimeOfDay(message.timestamp) === 'evening' ? 'bg-purple-400' :\n                                          'bg-blue-400'\n                                        }`}></div>\n                                      </div>
+                                        <div className={`w-2 h-2 rounded-full ${getTimeOfDay(message.timestamp) === 'morning' ? 'bg-yellow-400' : getTimeOfDay(message.timestamp) === 'afternoon' ? 'bg-orange-400' : getTimeOfDay(message.timestamp) === 'evening' ? 'bg-purple-400' : 'bg-blue-400'}`}></div>
+                                      </div>
                                     </div>
                                     <p className="text-gray-700 text-sm leading-relaxed">
                                       {messageSearch && message.text ? (
-                                        message.text.split(new RegExp(`(${messageSearch})`, 'gi')).map((part, i) => \n                                          part.toLowerCase() === messageSearch.toLowerCase() ? \n                                            <mark key={i} className="bg-yellow-200 rounded px-1">{part}</mark> : part\n                                        )\n                                      ) : (\n                                        message.text || '[Mensagem vazia]'\n                                      )}\n                                    </p>\n                                  </div>\n                                ))}\n                              </div>\n                            </motion.div>\n                          ))}\n                        </div>\n                      ) : (\n                        // Visualização linear\n                        <div className="space-y-3">\n                          {filteredMessages.map((message, index) => {\n                            const timeOfDay = getTimeOfDay(message.timestamp);\n                            const timeColor = {\n                              morning: 'border-l-yellow-400 bg-yellow-50',\n                              afternoon: 'border-l-orange-400 bg-orange-50',\n                              evening: 'border-l-purple-400 bg-purple-50',\n                              night: 'border-l-blue-400 bg-blue-50'\n                            }[timeOfDay];\n\n                            return (\n                              <motion.div\n                                key={index}\n                                className={`bg-white p-4 rounded-xl border-l-4 ${timeColor} border-r border-t border-b border-gray-200 hover:shadow-sm transition-all`}\n                                initial={{ opacity: 0, y: 20 }}\n                                animate={{ opacity: 1, y: 0 }}\n                                transition={{ delay: Math.min(index * 0.02, 0.5) }}\n                                whileHover={{ scale: 1.005 }}\n                              >\n                                <div className="flex items-start justify-between mb-3">\n                                  <div className="flex items-center space-x-3">\n                                    <div className="flex items-center justify-center w-8 h-8 bg-gray-100 rounded-full">\n                                      <span className="text-gray-600 text-xs font-medium">\n                                        {message.pushName?.charAt(0) || 'U'}\n                                      </span>\n                                    </div>\n                                    <div>\n                                      <span className="font-medium text-gray-800 text-sm">\n                                        {message.pushName || 'Usuário'}\n                                      </span>\n                                      <div className="flex items-center space-x-2 mt-1">\n                                        <span className="text-gray-500 text-xs">\n                                          {new Date(message.timestamp).toLocaleString('pt-BR')}\n                                        </span>\n                                        <span className={`text-xs px-2 py-1 rounded-full ${\n                                          timeOfDay === 'morning' ? 'bg-yellow-100 text-yellow-700' :\n                                          timeOfDay === 'afternoon' ? 'bg-orange-100 text-orange-700' :\n                                          timeOfDay === 'evening' ? 'bg-purple-100 text-purple-700' :\n                                          'bg-blue-100 text-blue-700'\n                                        }`}>\n                                          {timeOfDay === 'morning' ? '🌅 Manhã' :\n                                           timeOfDay === 'afternoon' ? '☀️ Tarde' :\n                                           timeOfDay === 'evening' ? '🌆 Noite' : '🌙 Madrugada'}\n                                        </span>\n                                      </div>\n                                    </div>\n                                  </div>\n                                  <div className="text-xs text-gray-400">\n                                    {message.text?.length || 0} chars\n                                  </div>\n                                </div>\n                                <div className="pl-11">\n                                  <p className="text-gray-700 text-sm leading-relaxed">\n                                    {messageSearch && message.text ? (\n                                      message.text.split(new RegExp(`(${messageSearch})`, 'gi')).map((part, i) => \n                                        part.toLowerCase() === messageSearch.toLowerCase() ? \n                                          <mark key={i} className="bg-yellow-200 rounded px-1">{part}</mark> : part\n                                      )\n                                    ) : (\n                                      message.text || '[Mensagem vazia]'\n                                    )}\n                                  </p>\n                                </div>\n                              </motion.div>\n                            );\n                          })}\n                        </div>\n                      )}\n                    </div>\n                  </>\n                )}\n              </div>
+                                        message.text.split(new RegExp(`(${messageSearch})`, 'gi')).map((part, i) => 
+                                          part.toLowerCase() === messageSearch.toLowerCase() ? 
+                                            <mark key={i} className="bg-yellow-200 rounded px-1">{part}</mark> : part
+                                        )
+                                      ) : (
+                                        message.text || '[Mensagem vazia]'
+                                      )}
+                                    </p>
+                                  </div>
+                                ))}
+                              </div>
+                            </motion.div>
+                          ))}
+                        </div>
+                      ) : (
+                        // Visualização linear
+                        <div className="space-y-3">
+                          {filteredMessages.map((message, index) => {
+                            const timeOfDay = getTimeOfDay(message.timestamp);
+                            const timeColor = {
+                              morning: 'border-l-yellow-400 bg-yellow-50',
+                              afternoon: 'border-l-orange-400 bg-orange-50',
+                              evening: 'border-l-purple-400 bg-purple-50',
+                              night: 'border-l-blue-400 bg-blue-50'
+                            }[timeOfDay];
+
+                            return (
+                              <motion.div
+                                key={index}
+                                className={`bg-white p-4 rounded-xl border-l-4 ${timeColor} border-r border-t border-b border-gray-200 hover:shadow-sm transition-all`}
+                                initial={{ opacity: 0, y: 20 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: Math.min(index * 0.02, 0.5) }}
+                                whileHover={{ scale: 1.005 }}
+                              >
+                                <div className="flex items-start justify-between mb-3">
+                                  <div className="flex items-center space-x-3">
+                                    <div className="flex items-center justify-center w-8 h-8 bg-gray-100 rounded-full">
+                                      <span className="text-gray-600 text-xs font-medium">
+                                        {message.pushName?.charAt(0) || 'U'}
+                                      </span>
+                                    </div>
+                                    <div>
+                                      <span className="font-medium text-gray-800 text-sm">
+                                        {message.pushName || 'Usuário'}
+                                      </span>
+                                      <div className="flex items-center space-x-2 mt-1">
+                                        <span className="text-gray-500 text-xs">
+                                          {new Date(message.timestamp).toLocaleString('pt-BR')}
+                                        </span>
+                                        <span className={`text-xs px-2 py-1 rounded-full ${timeOfDay === 'morning' ? 'bg-yellow-100 text-yellow-700' : timeOfDay === 'afternoon' ? 'bg-orange-100 text-orange-700' : timeOfDay === 'evening' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
+                                          {timeOfDay === 'morning' ? '🌅 Manhã' : timeOfDay === 'afternoon' ? '☀️ Tarde' : timeOfDay === 'evening' ? '🌆 Noite' : '🌙 Madrugada'}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="text-xs text-gray-400">
+                                    {message.text?.length || 0} chars
+                                  </div>
+                                </div>
+                                <div className="pl-11">
+                                  <p className="text-gray-700 text-sm leading-relaxed">
+                                    {messageSearch && message.text ? (
+                                      message.text.split(new RegExp(`(${messageSearch})`, 'gi')).map((part, i) => 
+                                        part.toLowerCase() === messageSearch.toLowerCase() ? 
+                                          <mark key={i} className="bg-yellow-200 rounded px-1">{part}</mark> : part
+                                      )
+                                    ) : (
+                                      message.text || '[Mensagem vazia]'
+                                    )}
+                                  </p>
+                                </div>
+                              </motion.div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
             </motion.div>
           </motion.div>
         )}
