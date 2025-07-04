@@ -137,7 +137,7 @@ function extractTextFromMessage(message) {
 }
 
 // Função para extrair dados completos da mensagem (incluindo mídia)
-async function extractMessageData(message, sessionId) {
+async function extractMessageData(message, sessionId, collectorConfig) {
   if (!message.message) return null;
 
   let messageData = {
@@ -186,20 +186,23 @@ async function extractMessageData(message, sessionId) {
       messageData.text = '[Figurinha]';
     }
 
-    // Tentar fazer download da mídia usando a função do sistema principal
-    try {
-      const sock = global.whatsappSessions?.get(sessionId)?.sock;
-      if (sock && typeof global.downloadMediaToFile === 'function') {
-        const mediaResult = await global.downloadMediaToFile(sock, message, sessionId);
-        if (mediaResult && mediaResult.downloadUrl) {
-          messageData.mediaUrl = mediaResult.downloadUrl;
-          messageData.text = messageData.mediaUrl; // Usar URL como texto para display
+    // Verificar se deve fazer download da mídia
+    if (collectorConfig && collectorConfig.downloadMedia) {
+      try {
+        const sock = global.whatsappSessions?.get(sessionId)?.sock;
+        if (sock && typeof global.downloadMediaToFile === 'function') {
+          const mediaResult = await global.downloadMediaToFile(sock, message, sessionId);
+          if (mediaResult && mediaResult.downloadUrl) {
+            messageData.mediaUrl = mediaResult.downloadUrl;
+            messageData.text = mediaResult.downloadUrl; // Usar URL como texto para display
+          }
         }
+      } catch (error) {
+        logger.warn(`⚠️  Erro ao fazer download de mídia: ${error.message}`);
+        // Manter o texto placeholder se o download falhar
       }
-    } catch (error) {
-      logger.warn(`⚠️  Erro ao fazer download de mídia: ${error.message}`);
-      // Manter o texto placeholder se o download falhar
     }
+    // Se downloadMedia for false, manter apenas o placeholder [Tipo]
   }
 
   return messageData;
@@ -360,7 +363,8 @@ router.post('/start', authenticateToken, async (req, res) => {
       specificDates = [],
       duration = 'unlimited',
       durationDays = 7,
-      endDate = ''
+      endDate = '',
+      downloadMedia = false
     } = req.body;
     const userId = req.user._id;
 
@@ -419,6 +423,7 @@ router.post('/start', authenticateToken, async (req, res) => {
       duration,
       durationDays: duration === 'days' ? durationDays : null,
       endDate: duration === 'until_date' ? new Date(endDate) : null,
+      downloadMedia: downloadMedia || false,
       createdAt: new Date(),
       userId: new ObjectId(userId),
     };
@@ -669,7 +674,7 @@ function integrateWithMainApp(app) {
         });
         if (collector) {
           // Extrair dados completos da mensagem (incluindo mídia)
-          const messageData = await extractMessageData(message, sessionId);
+          const messageData = await extractMessageData(message, sessionId, collector);
           if (!messageData || !messageData.text) return;
           
           // Salvar mensagem no banco

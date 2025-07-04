@@ -8,12 +8,13 @@
       "Bash(fi)",
       "Bash(echo:*)",
       "Bash(grep:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(node:*)"
     ],
     "deny": []
   },
+  "enableAllProjectMcpServers": true,
   "enabledMcpjsonServers": [
     "magic-server"
-  ],
-  "enableAllProjectMcpServers": true
+  ]
 }

@@ -70,7 +70,8 @@ export default function MessageCollectorManager() {
     specificDates: [], // ['2024-01-01', '2024-01-02']
     duration: 'unlimited', // unlimited, days, until_date
     durationDays: 7,
-    endDate: ''
+    endDate: '',
+    downloadMedia: false // nova opção para baixar mídias automaticamente
   });
   
   const [groupSearch, setGroupSearch] = useState('');
@@ -549,7 +550,23 @@ export default function MessageCollectorManager() {
       const name = message.pushName || 'Usuário';
       
       content += `[${date} ${time}] ${name} (${phone})\n`;
-      content += `${message.text || '[Mídia não disponível]'}\n`;
+      
+      // Verificar se é mídia com link
+      const isMediaUrl = message.text && message.text.startsWith('http') && message.text.includes('/api/baileys/download/');
+      if (isMediaUrl && message.mediaType) {
+        const mediaTypeNames = {
+          image: 'Imagem',
+          video: 'Vídeo', 
+          audio: 'Áudio',
+          document: 'Documento',
+          sticker: 'Figurinha'
+        };
+        const mediaTypeName = mediaTypeNames[message.mediaType] || 'Mídia';
+        content += `📎 ${mediaTypeName}: ${message.text}\n`;
+      } else {
+        content += `${message.text || '[Mídia não disponível]'}\n`;
+      }
+      
       content += `${'-'.repeat(60)}\n\n`;
     });
     
@@ -606,26 +623,30 @@ export default function MessageCollectorManager() {
         sticker: '🏷️'
       };
       
+      const mediaTypeNames = {
+        image: 'Imagem',
+        video: 'Vídeo',
+        audio: 'Áudio',
+        document: 'Documento',
+        sticker: 'Figurinha'
+      };
+      
       return (
         <div className="space-y-2">
           <div className="flex items-center space-x-2">
             <span className="text-base">{mediaIcons[mediaType] || '📎'}</span>
             <span className="text-sm text-gray-600 font-medium">
-              {mediaType === 'image' ? 'Imagem' :
-               mediaType === 'video' ? 'Vídeo' :
-               mediaType === 'audio' ? 'Áudio' :
-               mediaType === 'document' ? 'Documento' :
-               mediaType === 'sticker' ? 'Figurinha' : 'Mídia'}
+              {mediaTypeNames[mediaType] || 'Mídia'}
             </span>
           </div>
           <a
             href={message.text}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center space-x-2 text-blue-600 hover:text-blue-800 underline text-sm"
+            className="inline-flex items-center space-x-2 text-blue-600 hover:text-blue-800 underline text-sm break-all"
           >
             <span>Visualizar mídia</span>
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
             </svg>
           </a>
@@ -1247,6 +1268,32 @@ export default function MessageCollectorManager() {
                       />
                     </div>
                   )}
+
+                  {/* Opção para baixar mídias */}
+                  <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-xl border border-blue-200">
+                    <div className="flex items-start space-x-3">
+                      <ArrowDownTrayIcon className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
+                      <div className="flex-1">
+                        <label className="flex items-center space-x-3 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={formData.downloadMedia}
+                            onChange={(e) => setFormData(prev => ({ ...prev, downloadMedia: e.target.checked }))}
+                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-5 h-5"
+                          />
+                          <div>
+                            <span className="text-blue-800 text-sm font-semibold">
+                              Baixar mídias automaticamente
+                            </span>
+                            <p className="text-blue-700 text-xs mt-1">
+                              Quando habilitado, faz download de imagens, vídeos, áudios e documentos, 
+                              gerando links diretos. Caso contrário, mostra apenas o tipo de mídia.
+                            </p>
+                          </div>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
                 </div>
 
                 <div className="bg-gradient-to-r from-amber-50 to-orange-50 p-4 rounded-xl border border-amber-200">
@@ -1260,7 +1307,7 @@ export default function MessageCollectorManager() {
                         <li>• Captura TODAS as mensagens de texto do grupo</li>
                         <li>• Funciona apenas durante os horários configurados</li>
                         <li>• Inclui mensagens de spam e links</li>
-                        <li>• Não captura mídias (apenas texto)</li>
+                        <li>• Mídias: baixa arquivos se habilitado, ou mostra apenas tipo [Imagem]</li>
                         <li>• O coletor pode ser parado a qualquer momento</li>
                         <li>• Mensagens já coletadas são preservadas</li>
                       </ul>
