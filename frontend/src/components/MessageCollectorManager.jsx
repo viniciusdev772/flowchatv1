@@ -1567,7 +1567,7 @@ export default function MessageCollectorManager() {
                       )}
 
                       {/* Área Scrollável de Filtros */}
-                      <div className="flex-1 overflow-y-auto">
+                      <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 hover:scrollbar-thumb-gray-400">
                         {/* Filtros Compactos */}
                         <div className="p-4 border-b border-gray-200">
                           <h4 className="text-sm font-semibold text-gray-700 mb-3">Filtros</h4>
