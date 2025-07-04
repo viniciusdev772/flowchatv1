@@ -192,16 +192,29 @@ async function extractMessageData(message, sessionId, collectorConfig) {
     if (shouldDownload) {
       try {
         const sock = global.whatsappSessions?.get(sessionId)?.sock;
-        if (sock && typeof global.downloadMediaToFile === 'function') {
+        if (!sock) {
+          logger.warn(`⚠️  Socket não encontrado para sessão ${sessionId}`);
+        } else if (typeof global.downloadMediaToFile !== 'function') {
+          logger.warn(`⚠️  Função downloadMediaToFile não disponível`);
+        } else {
+          logger.info(`📥 Tentando download de ${messageData.mediaType} para mensagem ${message.key.id}`);
           const mediaResult = await global.downloadMediaToFile(sock, message, sessionId);
+          
           if (mediaResult && mediaResult.downloadUrl) {
             messageData.mediaUrl = mediaResult.downloadUrl;
             messageData.text = mediaResult.downloadUrl; // Usar URL como texto para display
+            logger.info(`✅ Download de ${messageData.mediaType} bem-sucedido: ${mediaResult.downloadUrl}`);
+          } else if (mediaResult && mediaResult.error) {
+            logger.warn(`⚠️  Erro no download de ${messageData.mediaType}: ${mediaResult.message || mediaResult.error}`);
+            messageData.text = `[${messageData.mediaType === 'image' ? 'Imagem' : messageData.mediaType === 'video' ? 'Vídeo' : messageData.mediaType === 'audio' ? 'Áudio' : messageData.mediaType === 'document' ? 'Documento' : messageData.mediaType === 'sticker' ? 'Figurinha' : 'Mídia'} - Erro no download]`;
+          } else {
+            logger.warn(`⚠️  Download de ${messageData.mediaType} retornou resultado inválido:`, mediaResult);
           }
         }
       } catch (error) {
-        logger.warn(`⚠️  Erro ao fazer download de mídia: ${error.message}`);
+        logger.error(`❌ Erro ao fazer download de ${messageData.mediaType}: ${error.message}`, error);
         // Manter o texto placeholder se o download falhar
+        messageData.text = `[${messageData.mediaType === 'image' ? 'Imagem' : messageData.mediaType === 'video' ? 'Vídeo' : messageData.mediaType === 'audio' ? 'Áudio' : messageData.mediaType === 'document' ? 'Documento' : messageData.mediaType === 'sticker' ? 'Figurinha' : 'Mídia'} - Erro]`;
       }
     }
     // Se downloadMedia for false, manter apenas o placeholder [Tipo]
@@ -675,9 +688,13 @@ function integrateWithMainApp(app) {
           isActive: true,
         });
         if (collector) {
+          logger.info(`📝 Processando mensagem para coletor ${collector._id}, downloadMedia: ${collector.downloadMedia}`);
           // Extrair dados completos da mensagem (incluindo mídia)
           const messageData = await extractMessageData(message, sessionId, collector);
-          if (!messageData || !messageData.text) return;
+          if (!messageData || !messageData.text) {
+            logger.warn(`⚠️  Dados de mensagem inválidos para ${message.key.id}`);
+            return;
+          }
           
           // Salvar mensagem no banco
           await addMessageToDB(collector._id, messageData);

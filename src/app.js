@@ -1713,6 +1713,8 @@ async function downloadMediaToFile(sock, message, sessionId) {
     const fs = require('fs');
     const path = require('path');
 
+    logger.info(`🔍 Iniciando download de mídia para sessão ${sessionId}, mensagem ${message.key.id}`);
+
     // Verificar tamanho do arquivo e extrair metadados antes de baixar
     let fileLength = 0;
     let mimetype = '';
@@ -1742,9 +1744,18 @@ async function downloadMediaToFile(sock, message, sessionId) {
       originalFileName = message.message.documentMessage.fileName;
       messageType = 'document';
     } else if (message.message.stickerMessage) {
-      fileLength = message.message.stickerMessage.fileLength;
-      mimetype = message.message.stickerMessage.mimetype;
+      fileLength = message.message.stickerMessage.fileLength || 0;
+      mimetype = message.message.stickerMessage.mimetype || 'image/webp';
       messageType = 'sticker';
+    }
+
+    // Verificar se conseguiu identificar o tipo de mídia
+    if (!messageType) {
+      logger.warn('Tipo de mídia não identificado na mensagem');
+      return {
+        error: 'UNSUPPORTED_MEDIA_TYPE',
+        message: 'Tipo de mídia não suportado ou não identificado'
+      };
     }
 
     // Se arquivo é maior que 50MB, não baixar
@@ -1764,6 +1775,7 @@ async function downloadMediaToFile(sock, message, sessionId) {
     }
 
     // Baixar o arquivo
+    logger.info(`📥 Fazendo download do ${messageType} (${(fileLength / 1024).toFixed(2)}KB)`);
     const buffer = await downloadMediaMessage(
       message,
       'buffer',
@@ -1773,6 +1785,16 @@ async function downloadMediaToFile(sock, message, sessionId) {
         reuploadRequest: () => sock.updateMediaMessage,
       }
     );
+
+    if (!buffer || buffer.length === 0) {
+      logger.warn(`⚠️  Buffer de mídia vazio ou inválido para ${messageType}`);
+      return {
+        error: 'EMPTY_BUFFER',
+        message: 'Arquivo de mídia vazio ou corrompido'
+      };
+    }
+
+    logger.info(`✅ Buffer de ${messageType} baixado com sucesso (${buffer.length} bytes)`);
 
     // Gerar ID único e nome do arquivo com detecção inteligente de extensão
     const downloadId = generateDownloadId();
