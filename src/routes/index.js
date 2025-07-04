@@ -5,6 +5,7 @@ const sessionRoutes = require('./sessions');
 const aiRoutes = require('./ai');
 const messageCollectorRoutes = require('../api/messageCollector');
 const aiSummaryRoutes = require('../api/aiSummary');
+const mcpSseRoutes = require('./mcpsse');
 
 const router = express.Router();
 
@@ -35,6 +36,9 @@ router.use('/message-collector', messageCollectorRoutes);
 
 // AI Summary routes
 router.use('/ai-summary', aiSummaryRoutes);
+
+// MCP SSE routes
+router.use('/mcp', mcpSseRoutes);
 
 // API info endpoint
 router.get('/info', (req, res) => {
@@ -80,6 +84,13 @@ router.get('/info', (req, res) => {
           get: 'GET /api/management/ai-summary/:summaryId',
           delete: 'DELETE /api/management/ai-summary/:summaryId',
           sentiment: 'POST /api/management/ai-summary/analyze-sentiment'
+        },
+        mcp: {
+          tools: 'GET /api/management/mcp/tools',
+          toolDetails: 'GET /api/management/mcp/tools/:toolName',
+          execute: 'POST /api/management/mcp/execute',
+          validate: 'POST /api/management/mcp/validate',
+          status: 'GET /api/management/mcp/status'
         }
       }
     }

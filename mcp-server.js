@@ -1050,6 +1050,11 @@ class FlowChatMCPServer {
     await this.server.connect(transport);
     console.error('FlowChat MCP server running on stdio');
   }
+
+  // Method to get tools for REST API
+  getTools() {
+    return TOOLS;
+  }
 }
 
 // Export for use in other modules
