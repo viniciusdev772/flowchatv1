@@ -13,7 +13,10 @@ import {
   XCircleIcon,
   ExclamationTriangleIcon,
   CpuChipIcon,
-  ArrowDownTrayIcon
+  ArrowDownTrayIcon,
+  MagnifyingGlassIcon,
+  CalendarIcon,
+  CalendarDaysIcon
 } from '@heroicons/react/24/outline';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
@@ -23,8 +26,12 @@ export default function MessageCollectorManager() {
   const [collectors, setCollectors] = useState([]);
   const [activeCollectors, setActiveCollectors] = useState([]);
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [collectorToStop, setCollectorToStop] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sessions, setSessions] = useState([]);
+  const [groups, setGroups] = useState([]);
+  const [searchingGroups, setSearchingGroups] = useState(false);
   const [selectedCollector, setSelectedCollector] = useState(null);
   const [collectedMessages, setCollectedMessages] = useState([]);
   const [showMessagesModal, setShowMessagesModal] = useState(false);
@@ -38,8 +45,17 @@ export default function MessageCollectorManager() {
     name: '',
     startHour: 6,
     endHour: 22,
-    timezone: 'America/Sao_Paulo'
+    timezone: 'America/Sao_Paulo',
+    scheduleType: 'daily', // daily, weekly, specific_days
+    weekDays: [], // [0,1,2,3,4,5,6] - 0 = Sunday
+    specificDates: [], // ['2024-01-01', '2024-01-02']
+    duration: 'unlimited', // unlimited, days, until_date
+    durationDays: 7,
+    endDate: ''
   });
+  
+  const [groupSearch, setGroupSearch] = useState('');
+  const [filteredGroups, setFilteredGroups] = useState([]);
 
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -104,6 +120,45 @@ export default function MessageCollectorManager() {
     }
   };
 
+  const loadGroups = async (sessionId) => {
+    if (!sessionId) {
+      setGroups([]);
+      setFilteredGroups([]);
+      return;
+    }
+    
+    setSearchingGroups(true);
+    try {
+      const response = await fetch(`${apiUrl}/api/baileys/groups/${sessionId}/list?limit=50`, {
+        credentials: 'include'
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setGroups(data.groups || []);
+          setFilteredGroups(data.groups || []);
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao carregar grupos:', error);
+    } finally {
+      setSearchingGroups(false);
+    }
+  };
+
+  const filterGroups = (searchTerm) => {
+    if (!searchTerm) {
+      setFilteredGroups(groups);
+      return;
+    }
+    
+    const filtered = groups.filter(group => 
+      group.name.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+    setFilteredGroups(filtered);
+  };
+
   const createCollector = async () => {
     try {
       const response = await fetch(`${apiUrl}/api/management/message-collector/start`, {
@@ -123,8 +178,17 @@ export default function MessageCollectorManager() {
             name: '',
             startHour: 6,
             endHour: 22,
-            timezone: 'America/Sao_Paulo'
+            timezone: 'America/Sao_Paulo',
+            scheduleType: 'daily',
+            weekDays: [],
+            specificDates: [],
+            duration: 'unlimited',
+            durationDays: 7,
+            endDate: ''
           });
+          setGroupSearch('');
+          setGroups([]);
+          setFilteredGroups([]);
           loadCollectors();
         }
       } else {
@@ -137,18 +201,27 @@ export default function MessageCollectorManager() {
     }
   };
 
-  const stopCollector = async (collectorId) => {
+  const handleStopCollector = (collector) => {
+    setCollectorToStop(collector);
+    setShowConfirmModal(true);
+  };
+
+  const confirmStopCollector = async () => {
+    if (!collectorToStop) return;
+    
     try {
       const response = await fetch(`${apiUrl}/api/management/message-collector/stop`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ collectorId })
+        body: JSON.stringify({ collectorId: collectorToStop.id })
       });
 
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
+          setShowConfirmModal(false);
+          setCollectorToStop(null);
           loadCollectors();
         } else {
           alert(`Erro: ${data.message}`);
@@ -457,7 +530,7 @@ export default function MessageCollectorManager() {
                       </motion.button>
                       
                       <motion.button
-                        onClick={() => stopCollector(collector.id)}
+                        onClick={() => handleStopCollector(collector)}
                         className="flex-1 py-2 px-3 bg-red-50 text-red-600 rounded-lg text-sm hover:bg-red-100 transition-colors font-medium"
                         whileHover={{ scale: 1.02 }}
                         whileTap={{ scale: 0.98 }}
@@ -639,7 +712,11 @@ export default function MessageCollectorManager() {
                   </label>
                   <select
                     value={formData.sessionId}
-                    onChange={(e) => setFormData(prev => ({ ...prev, sessionId: e.target.value }))}
+                    onChange={(e) => {
+                      const sessionId = e.target.value;
+                      setFormData(prev => ({ ...prev, sessionId, groupId: '' }));
+                      loadGroups(sessionId);
+                    }}
                     className="w-full px-4 py-3 bg-gray-50 rounded-xl text-gray-800 focus:ring-2 focus:ring-blue-500 focus:outline-none border border-gray-200 focus:bg-white transition-colors"
                   >
                     <option value="">Selecione uma sessão</option>
@@ -653,45 +730,230 @@ export default function MessageCollectorManager() {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    ID do Grupo (com @g.us)
+                    Grupo WhatsApp
                   </label>
-                  <input
-                    type="text"
-                    value={formData.groupId}
-                    onChange={(e) => setFormData(prev => ({ ...prev, groupId: e.target.value }))}
-                    placeholder="120123456789@g.us"
-                    className="w-full px-4 py-3 bg-gray-50 rounded-xl text-gray-800 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:outline-none border border-gray-200 focus:bg-white transition-colors"
-                  />
+                  {formData.sessionId ? (
+                    <div className="space-y-2">
+                      <div className="relative">
+                        <MagnifyingGlassIcon className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                        <input
+                          type="text"
+                          value={groupSearch}
+                          onChange={(e) => {
+                            setGroupSearch(e.target.value);
+                            filterGroups(e.target.value);
+                          }}
+                          placeholder="Buscar grupos..."
+                          className="w-full pl-10 pr-4 py-3 bg-gray-50 rounded-xl text-gray-800 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:outline-none border border-gray-200 focus:bg-white transition-colors"
+                        />
+                      </div>
+                      
+                      {searchingGroups ? (
+                        <div className="flex items-center justify-center py-4">
+                          <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                          <span className="ml-2 text-sm text-gray-600">Carregando grupos...</span>
+                        </div>
+                      ) : (
+                        <div className="max-h-32 overflow-y-auto border border-gray-200 rounded-xl bg-white">
+                          {filteredGroups.length > 0 ? (
+                            filteredGroups.slice(0, 10).map((group) => (
+                              <div
+                                key={group.jid}
+                                onClick={() => {
+                                  setFormData(prev => ({ ...prev, groupId: group.jid }));
+                                  setGroupSearch(group.name);
+                                  setFilteredGroups([]);
+                                }}
+                                className="px-4 py-2 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0"
+                              >
+                                <div className="flex items-center space-x-2">
+                                  <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                                  <span className="font-medium text-sm text-gray-800">{group.name}</span>
+                                  <span className="text-xs text-gray-500">({group.participants.total} membros)</span>
+                                </div>
+                              </div>
+                            ))
+                          ) : (
+                            groupSearch && (
+                              <div className="px-4 py-2 text-sm text-gray-500">
+                                Nenhum grupo encontrado
+                              </div>
+                            )
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="w-full px-4 py-3 bg-gray-100 rounded-xl text-gray-500 text-center">
+                      Selecione uma sessão primeiro
+                    </div>
+                  )}
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                {/* Configurações de Agendamento */}
+                <div className="space-y-4 bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-xl border border-blue-200">
+                  <div className="flex items-center space-x-2 mb-3">
+                    <CalendarIcon className="w-5 h-5 text-blue-600" />
+                    <h4 className="font-medium text-blue-800">Configurações de Agendamento</h4>
+                  </div>
+                  
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Hora Início
+                      Tipo de Agendamento
                     </label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="23"
-                      value={formData.startHour}
-                      onChange={(e) => setFormData(prev => ({ ...prev, startHour: parseInt(e.target.value) }))}
-                      className="w-full px-4 py-3 bg-gray-50 rounded-xl text-gray-800 focus:ring-2 focus:ring-blue-500 focus:outline-none border border-gray-200 focus:bg-white transition-colors"
-                    />
+                    <select
+                      value={formData.scheduleType}
+                      onChange={(e) => setFormData(prev => ({ ...prev, scheduleType: e.target.value }))}
+                      className="w-full px-4 py-3 bg-white rounded-xl text-gray-800 focus:ring-2 focus:ring-blue-500 focus:outline-none border border-gray-200 transition-colors"
+                    >
+                      <option value="daily">Diário</option>
+                      <option value="weekly">Semanal (dias específicos)</option>
+                      <option value="specific_days">Datas específicas</option>
+                    </select>
+                  </div>
+
+                  {formData.scheduleType === 'weekly' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Dias da Semana
+                      </label>
+                      <div className="grid grid-cols-4 gap-2">
+                        {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((day, index) => (
+                          <label key={index} className="flex items-center space-x-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={formData.weekDays.includes(index)}
+                              onChange={(e) => {
+                                const days = formData.weekDays;
+                                if (e.target.checked) {
+                                  setFormData(prev => ({ ...prev, weekDays: [...days, index] }));
+                                } else {
+                                  setFormData(prev => ({ ...prev, weekDays: days.filter(d => d !== index) }));
+                                }
+                              }}
+                              className="rounded text-blue-600 focus:ring-blue-500"
+                            />
+                            <span className="text-sm text-gray-700">{day}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {formData.scheduleType === 'specific_days' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Datas Específicas
+                      </label>
+                      <input
+                        type="date"
+                        className="w-full px-4 py-3 bg-white rounded-xl text-gray-800 focus:ring-2 focus:ring-blue-500 focus:outline-none border border-gray-200 transition-colors"
+                        onChange={(e) => {
+                          if (e.target.value && !formData.specificDates.includes(e.target.value)) {
+                            setFormData(prev => ({
+                              ...prev,
+                              specificDates: [...prev.specificDates, e.target.value]
+                            }));
+                          }
+                        }}
+                      />
+                      {formData.specificDates.length > 0 && (
+                        <div className="mt-2 space-y-1">
+                          {formData.specificDates.map((date, index) => (
+                            <div key={index} className="flex items-center justify-between bg-white px-3 py-2 rounded-lg border">
+                              <span className="text-sm text-gray-700">{new Date(date).toLocaleDateString('pt-BR')}</span>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    specificDates: prev.specificDates.filter((_, i) => i !== index)
+                                  }));
+                                }}
+                                className="text-red-500 hover:text-red-700"
+                              >
+                                ×
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Hora Início
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="23"
+                        value={formData.startHour}
+                        onChange={(e) => setFormData(prev => ({ ...prev, startHour: parseInt(e.target.value) }))}
+                        className="w-full px-4 py-3 bg-white rounded-xl text-gray-800 focus:ring-2 focus:ring-blue-500 focus:outline-none border border-gray-200 transition-colors"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Hora Fim
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="23"
+                        value={formData.endHour}
+                        onChange={(e) => setFormData(prev => ({ ...prev, endHour: parseInt(e.target.value) }))}
+                        className="w-full px-4 py-3 bg-white rounded-xl text-gray-800 focus:ring-2 focus:ring-blue-500 focus:outline-none border border-gray-200 transition-colors"
+                      />
+                    </div>
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Hora Fim
+                      Duração da Coleta
                     </label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="23"
-                      value={formData.endHour}
-                      onChange={(e) => setFormData(prev => ({ ...prev, endHour: parseInt(e.target.value) }))}
-                      className="w-full px-4 py-3 bg-gray-50 rounded-xl text-gray-800 focus:ring-2 focus:ring-blue-500 focus:outline-none border border-gray-200 focus:bg-white transition-colors"
-                    />
+                    <select
+                      value={formData.duration}
+                      onChange={(e) => setFormData(prev => ({ ...prev, duration: e.target.value }))}
+                      className="w-full px-4 py-3 bg-white rounded-xl text-gray-800 focus:ring-2 focus:ring-blue-500 focus:outline-none border border-gray-200 transition-colors"
+                    >
+                      <option value="unlimited">Ilimitado</option>
+                      <option value="days">Número de dias</option>
+                      <option value="until_date">Até uma data</option>
+                    </select>
                   </div>
+
+                  {formData.duration === 'days' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Número de Dias
+                      </label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={formData.durationDays}
+                        onChange={(e) => setFormData(prev => ({ ...prev, durationDays: parseInt(e.target.value) }))}
+                        className="w-full px-4 py-3 bg-white rounded-xl text-gray-800 focus:ring-2 focus:ring-blue-500 focus:outline-none border border-gray-200 transition-colors"
+                      />
+                    </div>
+                  )}
+
+                  {formData.duration === 'until_date' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Data Final
+                      </label>
+                      <input
+                        type="date"
+                        value={formData.endDate}
+                        onChange={(e) => setFormData(prev => ({ ...prev, endDate: e.target.value }))}
+                        className="w-full px-4 py-3 bg-white rounded-xl text-gray-800 focus:ring-2 focus:ring-blue-500 focus:outline-none border border-gray-200 transition-colors"
+                      />
+                    </div>
+                  )}
                 </div>
 
                 <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-xl border border-blue-200">
@@ -712,7 +974,9 @@ export default function MessageCollectorManager() {
               <div className="flex gap-3 mt-6">
                 <motion.button
                   onClick={createCollector}
-                  disabled={!formData.sessionId || !formData.groupId}
+                  disabled={!formData.sessionId || !formData.groupId || 
+                    (formData.scheduleType === 'weekly' && formData.weekDays.length === 0) ||
+                    (formData.scheduleType === 'specific_days' && formData.specificDates.length === 0)}
                   className="flex-1 py-3 bg-blue-600 text-white rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium transition-colors"
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
@@ -854,6 +1118,105 @@ export default function MessageCollectorManager() {
                     ))}
                   </div>
                 )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal de Confirmação para Parar Coletor */}
+      <AnimatePresence>
+        {showConfirmModal && collectorToStop && (
+          <motion.div
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowConfirmModal(false)}
+          >
+            <motion.div
+              className="bg-white p-6 rounded-2xl max-w-md w-full shadow-2xl border border-gray-200"
+              initial={{ 
+                opacity: 0, 
+                scale: 0.8, 
+                y: 50,
+                rotateX: -15 
+              }}
+              animate={{ 
+                opacity: 1, 
+                scale: 1, 
+                y: 0,
+                rotateX: 0
+              }}
+              exit={{ 
+                opacity: 0, 
+                scale: 0.85,
+                y: 30,
+                rotateX: 10
+              }}
+              transition={{ 
+                duration: 0.4, 
+                ease: [0.16, 1, 0.3, 1],
+                scale: { 
+                  type: "spring", 
+                  damping: 18, 
+                  stiffness: 300
+                }
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Ícone de Aviso */}
+              <div className="flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mx-auto mb-4">
+                <ExclamationTriangleIcon className="w-8 h-8 text-red-600" />
+              </div>
+
+              {/* Título */}
+              <h3 className="text-xl font-bold text-gray-800 text-center mb-2">
+                Parar Coletor
+              </h3>
+
+              {/* Mensagem */}
+              <div className="text-center mb-6">
+                <p className="text-gray-600 mb-3">
+                  Tem certeza que deseja parar o coletor <span className="font-semibold text-gray-800">"{collectorToStop.sessionId}"</span>?
+                </p>
+                <div className="bg-yellow-50 border border-yellow-200 p-3 rounded-lg">
+                  <div className="flex items-start space-x-2">
+                    <ExclamationTriangleIcon className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" />
+                    <div className="text-left">
+                      <p className="text-yellow-800 text-sm font-medium mb-1">
+                        Atenção
+                      </p>
+                      <p className="text-yellow-700 text-sm">
+                        O coletor será finalizado e parará de capturar mensagens. As mensagens já coletadas ({collectorToStop.currentMessages || 0}) serão preservadas.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Botões de Ação */}
+              <div className="flex gap-3">
+                <motion.button
+                  onClick={confirmStopCollector}
+                  className="flex-1 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 font-medium transition-colors"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  Sim, Parar Coletor
+                </motion.button>
+
+                <motion.button
+                  onClick={() => {
+                    setShowConfirmModal(false);
+                    setCollectorToStop(null);
+                  }}
+                  className="flex-1 py-3 bg-gray-100 rounded-xl text-gray-700 hover:bg-gray-200 font-medium transition-colors"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  Cancelar
+                </motion.button>
               </div>
             </motion.div>
           </motion.div>

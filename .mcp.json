@@ -13,8 +13,8 @@
       "args": [
         "-y",
         "@modelcontextprotocol/server-filesystem",
-        "/home/user/projects",
-        "/home/user/Documents"
+        "/mnt/c/Users/vinicius/Documents/baileys",
+        "/mnt/c/Users/vinicius/Documents"
       ]
     },
     "git": {
@@ -23,7 +23,7 @@
         "-y",
         "@modelcontextprotocol/server-git",
         "--repository",
-        "/home/user/projects"
+        "/mnt/c/Users/vinicius/Documents/baileys"
       ]
     },
     "memory": {
@@ -52,6 +52,50 @@
       "args": [
         "-y",
         "@modelcontextprotocol/server-puppeteer"
+      ]
+    },
+    "everything": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-everything"
+      ]
+    },
+    "sqlite": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-sqlite",
+        "--db-path",
+        "/mnt/c/Users/vinicius/Documents/baileys/data/app.db"
+      ]
+    },
+    "time": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-time"
+      ]
+    },
+    "axios": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-axios"
+      ]
+    },
+    "kubernetes": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-kubernetes"
+      ]
+    },
+    "web-search": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-web-search"
       ]
     }
   }

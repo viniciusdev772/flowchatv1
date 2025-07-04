@@ -136,50 +136,113 @@ function extractTextFromMessage(message) {
   return null;
 }
 
-// Função para configurar cron jobs
+// Função para configurar cron jobs baseado no tipo de agendamento
 function setupCronJobs(collectorId, config) {
-  const startCron = `0 ${config.startHour} * * *`;
-  const stopCron = `0 ${config.endHour} * * *`;
+  const timezone = config.timezone || 'America/Sao_Paulo';
+  const jobs = [];
 
-  // Job para iniciar coleta diariamente
-  const startJob = cron.schedule(
-    startCron,
-    async () => {
-      await updateCollectorStatus(collectorId, {
-        isActive: true,
-        startTime: new Date(),
-        totalMessages: 0,
-      });
-      logger.info(
-        `🕒 Cron: Iniciando coleta para ${collectorId} às ${config.startHour}h`
-      );
-    },
-    {
-      scheduled: true,
-      timezone: config.timezone || 'America/Sao_Paulo',
-    }
-  );
+  // Verificar se o coletor já expirou
+  const now = new Date();
+  if (config.endDate && now > config.endDate) {
+    logger.info(`Coletor ${collectorId} expirado, não criando cron jobs`);
+    return;
+  }
 
-  // Job para parar coleta diariamente
-  const stopJob = cron.schedule(
-    stopCron,
-    async () => {
-      await updateCollectorStatus(collectorId, {
-        isActive: false,
-        endTime: new Date(),
-      });
-      logger.info(
-        `🕒 Cron: Parando coleta para ${collectorId} às ${config.endHour}h`
-      );
-    },
-    {
-      scheduled: true,
-      timezone: config.timezone || 'America/Sao_Paulo',
+  if (config.duration === 'days' && config.durationDays) {
+    const endDate = new Date(config.createdAt);
+    endDate.setDate(endDate.getDate() + config.durationDays);
+    if (now > endDate) {
+      logger.info(`Coletor ${collectorId} expirado por duração em dias, não criando cron jobs`);
+      return;
     }
-  );
+  }
+
+  switch (config.scheduleType) {
+    case 'daily':
+      const startCron = `0 ${config.startHour} * * *`;
+      const stopCron = `0 ${config.endHour} * * *`;
+      
+      jobs.push(cron.schedule(startCron, () => startCollection(collectorId, config), { scheduled: true, timezone }));
+      jobs.push(cron.schedule(stopCron, () => stopCollection(collectorId, config), { scheduled: true, timezone }));
+      break;
+
+    case 'weekly':
+      if (config.weekDays && config.weekDays.length > 0) {
+        const daysStr = config.weekDays.join(',');
+        const startWeeklyCron = `0 ${config.startHour} * * ${daysStr}`;
+        const stopWeeklyCron = `0 ${config.endHour} * * ${daysStr}`;
+        
+        jobs.push(cron.schedule(startWeeklyCron, () => startCollection(collectorId, config), { scheduled: true, timezone }));
+        jobs.push(cron.schedule(stopWeeklyCron, () => stopCollection(collectorId, config), { scheduled: true, timezone }));
+      }
+      break;
+
+    case 'specific_days':
+      if (config.specificDates && config.specificDates.length > 0) {
+        config.specificDates.forEach(dateStr => {
+          const date = new Date(dateStr);
+          if (date > now) {
+            const day = date.getDate();
+            const month = date.getMonth() + 1;
+            const year = date.getFullYear();
+            
+            const startSpecificCron = `0 ${config.startHour} ${day} ${month} *`;
+            const stopSpecificCron = `0 ${config.endHour} ${day} ${month} *`;
+            
+            jobs.push(cron.schedule(startSpecificCron, () => startCollection(collectorId, config), { scheduled: true, timezone }));
+            jobs.push(cron.schedule(stopSpecificCron, () => stopCollection(collectorId, config), { scheduled: true, timezone }));
+          }
+        });
+      }
+      break;
+
+    default:
+      logger.warn(`Tipo de agendamento desconhecido: ${config.scheduleType}`);
+      return;
+  }
 
   // Armazenar jobs para cleanup posterior
-  activeCronJobs.set(collectorId, { startJob, stopJob });
+  if (jobs.length > 0) {
+    activeCronJobs.set(collectorId, jobs);
+    logger.info(`📅 Configurados ${jobs.length} cron jobs para coletor ${collectorId} (${config.scheduleType})`);
+  }
+}
+
+// Função auxiliar para iniciar coleta
+async function startCollection(collectorId, config) {
+  // Verificar se ainda está dentro do período de duração
+  const now = new Date();
+  
+  if (config.endDate && now > config.endDate) {
+    logger.info(`Coletor ${collectorId} expirado por data final`);
+    await updateCollectorStatus(collectorId, { status: 'completed', isActive: false });
+    return;
+  }
+
+  if (config.duration === 'days' && config.durationDays) {
+    const endDate = new Date(config.createdAt);
+    endDate.setDate(endDate.getDate() + config.durationDays);
+    if (now > endDate) {
+      logger.info(`Coletor ${collectorId} expirado por duração em dias`);
+      await updateCollectorStatus(collectorId, { status: 'completed', isActive: false });
+      return;
+    }
+  }
+
+  await updateCollectorStatus(collectorId, {
+    isActive: true,
+    startTime: now,
+  });
+  logger.info(`🕒 Cron: Iniciando coleta para ${collectorId} às ${config.startHour}h`);
+}
+
+// Função auxiliar para parar coleta
+async function stopCollection(collectorId, config) {
+  await updateCollectorStatus(collectorId, {
+    isActive: false,
+    endTime: new Date(),
+  });
+  logger.info(`🕒 Cron: Parando coleta para ${collectorId} às ${config.endHour}h`);
 }
 
 // Função auxiliar para verificar se o usuário possui a sessão (mesma lógica do app principal)
@@ -216,7 +279,20 @@ function checkUserSessionPermission(sessionId, userId) {
 // Iniciar coleta de mensagens para um grupo
 router.post('/start', authenticateToken, async (req, res) => {
   try {
-    const { sessionId, groupId, startHour, endHour, timezone, name } = req.body;
+    const { 
+      sessionId, 
+      groupId, 
+      startHour, 
+      endHour, 
+      timezone, 
+      name,
+      scheduleType = 'daily',
+      weekDays = [],
+      specificDates = [],
+      duration = 'unlimited',
+      durationDays = 7,
+      endDate = ''
+    } = req.body;
     const userId = req.user._id;
 
     if (
@@ -229,6 +305,28 @@ router.post('/start', authenticateToken, async (req, res) => {
         success: false,
         message:
           'Parâmetros obrigatórios: sessionId, groupId, startHour, endHour',
+      });
+    }
+
+    // Validações específicas para cada tipo de agendamento
+    if (scheduleType === 'weekly' && (!weekDays || weekDays.length === 0)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Para agendamento semanal, selecione pelo menos um dia da semana',
+      });
+    }
+
+    if (scheduleType === 'specific_days' && (!specificDates || specificDates.length === 0)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Para agendamento específico, selecione pelo menos uma data',
+      });
+    }
+
+    if (duration === 'until_date' && !endDate) {
+      return res.status(400).json({
+        success: false,
+        message: 'Para duração com data final, especifique a data de término',
       });
     }
 
@@ -246,6 +344,12 @@ router.post('/start', authenticateToken, async (req, res) => {
       startHour,
       endHour,
       timezone: timezone || 'America/Sao_Paulo',
+      scheduleType,
+      weekDays: scheduleType === 'weekly' ? weekDays : [],
+      specificDates: scheduleType === 'specific_days' ? specificDates : [],
+      duration,
+      durationDays: duration === 'days' ? durationDays : null,
+      endDate: duration === 'until_date' ? new Date(endDate) : null,
       createdAt: new Date(),
       userId: new ObjectId(userId),
     };
@@ -317,9 +421,15 @@ router.post('/stop', authenticateToken, async (req, res) => {
       // Parar cron jobs
       const cronJobs = activeCronJobs.get(collectorId);
       if (cronJobs) {
-        cronJobs.startJob.stop();
-        cronJobs.stopJob.stop();
+        if (Array.isArray(cronJobs)) {
+          cronJobs.forEach(job => job.stop());
+        } else {
+          // Compatibilidade com formato antigo
+          if (cronJobs.startJob) cronJobs.startJob.stop();
+          if (cronJobs.stopJob) cronJobs.stopJob.stop();
+        }
         activeCronJobs.delete(collectorId);
+        logger.info(`🛑 Cron jobs parados para coletor ${collectorId}`);
       }
       // Atualizar status para completed
       await updateCollectorStatus(collectorId, {
