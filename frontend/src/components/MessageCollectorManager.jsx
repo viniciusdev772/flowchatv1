@@ -589,6 +589,61 @@ export default function MessageCollectorManager() {
     }
   };
 
+  // Função para renderizar o conteúdo da mensagem com suporte a mídia
+  const renderMessageContent = (message, messageSearch) => {
+    if (!message.text) return '[Mensagem vazia]';
+    
+    // Verificar se é uma URL de mídia
+    const isMediaUrl = message.text.startsWith('http') && message.text.includes('/api/baileys/download/');
+    
+    if (isMediaUrl) {
+      const mediaType = message.mediaType || 'unknown';
+      const mediaIcons = {
+        image: '🖼️',
+        video: '🎥',
+        audio: '🎵',
+        document: '📄',
+        sticker: '🏷️'
+      };
+      
+      return (
+        <div className="space-y-2">
+          <div className="flex items-center space-x-2">
+            <span className="text-base">{mediaIcons[mediaType] || '📎'}</span>
+            <span className="text-sm text-gray-600 font-medium">
+              {mediaType === 'image' ? 'Imagem' :
+               mediaType === 'video' ? 'Vídeo' :
+               mediaType === 'audio' ? 'Áudio' :
+               mediaType === 'document' ? 'Documento' :
+               mediaType === 'sticker' ? 'Figurinha' : 'Mídia'}
+            </span>
+          </div>
+          <a
+            href={message.text}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center space-x-2 text-blue-600 hover:text-blue-800 underline text-sm"
+          >
+            <span>Visualizar mídia</span>
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+            </svg>
+          </a>
+        </div>
+      );
+    }
+    
+    // Renderizar texto normal com destaque de busca
+    if (messageSearch && message.text) {
+      return message.text.split(new RegExp(`(${messageSearch})`, 'gi')).map((part, i) => 
+        part.toLowerCase() === messageSearch.toLowerCase() ? 
+          <mark key={i} className="bg-yellow-200 rounded px-1">{part}</mark> : part
+      );
+    }
+    
+    return message.text;
+  };
+
   const ThinkingIndicator = () => (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
@@ -1524,16 +1579,9 @@ export default function MessageCollectorManager() {
                                         <div className={`w-2 h-2 rounded-full ${getTimeOfDay(message.timestamp) === 'morning' ? 'bg-yellow-400' : getTimeOfDay(message.timestamp) === 'afternoon' ? 'bg-orange-400' : getTimeOfDay(message.timestamp) === 'evening' ? 'bg-purple-400' : 'bg-blue-400'}`}></div>
                                       </div>
                                     </div>
-                                    <p className="text-gray-700 text-sm leading-relaxed">
-                                      {messageSearch && message.text ? (
-                                        message.text.split(new RegExp(`(${messageSearch})`, 'gi')).map((part, i) => 
-                                          part.toLowerCase() === messageSearch.toLowerCase() ? 
-                                            <mark key={i} className="bg-yellow-200 rounded px-1">{part}</mark> : part
-                                        )
-                                      ) : (
-                                        message.text || '[Mensagem vazia]'
-                                      )}
-                                    </p>
+                                    <div className="text-gray-700 text-sm leading-relaxed">
+                                      {renderMessageContent(message, messageSearch)}
+                                    </div>
                                   </div>
                                 ))}
                               </div>
@@ -1587,16 +1635,9 @@ export default function MessageCollectorManager() {
                                   </div>
                                 </div>
                                 <div className="pl-11">
-                                  <p className="text-gray-700 text-sm leading-relaxed">
-                                    {messageSearch && message.text ? (
-                                      message.text.split(new RegExp(`(${messageSearch})`, 'gi')).map((part, i) => 
-                                        part.toLowerCase() === messageSearch.toLowerCase() ? 
-                                          <mark key={i} className="bg-yellow-200 rounded px-1">{part}</mark> : part
-                                      )
-                                    ) : (
-                                      message.text || '[Mensagem vazia]'
-                                    )}
-                                  </p>
+                                  <div className="text-gray-700 text-sm leading-relaxed">
+                                    {renderMessageContent(message, messageSearch)}
+                                  </div>
                                 </div>
                               </motion.div>
                             );

@@ -136,6 +136,75 @@ function extractTextFromMessage(message) {
   return null;
 }
 
+// Função para extrair dados completos da mensagem (incluindo mídia)
+async function extractMessageData(message, sessionId) {
+  if (!message.message) return null;
+
+  let messageData = {
+    id: message.key.id,
+    timestamp: new Date(message.messageTimestamp * 1000),
+    from: message.key.participant || message.key.remoteJid,
+    pushName: message.pushName || 'Usuário',
+    sessionId: sessionId,
+    groupId: message.key.remoteJid,
+    text: null,
+    mediaUrl: null,
+    mediaType: null,
+    hasMedia: false
+  };
+
+  // Extrair texto de diferentes tipos de mensagem
+  if (message.message.conversation) {
+    messageData.text = message.message.conversation;
+  } else if (message.message.extendedTextMessage) {
+    messageData.text = message.message.extendedTextMessage.text;
+  } else if (message.message.quotedMessage) {
+    // Tentar extrair texto de mensagem citada
+    const quotedText = extractTextFromMessage({ message: message.message.quotedMessage });
+    messageData.text = quotedText;
+  } else if (message.message.imageMessage || message.message.videoMessage || 
+             message.message.audioMessage || message.message.documentMessage || 
+             message.message.stickerMessage) {
+    // Mensagem com mídia - tentar fazer download
+    messageData.hasMedia = true;
+    
+    // Determinar tipo de mídia
+    if (message.message.imageMessage) {
+      messageData.mediaType = 'image';
+      messageData.text = '[Imagem]';
+    } else if (message.message.videoMessage) {
+      messageData.mediaType = 'video';
+      messageData.text = '[Vídeo]';
+    } else if (message.message.audioMessage) {
+      messageData.mediaType = 'audio';
+      messageData.text = '[Áudio]';
+    } else if (message.message.documentMessage) {
+      messageData.mediaType = 'document';
+      messageData.text = '[Documento]';
+    } else if (message.message.stickerMessage) {
+      messageData.mediaType = 'sticker';
+      messageData.text = '[Figurinha]';
+    }
+
+    // Tentar fazer download da mídia usando a função do sistema principal
+    try {
+      const sock = global.whatsappSessions?.get(sessionId)?.sock;
+      if (sock && typeof global.downloadMediaToFile === 'function') {
+        const mediaResult = await global.downloadMediaToFile(sock, message, sessionId);
+        if (mediaResult && mediaResult.downloadUrl) {
+          messageData.mediaUrl = mediaResult.downloadUrl;
+          messageData.text = messageData.mediaUrl; // Usar URL como texto para display
+        }
+      }
+    } catch (error) {
+      logger.warn(`⚠️  Erro ao fazer download de mídia: ${error.message}`);
+      // Manter o texto placeholder se o download falhar
+    }
+  }
+
+  return messageData;
+}
+
 // Função para configurar cron jobs baseado no tipo de agendamento
 function setupCronJobs(collectorId, config) {
   const timezone = config.timezone || 'America/Sao_Paulo';
@@ -599,18 +668,10 @@ function integrateWithMainApp(app) {
           isActive: true,
         });
         if (collector) {
-          // Extrair dados da mensagem
-          const messageText = extractTextFromMessage(message);
-          if (!messageText) return;
-          const messageData = {
-            id: message.key.id,
-            timestamp: new Date(message.messageTimestamp * 1000),
-            from: message.key.participant || message.key.remoteJid,
-            text: messageText,
-            pushName: message.pushName || 'Usuário',
-            sessionId: sessionId,
-            groupId: groupId,
-          };
+          // Extrair dados completos da mensagem (incluindo mídia)
+          const messageData = await extractMessageData(message, sessionId);
+          if (!messageData || !messageData.text) return;
+          
           // Salvar mensagem no banco
           await addMessageToDB(collector._id, messageData);
           logger.debug(

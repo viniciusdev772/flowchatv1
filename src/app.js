@@ -5092,7 +5092,8 @@ process.on('SIGINT', async () => {
   process.exit(0);
 });
 
-// Disponibilizar função de criação de sessão globalmente
+// Disponibilizar funções globalmente
 global.createWhatsAppSession = createWhatsAppSession;
+global.downloadMediaToFile = downloadMediaToFile;
 
-module.exports = { app, getSessions, initializeApp, createWhatsAppSession, getEnrichedSessionData, saveDownloadMetadata };
+module.exports = { app, getSessions, initializeApp, createWhatsAppSession, getEnrichedSessionData, saveDownloadMetadata, downloadMediaToFile };
