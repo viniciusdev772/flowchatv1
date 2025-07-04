@@ -3039,7 +3039,7 @@ const swaggerUiOptions = {
  *     tags:
  *       - Downloads
  *     summary: Baixar arquivo por ID
- *     description: Baixa um arquivo previamente processado usando seu ID único
+ *     description: Baixa um arquivo previamente processado usando seu ID único (acesso público sem autenticação)
  *     parameters:
  *       - in: path
  *         name: downloadId
@@ -3091,6 +3091,8 @@ const swaggerUiOptions = {
  *       - Downloads
  *     summary: Listar downloads disponíveis
  *     description: Lista todos os downloads disponíveis com informações detalhadas
+ *     security:
+ *       - ApiKeyAuth: []
  *     parameters:
  *       - in: query
  *         name: sessionId
