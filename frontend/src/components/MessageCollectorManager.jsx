@@ -1422,8 +1422,8 @@ export default function MessageCollectorManager() {
                 </div>
               </div>
 
-              {/* Layout Ultra Compacto: Sidebar + Mensagens */}
-              <div className="flex-1 flex overflow-hidden">
+              {/* Layout Ultra Compacto Responsivo */}
+              <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
                 {collectedMessages.length === 0 ? (
                   <div className="flex-1 flex items-center justify-center bg-gray-50">
                     <div className="text-center py-12">
@@ -1440,8 +1440,104 @@ export default function MessageCollectorManager() {
                   </div>
                 ) : (
                   <>
-                    {/* Sidebar com Estatísticas e Filtros */}
-                    <div className="w-64 bg-gray-50 border-r border-gray-200 flex flex-col flex-shrink-0">
+                    {/* Header Mobile com Estatísticas */}
+                    <div className="lg:hidden bg-white border-b border-gray-200 p-4">
+                      {messageStats && (
+                        <div className="grid grid-cols-4 gap-3 mb-4">
+                          <div className="text-center">
+                            <p className="text-lg font-bold text-blue-600">{messageStats.totalMessages}</p>
+                            <p className="text-xs text-gray-500">Total</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-lg font-bold text-green-600">{messageStats.participants.length}</p>
+                            <p className="text-xs text-gray-500">Participantes</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-lg font-bold text-purple-600">{messageStats.peakHour}h</p>
+                            <p className="text-xs text-gray-500">Pico</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-sm font-bold text-orange-600 truncate">{messageStats.topParticipant?.name || 'N/A'}</p>
+                            <p className="text-xs text-gray-500">Mais ativo</p>
+                          </div>
+                        </div>
+                      )}
+                      
+                      {/* Filtros Mobile */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div className="relative">
+                          <MagnifyingGlassIcon className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                          <input
+                            type="text"
+                            value={messageSearch}
+                            onChange={(e) => setMessageSearch(e.target.value)}
+                            placeholder="Buscar mensagens..."
+                            className="w-full pl-8 pr-3 py-2 border border-gray-200 rounded text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                          />
+                        </div>
+                        <select
+                          value={selectedParticipant}
+                          onChange={(e) => setSelectedParticipant(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-200 rounded text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        >
+                          <option value="">Todos participantes</option>
+                          {getParticipants().map(participant => (
+                            <option key={participant} value={participant}>{participant}</option>
+                          ))}
+                        </select>
+                        <select
+                          value={selectedTimeFilter}
+                          onChange={(e) => setSelectedTimeFilter(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-200 rounded text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        >
+                          <option value="all">Todos períodos</option>
+                          <option value="morning">Manhã</option>
+                          <option value="afternoon">Tarde</option>
+                          <option value="evening">Noite</option>
+                          <option value="night">Madrugada</option>
+                        </select>
+                        <select
+                          value={selectedDateRange}
+                          onChange={(e) => setSelectedDateRange(e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-200 rounded text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                        >
+                          <option value="all">Todas datas</option>
+                          <option value="today">Hoje</option>
+                          <option value="yesterday">Ontem</option>
+                          <option value="week">Semana</option>
+                          <option value="month">Mês</option>
+                        </select>
+                      </div>
+                      
+                      {/* Opções Mobile */}
+                      <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-200">
+                        <div className="flex items-center space-x-4">
+                          <label className="flex items-center space-x-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={groupByParticipant}
+                              onChange={(e) => setGroupByParticipant(e.target.checked)}
+                              className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-4 h-4"
+                            />
+                            <span className="text-sm text-gray-700">Agrupar</span>
+                          </label>
+                          <select
+                            value={sortOrder}
+                            onChange={(e) => setSortOrder(e.target.value)}
+                            className="px-2 py-1 border border-gray-200 rounded text-sm focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                          >
+                            <option value="newest">Mais recentes</option>
+                            <option value="oldest">Mais antigas</option>
+                          </select>
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          {filteredMessages.length}/{collectedMessages.length}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Sidebar Desktop */}
+                    <div className="hidden lg:flex w-80 bg-gray-50 border-r border-gray-200 flex-col flex-shrink-0">
                       {/* Estatísticas Compactas */}
                       {messageStats && (
                         <div className="p-4 border-b border-gray-200">
@@ -1554,10 +1650,10 @@ export default function MessageCollectorManager() {
 
                     {/* Área de Mensagens */}
                     <div className="flex-1 flex flex-col overflow-hidden">
-                      <div className="bg-white border-b border-gray-200 px-4 py-2 flex-shrink-0">
+                      <div className="hidden lg:block bg-white border-b border-gray-200 px-4 py-2 flex-shrink-0">
                         <h4 className="text-sm font-semibold text-gray-700">Mensagens</h4>
                       </div>
-                      <div className="flex-1 overflow-y-auto p-3">
+                      <div className="flex-1 overflow-y-auto p-2 lg:p-3">
                         {filteredMessages.length === 0 ? (
                           <div className="text-center py-8">
                             <FunnelIcon className="w-8 h-8 text-gray-300 mx-auto mb-2" />
@@ -1579,16 +1675,16 @@ export default function MessageCollectorManager() {
                                   </div>
                                   <span className="text-xs text-gray-500">{messages.length}</span>
                                 </div>
-                                <div className="p-2 space-y-1 max-h-48 overflow-y-auto">
+                                <div className="p-2 space-y-1 max-h-48 lg:max-h-60 overflow-y-auto">
                                   {messages.map((message, index) => (
-                                    <div key={index} className="text-xs py-1">
+                                    <div key={index} className="text-xs sm:text-sm py-1">
                                       <div className="flex items-center justify-between mb-1">
-                                        <span className="text-gray-400">
+                                        <span className="text-gray-400 text-xs">
                                           {new Date(message.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                                         </span>
                                         <div className={`w-1.5 h-1.5 rounded-full ${getTimeOfDay(message.timestamp) === 'morning' ? 'bg-yellow-400' : getTimeOfDay(message.timestamp) === 'afternoon' ? 'bg-orange-400' : getTimeOfDay(message.timestamp) === 'evening' ? 'bg-purple-400' : 'bg-blue-400'}`}></div>
                                       </div>
-                                      <div className="text-gray-700 text-xs">
+                                      <div className="text-gray-700 text-xs sm:text-sm leading-relaxed">
                                         {renderMessageContent(message, messageSearch)}
                                       </div>
                                     </div>
@@ -1612,11 +1708,11 @@ export default function MessageCollectorManager() {
                               return (
                                 <div
                                   key={index}
-                                  className={`bg-white px-3 py-2 rounded border-l-2 ${timeColor} border border-gray-200 hover:bg-gray-50 transition-colors`}
+                                  className={`bg-white px-2 sm:px-3 py-2 rounded border-l-2 ${timeColor} border border-gray-200 hover:bg-gray-50 transition-colors`}
                                 >
                                   <div className="flex items-center justify-between mb-1">
-                                    <div className="flex items-center space-x-2">
-                                      <div className="w-5 h-5 bg-gray-100 rounded-full flex items-center justify-center">
+                                    <div className="flex items-center space-x-2 min-w-0 flex-1">
+                                      <div className="w-5 h-5 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
                                         <span className="text-xs text-gray-600 font-medium">
                                           {message.pushName?.charAt(0) || 'U'}
                                         </span>
@@ -1624,13 +1720,13 @@ export default function MessageCollectorManager() {
                                       <span className="text-sm font-medium text-gray-800 truncate">
                                         {message.pushName || 'Usuário'}
                                       </span>
-                                      <span className="text-xs text-gray-400">
+                                      <span className="text-xs text-gray-400 flex-shrink-0">
                                         {new Date(message.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                                       </span>
                                     </div>
-                                    <div className={`w-1.5 h-1.5 rounded-full ${timeOfDay === 'morning' ? 'bg-yellow-400' : timeOfDay === 'afternoon' ? 'bg-orange-400' : timeOfDay === 'evening' ? 'bg-purple-400' : 'bg-blue-400'}`}></div>
+                                    <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${timeOfDay === 'morning' ? 'bg-yellow-400' : timeOfDay === 'afternoon' ? 'bg-orange-400' : timeOfDay === 'evening' ? 'bg-purple-400' : 'bg-blue-400'}`}></div>
                                   </div>
-                                  <div className="text-xs text-gray-700 pl-7">
+                                  <div className="text-xs sm:text-sm text-gray-700 pl-7 leading-relaxed">
                                     {renderMessageContent(message, messageSearch)}
                                   </div>
                                 </div>
