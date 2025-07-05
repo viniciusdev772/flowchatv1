@@ -6,6 +6,7 @@ const aiRoutes = require('./ai');
 const messageCollectorRoutes = require('../api/messageCollector');
 const aiSummaryRoutes = require('../api/aiSummary');
 const mcpSseRoutes = require('./mcpsse');
+const sseRoutes = require('./sse');
 
 const router = express.Router();
 
@@ -39,6 +40,9 @@ router.use('/ai-summary', aiSummaryRoutes);
 
 // MCP SSE routes
 router.use('/mcp', mcpSseRoutes);
+
+// SSE routes
+router.use('/sse', sseRoutes);
 
 // API info endpoint
 router.get('/info', (req, res) => {
@@ -91,6 +95,11 @@ router.get('/info', (req, res) => {
           execute: 'POST /api/management/mcp/execute',
           validate: 'POST /api/management/mcp/validate',
           status: 'GET /api/management/mcp/status'
+        },
+        sse: {
+          mcp: 'POST /api/management/sse',
+          tools: 'GET /api/management/sse/tools',
+          status: 'GET /api/management/sse/status'
         }
       }
     }
