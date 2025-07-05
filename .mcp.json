@@ -1,5 +1,15 @@
 {
   "mcpServers": {
+    "flowchat-baileys": {
+      "command": "node",
+      "args": [
+        "/mnt/c/Users/vinicius/Documents/baileys/mcp-server.js",
+        "--api-key",
+        "baileys_sua_chave_aqui",
+        "--base-url",
+        "http://localhost:3000"
+      ]
+    },
     "magic-server": {
       "command": "npx",
       "args": [

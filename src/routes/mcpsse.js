@@ -158,8 +158,12 @@ router.get('/tools/:toolName', apiTokenAuth, (req, res) => {
  *               arguments:
  *                 type: object
  *                 description: Argumentos para a ferramenta
+ *               apiKey:
+ *                 type: string
+ *                 description: Chave de API para acesso à FlowChat API (formato baileys_...)
  *             required:
  *               - toolName
+ *               - apiKey
  *     responses:
  *       200:
  *         description: Stream de execução da ferramenta
@@ -173,12 +177,19 @@ router.get('/tools/:toolName', apiTokenAuth, (req, res) => {
  *         description: Token inválido
  */
 router.post('/execute', apiTokenAuth, async (req, res) => {
-  const { toolName, arguments: args = {} } = req.body;
+  const { toolName, arguments: args = {}, apiKey } = req.body;
   
   if (!toolName) {
     return res.status(400).json({
       success: false,
       message: 'Nome da ferramenta é obrigatório'
+    });
+  }
+
+  if (!apiKey || !apiKey.startsWith('baileys_')) {
+    return res.status(400).json({
+      success: false,
+      message: 'Chave de API é obrigatória e deve começar com "baileys_"'
     });
   }
   
@@ -221,7 +232,7 @@ router.post('/execute', apiTokenAuth, async (req, res) => {
     // Execute tool
     res.write('data: {"type": "executing", "message": "Executando ferramenta..."}\n\n');
     
-    const result = await mcpServer.executeTool(toolName, args, authorization);
+    const result = await mcpServer.executeToolForSSE(toolName, args, apiKey);
     
     // Send success result
     res.write('data: {"type": "success", "result": ' + JSON.stringify(result) + ', "timestamp": "' + new Date().toISOString() + '"}\n\n');
