@@ -23,6 +23,7 @@ import {
   UsersIcon,
   WrenchScrewdriverIcon,
   XCircleIcon,
+  SparklesIcon,
 } from '@heroicons/react/24/outline';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
@@ -221,6 +222,7 @@ export default function Dashboard() {
 
   const tabs = [
     { id: 'overview', name: 'Visão Geral', icon: ChartBarIcon },
+    { id: 'ai-agent', name: 'Agente de IA', icon: ServerIcon, exclusive: true },
     { id: 'sessions', name: 'Sessões', icon: PhoneIcon },
     { id: 'tokens', name: 'Tokens API', icon: KeyIcon },
     { id: 'messages', name: 'Mensagens', icon: ChatBubbleLeftRightIcon },
@@ -1236,6 +1238,11 @@ export default function Dashboard() {
                 >
                   <Icon className="w-4 h-4" />
                   <span className="font-medium whitespace-nowrap">{tab.name}</span>
+                  {tab.exclusive && (
+                    <span className="text-xs bg-gradient-to-r from-yellow-400 to-orange-400 text-black px-2 py-0.5 rounded-full font-bold">
+                      EXCLUSIVO
+                    </span>
+                  )}
                 </motion.button>
               );
             })}
@@ -1259,6 +1266,11 @@ export default function Dashboard() {
                 >
                   <Icon className="w-5 h-5" />
                   <span className="font-medium">{tab.name}</span>
+                  {tab.exclusive && (
+                    <span className="text-xs bg-gradient-to-r from-yellow-400 to-orange-400 text-black px-2 py-0.5 rounded-full font-bold ml-auto">
+                      EXCLUSIVO
+                    </span>
+                  )}
                 </motion.button>
               );
             })}
@@ -1472,6 +1484,40 @@ export default function Dashboard() {
                       ))
                     )}
                   </div>
+                </div>
+              </motion.div>
+            )}
+
+            {activeTab === 'ai-agent' && (
+              <motion.div
+                key="ai-agent"
+                initial={{ opacity: 0, x: performanceMode ? 0 : 10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: performanceMode ? 0 : -10 }}
+                transition={{ duration: performanceMode ? 0.1 : 0.2 }}
+                className="space-y-6"
+              >
+                <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/20 rounded-2xl p-8 text-center">
+                  <ServerIcon className="w-16 h-16 text-blue-400 mx-auto mb-4" />
+                  <h3 className="text-2xl font-bold text-white mb-2">Agente de IA</h3>
+                  <p className="text-white/70 mb-6">
+                    Configure agentes de IA inteligentes para automatizar suas conversas no WhatsApp
+                  </p>
+                  <div className="flex items-center justify-center space-x-2 mb-6">
+                    <span className="text-xs bg-gradient-to-r from-yellow-400 to-orange-400 text-black px-3 py-1 rounded-full font-bold">
+                      EXCLUSIVO
+                    </span>
+                    <span className="text-xs bg-gradient-to-r from-green-400 to-emerald-400 text-black px-3 py-1 rounded-full font-bold">
+                      NOVO
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => window.open('/ai-agent', '_blank')}
+                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-3 rounded-lg font-medium transition-all transform hover:scale-105 inline-flex items-center"
+                  >
+                    <SparklesIcon className="w-5 h-5 mr-2" />
+                    Criar Agente de IA
+                  </button>
                 </div>
               </motion.div>
             )}

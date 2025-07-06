@@ -12,6 +12,7 @@ import {
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import AIAssistantPage from './pages/AIAssistant'
+import AIAgent from './pages/AIAgent'
 
 function Home() {
   const features = [
@@ -288,6 +289,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/ai" element={<AIAssistantPage />} />
+        <Route path="/ai-agent" element={<AIAgent />} />
       </Routes>
     </Router>
   )

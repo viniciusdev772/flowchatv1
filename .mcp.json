@@ -1,15 +1,5 @@
 {
   "mcpServers": {
-    "flowchat-baileys": {
-      "command": "node",
-      "args": [
-        "/mnt/c/Users/vinicius/Documents/baileys/mcp-server.js",
-        "--api-key",
-        "baileys_sua_chave_aqui",
-        "--base-url",
-        "http://localhost:3000"
-      ]
-    },
     "magic-server": {
       "command": "npx",
       "args": [
@@ -18,94 +8,44 @@
         "API_KEY=\"f9678f9f8bcbe47cfe667fd08b96a1448b0144b66bb38225cfec6009a8f3ac26\""
       ]
     },
-    "filesystem": {
+    "allpepper-memory-bank": {
       "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-filesystem",
-        "/mnt/c/Users/vinicius/Documents/baileys",
-        "/mnt/c/Users/vinicius/Documents"
-      ]
-    },
-    "git": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-git",
-        "--repository",
-        "/mnt/c/Users/vinicius/Documents/baileys"
-      ]
-    },
-    "memory": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-memory"
+      "args": ["-y", "@allpepper/memory-bank-mcp"],
+      "env": {
+        "MEMORY_BANK_ROOT": "/mnt/c/Users/vinicius/Documents/baileys/memory-bank"
+      },
+      "disabled": false,
+      "autoApprove": [
+        "memory_bank_read",
+        "memory_bank_write",
+        "memory_bank_update",
+        "list_projects",
+        "list_project_files"
       ]
     },
     "sequential-thinking": {
       "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-sequential-thinking"
+      "args": ["-y", "@modelcontextprotocol/server-sequential-thinking"],
+      "disabled": false,
+      "autoApprove": [
+        "create_thought",
+        "sequential_thinking"
       ]
     },
-    "fetch": {
+    "memory-service": {
       "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-fetch"
-      ]
-    },
-    "puppeteer": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-puppeteer"
-      ]
-    },
-    "everything": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-everything"
-      ]
-    },
-    "sqlite": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-sqlite",
-        "--db-path",
-        "/mnt/c/Users/vinicius/Documents/baileys/data/app.db"
-      ]
-    },
-    "time": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-time"
-      ]
-    },
-    "axios": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-axios"
-      ]
-    },
-    "kubernetes": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-kubernetes"
-      ]
-    },
-    "web-search": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-web-search"
+      "args": ["-y", "mcp-memory-service"],
+      "env": {
+        "MCP_MEMORY_CHROMA_PATH": "/mnt/c/Users/vinicius/Documents/baileys/memory-bank/chroma_db",
+        "MCP_MEMORY_BACKUPS_PATH": "/mnt/c/Users/vinicius/Documents/baileys/memory-bank/backups"
+      },
+      "disabled": false,
+      "autoApprove": [
+        "store_memory",
+        "search_memory",
+        "list_memories",
+        "backup_memory",
+        "restore_memory"
       ]
     }
   }
