@@ -1,118 +1,101 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Fragment } from 'react';
 import {
-  Card,
-  CardHeader,
-  CardBody,
-  CardFooter,
-  Button,
+  Dialog,
+  Transition,
+  Tab,
+  Disclosure,
+  Listbox,
+  Combobox,
+  RadioGroup,
+  Switch,
+  Field,
+  Label,
   Input,
   Textarea,
+  Button,
   Select,
-  SelectItem,
-  Listbox,
-  ListboxItem,
-  Chip,
-  Progress,
-  Spacer,
-  Divider,
-  Avatar,
-  Badge,
-  Switch,
-  Slider,
-  Accordion,
-  AccordionItem,
-  Modal,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
-  useDisclosure,
-  Breadcrumbs,
-  BreadcrumbItem,
-  Tabs,
-  Tab,
-  Spinner,
-  CircularProgress,
-  Alert,
-  CheckboxGroup,
-  Checkbox,
-  RadioGroup,
-  Radio,
-  Image,
-  Link,
-  Code,
-  Kbd
-} from "@heroui/react";
-import { 
-  SparklesIcon, 
-  PhoneIcon, 
-  CpuChipIcon, 
-  RocketLaunchIcon, 
-  BeakerIcon, 
+  Description,
+  Fieldset,
+  Legend
+} from '@headlessui/react';
+import {
+  SparklesIcon,
+  PhoneIcon,
+  CpuChipIcon,
+  RocketLaunchIcon,
+  BeakerIcon,
   AcademicCapIcon,
   CheckIcon,
+  ChevronDownIcon,
+  ChevronUpDownIcon,
   ArrowRightIcon,
   Cog6ToothIcon,
   UserIcon,
-  BoltIcon
+  BoltIcon,
+  ExclamationTriangleIcon,
+  InformationCircleIcon,
+  XMarkIcon
 } from '@heroicons/react/24/outline';
 import { apiRequest } from '../utils/api';
+
+function classNames(...classes) {
+  return classes.filter(Boolean).join(' ');
+}
 
 export default function AIAgent() {
   const [currentStep, setCurrentStep] = useState(0);
   const [availableNumbers, setAvailableNumbers] = useState([]);
-  const [selectedNumber, setSelectedNumber] = useState(new Set([]));
+  const [selectedNumber, setSelectedNumber] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
   const [deploymentProgress, setDeploymentProgress] = useState(0);
-  const { isOpen, onOpen, onClose } = useDisclosure();
+  const [showDeployModal, setShowDeployModal] = useState(false);
+  const [deploymentStatus, setDeploymentStatus] = useState('idle');
   
   const [agentConfig, setAgentConfig] = useState({
     name: '',
     description: '',
     apiKey: '',
     model: 'gpt-4',
-    personality: new Set(['professional']),
-    specialization: new Set(['general']),
+    personality: 'professional',
+    specialization: 'general',
     creativity: 70,
-    responseSpeed: new Set(['fast']),
     learningEnabled: true,
-    contextMemory: new Set(['session']),
     autoReply: true,
     smartReplies: true
   });
 
   const steps = [
-    { key: "number", title: "Número WhatsApp", icon: PhoneIcon },
-    { key: "identity", title: "Identidade", icon: AcademicCapIcon },
-    { key: "intelligence", title: "Inteligência", icon: CpuChipIcon },
-    { key: "personality", title: "Personalidade", icon: BeakerIcon },
-    { key: "deploy", title: "Implantação", icon: RocketLaunchIcon }
+    { id: 0, name: 'Número WhatsApp', icon: PhoneIcon, description: 'Selecione o número para seu agente' },
+    { id: 1, name: 'Identidade', icon: AcademicCapIcon, description: 'Defina nome e especialização' },
+    { id: 2, name: 'Inteligência', icon: CpuChipIcon, description: 'Configure modelo e parâmetros' },
+    { id: 3, name: 'Personalidade', icon: BeakerIcon, description: 'Escolha comportamento do agente' },
+    { id: 4, name: 'Implantação', icon: RocketLaunchIcon, description: 'Revisar e implantar' }
   ];
 
   const aiModels = [
-    { key: "gpt-4", label: "GPT-4 (Recomendado)" },
-    { key: "gpt-3.5-turbo", label: "GPT-3.5 Turbo" },
-    { key: "claude-3", label: "Claude 3" },
-    { key: "gemini-pro", label: "Gemini Pro" }
+    { id: 'gpt-4', name: 'GPT-4 (Recomendado)', description: 'Modelo mais avançado da OpenAI' },
+    { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo', description: 'Rápido e eficiente' },
+    { id: 'claude-3', name: 'Claude 3', description: 'Modelo da Anthropic' },
+    { id: 'gemini-pro', name: 'Gemini Pro', description: 'Modelo do Google' }
   ];
 
   const personalities = [
-    { key: "professional", label: "Profissional", emoji: "🎯", description: "Formal e objetivo" },
-    { key: "friendly", label: "Amigável", emoji: "😊", description: "Caloroso e acolhedor" },
-    { key: "creative", label: "Criativo", emoji: "🎨", description: "Inovador e artístico" },
-    { key: "analytical", label: "Analítico", emoji: "📊", description: "Lógico e detalhado" },
-    { key: "casual", label: "Descontraído", emoji: "😎", description: "Informal e relaxado" },
-    { key: "empathetic", label: "Empático", emoji: "❤️", description: "Compreensivo e sensível" }
+    { id: 'professional', name: 'Profissional', emoji: '🎯', description: 'Formal e objetivo' },
+    { id: 'friendly', name: 'Amigável', emoji: '😊', description: 'Caloroso e acolhedor' },
+    { id: 'creative', name: 'Criativo', emoji: '🎨', description: 'Inovador e artístico' },
+    { id: 'analytical', name: 'Analítico', emoji: '📊', description: 'Lógico e detalhado' },
+    { id: 'casual', name: 'Descontraído', emoji: '😎', description: 'Informal e relaxado' },
+    { id: 'empathetic', name: 'Empático', emoji: '❤️', description: 'Compreensivo e sensível' }
   ];
 
   const specializations = [
-    { key: "general", label: "Assistente Geral", emoji: "🤖", description: "Multipropósito" },
-    { key: "sales", label: "Vendas & Marketing", emoji: "💼", description: "Conversão e vendas" },
-    { key: "support", label: "Suporte ao Cliente", emoji: "🛠️", description: "Atendimento e suporte" },
-    { key: "education", label: "Educação & Ensino", emoji: "📚", description: "Ensino e treinamento" },
-    { key: "health", label: "Saúde & Bem-estar", emoji: "🏥", description: "Orientações de saúde" },
-    { key: "finance", label: "Finanças & Consultoria", emoji: "💰", description: "Consultoria financeira" }
+    { id: 'general', name: 'Assistente Geral', emoji: '🤖', description: 'Multipropósito' },
+    { id: 'sales', name: 'Vendas & Marketing', emoji: '💼', description: 'Conversão e vendas' },
+    { id: 'support', name: 'Suporte ao Cliente', emoji: '🛠️', description: 'Atendimento e suporte' },
+    { id: 'education', name: 'Educação & Ensino', emoji: '📚', description: 'Ensino e treinamento' },
+    { id: 'health', name: 'Saúde & Bem-estar', emoji: '🏥', description: 'Orientações de saúde' },
+    { id: 'finance', name: 'Finanças & Consultoria', emoji: '💰', description: 'Consultoria financeira' }
   ];
 
   useEffect(() => {
@@ -140,18 +123,25 @@ export default function AIAgent() {
   const handleDeploy = async () => {
     setIsCreating(true);
     setDeploymentProgress(0);
-    onOpen();
+    setDeploymentStatus('initializing');
+    setShowDeployModal(true);
     
     // Simulate deployment progress
-    const steps = [20, 40, 60, 80, 100];
-    for (let i = 0; i < steps.length; i++) {
+    const statusSteps = [
+      { progress: 20, status: 'configuring' },
+      { progress: 40, status: 'training' },
+      { progress: 60, status: 'testing' },
+      { progress: 80, status: 'deploying' },
+      { progress: 100, status: 'completed' }
+    ];
+    
+    for (const step of statusSteps) {
       await new Promise(resolve => setTimeout(resolve, 1000));
-      setDeploymentProgress(steps[i]);
+      setDeploymentProgress(step.progress);
+      setDeploymentStatus(step.status);
     }
     
-    setTimeout(() => {
-      setIsCreating(false);
-    }, 1000);
+    setIsCreating(false);
   };
 
   const nextStep = () => {
@@ -169,7 +159,7 @@ export default function AIAgent() {
   const canProceed = () => {
     switch (currentStep) {
       case 0:
-        return Array.from(selectedNumber).length > 0;
+        return selectedNumber !== null;
       case 1:
         return agentConfig.name.trim() !== '';
       case 2:
@@ -179,563 +169,804 @@ export default function AIAgent() {
     }
   };
 
+  const getStatusMessage = (status) => {
+    const messages = {
+      initializing: 'Inicializando sistema...',
+      configuring: 'Configurando modelo...',
+      training: 'Treinando agente...',
+      testing: 'Executando testes...',
+      deploying: 'Implantando agente...',
+      completed: 'Agente implantado com sucesso!'
+    };
+    return messages[status] || 'Processando...';
+  };
+
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-pink-50">
-        <Card className="w-96 p-8">
-          <CardBody className="text-center">
-            <CircularProgress 
-              size="lg" 
-              color="secondary" 
-              className="mb-4"
-              aria-label="Carregando..."
-            />
-            <h2 className="text-xl font-semibold text-gray-700">
+      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 flex items-center justify-center">
+        <div className="max-w-md w-full mx-auto bg-white rounded-2xl shadow-xl p-8">
+          <div className="text-center">
+            <div className="mx-auto w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center mb-6">
+              <CpuChipIcon className="w-8 h-8 text-white animate-pulse" />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-2">
               Inicializando Sistema de IA
             </h2>
-            <p className="text-gray-500 mt-2">
+            <p className="text-gray-600">
               Carregando números disponíveis...
             </p>
-          </CardBody>
-        </Card>
+            <div className="mt-6">
+              <div className="w-full bg-gray-200 rounded-full h-2">
+                <div className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full animate-pulse" style={{width: '60%'}}></div>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-purple-50 via-pink-50 to-orange-50 p-4">
-      <div className="max-w-6xl mx-auto">
-        {/* Header with Progress */}
-        <Card className="mb-8">
-          <CardHeader className="pb-2">
-            <div className="w-full">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <Avatar
-                    icon={<SparklesIcon className="w-6 h-6" />}
-                    className="bg-gradient-to-br from-purple-500 to-pink-500"
-                  />
+    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header */}
+        <div className="text-center mb-12">
+          <div className="flex items-center justify-center mb-6">
+            <div className="w-20 h-20 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
+              <SparklesIcon className="w-10 h-10 text-white" />
+            </div>
+          </div>
+          <h1 className="text-4xl font-bold text-gray-900 mb-4">
+            Criador de Agente IA
+          </h1>
+          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+            Configure seu assistente inteligente personalizado com tecnologia de ponta
+          </p>
+          <div className="mt-4 inline-flex items-center px-4 py-2 rounded-full bg-gradient-to-r from-yellow-400 to-orange-400 text-black text-sm font-bold">
+            ⭐ EXCLUSIVO & PREMIUM
+          </div>
+        </div>
+
+        {/* Progress Indicator */}
+        <div className="mb-12">
+          <div className="flex items-center justify-between">
+            {steps.map((step, index) => (
+              <div key={step.id} className="flex flex-col items-center flex-1">
+                <div className={classNames(
+                  'w-12 h-12 rounded-full flex items-center justify-center mb-3 transition-all duration-300',
+                  currentStep === index
+                    ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white scale-110'
+                    : currentStep > index
+                    ? 'bg-green-500 text-white'
+                    : 'bg-gray-200 text-gray-400'
+                )}>
+                  {currentStep > index ? (
+                    <CheckIcon className="w-6 h-6" />
+                  ) : (
+                    <step.icon className="w-6 h-6" />
+                  )}
+                </div>
+                <span className={classNames(
+                  'text-sm font-medium text-center',
+                  currentStep >= index ? 'text-gray-900' : 'text-gray-400'
+                )}>
+                  {step.name}
+                </span>
+                {index < steps.length - 1 && (
+                  <div className={classNames(
+                    'hidden sm:block absolute h-0.5 w-full mt-6 transform translate-y-6',
+                    currentStep > index ? 'bg-green-500' : 'bg-gray-200'
+                  )} />
+                )}
+              </div>
+            ))}
+          </div>
+          <div className="mt-6 bg-gray-200 rounded-full h-2">
+            <div 
+              className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full transition-all duration-500"
+              style={{ width: `${((currentStep + 1) / steps.length) * 100}%` }}
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          {/* Main Content */}
+          <div className="lg:col-span-3">
+            <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+              <div className="bg-gradient-to-r from-purple-500 to-pink-500 px-8 py-6">
+                <div className="flex items-center">
+                  {React.createElement(steps[currentStep].icon, { 
+                    className: "w-8 h-8 text-white mr-4" 
+                  })}
                   <div>
-                    <h1 className="text-2xl font-bold text-gray-800">
-                      Criador de Agente IA
-                    </h1>
-                    <p className="text-gray-600">
-                      Configure seu assistente inteligente personalizado
+                    <h2 className="text-2xl font-bold text-white">
+                      {steps[currentStep].name}
+                    </h2>
+                    <p className="text-purple-100 mt-1">
+                      {steps[currentStep].description}
                     </p>
                   </div>
                 </div>
-                <Chip 
-                  color="warning" 
-                  variant="flat" 
-                  size="sm"
-                  className="font-semibold"
-                >
-                  EXCLUSIVO
-                </Chip>
               </div>
-              
-              <Breadcrumbs>
-                {steps.map((step, index) => (
-                  <BreadcrumbItem 
-                    key={step.key}
-                    isCurrent={currentStep === index}
-                    isDisabled={currentStep < index}
-                  >
-                    {step.title}
-                  </BreadcrumbItem>
-                ))}
-              </Breadcrumbs>
-              
-              <Spacer y={4} />
-              
-              <Progress 
-                value={(currentStep + 1) / steps.length * 100} 
-                color="secondary"
-                className="max-w-md"
-                showValueLabel={true}
-                formatOptions={{style: "percent"}}
-              />
-            </div>
-          </CardHeader>
-        </Card>
 
-        {/* Step Content */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Content */}
-          <div className="lg:col-span-2">
-            <Card className="h-fit">
-              <CardHeader>
-                <div className="flex items-center gap-3">
-                  {React.createElement(steps[currentStep].icon, { className: "w-6 h-6 text-purple-600" })}
-                  <h2 className="text-xl font-semibold">
-                    {steps[currentStep].title}
-                  </h2>
-                </div>
-              </CardHeader>
-              
-              <CardBody>
+              <div className="p-8">
                 {/* Step 0: Number Selection */}
                 {currentStep === 0 && (
-                  <div className="space-y-6">
-                    <Alert 
-                      color="primary" 
-                      variant="flat"
-                      title="Selecione um Número"
-                      description="Escolha o número WhatsApp que será usado pelo seu agente de IA"
-                    />
-                    
-                    <Listbox
-                      aria-label="Números disponíveis"
-                      variant="flat"
-                      disallowEmptySelection
-                      selectionMode="single"
-                      selectedKeys={selectedNumber}
-                      onSelectionChange={setSelectedNumber}
-                      className="max-w-full"
-                    >
-                      {availableNumbers.map((session) => (
-                        <ListboxItem 
-                          key={session.sessionId}
-                          startContent={
-                            <Badge 
-                              content="" 
-                              color="success" 
-                              shape="circle" 
-                              placement="bottom-right"
-                            >
-                              <Avatar 
-                                icon={<PhoneIcon className="w-4 h-4" />}
-                                size="sm"
-                                className="bg-green-100"
-                              />
-                            </Badge>
-                          }
-                          description={`Status: ${session.status}`}
-                        >
-                          {session.sessionId}
-                        </ListboxItem>
-                      ))}
-                    </Listbox>
-                    
-                    {availableNumbers.length === 0 && (
-                      <Alert 
-                        color="warning"
-                        title="Nenhum número disponível"
-                        description="Conecte pelo menos um número WhatsApp para continuar"
-                      />
+                  <div className="space-y-8">
+                    <div className="text-center">
+                      <InformationCircleIcon className="w-12 h-12 text-blue-500 mx-auto mb-4" />
+                      <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                        Selecione um Número WhatsApp
+                      </h3>
+                      <p className="text-gray-600">
+                        Escolha qual número será usado pelo seu agente de IA
+                      </p>
+                    </div>
+
+                    {availableNumbers.length > 0 ? (
+                      <Listbox value={selectedNumber} onChange={setSelectedNumber}>
+                        <div className="relative">
+                          <Listbox.Button className="relative w-full cursor-pointer rounded-xl bg-gray-50 border-2 border-gray-200 hover:border-purple-300 py-4 pl-6 pr-10 text-left focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200">
+                            <span className="flex items-center">
+                              {selectedNumber ? (
+                                <>
+                                  <div className="w-3 h-3 bg-green-500 rounded-full mr-3" />
+                                  <span className="block truncate font-medium">
+                                    {selectedNumber.sessionId}
+                                  </span>
+                                  <span className="ml-2 text-sm text-gray-500">
+                                    ({selectedNumber.status})
+                                  </span>
+                                </>
+                              ) : (
+                                <span className="block truncate text-gray-400">
+                                  Selecione um número...
+                                </span>
+                              )}
+                            </span>
+                            <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
+                              <ChevronUpDownIcon className="h-5 w-5 text-gray-400" />
+                            </span>
+                          </Listbox.Button>
+
+                          <Transition
+                            as={Fragment}
+                            leave="transition ease-in duration-100"
+                            leaveFrom="opacity-100"
+                            leaveTo="opacity-0"
+                          >
+                            <Listbox.Options className="absolute z-10 mt-2 max-h-60 w-full overflow-auto rounded-xl bg-white py-2 shadow-2xl ring-1 ring-black ring-opacity-5 focus:outline-none">
+                              {availableNumbers.map((session) => (
+                                <Listbox.Option
+                                  key={session.sessionId}
+                                  className={({ active }) =>
+                                    classNames(
+                                      active ? 'bg-purple-50 text-purple-900' : 'text-gray-900',
+                                      'relative cursor-pointer select-none py-3 pl-6 pr-10 hover:bg-purple-50 transition-colors duration-150'
+                                    )
+                                  }
+                                  value={session}
+                                >
+                                  {({ selected }) => (
+                                    <>
+                                      <div className="flex items-center">
+                                        <div className="w-3 h-3 bg-green-500 rounded-full mr-3" />
+                                        <span className={classNames(
+                                          selected ? 'font-semibold' : 'font-normal',
+                                          'block truncate'
+                                        )}>
+                                          {session.sessionId}
+                                        </span>
+                                        <span className="ml-2 text-sm text-gray-500">
+                                          ({session.status})
+                                        </span>
+                                      </div>
+                                      {selected && (
+                                        <span className="absolute inset-y-0 right-0 flex items-center pr-4 text-purple-600">
+                                          <CheckIcon className="h-5 w-5" />
+                                        </span>
+                                      )}
+                                    </>
+                                  )}
+                                </Listbox.Option>
+                              ))}
+                            </Listbox.Options>
+                          </Transition>
+                        </div>
+                      </Listbox>
+                    ) : (
+                      <div className="text-center py-12 bg-yellow-50 rounded-xl border-2 border-yellow-200">
+                        <ExclamationTriangleIcon className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
+                        <h3 className="text-lg font-semibold text-yellow-800 mb-2">
+                          Nenhum número disponível
+                        </h3>
+                        <p className="text-yellow-700">
+                          Conecte pelo menos um número WhatsApp para continuar
+                        </p>
+                      </div>
                     )}
                   </div>
                 )}
 
                 {/* Step 1: Identity */}
                 {currentStep === 1 && (
-                  <div className="space-y-6">
-                    <Input
-                      label="Nome do Agente"
-                      placeholder="Ex: Aurora Assistant"
-                      value={agentConfig.name}
-                      onValueChange={(value) => 
-                        setAgentConfig(prev => ({ ...prev, name: value }))
-                      }
-                      startContent={<UserIcon className="w-4 h-4 text-gray-400" />}
-                      isRequired
-                      description="Escolha um nome único para seu assistente"
-                    />
-                    
-                    <div>
-                      <label className="text-sm font-medium text-gray-700 mb-2 block">
-                        Especialização
-                      </label>
-                      <div className="grid grid-cols-2 gap-3">
-                        {specializations.map((spec) => (
-                          <Card 
-                            key={spec.key}
-                            isPressable
-                            isHoverable
-                            className={`cursor-pointer transition-all ${
-                              Array.from(agentConfig.specialization)[0] === spec.key 
-                                ? 'ring-2 ring-purple-500 bg-purple-50' 
-                                : ''
-                            }`}
-                            onPress={() => 
-                              setAgentConfig(prev => ({ 
-                                ...prev, 
-                                specialization: new Set([spec.key]) 
-                              }))
-                            }
+                  <div className="space-y-8">
+                    <Fieldset>
+                      <Legend className="text-lg font-semibold text-gray-900 mb-6">
+                        Identidade do Agente
+                      </Legend>
+                      
+                      <div className="space-y-6">
+                        <Field>
+                          <Label className="block text-sm font-medium text-gray-700 mb-2">
+                            Nome do Agente *
+                          </Label>
+                          <div className="relative">
+                            <UserIcon className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                            <Input
+                              type="text"
+                              value={agentConfig.name}
+                              onChange={(e) => setAgentConfig(prev => ({ ...prev, name: e.target.value }))}
+                              className="block w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+                              placeholder="Ex: Aurora Assistant"
+                              required
+                            />
+                          </div>
+                          <Description className="mt-2 text-sm text-gray-500">
+                            Escolha um nome único e memorável para seu assistente
+                          </Description>
+                        </Field>
+
+                        <Field>
+                          <Label className="block text-sm font-medium text-gray-700 mb-4">
+                            Especialização
+                          </Label>
+                          <RadioGroup 
+                            value={agentConfig.specialization} 
+                            onChange={(value) => setAgentConfig(prev => ({ ...prev, specialization: value }))}
                           >
-                            <CardBody className="text-center p-4">
-                              <div className="text-2xl mb-2">{spec.emoji}</div>
-                              <h4 className="font-semibold text-sm">{spec.label}</h4>
-                              <p className="text-xs text-gray-500 mt-1">
-                                {spec.description}
-                              </p>
-                            </CardBody>
-                          </Card>
-                        ))}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {specializations.map((spec) => (
+                                <RadioGroup.Option
+                                  key={spec.id}
+                                  value={spec.id}
+                                  className={({ checked }) =>
+                                    classNames(
+                                      checked 
+                                        ? 'ring-2 ring-purple-500 bg-purple-50 border-purple-200' 
+                                        : 'border-gray-200 hover:border-purple-300',
+                                      'relative cursor-pointer rounded-xl border-2 p-4 focus:outline-none transition-all duration-200'
+                                    )
+                                  }
+                                >
+                                  {({ checked }) => (
+                                    <div className="flex items-center text-center">
+                                      <div className="text-center flex-1">
+                                        <div className="text-3xl mb-2">{spec.emoji}</div>
+                                        <h4 className="text-sm font-semibold text-gray-900">
+                                          {spec.name}
+                                        </h4>
+                                        <p className="text-xs text-gray-500 mt-1">
+                                          {spec.description}
+                                        </p>
+                                      </div>
+                                      {checked && (
+                                        <CheckIcon className="h-5 w-5 text-purple-600 absolute top-2 right-2" />
+                                      )}
+                                    </div>
+                                  )}
+                                </RadioGroup.Option>
+                              ))}
+                            </div>
+                          </RadioGroup>
+                        </Field>
+
+                        <Field>
+                          <Label className="block text-sm font-medium text-gray-700 mb-2">
+                            Descrição (Opcional)
+                          </Label>
+                          <Textarea
+                            value={agentConfig.description}
+                            onChange={(e) => setAgentConfig(prev => ({ ...prev, description: e.target.value }))}
+                            rows={4}
+                            className="block w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 resize-none"
+                            placeholder="Descreva a personalidade e objetivos do seu agente..."
+                          />
+                          <Description className="mt-2 text-sm text-gray-500">
+                            Esta descrição ajudará a definir o comportamento do agente
+                          </Description>
+                        </Field>
                       </div>
-                    </div>
-                    
-                    <Textarea
-                      label="Descrição (Opcional)"
-                      placeholder="Descreva a personalidade e objetivos do seu agente..."
-                      value={agentConfig.description}
-                      onValueChange={(value) => 
-                        setAgentConfig(prev => ({ ...prev, description: value }))
-                      }
-                      description="Esta descrição ajudará a definir o comportamento do agente"
-                    />
+                    </Fieldset>
                   </div>
                 )}
 
                 {/* Step 2: Intelligence */}
                 {currentStep === 2 && (
-                  <div className="space-y-6">
-                    <Select
-                      label="Modelo de IA"
-                      placeholder="Selecione o modelo"
-                      selectedKeys={new Set([agentConfig.model])}
-                      onSelectionChange={(keys) => 
-                        setAgentConfig(prev => ({ 
-                          ...prev, 
-                          model: Array.from(keys)[0] 
-                        }))
-                      }
-                      startContent={<CpuChipIcon className="w-4 h-4" />}
-                    >
-                      {aiModels.map((model) => (
-                        <SelectItem key={model.key}>
-                          {model.label}
-                        </SelectItem>
-                      ))}
-                    </Select>
-                    
-                    <Input
-                      type="password"
-                      label="Chave da API OpenAI"
-                      placeholder="sk-..."
-                      value={agentConfig.apiKey}
-                      onValueChange={(value) => 
-                        setAgentConfig(prev => ({ ...prev, apiKey: value }))
-                      }
-                      startContent={<Cog6ToothIcon className="w-4 h-4 text-gray-400" />}
-                      isRequired
-                      description="Sua chave será criptografada e armazenada com segurança"
-                    />
-                    
-                    <div>
-                      <label className="text-sm font-medium text-gray-700 mb-4 block">
-                        Nível de Criatividade: {agentConfig.creativity}%
-                      </label>
-                      <Slider
-                        step={10}
-                        minValue={0}
-                        maxValue={100}
-                        value={agentConfig.creativity}
-                        onChange={(value) => 
-                          setAgentConfig(prev => ({ ...prev, creativity: value }))
-                        }
-                        className="max-w-md"
-                        color="secondary"
-                        marks={[
-                          { value: 0, label: "Conservador" },
-                          { value: 50, label: "Equilibrado" },
-                          { value: 100, label: "Criativo" }
-                        ]}
-                      />
-                    </div>
+                  <div className="space-y-8">
+                    <Fieldset>
+                      <Legend className="text-lg font-semibold text-gray-900 mb-6">
+                        Configuração de Inteligência
+                      </Legend>
+                      
+                      <div className="space-y-6">
+                        <Field>
+                          <Label className="block text-sm font-medium text-gray-700 mb-2">
+                            Modelo de IA
+                          </Label>
+                          <Listbox 
+                            value={agentConfig.model} 
+                            onChange={(value) => setAgentConfig(prev => ({ ...prev, model: value }))}
+                          >
+                            <div className="relative">
+                              <Listbox.Button className="relative w-full cursor-pointer rounded-xl bg-gray-50 border-2 border-gray-200 hover:border-purple-300 py-3 pl-10 pr-10 text-left focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200">
+                                <CpuChipIcon className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                                <span className="block truncate font-medium">
+                                  {aiModels.find(m => m.id === agentConfig.model)?.name || 'Selecione...'}
+                                </span>
+                                <span className="pointer-events-none absolute inset-y-0 right-0 flex items-center pr-4">
+                                  <ChevronUpDownIcon className="h-5 w-5 text-gray-400" />
+                                </span>
+                              </Listbox.Button>
+
+                              <Transition
+                                as={Fragment}
+                                leave="transition ease-in duration-100"
+                                leaveFrom="opacity-100"
+                                leaveTo="opacity-0"
+                              >
+                                <Listbox.Options className="absolute z-10 mt-2 max-h-60 w-full overflow-auto rounded-xl bg-white py-2 shadow-2xl ring-1 ring-black ring-opacity-5 focus:outline-none">
+                                  {aiModels.map((model) => (
+                                    <Listbox.Option
+                                      key={model.id}
+                                      className={({ active }) =>
+                                        classNames(
+                                          active ? 'bg-purple-50 text-purple-900' : 'text-gray-900',
+                                          'relative cursor-pointer select-none py-3 pl-4 pr-10 hover:bg-purple-50 transition-colors duration-150'
+                                        )
+                                      }
+                                      value={model.id}
+                                    >
+                                      {({ selected }) => (
+                                        <>
+                                          <div>
+                                            <span className={classNames(
+                                              selected ? 'font-semibold' : 'font-normal',
+                                              'block truncate'
+                                            )}>
+                                              {model.name}
+                                            </span>
+                                            <span className="text-sm text-gray-500">
+                                              {model.description}
+                                            </span>
+                                          </div>
+                                          {selected && (
+                                            <span className="absolute inset-y-0 right-0 flex items-center pr-4 text-purple-600">
+                                              <CheckIcon className="h-5 w-5" />
+                                            </span>
+                                          )}
+                                        </>
+                                      )}
+                                    </Listbox.Option>
+                                  ))}
+                                </Listbox.Options>
+                              </Transition>
+                            </div>
+                          </Listbox>
+                        </Field>
+
+                        <Field>
+                          <Label className="block text-sm font-medium text-gray-700 mb-2">
+                            Chave da API OpenAI *
+                          </Label>
+                          <div className="relative">
+                            <Cog6ToothIcon className="absolute left-3 top-3 h-5 w-5 text-gray-400" />
+                            <Input
+                              type="password"
+                              value={agentConfig.apiKey}
+                              onChange={(e) => setAgentConfig(prev => ({ ...prev, apiKey: e.target.value }))}
+                              className="block w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+                              placeholder="sk-..."
+                              required
+                            />
+                          </div>
+                          <Description className="mt-2 text-sm text-gray-500">
+                            Sua chave será criptografada e armazenada com segurança
+                          </Description>
+                        </Field>
+
+                        <Field>
+                          <Label className="block text-sm font-medium text-gray-700 mb-4">
+                            Nível de Criatividade: {agentConfig.creativity}%
+                          </Label>
+                          <div className="space-y-2">
+                            <input
+                              type="range"
+                              min="0"
+                              max="100"
+                              step="10"
+                              value={agentConfig.creativity}
+                              onChange={(e) => setAgentConfig(prev => ({ ...prev, creativity: parseInt(e.target.value) }))}
+                              className="w-full h-3 bg-gradient-to-r from-blue-200 to-purple-200 rounded-lg appearance-none cursor-pointer slider"
+                            />
+                            <div className="flex justify-between text-xs text-gray-500">
+                              <span>Conservador</span>
+                              <span>Equilibrado</span>
+                              <span>Criativo</span>
+                            </div>
+                          </div>
+                          <Description className="mt-2 text-sm text-gray-500">
+                            Controla quão criativas serão as respostas do agente
+                          </Description>
+                        </Field>
+                      </div>
+                    </Fieldset>
                   </div>
                 )}
 
                 {/* Step 3: Personality */}
                 {currentStep === 3 && (
-                  <div className="space-y-6">
-                    <div>
-                      <label className="text-sm font-medium text-gray-700 mb-4 block">
-                        Personalidade Principal
-                      </label>
-                      <div className="grid grid-cols-3 gap-3">
-                        {personalities.map((personality) => (
-                          <Card
-                            key={personality.key}
-                            isPressable
-                            isHoverable
-                            className={`cursor-pointer transition-all ${
-                              Array.from(agentConfig.personality)[0] === personality.key
-                                ? 'ring-2 ring-purple-500 bg-purple-50'
-                                : ''
-                            }`}
-                            onPress={() => 
-                              setAgentConfig(prev => ({ 
-                                ...prev, 
-                                personality: new Set([personality.key]) 
-                              }))
-                            }
+                  <div className="space-y-8">
+                    <Fieldset>
+                      <Legend className="text-lg font-semibold text-gray-900 mb-6">
+                        Personalidade do Agente
+                      </Legend>
+                      
+                      <div className="space-y-6">
+                        <Field>
+                          <Label className="block text-sm font-medium text-gray-700 mb-4">
+                            Personalidade Principal
+                          </Label>
+                          <RadioGroup 
+                            value={agentConfig.personality} 
+                            onChange={(value) => setAgentConfig(prev => ({ ...prev, personality: value }))}
                           >
-                            <CardBody className="text-center p-4">
-                              <div className="text-2xl mb-2">{personality.emoji}</div>
-                              <h4 className="font-semibold text-sm">{personality.label}</h4>
-                              <p className="text-xs text-gray-500 mt-1">
-                                {personality.description}
-                              </p>
-                            </CardBody>
-                          </Card>
-                        ))}
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                              {personalities.map((personality) => (
+                                <RadioGroup.Option
+                                  key={personality.id}
+                                  value={personality.id}
+                                  className={({ checked }) =>
+                                    classNames(
+                                      checked 
+                                        ? 'ring-2 ring-purple-500 bg-purple-50 border-purple-200' 
+                                        : 'border-gray-200 hover:border-purple-300',
+                                      'relative cursor-pointer rounded-xl border-2 p-4 focus:outline-none transition-all duration-200'
+                                    )
+                                  }
+                                >
+                                  {({ checked }) => (
+                                    <div className="text-center">
+                                      <div className="text-3xl mb-3">{personality.emoji}</div>
+                                      <h4 className="text-sm font-semibold text-gray-900 mb-1">
+                                        {personality.name}
+                                      </h4>
+                                      <p className="text-xs text-gray-500">
+                                        {personality.description}
+                                      </p>
+                                      {checked && (
+                                        <CheckIcon className="h-5 w-5 text-purple-600 absolute top-2 right-2" />
+                                      )}
+                                    </div>
+                                  )}
+                                </RadioGroup.Option>
+                              ))}
+                            </div>
+                          </RadioGroup>
+                        </Field>
+
+                        <Disclosure>
+                          {({ open }) => (
+                            <>
+                              <Disclosure.Button className="flex justify-between w-full px-6 py-4 text-sm font-medium text-left text-purple-900 bg-purple-50 rounded-xl hover:bg-purple-100 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200">
+                                <span className="flex items-center">
+                                  <BoltIcon className="w-5 h-5 mr-2" />
+                                  Configurações Avançadas
+                                </span>
+                                <ChevronDownIcon
+                                  className={classNames(
+                                    open ? 'rotate-180 transform' : '',
+                                    'h-5 w-5 text-purple-500 transition-transform duration-200'
+                                  )}
+                                />
+                              </Disclosure.Button>
+                              <Transition
+                                enter="transition duration-200 ease-out"
+                                enterFrom="transform scale-95 opacity-0"
+                                enterTo="transform scale-100 opacity-100"
+                                leave="transition duration-150 ease-out"
+                                leaveFrom="transform scale-100 opacity-100"
+                                leaveTo="transform scale-95 opacity-0"
+                              >
+                                <Disclosure.Panel className="px-6 py-4 mt-2 bg-gray-50 rounded-xl">
+                                  <div className="space-y-4">
+                                    <Field className="flex items-center justify-between">
+                                      <div>
+                                        <Label className="text-sm font-medium text-gray-900">
+                                          Aprendizado Contínuo
+                                        </Label>
+                                        <Description className="text-sm text-gray-500">
+                                          Permite que o agente aprenda com conversas
+                                        </Description>
+                                      </div>
+                                      <Switch
+                                        checked={agentConfig.learningEnabled}
+                                        onChange={(checked) => setAgentConfig(prev => ({ ...prev, learningEnabled: checked }))}
+                                        className={classNames(
+                                          agentConfig.learningEnabled ? 'bg-purple-600' : 'bg-gray-200',
+                                          'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2'
+                                        )}
+                                      >
+                                        <span
+                                          className={classNames(
+                                            agentConfig.learningEnabled ? 'translate-x-6' : 'translate-x-1',
+                                            'inline-block h-4 w-4 transform rounded-full bg-white transition-transform'
+                                          )}
+                                        />
+                                      </Switch>
+                                    </Field>
+
+                                    <Field className="flex items-center justify-between">
+                                      <div>
+                                        <Label className="text-sm font-medium text-gray-900">
+                                          Respostas Automáticas
+                                        </Label>
+                                        <Description className="text-sm text-gray-500">
+                                          Responde automaticamente às mensagens
+                                        </Description>
+                                      </div>
+                                      <Switch
+                                        checked={agentConfig.autoReply}
+                                        onChange={(checked) => setAgentConfig(prev => ({ ...prev, autoReply: checked }))}
+                                        className={classNames(
+                                          agentConfig.autoReply ? 'bg-purple-600' : 'bg-gray-200',
+                                          'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2'
+                                        )}
+                                      >
+                                        <span
+                                          className={classNames(
+                                            agentConfig.autoReply ? 'translate-x-6' : 'translate-x-1',
+                                            'inline-block h-4 w-4 transform rounded-full bg-white transition-transform'
+                                          )}
+                                        />
+                                      </Switch>
+                                    </Field>
+                                  </div>
+                                </Disclosure.Panel>
+                              </Transition>
+                            </>
+                          )}
+                        </Disclosure>
                       </div>
-                    </div>
-                    
-                    <Accordion variant="splitted">
-                      <AccordionItem 
-                        key="advanced" 
-                        aria-label="Configurações Avançadas"
-                        title="Configurações Avançadas"
-                        startContent={<BoltIcon className="w-4 h-4" />}
-                      >
-                        <div className="space-y-4">
-                          <div className="flex justify-between items-center">
-                            <div>
-                              <p className="font-medium">Aprendizado Contínuo</p>
-                              <p className="text-sm text-gray-500">
-                                Permite que o agente aprenda com conversas
-                              </p>
-                            </div>
-                            <Switch
-                              isSelected={agentConfig.learningEnabled}
-                              onValueChange={(value) => 
-                                setAgentConfig(prev => ({ 
-                                  ...prev, 
-                                  learningEnabled: value 
-                                }))
-                              }
-                            />
-                          </div>
-                          
-                          <Divider />
-                          
-                          <div className="flex justify-between items-center">
-                            <div>
-                              <p className="font-medium">Respostas Automáticas</p>
-                              <p className="text-sm text-gray-500">
-                                Responde automaticamente às mensagens
-                              </p>
-                            </div>
-                            <Switch
-                              isSelected={agentConfig.autoReply}
-                              onValueChange={(value) => 
-                                setAgentConfig(prev => ({ 
-                                  ...prev, 
-                                  autoReply: value 
-                                }))
-                              }
-                            />
-                          </div>
-                        </div>
-                      </AccordionItem>
-                    </Accordion>
+                    </Fieldset>
                   </div>
                 )}
 
                 {/* Step 4: Deploy */}
                 {currentStep === 4 && (
-                  <div className="space-y-6">
-                    <Alert 
-                      color="success"
-                      title="Configuração Concluída"
-                      description="Seu agente está pronto para ser implantado"
-                    />
-                    
-                    <Card>
-                      <CardHeader>
-                        <h3 className="font-semibold">Resumo da Configuração</h3>
-                      </CardHeader>
-                      <CardBody className="space-y-3">
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Número:</span>
-                          <Code size="sm">{Array.from(selectedNumber)[0]}</Code>
+                  <div className="space-y-8">
+                    <div className="text-center">
+                      <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <CheckIcon className="w-8 h-8 text-green-600" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                        Configuração Concluída
+                      </h3>
+                      <p className="text-gray-600">
+                        Seu agente está pronto para ser implantado
+                      </p>
+                    </div>
+
+                    <div className="bg-gray-50 rounded-xl p-6">
+                      <h4 className="text-lg font-semibold text-gray-900 mb-4">
+                        Resumo da Configuração
+                      </h4>
+                      <div className="space-y-3">
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-600">Número WhatsApp:</span>
+                          <span className="font-medium bg-gray-200 px-3 py-1 rounded-lg text-sm">
+                            {selectedNumber?.sessionId}
+                          </span>
                         </div>
-                        <div className="flex justify-between">
+                        <div className="flex justify-between items-center">
                           <span className="text-gray-600">Nome:</span>
                           <span className="font-medium">{agentConfig.name}</span>
                         </div>
-                        <div className="flex justify-between">
+                        <div className="flex justify-between items-center">
                           <span className="text-gray-600">Especialização:</span>
-                          <Chip size="sm" variant="flat">
-                            {specializations.find(s => s.key === Array.from(agentConfig.specialization)[0])?.label}
-                          </Chip>
+                          <span className="font-medium">
+                            {specializations.find(s => s.id === agentConfig.specialization)?.name}
+                          </span>
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Modelo:</span>
-                          <Code size="sm">{agentConfig.model}</Code>
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-600">Modelo de IA:</span>
+                          <span className="font-medium bg-blue-100 px-3 py-1 rounded-lg text-sm">
+                            {aiModels.find(m => m.id === agentConfig.model)?.name}
+                          </span>
                         </div>
-                        <div className="flex justify-between">
+                        <div className="flex justify-between items-center">
                           <span className="text-gray-600">Personalidade:</span>
-                          <Chip size="sm" variant="flat" color="secondary">
-                            {personalities.find(p => p.key === Array.from(agentConfig.personality)[0])?.label}
-                          </Chip>
+                          <span className="font-medium">
+                            {personalities.find(p => p.id === agentConfig.personality)?.name}
+                          </span>
                         </div>
-                      </CardBody>
-                    </Card>
-                    
+                      </div>
+                    </div>
+
                     <Button
-                      color="primary"
-                      size="lg"
-                      className="w-full"
-                      startContent={<RocketLaunchIcon className="w-5 h-5" />}
-                      onPress={handleDeploy}
-                      isDisabled={isCreating}
+                      onClick={handleDeploy}
+                      disabled={isCreating}
+                      className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-4 px-6 rounded-xl font-semibold text-lg hover:from-purple-600 hover:to-pink-600 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center"
                     >
-                      {isCreating ? "Implantando..." : "Implantar Agente"}
+                      <RocketLaunchIcon className="w-6 h-6 mr-2" />
+                      {isCreating ? 'Implantando...' : 'Implantar Agente'}
                     </Button>
                   </div>
                 )}
-              </CardBody>
-              
-              <CardFooter>
-                <div className="flex justify-between w-full">
+              </div>
+
+              {/* Navigation */}
+              <div className="bg-gray-50 px-8 py-6 flex justify-between">
+                <Button
+                  onClick={prevStep}
+                  disabled={currentStep === 0}
+                  className="px-6 py-2 text-gray-600 bg-white border-2 border-gray-200 rounded-xl hover:border-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                >
+                  Anterior
+                </Button>
+                
+                {currentStep < steps.length - 1 && (
                   <Button
-                    variant="flat"
-                    onPress={prevStep}
-                    isDisabled={currentStep === 0}
+                    onClick={nextStep}
+                    disabled={!canProceed()}
+                    className="px-6 py-2 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl hover:from-purple-600 hover:to-pink-600 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center"
                   >
-                    Anterior
+                    Próximo
+                    <ArrowRightIcon className="w-4 h-4 ml-2" />
                   </Button>
-                  
-                  {currentStep < steps.length - 1 && (
-                    <Button
-                      color="primary"
-                      endContent={<ArrowRightIcon className="w-4 h-4" />}
-                      onPress={nextStep}
-                      isDisabled={!canProceed()}
-                    >
-                      Próximo
-                    </Button>
-                  )}
-                </div>
-              </CardFooter>
-            </Card>
+                )}
+              </div>
+            </div>
           </div>
 
           {/* Sidebar */}
           <div className="lg:col-span-1">
-            <Card>
-              <CardHeader>
-                <h3 className="font-semibold">Progresso</h3>
-              </CardHeader>
-              <CardBody>
-                <div className="space-y-4">
-                  {steps.map((step, index) => (
-                    <div 
-                      key={step.key}
-                      className={`flex items-center gap-3 p-2 rounded-lg transition-colors ${
-                        currentStep === index ? 'bg-purple-50' : 
-                        currentStep > index ? 'bg-green-50' : 'bg-gray-50'
-                      }`}
-                    >
-                      <Avatar
-                        icon={currentStep > index ? 
-                          <CheckIcon className="w-4 h-4" /> : 
-                          React.createElement(step.icon, { className: "w-4 h-4" })
-                        }
-                        size="sm"
-                        className={
-                          currentStep === index ? 'bg-purple-500' :
-                          currentStep > index ? 'bg-green-500' : 'bg-gray-300'
-                        }
-                      />
-                      <span className={`text-sm font-medium ${
-                        currentStep >= index ? 'text-gray-800' : 'text-gray-400'
-                      }`}>
-                        {step.title}
-                      </span>
+            <div className="bg-white rounded-2xl shadow-xl p-6 sticky top-8">
+              <h3 className="text-lg font-semibold text-gray-900 mb-6">
+                Recursos Exclusivos
+              </h3>
+              <div className="space-y-4">
+                {[
+                  { icon: '🧠', title: 'IA Avançada', desc: 'Modelos de última geração' },
+                  { icon: '📚', title: 'Aprendizado', desc: 'Melhora com cada conversa' },
+                  { icon: '⚡', title: 'Respostas Rápidas', desc: 'Processamento em tempo real' },
+                  { icon: '🔒', title: 'Segurança', desc: 'Dados criptografados' },
+                  { icon: '🚀', title: 'Deploy Rápido', desc: 'Ativo em minutos' }
+                ].map((feature, index) => (
+                  <div key={index} className="flex items-start space-x-3">
+                    <div className="text-2xl">{feature.icon}</div>
+                    <div>
+                      <h4 className="font-medium text-gray-900">{feature.title}</h4>
+                      <p className="text-sm text-gray-500">{feature.desc}</p>
                     </div>
-                  ))}
-                </div>
-              </CardBody>
-            </Card>
-            
-            <Spacer y={4} />
-            
-            <Card>
-              <CardHeader>
-                <h3 className="font-semibold">Recursos Inclusos</h3>
-              </CardHeader>
-              <CardBody>
-                <div className="space-y-3">
-                  {[
-                    "Conversas inteligentes",
-                    "Aprendizado automático", 
-                    "Respostas contextuais",
-                    "Integração WhatsApp",
-                    "Suporte 24/7"
-                  ].map((feature, index) => (
-                    <div key={index} className="flex items-center gap-2">
-                      <CheckIcon className="w-4 h-4 text-green-500" />
-                      <span className="text-sm">{feature}</span>
-                    </div>
-                  ))}
-                </div>
-              </CardBody>
-            </Card>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Deployment Modal */}
-      <Modal isOpen={isOpen} onClose={onClose} isDismissable={false}>
-        <ModalContent>
-          <ModalHeader>
-            <h3>Implantando Agente de IA</h3>
-          </ModalHeader>
-          <ModalBody>
-            <div className="text-center space-y-4">
-              <CircularProgress
-                size="lg"
-                value={deploymentProgress}
-                color="primary"
-                formatOptions={{style: "percent"}}
-                showValueLabel={true}
-              />
-              
-              <div>
-                <p className="font-medium">
-                  {deploymentProgress < 30 ? "Inicializando..." :
-                   deploymentProgress < 60 ? "Configurando modelo..." :
-                   deploymentProgress < 90 ? "Treinando agente..." :
-                   deploymentProgress < 100 ? "Finalizando..." :
-                   "Concluído!"}
-                </p>
-                <p className="text-sm text-gray-500 mt-1">
-                  Por favor, aguarde enquanto seu agente é configurado
-                </p>
-              </div>
+      <Transition show={showDeployModal} as={Fragment}>
+        <Dialog as="div" className="relative z-50" onClose={() => {}}>
+          <Transition.Child
+            as={Fragment}
+            enter="ease-out duration-300"
+            enterFrom="opacity-0"
+            enterTo="opacity-100"
+            leave="ease-in duration-200"
+            leaveFrom="opacity-100"
+            leaveTo="opacity-0"
+          >
+            <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm" />
+          </Transition.Child>
+
+          <div className="fixed inset-0 overflow-y-auto">
+            <div className="flex min-h-full items-center justify-center p-4">
+              <Transition.Child
+                as={Fragment}
+                enter="ease-out duration-300"
+                enterFrom="opacity-0 scale-95"
+                enterTo="opacity-100 scale-100"
+                leave="ease-in duration-200"
+                leaveFrom="opacity-100 scale-100"
+                leaveTo="opacity-0 scale-95"
+              >
+                <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-8 text-center shadow-2xl transition-all">
+                  <div className="mb-6">
+                    {deploymentStatus === 'completed' ? (
+                      <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <CheckIcon className="w-8 h-8 text-green-600" />
+                      </div>
+                    ) : (
+                      <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <RocketLaunchIcon className="w-8 h-8 text-white animate-pulse" />
+                      </div>
+                    )}
+                    
+                    <Dialog.Title className="text-xl font-bold text-gray-900 mb-2">
+                      {deploymentStatus === 'completed' 
+                        ? 'Agente Implantado!' 
+                        : 'Implantando Agente'
+                      }
+                    </Dialog.Title>
+                    
+                    <p className="text-gray-600 mb-6">
+                      {getStatusMessage(deploymentStatus)}
+                    </p>
+
+                    {deploymentStatus !== 'completed' && (
+                      <div className="mb-6">
+                        <div className="w-full bg-gray-200 rounded-full h-3">
+                          <div 
+                            className="bg-gradient-to-r from-purple-500 to-pink-500 h-3 rounded-full transition-all duration-500"
+                            style={{ width: `${deploymentProgress}%` }}
+                          />
+                        </div>
+                        <p className="text-sm text-gray-500 mt-2">
+                          {deploymentProgress}% concluído
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {deploymentStatus === 'completed' && (
+                    <div className="space-y-3">
+                      <Button
+                        onClick={() => window.open('/dashboard', '_blank')}
+                        className="w-full bg-blue-600 text-white py-3 px-4 rounded-xl hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+                      >
+                        Ver Dashboard
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          setShowDeployModal(false);
+                          window.location.reload();
+                        }}
+                        className="w-full bg-gray-100 text-gray-700 py-3 px-4 rounded-xl hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-all duration-200"
+                      >
+                        Criar Novo Agente
+                      </Button>
+                    </div>
+                  )}
+                </Dialog.Panel>
+              </Transition.Child>
             </div>
-          </ModalBody>
-          <ModalFooter>
-            {deploymentProgress === 100 && (
-              <div className="flex gap-2 w-full">
-                <Button
-                  color="primary"
-                  variant="flat"
-                  onPress={() => window.open('/dashboard', '_blank')}
-                  className="flex-1"
-                >
-                  Ver Dashboard
-                </Button>
-                <Button
-                  color="primary"
-                  onPress={() => {
-                    onClose();
-                    window.location.reload();
-                  }}
-                  className="flex-1"
-                >
-                  Criar Novo Agente
-                </Button>
-              </div>
-            )}
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
+          </div>
+        </Dialog>
+      </Transition>
+
+      <style jsx>{`
+        .slider::-webkit-slider-thumb {
+          appearance: none;
+          height: 20px;
+          width: 20px;
+          border-radius: 50%;
+          background: linear-gradient(to right, #8b5cf6, #ec4899);
+          cursor: pointer;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+        .slider::-moz-range-thumb {
+          height: 20px;
+          width: 20px;
+          border-radius: 50%;
+          background: linear-gradient(to right, #8b5cf6, #ec4899);
+          cursor: pointer;
+          border: none;
+          box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+        }
+      `}</style>
     </div>
   );
 }
