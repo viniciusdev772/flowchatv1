@@ -12,22 +12,36 @@ const createAgentSchema = z.object({
   name: z.string().min(1, 'Nome é obrigatório').max(100, 'Nome muito longo'),
   description: z.string().optional(),
   model: z.enum(['gpt-4', 'gpt-3.5-turbo', 'claude-3', 'gemini-pro']),
-  personality: z.enum(['professional', 'friendly', 'creative', 'analytical', 'casual', 'empathetic']),
-  specialization: z.enum(['general', 'sales', 'support', 'education', 'health', 'finance']),
+  personality: z.enum([
+    'professional',
+    'friendly',
+    'creative',
+    'analytical',
+    'casual',
+    'empathetic',
+  ]),
+  specialization: z.enum([
+    'general',
+    'sales',
+    'support',
+    'education',
+    'health',
+    'finance',
+  ]),
   creativity: z.number().min(0).max(100),
   learningEnabled: z.boolean(),
   autoReply: z.boolean(),
   smartReplies: z.boolean(),
   openaiApiKey: z.string().min(1, 'Chave da API OpenAI é obrigatória'),
   tools: z.array(z.string()).default(['web_search']),
-  replyToGroups: z.boolean().default(true) // Nova opção para responder grupos
+  replyToGroups: z.boolean().default(true), // Nova opção para responder grupos
 });
 
 // AI Tools implementation
 class AITools {
   constructor() {
     this.tools = {
-      web_search: this.webSearch.bind(this)
+      web_search: this.webSearch.bind(this),
     };
   }
 
@@ -35,57 +49,66 @@ class AITools {
     try {
       const fetch = require('node-fetch');
       const cheerio = require('cheerio');
-      
+
       // Use SerpAPI if available, otherwise fallback to basic search
       if (process.env.SERPAPI_KEY) {
-        const serpApiUrl = `https://serpapi.com/search.json?q=${encodeURIComponent(query)}&api_key=${process.env.SERPAPI_KEY}&num=5`;
+        const serpApiUrl = `https://serpapi.com/search.json?q=${encodeURIComponent(
+          query
+        )}&api_key=${process.env.SERPAPI_KEY}&num=5`;
         const response = await fetch(serpApiUrl);
         const data = await response.json();
-        
+
         return {
           query,
-          results: data.organic_results?.map(result => ({
-            title: result.title,
-            snippet: result.snippet,
-            url: result.link,
-            source: 'serpapi'
-          })) || [],
-          timestamp: new Date().toISOString()
+          results:
+            data.organic_results?.map((result) => ({
+              title: result.title,
+              snippet: result.snippet,
+              url: result.link,
+              source: 'serpapi',
+            })) || [],
+          timestamp: new Date().toISOString(),
         };
       } else {
         // Fallback: basic web scraping (limited)
-        const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+        const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(
+          query
+        )}`;
         const response = await fetch(searchUrl, {
           headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-          }
+            'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+          },
         });
-        
+
         const html = await response.text();
         const $ = cheerio.load(html);
-        
+
         const results = [];
         $('.g').each((i, elem) => {
           if (i >= 5) return false; // Limit to 5 results
-          
+
           const title = $(elem).find('h3').text();
-          const snippet = $(elem).find('.VwiC3b').text() || $(elem).find('.s3v9rd').text();
+          const snippet =
+            $(elem).find('.VwiC3b').text() || $(elem).find('.s3v9rd').text();
           const url = $(elem).find('a').attr('href');
-          
+
           if (title && snippet && url) {
             results.push({
               title,
               snippet,
-              url: url.startsWith('/url?q=') ? decodeURIComponent(url.split('/url?q=')[1].split('&')[0]) : url,
-              source: 'fallback'
+              url: url.startsWith('/url?q=')
+                ? decodeURIComponent(url.split('/url?q=')[1].split('&')[0])
+                : url,
+              source: 'fallback',
             });
           }
         });
-        
+
         return {
           query,
           results,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         };
       }
     } catch (error) {
@@ -94,7 +117,7 @@ class AITools {
         query,
         results: [],
         error: error.message,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       };
     }
   }
@@ -103,7 +126,7 @@ class AITools {
     if (!this.tools[toolName]) {
       throw new Error(`Tool '${toolName}' not found`);
     }
-    
+
     return await this.tools[toolName](params);
   }
 
@@ -126,7 +149,8 @@ class AIAgent {
     this.learningEnabled = config.learningEnabled;
     this.autoReply = config.autoReply;
     this.smartReplies = config.smartReplies;
-    this.replyToGroups = config.replyToGroups !== undefined ? config.replyToGroups : true;
+    this.replyToGroups =
+      config.replyToGroups !== undefined ? config.replyToGroups : true;
     this.openaiApiKey = config.openaiApiKey;
     this.tools = new AITools();
     this.enabledTools = config.tools || ['web_search'];
@@ -137,17 +161,28 @@ class AIAgent {
     this.conversationHistory = config.conversationHistory || [];
   }
 
-  async processMessage(message) {
+  async processMessage(message, whatsappClient = null) {
     try {
       this.messageCount++;
       this.updatedAt = new Date().toISOString();
-      
+
+      // Marcar mensagem como lida se cliente WhatsApp estiver disponível
+      if (whatsappClient && message.key) {
+        try {
+          await whatsappClient.readMessages([message.key]);
+          console.log(`Message marked as read: ${message.key.id}`);
+        } catch (readError) {
+          console.error('Error marking message as read:', readError);
+        }
+      }
+
       // Add to conversation history
       this.conversationHistory.push({
         type: 'user',
         content: message.text || message.body,
         timestamp: new Date().toISOString(),
-        from: message.from
+        from: message.from,
+        messageId: message.key?.id,
       });
 
       // Keep only last 10 messages for context
@@ -157,33 +192,58 @@ class AIAgent {
 
       // Generate AI response
       const response = await this.generateResponse(message);
-      
+
       // Add AI response to history
       this.conversationHistory.push({
         type: 'assistant',
         content: response,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
 
       // Save updated state to database (async, don't wait)
-      this.save().catch(err => console.error('Error saving agent state:', err));
+      this.save().catch((err) =>
+        console.error('Error saving agent state:', err)
+      );
 
-      return response;
+      return {
+        response,
+        replyToMessageId: message.key?.id,
+        shouldReply: true,
+      };
     } catch (error) {
       console.error('Error processing message:', error);
-      return 'Desculpe, ocorreu um erro ao processar sua mensagem. Tente novamente.';
+
+      // Resposta de fallback baseada na personalidade do agente
+      const fallbackResponses = {
+        professional:
+          'Sistema temporariamente indisponível. Posso ajudá-lo de outra forma?',
+        friendly:
+          'Opa! Algo deu errado aqui, mas estou pronto para conversar! Como posso ajudar?',
+        creative:
+          'Vamos tentar uma nova abordagem! Me conte o que você precisa.',
+        analytical: 'Erro no processamento. Pode detalhar sua solicitação?',
+        casual: 'Deu ruim aqui! Mas me fala aí, o que você precisa?',
+        empathetic:
+          'Entendo que isso pode ser frustrante. Vamos tentar de novo?',
+      };
+
+      return {
+        response: fallbackResponses[this.personality] || 'Como posso ajudá-lo?',
+        replyToMessageId: message.key?.id,
+        shouldReply: true,
+      };
     }
   }
 
   async generateResponse(message) {
     try {
       const { OpenAI } = require('@langchain/openai');
-      
+
       const llm = new OpenAI({
         openAIApiKey: this.openaiApiKey,
         modelName: this.model,
         temperature: this.creativity / 100,
-        maxTokens: 500
+        maxTokens: 500,
       });
 
       // Build context prompt
@@ -193,19 +253,24 @@ class AIAgent {
         creative: 'Você é um assistente criativo, inovador e artístico.',
         analytical: 'Você é um assistente analítico, lógico e detalhado.',
         casual: 'Você é um assistente descontraído, informal e relaxado.',
-        empathetic: 'Você é um assistente empático, compreensivo e sensível.'
+        empathetic: 'Você é um assistente empático, compreensivo e sensível.',
       };
 
       const specializationPrompts = {
-        general: 'Você é um assistente geral capaz de ajudar com diversas tarefas.',
-        sales: 'Você é especializado em vendas e marketing, focado em conversão.',
-        support: 'Você é especializado em suporte ao cliente e resolução de problemas.',
+        general:
+          'Você é um assistente geral capaz de ajudar com diversas tarefas.',
+        sales:
+          'Você é especializado em vendas e marketing, focado em conversão.',
+        support:
+          'Você é especializado em suporte ao cliente e resolução de problemas.',
         education: 'Você é especializado em educação e ensino.',
         health: 'Você é especializado em saúde e bem-estar.',
-        finance: 'Você é especializado em finanças e consultoria.'
+        finance: 'Você é especializado em finanças e consultoria.',
       };
 
-      const systemPrompt = `${personalityPrompts[this.personality]} ${specializationPrompts[this.specialization]}
+      const systemPrompt = `${personalityPrompts[this.personality]} ${
+        specializationPrompts[this.specialization]
+      }
 
 Nome: ${this.name}
 ${this.description ? `Descrição: ${this.description}` : ''}
@@ -214,87 +279,72 @@ Regras importantes:
 1. Sempre responda em português brasileiro
 2. Seja útil e prestativo
 3. Mantenha o tom de acordo com sua personalidade
-4. Se precisar buscar informações na internet, use a ferramenta web_search
-5. Seja conciso mas informativo
-6. Adapte suas respostas ao contexto da conversa
+4. Seja conciso mas informativo
+5. Adapte suas respostas ao contexto da conversa
+6. Responda sempre, mesmo se não tiver certeza sobre algo`;
 
-Ferramentas disponíveis: ${this.enabledTools.join(', ')}`;
-
-      // Check if user is asking for web search
       const messageText = message.text || message.body || '';
-      const needsWebSearch = this.shouldUseWebSearch(messageText);
-      
       let context = systemPrompt;
-      
-      if (needsWebSearch && this.enabledTools.includes('web_search')) {
-        try {
-          const searchQuery = this.extractSearchQuery(messageText);
-          const searchResults = await this.tools.executeTool('web_search', searchQuery);
-          
-          context += `\n\nResultados da busca na internet para "${searchQuery}":\n`;
-          searchResults.results.forEach((result, index) => {
-            context += `${index + 1}. ${result.title}\n${result.snippet}\nURL: ${result.url}\n\n`;
-          });
-        } catch (error) {
-          console.error('Web search failed:', error);
-        }
-      }
 
       // Add conversation history for context
       if (this.conversationHistory.length > 0) {
         context += '\n\nContexto da conversa:\n';
-        this.conversationHistory.slice(-6).forEach(msg => {
-          context += `${msg.type === 'user' ? 'Usuário' : 'Assistente'}: ${msg.content}\n`;
+        this.conversationHistory.slice(-6).forEach((msg) => {
+          context += `${msg.type === 'user' ? 'Usuário' : 'Assistente'}: ${
+            msg.content
+          }\n`;
         });
       }
 
       context += `\n\nUsuário: ${messageText}\nAssistente:`;
 
       const response = await llm.invoke(context);
-      
+
       // The response from invoke is an AIMessage object, so we access its content.
       // Also, ensure the response is a string before trimming.
-      const responseContent = typeof response === 'string' ? response : (response.content || '');
+      let responseContent =
+        typeof response === 'string' ? response : response.content || '';
+
+      // Se não conseguiu gerar resposta, criar uma resposta padrão baseada na personalidade
+      if (!responseContent || responseContent.trim() === '') {
+        const fallbackResponses = {
+          professional:
+            'Entendo sua solicitação. Posso ajudá-lo de outra forma?',
+          friendly: 'Oi! Entendi sua mensagem. Como posso te ajudar melhor?',
+          creative:
+            'Que interessante! Vamos pensar em soluções criativas para isso.',
+          analytical:
+            'Preciso de mais informações para analisar adequadamente sua solicitação.',
+          casual: 'Entendi! Como posso te dar uma mão com isso?',
+          empathetic:
+            'Compreendo sua situação. Estou aqui para ajudar no que precisar.',
+        };
+        responseContent =
+          fallbackResponses[this.personality] || 'Como posso ajudá-lo?';
+      }
 
       return responseContent.trim();
-      
     } catch (error) {
       console.error('Error generating response:', error);
-      return 'Desculpe, não consegui processar sua solicitação no momento. Tente novamente mais tarde.';
-    }
-  }
 
-  shouldUseWebSearch(message) {
-    const searchTriggers = [
-      'pesquisar', 'buscar', 'procurar', 'encontrar', 'pesquise', 'busque',
-      'o que é', 'quem é', 'quando', 'onde', 'como', 'por que',
-      'notícias', 'informações', 'dados', 'estatísticas',
-      'preço', 'valor', 'custo', 'cotação'
-    ];
-    
-    const messageLower = message.toLowerCase();
-    return searchTriggers.some(trigger => messageLower.includes(trigger));
-  }
+      // Resposta de fallback baseada na personalidade do agente
+      const fallbackResponses = {
+        professional:
+          'Momentaneamente indisponível. Como posso assistí-lo de outra forma?',
+        friendly:
+          'Ops! Algo deu errado, mas estou aqui para ajudar. Me conte mais sobre o que precisa!',
+        creative:
+          'Hmm, vamos tentar uma abordagem diferente! O que você gostaria de explorar?',
+        analytical:
+          'Sistema temporariamente instável. Pode reformular sua pergunta?',
+        casual:
+          'Eita! Deu um probleminha aqui. Mas me fala aí, no que posso te ajudar?',
+        empathetic:
+          'Compreendo que isso pode ser frustrante. Vamos tentar novamente?',
+      };
 
-  extractSearchQuery(message) {
-    // Simple extraction - in production, use more sophisticated NLP
-    const questionWords = ['o que é', 'quem é', 'quando', 'onde', 'como', 'por que'];
-    let query = message;
-    
-    for (const qw of questionWords) {
-      if (message.toLowerCase().includes(qw)) {
-        query = message.toLowerCase().replace(qw, '').trim();
-        break;
-      }
+      return fallbackResponses[this.personality] || 'Como posso ajudá-lo hoje?';
     }
-    
-    // Remove common words
-    const stopWords = ['pesquisar', 'buscar', 'procurar', 'encontrar', 'sobre', 'acerca de'];
-    for (const sw of stopWords) {
-      query = query.toLowerCase().replace(sw, '').trim();
-    }
-    
-    return query || message;
   }
 
   getStats() {
@@ -310,7 +360,7 @@ Ferramentas disponíveis: ${this.enabledTools.join(', ')}`;
       personality: this.personality,
       specialization: this.specialization,
       enabledTools: this.enabledTools,
-      replyToGroups: this.replyToGroups
+      replyToGroups: this.replyToGroups,
     };
   }
 
@@ -342,14 +392,12 @@ Ferramentas disponíveis: ${this.enabledTools.join(', ')}`;
         createdAt: this.createdAt,
         updatedAt: this.updatedAt,
         // Don't save API key for security - it's kept only in memory
-        conversationHistory: this.conversationHistory.slice(-10) // Keep only last 10 messages in DB
+        conversationHistory: this.conversationHistory.slice(-10), // Keep only last 10 messages in DB
       };
 
-      await db.collection('ai_agents').replaceOne(
-        { _id: this.id },
-        agentData,
-        { upsert: true }
-      );
+      await db
+        .collection('ai_agents')
+        .replaceOne({ _id: this.id }, agentData, { upsert: true });
 
       console.log(`AI Agent ${this.id} saved to database`);
     } catch (error) {
@@ -379,15 +427,20 @@ async function loadAgentsFromDatabase() {
       return;
     }
 
-    const agentsData = await db.collection('ai_agents').find({ isActive: true }).toArray();
-    
+    const agentsData = await db
+      .collection('ai_agents')
+      .find({ isActive: true })
+      .toArray();
+
     for (const agentData of agentsData) {
       // Don't load if already in memory (API key required)
       if (!aiAgents.has(agentData._id)) {
-        console.log(`Skipping agent ${agentData._id} - API key required for full functionality`);
+        console.log(
+          `Skipping agent ${agentData._id} - API key required for full functionality`
+        );
         continue;
       }
-      
+
       // Update memory agent with database data
       const memoryAgent = aiAgents.get(agentData._id);
       if (memoryAgent) {
@@ -395,7 +448,7 @@ async function loadAgentsFromDatabase() {
         memoryAgent.id = agentData._id;
       }
     }
-    
+
     console.log(`Loaded ${agentsData.length} AI agents from database`);
   } catch (error) {
     console.error('Error loading agents from database:', error);
@@ -428,48 +481,47 @@ router.post('/create', async (req, res) => {
   try {
     // Validate request body
     const validatedData = createAgentSchema.parse(req.body);
-    
+
     // Check if agent already exists for this session
-    const existingAgent = Array.from(aiAgents.values()).find(agent => 
-      agent.sessionId === validatedData.sessionId && agent.isActive
+    const existingAgent = Array.from(aiAgents.values()).find(
+      (agent) => agent.sessionId === validatedData.sessionId && agent.isActive
     );
-    
+
     if (existingAgent) {
       return res.status(400).json({
         success: false,
-        message: 'Já existe um agente ativo para esta sessão'
+        message: 'Já existe um agente ativo para esta sessão',
       });
     }
 
     // Create new AI agent
     const agent = new AIAgent(validatedData);
     aiAgents.set(agent.id, agent);
-    
+
     // Save to database
     await saveAgentToDatabase(agent);
-    
+
     console.log(`AI Agent created: ${agent.id} for session ${agent.sessionId}`);
-    
+
     res.json({
       success: true,
       message: 'Agente de IA criado com sucesso',
-      agent: agent.getStats()
+      agent: agent.getStats(),
     });
-    
   } catch (error) {
     console.error('Error creating AI agent:', error);
-    
+
     if (error instanceof z.ZodError) {
       return res.status(400).json({
         success: false,
         message: 'Dados inválidos',
-        errors: error.errors
+        errors: error.errors,
       });
     }
-    
+
     res.status(500).json({
       success: false,
-      message: 'Erro interno do servidor'
+      message: 'Erro interno do servidor',
     });
   }
 });
@@ -477,17 +529,19 @@ router.post('/create', async (req, res) => {
 // List AI Agents
 router.get('/list', (req, res) => {
   try {
-    const agents = Array.from(aiAgents.values()).map(agent => agent.getStats());
-    
+    const agents = Array.from(aiAgents.values()).map((agent) =>
+      agent.getStats()
+    );
+
     res.json({
       success: true,
-      agents
+      agents,
     });
   } catch (error) {
     console.error('Error listing AI agents:', error);
     res.status(500).json({
       success: false,
-      message: 'Erro ao listar agentes'
+      message: 'Erro ao listar agentes',
     });
   }
 });
@@ -496,23 +550,23 @@ router.get('/list', (req, res) => {
 router.get('/:agentId', (req, res) => {
   try {
     const agent = aiAgents.get(req.params.agentId);
-    
+
     if (!agent) {
       return res.status(404).json({
         success: false,
-        message: 'Agente não encontrado'
+        message: 'Agente não encontrado',
       });
     }
-    
+
     res.json({
       success: true,
-      agent: agent.getStats()
+      agent: agent.getStats(),
     });
   } catch (error) {
     console.error('Error getting AI agent:', error);
     res.status(500).json({
       success: false,
-      message: 'Erro ao obter agente'
+      message: 'Erro ao obter agente',
     });
   }
 });
@@ -521,25 +575,25 @@ router.get('/:agentId', (req, res) => {
 router.patch('/:agentId/deactivate', async (req, res) => {
   try {
     const agent = aiAgents.get(req.params.agentId);
-    
+
     if (!agent) {
       return res.status(404).json({
         success: false,
-        message: 'Agente não encontrado'
+        message: 'Agente não encontrado',
       });
     }
-    
+
     await agent.deactivate();
-    
+
     res.json({
       success: true,
-      message: 'Agente desativado com sucesso'
+      message: 'Agente desativado com sucesso',
     });
   } catch (error) {
     console.error('Error deactivating AI agent:', error);
     res.status(500).json({
       success: false,
-      message: 'Erro ao desativar agente'
+      message: 'Erro ao desativar agente',
     });
   }
 });
@@ -549,26 +603,26 @@ router.delete('/:agentId', async (req, res) => {
   try {
     const agentId = req.params.agentId;
     const deleted = aiAgents.delete(agentId);
-    
+
     if (!deleted) {
       return res.status(404).json({
         success: false,
-        message: 'Agente não encontrado'
+        message: 'Agente não encontrado',
       });
     }
-    
+
     // Delete from database
     await deleteAgentFromDatabase(agentId);
-    
+
     res.json({
       success: true,
-      message: 'Agente removido com sucesso'
+      message: 'Agente removido com sucesso',
     });
   } catch (error) {
     console.error('Error deleting AI agent:', error);
     res.status(500).json({
       success: false,
-      message: 'Erro ao remover agente'
+      message: 'Erro ao remover agente',
     });
   }
 });
@@ -576,44 +630,106 @@ router.delete('/:agentId', async (req, res) => {
 // Process message with AI agent (internal endpoint)
 router.post('/process-message', async (req, res) => {
   try {
-    const { sessionId, message } = req.body;
-    
+    const { sessionId, message, whatsappClient } = req.body;
+
     if (!sessionId || !message) {
       return res.status(400).json({
         success: false,
-        message: 'SessionId e message são obrigatórios'
+        message: 'SessionId e message são obrigatórios',
       });
     }
-    
+
     // Find active agent for this session
-    const agent = Array.from(aiAgents.values()).find(agent => 
-      agent.sessionId === sessionId && agent.isActive
+    const agent = Array.from(aiAgents.values()).find(
+      (agent) => agent.sessionId === sessionId && agent.isActive
     );
-    
+
     if (!agent) {
       return res.status(404).json({
         success: false,
-        message: 'Nenhum agente ativo encontrado para esta sessão'
+        message: 'Nenhum agente ativo encontrado para esta sessão',
       });
     }
-    
+
     // Process message with AI
-    const response = await agent.processMessage(message);
-    
+    const result = await agent.processMessage(message, whatsappClient);
+
     res.json({
       success: true,
-      response,
-      agentId: agent.id
+      response: result.response,
+      replyToMessageId: result.replyToMessageId,
+      shouldReply: result.shouldReply,
+      agentId: agent.id,
     });
-    
   } catch (error) {
     console.error('Error processing message with AI agent:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Erro ao processar mensagem'
+
+    // Sempre retornar uma resposta da IA mesmo com erro
+    res.json({
+      success: true,
+      response: 'Como posso ajudá-lo hoje?',
+      shouldReply: true,
+      error: 'Erro interno processado',
     });
   }
 });
 
-// Export the AI Agent class and agents map for use in other modules
-module.exports = { router, AIAgent, aiAgents };
+// Helper function para integração com WhatsApp
+async function processWhatsAppMessage(whatsappClient, message, sessionId) {
+  try {
+    // Find active agent for this session
+    const agent = Array.from(aiAgents.values()).find(
+      (agent) => agent.sessionId === sessionId && agent.isActive
+    );
+
+    if (!agent) {
+      console.log(`No active agent found for session: ${sessionId}`);
+      return null;
+    }
+
+    // Process message with AI agent
+    const result = await agent.processMessage(message, whatsappClient);
+
+    if (result.shouldReply && result.response) {
+      try {
+        // Send reply message
+        const replyOptions = {
+          quoted: result.replyToMessageId
+            ? {
+                key: {
+                  id: result.replyToMessageId,
+                  fromMe: false,
+                  remoteJid: message.key.remoteJid,
+                },
+                message: message.message,
+              }
+            : undefined,
+        };
+
+        await whatsappClient.sendMessage(
+          message.key.remoteJid,
+          {
+            text: result.response,
+          },
+          replyOptions
+        );
+
+        console.log(
+          `AI response sent to ${message.key.remoteJid}: ${result.response}`
+        );
+        return result;
+      } catch (sendError) {
+        console.error('Error sending WhatsApp message:', sendError);
+        return null;
+      }
+    }
+
+    return result;
+  } catch (error) {
+    console.error('Error processing WhatsApp message:', error);
+    return null;
+  }
+}
+
+// Export the AI Agent class, agents map and helper function for use in other modules
+module.exports = { router, AIAgent, aiAgents, processWhatsAppMessage };
