@@ -18,7 +18,8 @@
       "WebFetch(domain:lobehub.com)",
       "Bash(npm install:*)",
       "WebFetch(domain:heroicons.com)",
-      "WebFetch(domain:headlessui.com)"
+      "WebFetch(domain:headlessui.com)",
+      "WebFetch(domain:www.heroui.com)"
     ],
     "deny": []
   },
