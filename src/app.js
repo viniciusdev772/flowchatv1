@@ -2672,8 +2672,8 @@ async function handleMessageParts(sock, message, sessionId) {
       
       logger.info(`Processando mensagem completa (${currentParts.length} partes) de ${senderId}: ${fullText.substring(0, 150)}...`);
       
-      // Processar mensagem completa
-      await processCompleteMessage(sock, completeMessage, sessionId);
+      // Processar mensagem completa com todas as partes
+      await processCompleteMessage(sock, completeMessage, sessionId, currentParts);
       
       // Limpar buffer
       messageParts.set(senderKey, []);
@@ -2684,7 +2684,7 @@ async function handleMessageParts(sock, message, sessionId) {
   messageTimers.set(senderKey, timer);
 }
 
-async function processCompleteMessage(sock, message, sessionId) {
+async function processCompleteMessage(sock, message, sessionId, allMessageParts = []) {
   try {
     const jid = message.key.remoteJid;
     const messageText =
@@ -2721,14 +2721,34 @@ async function processCompleteMessage(sock, message, sessionId) {
 
     // Marcar como visto apenas se há agente ativo e configurado para auto-read
     if (activeAgent && HUMAN_BEHAVIOR.AUTO_MARK_READ) {
-      await sock.readMessages([message.key]);
+      // Se há múltiplas partes, marcar todas como lidas
+      if (allMessageParts.length > 1) {
+        const messageKeys = allMessageParts.map(part => part.messageKey);
+        logger.info(`Marcando ${messageKeys.length} mensagens da sequência como lidas...`);
+        await sock.readMessages(messageKeys);
+        logger.info(`✓ Todas as ${messageKeys.length} mensagens foram marcadas como lidas`);
+      } else {
+        // Apenas uma mensagem, marcar normalmente
+        await sock.readMessages([message.key]);
+        logger.info(`✓ Mensagem marcada como lida`);
+      }
     }
 
     // Check if message is from a group
     const isGroupMessage = jid.includes('@g.us');
     
-    // Skip if agent doesn't want to reply to groups and this is a group message
-    if (activeAgent && messageText.trim() && !(isGroupMessage && !activeAgent.replyToGroups)) {
+    // Process message only if agent exists and wants to reply to this type of chat
+    if (activeAgent && messageText.trim()) {
+      // Skip if this is a group message and agent doesn't want to reply to groups
+      if (isGroupMessage && !activeAgent.replyToGroups) {
+        logger.info(`Agent ${activeAgent.id} skipping group message (replyToGroups: ${activeAgent.replyToGroups})`);
+        return; // Exit early, don't process group messages when disabled
+      }
+      
+      // Debug log for group message processing
+      if (isGroupMessage) {
+        logger.info(`Agent ${activeAgent.id} processing group message (replyToGroups: ${activeAgent.replyToGroups})`);
+      }
       try {
         logger.info(`Processing message with AI agent ${activeAgent.id} for session ${sessionId}`);
         
@@ -2750,7 +2770,11 @@ async function processCompleteMessage(sock, message, sessionId) {
             isGroup: isGroupMessage,
             type: isGroupMessage ? 'group' : 'private',
             name: isGroupMessage ? 'Grupo' : 'Contato'
-          }
+          },
+          // Adicionar informações sobre mensagens múltiplas
+          isMultiPart: allMessageParts.length > 1,
+          partCount: allMessageParts.length,
+          allMessageKeys: allMessageParts.map(part => part.messageKey)
         };
 
         const aiResult = await activeAgent.processMessage(messageData, sock);
@@ -2771,11 +2795,16 @@ async function processCompleteMessage(sock, message, sessionId) {
           await sock.sendPresenceUpdate('composing', jid);
           await delay(typingTime);
 
-          // Send AI response with quoted message (resposta à mensagem original)
+          // Send AI response with quoted message (resposta à última mensagem da sequência)
           const quotedMessage = {
             key: message.key,
             message: message.message
           };
+          
+          // Se há múltiplas partes, adicionar informação no log
+          if (allMessageParts.length > 1) {
+            logger.info(`Respondendo à sequência de ${allMessageParts.length} mensagens`);
+          }
           
           await sock.sendMessage(jid, { 
             text: aiResult.response 
@@ -2797,6 +2826,13 @@ async function processCompleteMessage(sock, message, sessionId) {
           key: message.key,
           message: message.message
         };
+        
+        // Marcar todas as mensagens como lidas mesmo em caso de erro
+        if (activeAgent && HUMAN_BEHAVIOR.AUTO_MARK_READ && allMessageParts.length > 1) {
+          const messageKeys = allMessageParts.map(part => part.messageKey);
+          await sock.readMessages(messageKeys);
+        }
+        
         await sock.sendMessage(jid, { text: fallbackResponse }, { quoted: quotedMessage });
       }
     } else {

@@ -183,16 +183,22 @@ class AIAgent {
         return { shouldReply: false };
       }
 
-      // Marcar mensagem como lida se cliente WhatsApp estiver disponível
-      if (whatsappClient && messageData.messageId) {
+      // Marcar mensagem(ns) como lida se cliente WhatsApp estiver disponível
+      if (whatsappClient && this.autoReply) {
         try {
-          const key = {
-            id: messageData.messageId,
-            fromMe: false,
-            remoteJid: chatInfo.id
-          };
-          await whatsappClient.readMessages([key]);
-          console.log(`Message marked as read: ${messageData.messageId}`);
+          // Se há múltiplas partes, marcar todas como lidas
+          if (messageData.isMultiPart && messageData.allMessageKeys && messageData.allMessageKeys.length > 1) {
+            await whatsappClient.readMessages(messageData.allMessageKeys);
+            console.log(`${messageData.allMessageKeys.length} messages marked as read (multi-part)`);
+          } else if (messageData.messageId) {
+            const key = {
+              id: messageData.messageId,
+              fromMe: false,
+              remoteJid: chatInfo.id
+            };
+            await whatsappClient.readMessages([key]);
+            console.log(`Message marked as read: ${messageData.messageId}`);
+          }
         } catch (readError) {
           console.error('Error marking message as read:', readError);
         }
@@ -322,9 +328,13 @@ class AIAgent {
       const chatName = conversationEntry.chat.name || '';
       const messageType = conversationEntry.messageType || 'text';
 
+      const multiPartInfo = messageData.isMultiPart 
+        ? `\n\nIMPORTANTE: Esta mensagem foi enviada em ${messageData.partCount} partes separadas e você está recebendo o texto completo combinado.`
+        : '';
+        
       const contextInfo = isGroup 
-        ? `\nContexto: Você está em um grupo "${chatName}". A mensagem foi enviada por ${senderName}.`
-        : `\nContexto: Você está em uma conversa privada com ${senderName}.`;
+        ? `\nContexto: Você está em um grupo "${chatName}". A mensagem foi enviada por ${senderName}.${multiPartInfo}`
+        : `\nContexto: Você está em uma conversa privada com ${senderName}.${multiPartInfo}`;
 
       const systemPrompt = `${personalityPrompts[this.personality]} ${specializationPrompts[this.specialization]}
 
@@ -1077,6 +1087,12 @@ async function processWhatsAppMessage(whatsappClient, messageData, sessionId) {
 
     console.log(`Processing message from ${senderName} in ${isGroup ? 'group' : 'private chat'}: ${chatId}`);
 
+    // Skip if this is a group message and agent doesn't want to reply to groups
+    if (isGroup && !agent.replyToGroups) {
+      console.log(`Agent ${agent.id} skipping group message (replyToGroups: false)`);
+      return null;
+    }
+
     // Process message with AI agent using rich message data
     const result = await agent.processMessage(messageData, whatsappClient);
 
@@ -1109,6 +1125,11 @@ async function processWhatsAppMessage(whatsappClient, messageData, sessionId) {
               conversation: messageData.content || messageData.text || messageData.body
             }
           };
+        }
+        
+        // Log informativo sobre resposta a múltiplas mensagens
+        if (messageData.isMultiPart) {
+          console.log(`Respondendo à sequência de ${messageData.partCount} mensagens de ${senderName}`);
         }
 
         await whatsappClient.sendMessage(
