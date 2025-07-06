@@ -250,8 +250,13 @@ Ferramentas disponíveis: ${this.enabledTools.join(', ')}`;
 
       context += `\n\nUsuário: ${messageText}\nAssistente:`;
 
-      const response = await llm.call(context);
-      return response.trim();
+      const response = await llm.invoke(context);
+      
+      // The response from invoke is an AIMessage object, so we access its content.
+      // Also, ensure the response is a string before trimming.
+      const responseContent = typeof response === 'string' ? response : (response.content || '');
+
+      return responseContent.trim();
       
     } catch (error) {
       console.error('Error generating response:', error);
