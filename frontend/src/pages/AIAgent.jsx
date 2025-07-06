@@ -133,9 +133,28 @@ export default function AIAgent() {
       if (response.ok) {
         const result = await response.json();
         if (result.success && result.tokens && result.tokens.length > 0) {
-          // Use first token for AI agent
+          // Get the full token value for the first token
           const firstToken = result.tokens[0];
-          setToken(firstToken.value);
+          
+          // Fetch the actual token value
+          const tokenResponse = await fetch(`${apiUrl}/api/management/tokens/${firstToken._id}/full`, {
+            method: 'GET',
+            credentials: 'include',
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          });
+
+          if (tokenResponse.ok) {
+            const tokenResult = await tokenResponse.json();
+            if (tokenResult.success && tokenResult.token) {
+              setToken(tokenResult.token);
+            } else {
+              console.error('Failed to get token value:', tokenResult.message);
+            }
+          } else {
+            console.error('Error fetching token value:', tokenResponse.status);
+          }
         } else {
           console.error('No tokens available for AI agent');
         }
@@ -164,10 +183,19 @@ export default function AIAgent() {
       
       if (response.ok) {
         const result = await response.json();
+        console.log('Sessions API response:', result);
+        
         if (result.success) {
-          const connectedSessions = result.data.filter(session => 
-            session.status === 'connected' || session.status === 'open'
+          // Get sessions from the API response
+          let sessionsData = result.sessions || [];
+          
+          // Filter for connected sessions
+          const connectedSessions = sessionsData.filter(session => 
+            session.connectionState === 'connected' || session.isConnected === true
           );
+          
+          console.log('Available sessions:', sessionsData);
+          console.log('Connected sessions:', connectedSessions);
           setAvailableSessions(connectedSessions);
         } else {
           console.error('Sessions API returned error:', result.message);
