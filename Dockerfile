@@ -20,13 +20,15 @@ COPY package*.json ./
 
 # Install dependencies
 FROM base AS dependencies
-RUN npm ci --only=production && npm cache clean --force
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --omit=dev && npm cache clean --force
 
 # Frontend build stage
 FROM base AS frontend-build
 COPY frontend/package*.json frontend/
 WORKDIR /app/frontend
-RUN npm ci
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci
 COPY frontend/ .
 RUN npm run build
 

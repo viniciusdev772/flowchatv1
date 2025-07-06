@@ -6,24 +6,65 @@ on:
   pull_request:
     branches: [ "main" ]
 
+env:
+  REGISTRY: docker.io
+  IMAGE_NAME: baileys-api
+
 jobs:
-
   build:
-
     runs-on: ubuntu-latest
-
-    steps:
-    - uses: actions/checkout@v4
     
-    - name: Login to Docker Hub
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+      
+    - name: Log in to Docker Hub
+      if: github.event_name != 'pull_request'
       uses: docker/login-action@v3
       with:
+        registry: ${{ env.REGISTRY }}
         username: ${{ secrets.DOCKER_USERNAME }}
         password: ${{ secrets.DOCKER_PASSWORD }}
     
+    - name: Extract metadata
+      id: meta
+      uses: docker/metadata-action@v5
+      with:
+        images: ${{ env.REGISTRY }}/${{ secrets.DOCKER_USERNAME }}/${{ env.IMAGE_NAME }}
+        tags: |
+          type=ref,event=branch
+          type=ref,event=pr
+          type=sha,prefix={{branch}}-
+          type=raw,value=latest,enable={{is_default_branch}}
+        labels: |
+          org.opencontainers.image.title=FlowChat Baileys API
+          org.opencontainers.image.description=FlowChat API - Fluxo inteligente de mensagens WhatsApp com multi-sessões e automação segura
+          org.opencontainers.image.vendor=FlowChat
+    
+    - name: Set up Node.js cache
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.npm
+          node_modules
+          frontend/node_modules
+        key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+        restore-keys: |
+          ${{ runner.os }}-node-
+    
     - name: Build and push Docker image
-      run: |
-        docker build . --file Dockerfile --tag ${{ secrets.DOCKER_USERNAME }}/baileys-api:latest
-        docker build . --file Dockerfile --tag ${{ secrets.DOCKER_USERNAME }}/baileys-api:${{ github.sha }}
-        docker push ${{ secrets.DOCKER_USERNAME }}/baileys-api:latest
-        docker push ${{ secrets.DOCKER_USERNAME }}/baileys-api:${{ github.sha }}
+      uses: docker/build-push-action@v5
+      with:
+        context: .
+        file: ./Dockerfile
+        platforms: linux/amd64,linux/arm64
+        push: ${{ github.event_name != 'pull_request' }}
+        tags: ${{ steps.meta.outputs.tags }}
+        labels: ${{ steps.meta.outputs.labels }}
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
+        build-args: |
+          BUILDKIT_INLINE_CACHE=1
