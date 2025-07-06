@@ -226,6 +226,8 @@ Advanced group message monitoring and intelligent analysis:
 - **Global Sessions**: `global.whatsappSessions` Map stores all active WhatsApp connections
 - **Download System**: Unique download IDs with 7-day expiration stored in MongoDB
 - **File Extensions**: Smart detection based on mimetype and message type (PTT detection)
+- **AI Agent Persistence**: OpenAI API keys are now saved in MongoDB and restored on server restart
+- **Agent Health Monitoring**: System tracks agent health including API key status, activity, and auto-reply settings
 
 ## Code Maintenance Guidelines
 - NEVER create files unless absolutely necessary for the goal

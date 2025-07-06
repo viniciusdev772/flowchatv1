@@ -303,6 +303,7 @@ class AIAgent {
 
       // Validate API key
       if (!this.openaiApiKey || this.openaiApiKey.trim() === '') {
+        console.error(`❌ Agent ${this.id} missing OpenAI API key - response generation failed`);
         throw new Error('OpenAI API key is required');
       }
 
@@ -491,7 +492,8 @@ Regras importantes:
         messageCount: this.messageCount,
         createdAt: this.createdAt,
         updatedAt: this.updatedAt,
-        // Don't save API key for security - it's kept only in memory
+        // Save API key to preserve across server restarts (stored securely in database)
+        openaiApiKey: this.openaiApiKey || '',
         conversationHistory: this.conversationHistory.slice(-10), // Keep only last 10 messages in DB
       };
 
@@ -499,7 +501,8 @@ Regras importantes:
         .collection('ai_agents')
         .replaceOne({ _id: this.id }, agentData, { upsert: true });
 
-      console.log(`AI Agent ${this.id} saved to database`);
+      const hasApiKey = this.openaiApiKey && this.openaiApiKey.trim() !== '';
+      console.log(`✅ AI Agent ${this.id} saved to database - ${hasApiKey ? 'with API key' : 'without API key'}`);
     } catch (error) {
       console.error('Error saving AI agent to database:', error);
     }
@@ -645,23 +648,56 @@ async function loadAgentsFromDatabase() {
       .toArray();
 
     for (const agentData of agentsData) {
-      // Criar agente sem API key (será necessário reconfigurar)
+      // Criar agente com API key restaurada do banco de dados
       const agentConfig = {
         ...agentData,
         id: agentData._id,
-        openaiApiKey: '', // API key não é salva por segurança, precisa ser reconfigurada
+        openaiApiKey: agentData.openaiApiKey || '', // Restaurar API key do banco
       };
       
       const agent = new AIAgent(agentConfig);
       aiAgents.set(agent.id, agent);
       
-      console.log(`Loaded agent ${agent.id} (${agent.name}) from database - API key required for activation`);
+      const hasApiKey = agentData.openaiApiKey && agentData.openaiApiKey.trim() !== '';
+      console.log(`✅ Loaded agent ${agent.id} (${agent.name}) from database - ${hasApiKey ? 'API key restored' : 'API key missing'}`);
+      
+      if (!hasApiKey) {
+        console.warn(`⚠️  Agent ${agent.id} needs API key configuration to function properly`);
+      }
     }
 
-    console.log(`Loaded ${agentsData.length} AI agents from database`);
+    console.log(`📊 Summary: Loaded ${agentsData.length} AI agents from database`);
+    
+    // Verificar saúde dos agentes carregados
+    const healthyAgents = agentsData.filter(agent => agent.openaiApiKey && agent.openaiApiKey.trim() !== '').length;
+    const unhealthyAgents = agentsData.length - healthyAgents;
+    
+    console.log(`✅ ${healthyAgents} agents ready (with API keys)`);
+    if (unhealthyAgents > 0) {
+      console.log(`⚠️  ${unhealthyAgents} agents need API key configuration`);
+    }
   } catch (error) {
     console.error('Error loading agents from database:', error);
   }
+}
+
+// Function to check agent health
+function checkAgentHealth(agent) {
+  const hasApiKey = agent.openaiApiKey && agent.openaiApiKey.trim() !== '';
+  const isActive = agent.isActive;
+  const hasAutoReply = agent.autoReply;
+  
+  return {
+    healthy: hasApiKey && isActive && hasAutoReply,
+    hasApiKey,
+    isActive,
+    hasAutoReply,
+    issues: [
+      !hasApiKey && 'Missing API key',
+      !isActive && 'Agent inactive',
+      !hasAutoReply && 'Auto-reply disabled'
+    ].filter(Boolean)
+  };
 }
 
 // Function to get agent from database by ID
@@ -678,7 +714,7 @@ async function getAgentFromDatabase(agentId) {
       return {
         ...agentData,
         id: agentData._id,
-        openaiApiKey: '', // API key not stored for security
+        openaiApiKey: agentData.openaiApiKey || '', // Restore API key from database
       };
     }
     return null;
@@ -699,7 +735,14 @@ async function ensureAgentInMemory(agentId) {
   if (agentData) {
     const agent = new AIAgent(agentData);
     aiAgents.set(agent.id, agent);
-    console.log(`Agent ${agentId} loaded from database to memory`);
+    
+    const hasApiKey = agentData.openaiApiKey && agentData.openaiApiKey.trim() !== '';
+    console.log(`✅ Agent ${agentId} loaded from database to memory - ${hasApiKey ? 'API key restored' : 'API key missing'}`);
+    
+    if (!hasApiKey) {
+      console.warn(`⚠️  Agent ${agentId} needs API key configuration to function properly`);
+    }
+    
     return agent;
   }
 
@@ -780,13 +823,24 @@ router.post('/create', async (req, res) => {
 // List AI Agents
 router.get('/list', (req, res) => {
   try {
-    const agents = Array.from(aiAgents.values()).map((agent) =>
-      agent.getStats()
-    );
+    const agents = Array.from(aiAgents.values()).map((agent) => {
+      const stats = agent.getStats();
+      const health = checkAgentHealth(agent);
+      return {
+        ...stats,
+        health: health
+      };
+    });
 
     res.json({
       success: true,
       agents,
+      summary: {
+        total: agents.length,
+        healthy: agents.filter(a => a.health.healthy).length,
+        needApiKey: agents.filter(a => !a.health.hasApiKey).length,
+        inactive: agents.filter(a => !a.health.isActive).length,
+      }
     });
   } catch (error) {
     console.error('Error listing AI agents:', error);
@@ -1244,5 +1298,6 @@ module.exports = {
   processWhatsAppMessage, 
   ensureAgentInMemory,
   loadAgentsFromDatabase,
-  getAgentFromDatabase
+  getAgentFromDatabase,
+  checkAgentHealth
 };
