@@ -34,15 +34,18 @@ import {
   BoltIcon,
   ExclamationTriangleIcon,
   InformationCircleIcon,
-  XMarkIcon
+  XMarkIcon,
+  PlusIcon
 } from '@heroicons/react/24/outline';
 import { apiRequest } from '../utils/api';
+import AgentsList from '../components/AgentsList';
 
 function classNames(...classes) {
   return classes.filter(Boolean).join(' ');
 }
 
 export default function AIAgent() {
+  const [currentTab, setCurrentTab] = useState('create'); // 'create' or 'manage'
   const [currentStep, setCurrentStep] = useState(0);
   const [availableSessions, setAvailableSessions] = useState([]);
   const [selectedSession, setSelectedSession] = useState(null);
@@ -51,6 +54,8 @@ export default function AIAgent() {
   const [deploymentProgress, setDeploymentProgress] = useState(0);
   const [showDeployModal, setShowDeployModal] = useState(false);
   const [deploymentStatus, setDeploymentStatus] = useState('idle');
+  const [deploymentError, setDeploymentError] = useState(null);
+  const [formErrors, setFormErrors] = useState({});
   const [token, setToken] = useState('');
   const [tokenLoading, setTokenLoading] = useState(true);
   
@@ -210,8 +215,40 @@ export default function AIAgent() {
     }
   };
 
+  const validateForm = () => {
+    const errors = {};
+    
+    if (!selectedSession) {
+      errors.session = 'Selecione uma sessão WhatsApp';
+    }
+    
+    if (!agentConfig.name.trim()) {
+      errors.name = 'Nome do agente é obrigatório';
+    } else if (agentConfig.name.length < 3) {
+      errors.name = 'Nome deve ter pelo menos 3 caracteres';
+    }
+    
+    if (!agentConfig.apiKey.trim()) {
+      errors.apiKey = 'Chave da API OpenAI é obrigatória';
+    } else if (!agentConfig.apiKey.startsWith('sk-')) {
+      errors.apiKey = 'Chave da API deve começar com "sk-"';
+    }
+    
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
   const handleDeploy = async () => {
     try {
+      // Clear previous errors
+      setDeploymentError(null);
+      setFormErrors({});
+      
+      // Validate form
+      if (!validateForm()) {
+        return;
+      }
+      
       setIsCreating(true);
       setDeploymentProgress(0);
       setDeploymentStatus('initializing');
@@ -222,8 +259,8 @@ export default function AIAgent() {
       // Create AI agent via backend API
       const agentData = {
         sessionId: selectedSession.sessionId,
-        name: agentConfig.name,
-        description: agentConfig.description,
+        name: agentConfig.name.trim(),
+        description: agentConfig.description.trim(),
         model: agentConfig.model,
         personality: agentConfig.personality,
         specialization: agentConfig.specialization,
@@ -232,18 +269,21 @@ export default function AIAgent() {
         autoReply: agentConfig.autoReply,
         smartReplies: agentConfig.smartReplies,
         replyToGroups: agentConfig.replyToGroups,
-        openaiApiKey: agentConfig.apiKey,
+        openaiApiKey: agentConfig.apiKey.trim(),
         tools: ['web_search'] // Initial tools
       };
       
       // Deployment progress simulation with real API call
       setDeploymentProgress(20);
       setDeploymentStatus('configuring');
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 800));
       
       setDeploymentProgress(40);
       setDeploymentStatus('training');
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
+      setDeploymentProgress(60);
+      setDeploymentStatus('testing');
       
       const response = await fetch(`${apiUrl}/api/baileys/agents/create`, {
         method: 'POST',
@@ -256,7 +296,7 @@ export default function AIAgent() {
       
       setDeploymentProgress(80);
       setDeploymentStatus('deploying');
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      await new Promise(resolve => setTimeout(resolve, 800));
       
       if (response.ok) {
         const result = await response.json();
@@ -264,19 +304,44 @@ export default function AIAgent() {
           setDeploymentProgress(100);
           setDeploymentStatus('completed');
         } else {
-          throw new Error(result.message || 'Failed to create agent');
+          throw new Error(result.message || 'Falha ao criar agente');
         }
       } else {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        const errorResult = await response.json().catch(() => ({}));
+        const errorMessage = errorResult.message || `Erro HTTP ${response.status}: ${response.statusText}`;
+        
+        // Handle specific error types
+        if (response.status === 400) {
+          if (errorMessage.includes('Já existe um agente ativo')) {
+            throw new Error('Já existe um agente ativo para esta sessão. Desative o agente atual primeiro.');
+          } else if (errorMessage.includes('API key')) {
+            throw new Error('Chave da API OpenAI inválida. Verifique se a chave está correta.');
+          } else if (errorMessage.includes('sessão')) {
+            throw new Error('Sessão WhatsApp inválida ou não conectada.');
+          }
+        } else if (response.status === 401) {
+          throw new Error('Erro de autenticação. Faça login novamente.');
+        } else if (response.status === 403) {
+          throw new Error('Permissão negada. Verifique suas credenciais.');
+        } else if (response.status >= 500) {
+          throw new Error('Erro interno do servidor. Tente novamente em alguns minutos.');
+        }
+        
+        throw new Error(errorMessage);
       }
     } catch (error) {
       console.error('Error deploying agent:', error);
       setDeploymentStatus('error');
+      setDeploymentError(error.message);
+      
       // Reset after showing error
       setTimeout(() => {
-        setShowDeployModal(false);
-        setDeploymentStatus('idle');
-      }, 3000);
+        if (deploymentStatus === 'error') {
+          setShowDeployModal(false);
+          setDeploymentStatus('idle');
+          setDeploymentError(null);
+        }
+      }, 5000);
     } finally {
       setIsCreating(false);
     }
@@ -310,13 +375,34 @@ export default function AIAgent() {
   const getStatusMessage = (status) => {
     const messages = {
       initializing: 'Inicializando sistema...',
-      configuring: 'Configurando modelo...',
-      training: 'Treinando agente...',
-      testing: 'Executando testes...',
+      configuring: 'Configurando modelo de IA...',
+      training: 'Treinando personalidade...',
+      testing: 'Testando conectividade...',
       deploying: 'Implantando agente...',
-      completed: 'Agente implantado com sucesso!'
+      completed: 'Agente implantado com sucesso!',
+      error: 'Erro durante a implantação'
     };
     return messages[status] || 'Processando...';
+  };
+
+  const resetForm = () => {
+    setCurrentStep(0);
+    setSelectedSession(null);
+    setAgentConfig({
+      name: '',
+      description: '',
+      apiKey: '',
+      model: 'gpt-4',
+      personality: 'professional',
+      specialization: 'general',
+      creativity: 70,
+      learningEnabled: true,
+      autoReply: true,
+      smartReplies: true,
+      replyToGroups: true
+    });
+    setFormErrors({});
+    setDeploymentError(null);
   };
 
   if (isLoading) {
@@ -355,15 +441,57 @@ export default function AIAgent() {
             </div>
           </div>
           <h1 className="text-4xl font-bold text-gray-900 mb-4">
-            Criador de Agente IA
+            Agentes de IA FlowChat
           </h1>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Configure seu assistente inteligente personalizado com tecnologia de ponta
+            Crie e gerencie assistentes inteligentes personalizados com tecnologia de ponta
           </p>
-          <div className="mt-4 inline-flex items-center px-4 py-2 rounded-full bg-gradient-to-r from-yellow-400 to-orange-400 text-black text-sm font-bold">
-            ⭐ EXCLUSIVO & PREMIUM
-          </div>
         </div>
+
+        {/* Tab Navigation */}
+        <div className="mb-8">
+          <Tab.Group selectedIndex={currentTab === 'create' ? 0 : 1} onChange={(index) => setCurrentTab(index === 0 ? 'create' : 'manage')}>
+            <Tab.List className="flex space-x-1 rounded-xl bg-white p-1 shadow-lg max-w-md mx-auto">
+              <Tab className={({ selected }) =>
+                classNames(
+                  'w-full rounded-lg py-3 px-4 text-sm font-medium leading-5 transition-all duration-200',
+                  selected
+                    ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow'
+                    : 'text-gray-600 hover:bg-gray-100'
+                )
+              }>
+                <div className="flex items-center justify-center">
+                  <PlusIcon className="w-5 h-5 mr-2" />
+                  Criar Agente
+                </div>
+              </Tab>
+              <Tab className={({ selected }) =>
+                classNames(
+                  'w-full rounded-lg py-3 px-4 text-sm font-medium leading-5 transition-all duration-200',
+                  selected
+                    ? 'bg-gradient-to-r from-purple-500 to-pink-500 text-white shadow'
+                    : 'text-gray-600 hover:bg-gray-100'
+                )
+              }>
+                <div className="flex items-center justify-center">
+                  <SparklesIcon className="w-5 h-5 mr-2" />
+                  Gerenciar Agentes
+                </div>
+              </Tab>
+            </Tab.List>
+          </Tab.Group>
+        </div>
+
+        {currentTab === 'manage' ? (
+          <AgentsList onRefresh={() => {}} />
+        ) : (
+          <div>
+            {/* Premium Badge */}
+            <div className="text-center mb-8">
+              <div className="inline-flex items-center px-4 py-2 rounded-full bg-gradient-to-r from-yellow-400 to-orange-400 text-black text-sm font-bold">
+                ⭐ CRIADOR EXCLUSIVO & PREMIUM
+              </div>
+            </div>
 
         {/* Progress Indicator */}
         <div className="mb-12">
@@ -441,10 +569,24 @@ export default function AIAgent() {
                       </p>
                     </div>
 
+                    {formErrors.session && (
+                      <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                        <p className="text-sm text-red-600">{formErrors.session}</p>
+                      </div>
+                    )}
+
                     {availableSessions.length > 0 ? (
-                      <Listbox value={selectedSession} onChange={setSelectedSession}>
+                      <Listbox value={selectedSession} onChange={(value) => {
+                        setSelectedSession(value);
+                        setFormErrors(prev => ({ ...prev, session: null }));
+                      }}>
                         <div className="relative">
-                          <Listbox.Button className="relative w-full cursor-pointer rounded-xl bg-gray-50 border-2 border-gray-200 hover:border-purple-300 py-4 pl-6 pr-10 text-left focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200">
+                          <Listbox.Button className={classNames(
+                            "relative w-full cursor-pointer rounded-xl bg-gray-50 border-2 py-4 pl-6 pr-10 text-left focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200",
+                            formErrors.session 
+                              ? "border-red-300 hover:border-red-400" 
+                              : "border-gray-200 hover:border-purple-300"
+                          )}
                             <span className="flex items-center">
                               {selectedSession ? (
                                 <>
@@ -544,12 +686,23 @@ export default function AIAgent() {
                             <Input
                               type="text"
                               value={agentConfig.name}
-                              onChange={(e) => setAgentConfig(prev => ({ ...prev, name: e.target.value }))}
-                              className="block w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+                              onChange={(e) => {
+                                setAgentConfig(prev => ({ ...prev, name: e.target.value }));
+                                setFormErrors(prev => ({ ...prev, name: null }));
+                              }}
+                              className={classNames(
+                                "block w-full pl-10 pr-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200",
+                                formErrors.name 
+                                  ? "border-red-300 bg-red-50" 
+                                  : "border-gray-200"
+                              )}
                               placeholder="Ex: Aurora Assistant"
                               required
                             />
                           </div>
+                          {formErrors.name && (
+                            <p className="mt-1 text-sm text-red-600">{formErrors.name}</p>
+                          )}
                           <Description className="mt-2 text-sm text-gray-500">
                             Escolha um nome único e memorável para seu assistente
                           </Description>
@@ -702,12 +855,23 @@ export default function AIAgent() {
                             <Input
                               type="password"
                               value={agentConfig.apiKey}
-                              onChange={(e) => setAgentConfig(prev => ({ ...prev, apiKey: e.target.value }))}
-                              className="block w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+                              onChange={(e) => {
+                                setAgentConfig(prev => ({ ...prev, apiKey: e.target.value }));
+                                setFormErrors(prev => ({ ...prev, apiKey: null }));
+                              }}
+                              className={classNames(
+                                "block w-full pl-10 pr-4 py-3 border-2 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200",
+                                formErrors.apiKey 
+                                  ? "border-red-300 bg-red-50" 
+                                  : "border-gray-200"
+                              )}
                               placeholder="sk-..."
                               required
                             />
                           </div>
+                          {formErrors.apiKey && (
+                            <p className="mt-1 text-sm text-red-600">{formErrors.apiKey}</p>
+                          )}
                           <Description className="mt-2 text-sm text-gray-500">
                             Sua chave será criptografada e armazenada com segurança
                           </Description>
@@ -1063,21 +1227,38 @@ export default function AIAgent() {
                       <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
                         <CheckIcon className="w-8 h-8 text-green-600" />
                       </div>
+                    ) : deploymentStatus === 'error' ? (
+                      <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <ExclamationTriangleIcon className="w-8 h-8 text-red-600" />
+                      </div>
                     ) : (
                       <div className="w-16 h-16 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center mx-auto mb-4">
                         <RocketLaunchIcon className="w-8 h-8 text-white animate-pulse" />
                       </div>
                     )}
                     
-                    <Dialog.Title className="text-xl font-bold text-gray-900 mb-2">
+                    <Dialog.Title className={classNames(
+                      "text-xl font-bold mb-2",
+                      deploymentStatus === 'completed' ? 'text-green-900' :
+                      deploymentStatus === 'error' ? 'text-red-900' :
+                      'text-gray-900'
+                    )}>
                       {deploymentStatus === 'completed' 
                         ? 'Agente Implantado!' 
+                        : deploymentStatus === 'error'
+                        ? 'Erro na Implantação'
                         : 'Implantando Agente'
                       }
                     </Dialog.Title>
                     
-                    <p className="text-gray-600 mb-6">
-                      {getStatusMessage(deploymentStatus)}
+                    <p className={classNames(
+                      "mb-6",
+                      deploymentStatus === 'error' ? 'text-red-600' : 'text-gray-600'
+                    )}>
+                      {deploymentStatus === 'error' && deploymentError 
+                        ? deploymentError 
+                        : getStatusMessage(deploymentStatus)
+                      }
                     </p>
 
                     {deploymentStatus !== 'completed' && (
@@ -1106,11 +1287,38 @@ export default function AIAgent() {
                       <Button
                         onClick={() => {
                           setShowDeployModal(false);
-                          window.location.reload();
+                          resetForm();
                         }}
                         className="w-full bg-gray-100 text-gray-700 py-3 px-4 rounded-xl hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-all duration-200"
                       >
                         Criar Novo Agente
+                      </Button>
+                    </div>
+                  )}
+
+                  {deploymentStatus === 'error' && (
+                    <div className="space-y-3">
+                      <Button
+                        onClick={() => {
+                          setShowDeployModal(false);
+                          setDeploymentStatus('idle');
+                          setDeploymentError(null);
+                        }}
+                        className="w-full bg-gray-100 text-gray-700 py-3 px-4 rounded-xl hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-all duration-200"
+                      >
+                        Fechar
+                      </Button>
+                      <Button
+                        onClick={() => {
+                          setShowDeployModal(false);
+                          setDeploymentStatus('idle');
+                          setDeploymentError(null);
+                          // Retry deployment
+                          setTimeout(() => handleDeploy(), 500);
+                        }}
+                        className="w-full bg-purple-600 text-white py-3 px-4 rounded-xl hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200"
+                      >
+                        Tentar Novamente
                       </Button>
                     </div>
                   )}
@@ -1120,6 +1328,10 @@ export default function AIAgent() {
           </div>
         </Dialog>
       </Transition>
+          </div>
+        )}
+      </div>
+    </div>
 
       <style jsx>{`
         .slider::-webkit-slider-thumb {

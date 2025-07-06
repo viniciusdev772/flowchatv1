@@ -161,54 +161,94 @@ class AIAgent {
     this.conversationHistory = config.conversationHistory || [];
   }
 
-  async processMessage(message, whatsappClient = null) {
+  async processMessage(messageData, whatsappClient = null) {
     try {
       this.messageCount++;
       this.updatedAt = new Date().toISOString();
 
+      // Extract rich message information
+      const messageText = messageData.content || messageData.text || messageData.body || '';
+      const isGroup = messageData.chat?.isGroup || false;
+      const senderInfo = messageData.sender || {};
+      const chatInfo = messageData.chat || {};
+
+      // Skip empty messages
+      if (!messageText.trim()) {
+        return { shouldReply: false };
+      }
+
+      // Skip if agent doesn't want to reply to groups and this is a group message
+      if (isGroup && !this.replyToGroups) {
+        console.log(`Agent ${this.id} skipping group message (replyToGroups: false)`);
+        return { shouldReply: false };
+      }
+
       // Marcar mensagem como lida se cliente WhatsApp estiver disponível
-      if (whatsappClient && message.key) {
+      if (whatsappClient && messageData.messageId) {
         try {
-          await whatsappClient.readMessages([message.key]);
-          console.log(`Message marked as read: ${message.key.id}`);
+          const key = {
+            id: messageData.messageId,
+            fromMe: false,
+            remoteJid: chatInfo.id
+          };
+          await whatsappClient.readMessages([key]);
+          console.log(`Message marked as read: ${messageData.messageId}`);
         } catch (readError) {
           console.error('Error marking message as read:', readError);
         }
       }
 
-      // Add to conversation history
-      this.conversationHistory.push({
+      // Create rich conversation entry
+      const conversationEntry = {
         type: 'user',
-        content: message.text || message.body,
-        timestamp: new Date().toISOString(),
-        from: message.from,
-        messageId: message.key?.id,
-      });
+        content: messageText,
+        timestamp: messageData.timestamp || new Date().toISOString(),
+        messageId: messageData.messageId,
+        sender: {
+          id: senderInfo.id,
+          pushName: senderInfo.pushName,
+          isMe: senderInfo.isMe || false
+        },
+        chat: {
+          id: chatInfo.id,
+          type: chatInfo.type || (isGroup ? 'group' : 'private'),
+          isGroup: isGroup,
+          name: chatInfo.name || (isGroup ? 'Grupo' : senderInfo.pushName || 'Contato')
+        },
+        messageType: messageData.messageType,
+        hasQuotedMessage: !!messageData.quotedMessage
+      };
 
-      // Keep only last 10 messages for context
-      if (this.conversationHistory.length > 20) {
-        this.conversationHistory = this.conversationHistory.slice(-20);
-      }
+      // Save to MongoDB instead of memory
+      await this.saveConversationEntry(conversationEntry);
 
-      // Generate AI response
-      const response = await this.generateResponse(message);
+      // Generate AI response with rich context
+      const response = await this.generateResponse(messageData, conversationEntry);
 
-      // Add AI response to history
-      this.conversationHistory.push({
+      // Create response entry
+      const responseEntry = {
         type: 'assistant',
         content: response,
         timestamp: new Date().toISOString(),
-      });
+        inResponseTo: messageData.messageId,
+        chat: conversationEntry.chat
+      };
 
-      // Save updated state to database (async, don't wait)
+      // Save AI response to MongoDB
+      await this.saveConversationEntry(responseEntry);
+
+      // Save updated agent state to database (async, don't wait)
       this.save().catch((err) =>
         console.error('Error saving agent state:', err)
       );
 
       return {
         response,
-        replyToMessageId: message.key?.id,
+        replyToMessageId: messageData.messageId,
         shouldReply: true,
+        chatId: chatInfo.id,
+        isGroup: isGroup,
+        senderInfo: senderInfo
       };
     } catch (error) {
       console.error('Error processing message:', error);
@@ -229,24 +269,31 @@ class AIAgent {
 
       return {
         response: fallbackResponses[this.personality] || 'Como posso ajudá-lo?',
-        replyToMessageId: message.key?.id,
+        replyToMessageId: messageData.messageId,
         shouldReply: true,
       };
     }
   }
 
-  async generateResponse(message) {
+  async generateResponse(messageData, conversationEntry) {
     try {
-      const { OpenAI } = require('@langchain/openai');
+      const { ChatOpenAI } = require('@langchain/openai');
+      const { HumanMessage, SystemMessage } = require('@langchain/core/messages');
 
-      const llm = new OpenAI({
-        openAIApiKey: this.openaiApiKey,
-        modelName: this.model,
+      // Validate API key
+      if (!this.openaiApiKey || this.openaiApiKey.trim() === '') {
+        throw new Error('OpenAI API key is required');
+      }
+
+      const llm = new ChatOpenAI({
+        apiKey: this.openaiApiKey,
+        model: this.model,
         temperature: this.creativity / 100,
         maxTokens: 500,
+        timeout: 30000,
       });
 
-      // Build context prompt
+      // Build context prompt with rich message information
       const personalityPrompts = {
         professional: 'Você é um assistente profissional, formal e objetivo.',
         friendly: 'Você é um assistente amigável, caloroso e acolhedor.',
@@ -257,90 +304,118 @@ class AIAgent {
       };
 
       const specializationPrompts = {
-        general:
-          'Você é um assistente geral capaz de ajudar com diversas tarefas.',
-        sales:
-          'Você é especializado em vendas e marketing, focado em conversão.',
-        support:
-          'Você é especializado em suporte ao cliente e resolução de problemas.',
+        general: 'Você é um assistente geral capaz de ajudar com diversas tarefas.',
+        sales: 'Você é especializado em vendas e marketing, focado em conversão.',
+        support: 'Você é especializado em suporte ao cliente e resolução de problemas.',
         education: 'Você é especializado em educação e ensino.',
         health: 'Você é especializado em saúde e bem-estar.',
         finance: 'Você é especializado em finanças e consultoria.',
       };
 
-      const systemPrompt = `${personalityPrompts[this.personality]} ${
-        specializationPrompts[this.specialization]
-      }
+      // Rich context information
+      const isGroup = conversationEntry.chat.isGroup;
+      const senderName = conversationEntry.sender.pushName || 'Usuário';
+      const chatName = conversationEntry.chat.name || '';
+      const messageType = conversationEntry.messageType || 'text';
+
+      const contextInfo = isGroup 
+        ? `\nContexto: Você está em um grupo "${chatName}". A mensagem foi enviada por ${senderName}.`
+        : `\nContexto: Você está em uma conversa privada com ${senderName}.`;
+
+      const systemPrompt = `${personalityPrompts[this.personality]} ${specializationPrompts[this.specialization]}
 
 Nome: ${this.name}
 ${this.description ? `Descrição: ${this.description}` : ''}
+${contextInfo}
 
 Regras importantes:
 1. Sempre responda em português brasileiro
 2. Seja útil e prestativo
 3. Mantenha o tom de acordo com sua personalidade
 4. Seja conciso mas informativo
-5. Adapte suas respostas ao contexto da conversa
-6. Responda sempre, mesmo se não tiver certeza sobre algo`;
+5. ${isGroup ? 'Quando em grupos, você pode se dirigir às pessoas pelo nome quando relevante' : 'Adapte suas respostas ao contexto da conversa privada'}
+6. ${isGroup ? 'Em grupos, seja respeitoso com todos os participantes' : 'Mantenha uma conversa natural e personalizada'}
+7. Responda sempre, mesmo se não tiver certeza sobre algo
+8. ${messageType !== 'text' ? `A mensagem recebida é do tipo: ${messageType}` : ''}`;
 
-      const messageText = message.text || message.body || '';
-      let context = systemPrompt;
-
-      // Add conversation history for context
-      if (this.conversationHistory.length > 0) {
-        context += '\n\nContexto da conversa:\n';
-        this.conversationHistory.slice(-6).forEach((msg) => {
-          context += `${msg.type === 'user' ? 'Usuário' : 'Assistente'}: ${
-            msg.content
-          }\n`;
-        });
+      const messageText = messageData.content || messageData.text || messageData.body || '';
+      
+      // Validate message content
+      if (!messageText || messageText.trim() === '') {
+        throw new Error('Empty message content');
       }
+      
+      // Prepare messages array for ChatOpenAI
+      const messages = [new SystemMessage(systemPrompt)];
 
-      context += `\n\nUsuário: ${messageText}\nAssistente:`;
+      // Load conversation history from MongoDB instead of memory
+      const recentHistory = await this.loadConversationHistory(conversationEntry.chat.id, 6);
+      
+      // Add conversation history for context
+      recentHistory.forEach((msg) => {
+        if (msg.content && msg.content.trim() !== '') {
+          if (msg.type === 'user') {
+            const senderInfo = msg.sender?.pushName ? ` (${msg.sender.pushName})` : '';
+            const messageContent = isGroup ? `${msg.content}${senderInfo}` : msg.content;
+            messages.push(new HumanMessage(messageContent));
+          } else {
+            messages.push(new SystemMessage(`Assistente: ${msg.content}`));
+          }
+        }
+      });
 
-      const response = await llm.invoke(context);
+      // Add current message with sender context
+      const currentMessageContent = isGroup ? `${messageText} (enviado por ${senderName})` : messageText;
+      messages.push(new HumanMessage(currentMessageContent.trim()));
 
-      // The response from invoke is an AIMessage object, so we access its content.
-      // Also, ensure the response is a string before trimming.
-      let responseContent =
-        typeof response === 'string' ? response : response.content || '';
+      const response = await llm.invoke(messages);
+
+      // Extract response content properly
+      let responseContent = response.content || '';
 
       // Se não conseguiu gerar resposta, criar uma resposta padrão baseada na personalidade
       if (!responseContent || responseContent.trim() === '') {
         const fallbackResponses = {
-          professional:
-            'Entendo sua solicitação. Posso ajudá-lo de outra forma?',
-          friendly: 'Oi! Entendi sua mensagem. Como posso te ajudar melhor?',
-          creative:
-            'Que interessante! Vamos pensar em soluções criativas para isso.',
-          analytical:
-            'Preciso de mais informações para analisar adequadamente sua solicitação.',
-          casual: 'Entendi! Como posso te dar uma mão com isso?',
-          empathetic:
-            'Compreendo sua situação. Estou aqui para ajudar no que precisar.',
+          professional: 'Entendo sua solicitação. Posso ajudá-lo de outra forma?',
+          friendly: `Oi${isGroup ? ` ${senderName}` : ''}! Entendi sua mensagem. Como posso te ajudar melhor?`,
+          creative: 'Que interessante! Vamos pensar em soluções criativas para isso.',
+          analytical: 'Preciso de mais informações para analisar adequadamente sua solicitação.',
+          casual: `Entendi${isGroup ? ` ${senderName}` : ''}! Como posso te dar uma mão com isso?`,
+          empathetic: 'Compreendo sua situação. Estou aqui para ajudar no que precisar.',
         };
-        responseContent =
-          fallbackResponses[this.personality] || 'Como posso ajudá-lo?';
+        responseContent = fallbackResponses[this.personality] || 'Como posso ajudá-lo?';
       }
 
       return responseContent.trim();
     } catch (error) {
       console.error('Error generating response:', error);
+      console.error('Error details:', error.message);
+      console.error('Error stack:', error.stack);
+
+      // Specific error handling
+      let errorMessage = 'Erro interno do sistema';
+      if (error.message.includes('API key')) {
+        errorMessage = 'Chave da API OpenAI inválida ou não configurada';
+      } else if (error.message.includes('timeout') || error.message.includes('ECONNRESET')) {
+        errorMessage = 'Timeout na conexão com OpenAI';
+      } else if (error.message.includes('rate limit')) {
+        errorMessage = 'Limite de requisições excedido';
+      } else if (error.message.includes('invalid_request_error')) {
+        errorMessage = 'Parâmetros inválidos na requisição';
+      } else if (error.message.includes('Empty message content')) {
+        errorMessage = 'Mensagem vazia recebida';
+      }
+
+      console.error(`AI Agent Error [${this.id}]:`, errorMessage);
 
       // Resposta de fallback baseada na personalidade do agente
       const fallbackResponses = {
-        professional:
-          'Momentaneamente indisponível. Como posso assistí-lo de outra forma?',
-        friendly:
-          'Ops! Algo deu errado, mas estou aqui para ajudar. Me conte mais sobre o que precisa!',
-        creative:
-          'Hmm, vamos tentar uma abordagem diferente! O que você gostaria de explorar?',
-        analytical:
-          'Sistema temporariamente instável. Pode reformular sua pergunta?',
-        casual:
-          'Eita! Deu um probleminha aqui. Mas me fala aí, no que posso te ajudar?',
-        empathetic:
-          'Compreendo que isso pode ser frustrante. Vamos tentar novamente?',
+        professional: 'Momentaneamente indisponível. Como posso assistí-lo de outra forma?',
+        friendly: 'Ops! Algo deu errado, mas estou aqui para ajudar. Me conte mais sobre o que precisa!',
+        creative: 'Hmm, vamos tentar uma abordagem diferente! O que você gostaria de explorar?',
+        analytical: 'Sistema temporariamente instável. Pode reformular sua pergunta?',
+        casual: 'Eita! Deu um probleminha aqui. Mas me fala aí, no que posso te ajudar?',
+        empathetic: 'Compreendo que isso pode ser frustrante. Vamos tentar novamente?',
       };
 
       return fallbackResponses[this.personality] || 'Como posso ajudá-lo hoje?';
@@ -415,6 +490,118 @@ Regras importantes:
     this.isActive = true;
     this.updatedAt = new Date().toISOString();
     await this.save();
+  }
+
+  // MongoDB conversation persistence methods
+  async saveConversationEntry(conversationEntry) {
+    try {
+      const db = database.getDb();
+      if (!db) {
+        console.warn('Database not available, conversation entry not saved');
+        return;
+      }
+
+      const entryWithAgent = {
+        ...conversationEntry,
+        agentId: this.id,
+        sessionId: this.sessionId,
+        createdAt: new Date(),
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days TTL
+      };
+
+      await db.collection('ai_agent_conversations').insertOne(entryWithAgent);
+      console.log(`Conversation entry saved for agent ${this.id}`);
+    } catch (error) {
+      console.error('Error saving conversation entry:', error);
+    }
+  }
+
+  async loadConversationHistory(chatId, limit = 10) {
+    try {
+      const db = database.getDb();
+      if (!db) {
+        console.warn('Database not available, using empty conversation history');
+        return [];
+      }
+
+      const conversations = await db
+        .collection('ai_agent_conversations')
+        .find({
+          agentId: this.id,
+          'chat.id': chatId
+        })
+        .sort({ createdAt: -1 })
+        .limit(limit)
+        .toArray();
+
+      // Return in chronological order (oldest first)
+      return conversations.reverse();
+    } catch (error) {
+      console.error('Error loading conversation history:', error);
+      return [];
+    }
+  }
+
+  async clearConversationHistory(chatId = null) {
+    try {
+      const db = database.getDb();
+      if (!db) {
+        console.warn('Database not available, conversation history not cleared');
+        return;
+      }
+
+      const filter = { agentId: this.id };
+      if (chatId) {
+        filter['chat.id'] = chatId;
+      }
+
+      const result = await db.collection('ai_agent_conversations').deleteMany(filter);
+      console.log(`Cleared ${result.deletedCount} conversation entries for agent ${this.id}`);
+      return result.deletedCount;
+    } catch (error) {
+      console.error('Error clearing conversation history:', error);
+      return 0;
+    }
+  }
+
+  async getConversationStats() {
+    try {
+      const db = database.getDb();
+      if (!db) {
+        return { totalMessages: 0, uniqueChats: 0, groupMessages: 0, privateMessages: 0 };
+      }
+
+      const stats = await db.collection('ai_agent_conversations').aggregate([
+        { $match: { agentId: this.id } },
+        {
+          $group: {
+            _id: null,
+            totalMessages: { $sum: 1 },
+            uniqueChats: { $addToSet: '$chat.id' },
+            groupMessages: {
+              $sum: { $cond: [{ $eq: ['$chat.isGroup', true] }, 1, 0] }
+            },
+            privateMessages: {
+              $sum: { $cond: [{ $eq: ['$chat.isGroup', false] }, 1, 0] }
+            }
+          }
+        },
+        {
+          $project: {
+            _id: 0,
+            totalMessages: 1,
+            uniqueChats: { $size: '$uniqueChats' },
+            groupMessages: 1,
+            privateMessages: 1
+          }
+        }
+      ]).toArray();
+
+      return stats[0] || { totalMessages: 0, uniqueChats: 0, groupMessages: 0, privateMessages: 0 };
+    } catch (error) {
+      console.error('Error getting conversation stats:', error);
+      return { totalMessages: 0, uniqueChats: 0, groupMessages: 0, privateMessages: 0 };
+    }
   }
 }
 
@@ -674,8 +861,102 @@ router.post('/process-message', async (req, res) => {
   }
 });
 
+// Get agent conversation history
+router.get('/:agentId/conversations/:chatId', async (req, res) => {
+  try {
+    const agent = aiAgents.get(req.params.agentId);
+    const { chatId } = req.params;
+    const { limit = 50 } = req.query;
+
+    if (!agent) {
+      return res.status(404).json({
+        success: false,
+        message: 'Agente não encontrado',
+      });
+    }
+
+    const history = await agent.loadConversationHistory(chatId, parseInt(limit));
+
+    res.json({
+      success: true,
+      chatId,
+      agentId: agent.id,
+      conversations: history,
+      total: history.length
+    });
+  } catch (error) {
+    console.error('Error getting conversation history:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao obter histórico de conversas',
+    });
+  }
+});
+
+// Clear agent conversation history
+router.delete('/:agentId/conversations/:chatId?', async (req, res) => {
+  try {
+    const agent = aiAgents.get(req.params.agentId);
+    const { chatId } = req.params;
+
+    if (!agent) {
+      return res.status(404).json({
+        success: false,
+        message: 'Agente não encontrado',
+      });
+    }
+
+    const deletedCount = await agent.clearConversationHistory(chatId);
+
+    res.json({
+      success: true,
+      message: chatId 
+        ? `Histórico limpo para o chat ${chatId}` 
+        : 'Todo histórico de conversas limpo',
+      deletedCount
+    });
+  } catch (error) {
+    console.error('Error clearing conversation history:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao limpar histórico de conversas',
+    });
+  }
+});
+
+// Get agent conversation statistics
+router.get('/:agentId/stats', async (req, res) => {
+  try {
+    const agent = aiAgents.get(req.params.agentId);
+
+    if (!agent) {
+      return res.status(404).json({
+        success: false,
+        message: 'Agente não encontrado',
+      });
+    }
+
+    const basicStats = agent.getStats();
+    const conversationStats = await agent.getConversationStats();
+
+    res.json({
+      success: true,
+      agent: {
+        ...basicStats,
+        conversations: conversationStats
+      }
+    });
+  } catch (error) {
+    console.error('Error getting agent stats:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao obter estatísticas do agente',
+    });
+  }
+});
+
 // Helper function para integração com WhatsApp
-async function processWhatsAppMessage(whatsappClient, message, sessionId) {
+async function processWhatsAppMessage(whatsappClient, messageData, sessionId) {
   try {
     // Find active agent for this session
     const agent = Array.from(aiAgents.values()).find(
@@ -687,41 +968,49 @@ async function processWhatsAppMessage(whatsappClient, message, sessionId) {
       return null;
     }
 
-    // Process message with AI agent
-    const result = await agent.processMessage(message, whatsappClient);
+    // Extract rich message information
+    const isGroup = messageData.chat?.isGroup || false;
+    const chatId = messageData.chat?.id;
+    const senderName = messageData.sender?.pushName || 'Usuário';
+
+    console.log(`Processing message from ${senderName} in ${isGroup ? 'group' : 'private chat'}: ${chatId}`);
+
+    // Process message with AI agent using rich message data
+    const result = await agent.processMessage(messageData, whatsappClient);
 
     if (result.shouldReply && result.response) {
       try {
-        // Send reply message
-        const replyOptions = {
-          quoted: result.replyToMessageId
-            ? {
-                key: {
-                  id: result.replyToMessageId,
-                  fromMe: false,
-                  remoteJid: message.key.remoteJid,
-                },
-                message: message.message,
-              }
-            : undefined,
-        };
+        // Send reply message with proper quoting
+        const replyOptions = {};
+        
+        if (result.replyToMessageId) {
+          replyOptions.quoted = {
+            key: {
+              id: result.replyToMessageId,
+              fromMe: false,
+              remoteJid: chatId,
+              participant: isGroup ? messageData.sender?.id : undefined
+            },
+            message: {
+              conversation: messageData.content || messageData.text || messageData.body
+            }
+          };
+        }
 
         await whatsappClient.sendMessage(
-          message.key.remoteJid,
-          {
-            text: result.response,
-          },
+          chatId,
+          { text: result.response },
           replyOptions
         );
 
-        console.log(
-          `AI response sent to ${message.key.remoteJid}: ${result.response}`
-        );
+        console.log(`AI response sent to ${chatId} (${isGroup ? 'group' : 'private'}): ${result.response.substring(0, 100)}...`);
         return result;
       } catch (sendError) {
         console.error('Error sending WhatsApp message:', sendError);
         return null;
       }
+    } else {
+      console.log(`Agent ${agent.id} chose not to reply to message from ${senderName}`);
     }
 
     return result;
