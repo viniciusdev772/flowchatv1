@@ -177,10 +177,21 @@ class AIAgent {
         return { shouldReply: false };
       }
 
+      // Verificação robusta de grupo usando funções oficiais da Baileys
+      const { isJidGroup, isJidBroadcast, isJidStatusBroadcast, isJidNewsletter } = require('@whiskeysockets/baileys');
+      const chatJid = chatInfo.id;
+      const isRealGroup = isJidGroup(chatJid) && !isJidBroadcast(chatJid) && !isJidStatusBroadcast(chatJid) && !isJidNewsletter(chatJid);
+      
+      // Use verificação mais rigorosa
+      const finalIsGroup = isGroup || isRealGroup;
+
       // Skip if agent doesn't want to reply to groups and this is a group message
-      if (isGroup && !this.replyToGroups) {
-        console.log(`Agent ${this.id} skipping group message (replyToGroups: false)`);
+      if (finalIsGroup && !this.replyToGroups) {
+        console.log(`🚫 Agent ${this.id} SKIPPING group message from ${chatJid} (replyToGroups: false)`);
+        console.log(`Group verification in processMessage: messageData.isGroup=${isGroup}, baileys.isJidGroup=${isRealGroup}, final=${finalIsGroup}`);
         return { shouldReply: false };
+      } else if (finalIsGroup) {
+        console.log(`✅ Agent ${this.id} PROCESSING group message from ${chatJid} (replyToGroups: true)`);
       }
 
       // Marcar mensagem(ns) como lida se cliente WhatsApp estiver disponível
@@ -855,6 +866,63 @@ router.patch('/:agentId/api-key', async (req, res) => {
   }
 });
 
+// Update AI Agent Settings
+router.patch('/:agentId/settings', async (req, res) => {
+  try {
+    const { agentId } = req.params;
+    const { 
+      replyToGroups, 
+      autoReply, 
+      smartReplies, 
+      name, 
+      description, 
+      personality, 
+      specialization,
+      creativity 
+    } = req.body;
+
+    // Get agent from memory or database
+    let agent = await ensureAgentInMemory(agentId);
+
+    if (!agent) {
+      return res.status(404).json({
+        success: false,
+        message: 'Agente não encontrado',
+      });
+    }
+
+    // Update settings (only update provided values)
+    if (replyToGroups !== undefined) {
+      agent.replyToGroups = Boolean(replyToGroups);
+      console.log(`Agent ${agentId} replyToGroups updated to: ${agent.replyToGroups}`);
+    }
+    if (autoReply !== undefined) agent.autoReply = Boolean(autoReply);
+    if (smartReplies !== undefined) agent.smartReplies = Boolean(smartReplies);
+    if (name !== undefined) agent.name = name;
+    if (description !== undefined) agent.description = description;
+    if (personality !== undefined) agent.personality = personality;
+    if (specialization !== undefined) agent.specialization = specialization;
+    if (creativity !== undefined) agent.creativity = Number(creativity);
+
+    agent.updatedAt = new Date().toISOString();
+
+    // Save to database
+    await agent.save();
+
+    res.json({
+      success: true,
+      message: 'Configurações do agente atualizadas com sucesso',
+      agent: agent.getStats(),
+    });
+  } catch (error) {
+    console.error('Error updating agent settings:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao atualizar configurações do agente',
+    });
+  }
+});
+
 // Deactivate AI Agent
 router.patch('/:agentId/deactivate', async (req, res) => {
   try {
@@ -1085,12 +1153,22 @@ async function processWhatsAppMessage(whatsappClient, messageData, sessionId) {
     const chatId = messageData.chat?.id;
     const senderName = messageData.sender?.pushName || 'Usuário';
 
-    console.log(`Processing message from ${senderName} in ${isGroup ? 'group' : 'private chat'}: ${chatId}`);
+    // Verificação adicional usando funções oficiais da Baileys
+    const { isJidGroup, isJidBroadcast, isJidStatusBroadcast, isJidNewsletter } = require('@whiskeysockets/baileys');
+    const isRealGroup = isJidGroup(chatId) && !isJidBroadcast(chatId) && !isJidStatusBroadcast(chatId) && !isJidNewsletter(chatId);
+    
+    // Use a verificação mais rigorosa
+    const finalIsGroup = isGroup || isRealGroup;
+
+    console.log(`Processing message from ${senderName} in ${finalIsGroup ? 'group' : 'private chat'}: ${chatId}`);
+    console.log(`Group verification: messageData.isGroup=${isGroup}, baileys.isJidGroup=${isRealGroup}, final=${finalIsGroup}`);
 
     // Skip if this is a group message and agent doesn't want to reply to groups
-    if (isGroup && !agent.replyToGroups) {
-      console.log(`Agent ${agent.id} skipping group message (replyToGroups: false)`);
+    if (finalIsGroup && !agent.replyToGroups) {
+      console.log(`🚫 Agent ${agent.id} SKIPPING group message from ${chatId} (replyToGroups: false)`);
       return null;
+    } else if (finalIsGroup) {
+      console.log(`✅ Agent ${agent.id} PROCESSING group message from ${chatId} (replyToGroups: true)`);
     }
 
     // Process message with AI agent using rich message data

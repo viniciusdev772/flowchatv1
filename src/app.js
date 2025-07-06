@@ -2684,6 +2684,26 @@ async function handleMessageParts(sock, message, sessionId) {
   messageTimers.set(senderKey, timer);
 }
 
+// Função robusta para verificar se é mensagem de grupo usando Baileys
+function isMessageFromGroup(message) {
+  const { isJidGroup, isJidBroadcast, isJidStatusBroadcast, isJidNewsletter } = require('@whiskeysockets/baileys');
+  
+  const jid = message.key.remoteJid;
+  const participant = message.key.participant;
+  
+  // Verificações usando funções oficiais da Baileys
+  const isGroup = isJidGroup(jid);
+  const isBroadcast = isJidBroadcast(jid);
+  const isStatusBroadcast = isJidStatusBroadcast(jid);
+  const isNewsletter = isJidNewsletter(jid);
+  
+  // Log detalhado para debug
+  logger.debug(`Message analysis: jid=${jid}, participant=${participant}, isGroup=${isGroup}, isBroadcast=${isBroadcast}, isStatus=${isStatusBroadcast}, isNewsletter=${isNewsletter}`);
+  
+  // Retorna verdadeiro apenas para grupos reais (não broadcasts ou newsletters)
+  return isGroup && !isBroadcast && !isStatusBroadcast && !isNewsletter;
+}
+
 async function processCompleteMessage(sock, message, sessionId, allMessageParts = []) {
   try {
     const jid = message.key.remoteJid;
@@ -2734,20 +2754,23 @@ async function processCompleteMessage(sock, message, sessionId, allMessageParts 
       }
     }
 
-    // Check if message is from a group
-    const isGroupMessage = jid.includes('@g.us');
+    // Check if message is from a group using robust verification
+    const isGroupMessage = isMessageFromGroup(message);
     
     // Process message only if agent exists and wants to reply to this type of chat
     if (activeAgent && messageText.trim()) {
       // Skip if this is a group message and agent doesn't want to reply to groups
       if (isGroupMessage && !activeAgent.replyToGroups) {
-        logger.info(`Agent ${activeAgent.id} skipping group message (replyToGroups: ${activeAgent.replyToGroups})`);
+        logger.info(`🚫 Agent ${activeAgent.id} SKIPPING group message from ${jid} (replyToGroups: ${activeAgent.replyToGroups})`);
+        logger.debug(`Group verification details: jid=${jid}, isGroup=${isGroupMessage}, agentReplyToGroups=${activeAgent.replyToGroups}`);
         return; // Exit early, don't process group messages when disabled
       }
       
       // Debug log for group message processing
       if (isGroupMessage) {
-        logger.info(`Agent ${activeAgent.id} processing group message (replyToGroups: ${activeAgent.replyToGroups})`);
+        logger.info(`✅ Agent ${activeAgent.id} PROCESSING group message from ${jid} (replyToGroups: ${activeAgent.replyToGroups})`);
+      } else {
+        logger.info(`✅ Agent ${activeAgent.id} PROCESSING private message from ${jid}`);
       }
       try {
         logger.info(`Processing message with AI agent ${activeAgent.id} for session ${sessionId}`);
