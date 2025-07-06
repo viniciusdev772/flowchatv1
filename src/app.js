@@ -72,7 +72,6 @@ app.use(
 
 // Rota raiz redireciona para documentação
 
-
 // Storage para uploads
 const storage = multer.diskStorage({
   destination: './uploads/',
@@ -137,7 +136,7 @@ async function getEnrichedSessionData(sessionId, sessionData) {
       user: sessionData.sock?.user || null,
       hasQrCode: !!sessionData.qrCode,
       qrCode: sessionData.qrCode || null,
-      qrCodeImage: sessionData.qrCodeImage || null
+      qrCodeImage: sessionData.qrCodeImage || null,
     };
 
     // If no QR code in memory but session is not connected, try to load from MongoDB
@@ -147,7 +146,7 @@ async function getEnrichedSessionData(sessionId, sessionData) {
         enrichedData.hasQrCode = true;
         enrichedData.qrCode = qrData.qrCode;
         enrichedData.qrCodeImage = qrData.qrCodeImage;
-        
+
         // Also update the in-memory session data
         sessionData.qrCode = qrData.qrCode;
         sessionData.qrCodeImage = qrData.qrCodeImage;
@@ -156,7 +155,9 @@ async function getEnrichedSessionData(sessionId, sessionData) {
 
     return enrichedData;
   } catch (error) {
-    logger.error(`Error enriching session data for ${sessionId}: ${error.message}`);
+    logger.error(
+      `Error enriching session data for ${sessionId}: ${error.message}`
+    );
     // Return basic data on error
     return {
       sessionId,
@@ -168,7 +169,7 @@ async function getEnrichedSessionData(sessionId, sessionData) {
       user: sessionData.sock?.user || null,
       hasQrCode: !!sessionData.qrCode,
       qrCode: sessionData.qrCode || null,
-      qrCodeImage: sessionData.qrCodeImage || null
+      qrCodeImage: sessionData.qrCodeImage || null,
     };
   }
 }
@@ -190,11 +191,11 @@ function isUserSessionOwner(sessionId, userId) {
   if (!session || !session.userId) {
     return false;
   }
-  
+
   // Convert both to strings for comparison (handles ObjectId vs string)
   const sessionUserId = session.userId.toString();
   const requestUserId = userId.toString();
-  
+
   return sessionUserId === requestUserId;
 }
 
@@ -206,21 +207,22 @@ function checkSessionOwnership(req, res, next) {
   if (!userId) {
     return res.status(401).json({
       success: false,
-      message: 'Usuário não autenticado'
+      message: 'Usuário não autenticado',
     });
   }
 
   if (!sessionId) {
     return res.status(400).json({
       success: false,
-      message: 'sessionId é obrigatório'
+      message: 'sessionId é obrigatório',
     });
   }
 
   if (!isUserSessionOwner(sessionId, userId)) {
     return res.status(403).json({
       success: false,
-      message: 'Acesso negado: você não possui permissão para acessar esta sessão'
+      message:
+        'Acesso negado: você não possui permissão para acessar esta sessão',
     });
   }
 
@@ -231,7 +233,9 @@ function checkSessionOwnership(req, res, next) {
 function getSessionWebhooks(sessionId) {
   // Legacy function - still used for memory fallback
   const sessionWebhooks = webhooks.get(sessionId) || [];
-  logger.info(`Getting webhooks for session ${sessionId} from memory: found ${sessionWebhooks.length} webhooks`);
+  logger.info(
+    `Getting webhooks for session ${sessionId} from memory: found ${sessionWebhooks.length} webhooks`
+  );
   return sessionWebhooks;
 }
 
@@ -245,24 +249,31 @@ async function getSessionWebhooksFromDB(sessionId) {
     }
 
     const webhooksCollection = db.collection('webhooks');
-    
+
     // Extract userId from session if available, or use the session directly for now
     // Since we don't have user context here, we'll search by sessionId only
-    const sessionWebhooks = await webhooksCollection.find({
-      sessionId: sessionId,
-      active: true
-    }).sort({ priority: 1, createdAt: 1 }).toArray();
+    const sessionWebhooks = await webhooksCollection
+      .find({
+        sessionId: sessionId,
+        active: true,
+      })
+      .sort({ priority: 1, createdAt: 1 })
+      .toArray();
 
     // Convert MongoDB _id to id for compatibility
-    const webhooks = sessionWebhooks.map(webhook => ({
+    const webhooks = sessionWebhooks.map((webhook) => ({
       ...webhook,
-      id: webhook.id || webhook._id.toString()
+      id: webhook.id || webhook._id.toString(),
     }));
 
-    logger.info(`Getting webhooks for session ${sessionId} from MongoDB: found ${webhooks.length} webhooks`);
+    logger.info(
+      `Getting webhooks for session ${sessionId} from MongoDB: found ${webhooks.length} webhooks`
+    );
     return webhooks;
   } catch (error) {
-    logger.error(`Error getting webhooks from DB for session ${sessionId}: ${error.message}`);
+    logger.error(
+      `Error getting webhooks from DB for session ${sessionId}: ${error.message}`
+    );
     // Fallback to memory webhooks on error
     return getSessionWebhooks(sessionId);
   }
@@ -270,17 +281,17 @@ async function getSessionWebhooksFromDB(sessionId) {
 
 function addWebhookToSession(sessionId, webhookData, userId = null) {
   const sessionWebhooks = getSessionWebhooks(sessionId);
-  
+
   // Validar limite máximo de 3 webhooks
   if (sessionWebhooks.length >= 3) {
     throw new Error('Máximo de 3 webhooks permitidos por sessão');
   }
-  
+
   // Validar se o nome já existe
-  if (sessionWebhooks.some(w => w.name === webhookData.name)) {
+  if (sessionWebhooks.some((w) => w.name === webhookData.name)) {
     throw new Error('Nome do webhook já existe nesta sessão');
   }
-  
+
   const newWebhook = {
     id: crypto.randomUUID(),
     userId: userId,
@@ -290,99 +301,122 @@ function addWebhookToSession(sessionId, webhookData, userId = null) {
     active: webhookData.active !== false, // true por padrão
     createdAt: new Date(),
     updatedAt: new Date(),
-    priority: webhookData.priority || (sessionWebhooks.length + 1),
-    events: webhookData.events || ['*'] // eventos para escutar, '*' = todos
+    priority: webhookData.priority || sessionWebhooks.length + 1,
+    events: webhookData.events || ['*'], // eventos para escutar, '*' = todos
   };
-  
+
   sessionWebhooks.push(newWebhook);
   webhooks.set(sessionId, sessionWebhooks);
-  
+
   // Save to MongoDB
   saveWebhookData(sessionId, newWebhook, userId);
-  
+
   return newWebhook;
 }
 
 function removeWebhookFromSession(sessionId, webhookId, userId = null) {
   const sessionWebhooks = getSessionWebhooks(sessionId);
-  const webhookIndex = sessionWebhooks.findIndex(w => w.id === webhookId);
-  
+  const webhookIndex = sessionWebhooks.findIndex((w) => w.id === webhookId);
+
   if (webhookIndex === -1) {
     throw new Error('Webhook não encontrado');
   }
-  
+
   const removedWebhook = sessionWebhooks.splice(webhookIndex, 1)[0];
   webhooks.set(sessionId, sessionWebhooks);
-  
+
   // Save to MongoDB
   if (sessionWebhooks.length > 0) {
     saveWebhookData(sessionId, sessionWebhooks, userId);
   } else {
     deleteWebhookData(sessionId, userId);
   }
-  
+
   return removedWebhook;
 }
 
-function updateWebhookInSession(sessionId, webhookId, updateData, userId = null) {
+function updateWebhookInSession(
+  sessionId,
+  webhookId,
+  updateData,
+  userId = null
+) {
   const sessionWebhooks = getSessionWebhooks(sessionId);
-  const webhook = sessionWebhooks.find(w => w.id === webhookId);
-  
+  const webhook = sessionWebhooks.find((w) => w.id === webhookId);
+
   if (!webhook) {
     throw new Error('Webhook não encontrado');
   }
-  
+
   // Validar se o novo nome já existe (se está sendo alterado)
   if (updateData.name && updateData.name !== webhook.name) {
-    if (sessionWebhooks.some(w => w.name === updateData.name && w.id !== webhookId)) {
+    if (
+      sessionWebhooks.some(
+        (w) => w.name === updateData.name && w.id !== webhookId
+      )
+    ) {
       throw new Error('Nome do webhook já existe nesta sessão');
     }
   }
-  
+
   // Atualizar campos permitidos
   if (updateData.name !== undefined) webhook.name = updateData.name;
   if (updateData.url !== undefined) webhook.url = updateData.url;
   if (updateData.active !== undefined) webhook.active = updateData.active;
   if (updateData.priority !== undefined) webhook.priority = updateData.priority;
   if (updateData.events !== undefined) webhook.events = updateData.events;
-  
+
   webhook.updatedAt = new Date().toISOString();
-  
+
   webhooks.set(sessionId, sessionWebhooks);
-  
+
   // Save to MongoDB
   saveWebhookData(sessionId, sessionWebhooks, userId);
-  
+
   return webhook;
 }
 
 function getActiveWebhooks(sessionId, eventType = null) {
   // Legacy function - still used for memory fallback
   const sessionWebhooks = getSessionWebhooks(sessionId);
-  logger.info(`Session ${sessionId} has ${sessionWebhooks.length} total webhooks (memory)`);
-  
+  logger.info(
+    `Session ${sessionId} has ${sessionWebhooks.length} total webhooks (memory)`
+  );
+
   const activeWebhooks = sessionWebhooks
-    .filter(w => w.active)
-    .filter(w => !eventType || w.events.includes('*') || w.events.includes(eventType))
+    .filter((w) => w.active)
+    .filter(
+      (w) =>
+        !eventType || w.events.includes('*') || w.events.includes(eventType)
+    )
     .sort((a, b) => a.priority - b.priority);
-    
-  logger.info(`Session ${sessionId} has ${activeWebhooks.length} active webhooks for event ${eventType} (memory)`);
-  
+
+  logger.info(
+    `Session ${sessionId} has ${activeWebhooks.length} active webhooks for event ${eventType} (memory)`
+  );
+
   return activeWebhooks;
 }
 
 // New async function to get active webhooks from MongoDB
 async function getActiveWebhooksFromDB(sessionId, eventType = null) {
   const sessionWebhooks = await getSessionWebhooksFromDB(sessionId);
-  logger.info(`Session ${sessionId} has ${sessionWebhooks.length} total webhooks (DB)`);
-  
+  logger.info(
+    `Session ${sessionId} has ${sessionWebhooks.length} total webhooks (DB)`
+  );
+
   const activeWebhooks = sessionWebhooks
-    .filter(w => w.active)
-    .filter(w => !eventType || w.events.includes('*') || w.events.includes(eventType))
+    .filter((w) => w.active)
+    .filter(
+      (w) =>
+        !eventType || w.events.includes('*') || w.events.includes(eventType)
+    )
     .sort((a, b) => a.priority - b.priority);
-    
-  logger.info(`Session ${sessionId} has ${activeWebhooks.length} active webhooks for event ${eventType} (DB)`);
-  
+
+  logger.info(
+    `Session ${sessionId} has ${activeWebhooks.length} active webhooks for event ${eventType} (DB)`
+  );
+
   return activeWebhooks;
 }
 
@@ -390,7 +424,10 @@ async function getActiveWebhooksFromDB(sessionId, eventType = null) {
 const groupsRouter = require('./api/groups');
 
 // Importar novas APIs para coleta e resumo de mensagens
-const { router: messageCollectorRouter, integrateWithMainApp } = require('./api/messageCollector');
+const {
+  router: messageCollectorRouter,
+  integrateWithMainApp,
+} = require('./api/messageCollector');
 const aiSummaryRouter = require('./api/aiSummary');
 
 // Importar rotas de agentes de IA
@@ -476,21 +513,22 @@ async function sendMessageWithHumanBehavior(
 
     // Check for active AI agent for this session (only mark as read if agent is active)
     const { aiAgents, ensureAgentInMemory } = require('./routes/aiAgents');
-    
-    let activeAgent = Array.from(aiAgents.values()).find(agent => 
-      agent.sessionId === sessionId && agent.isActive && agent.autoReply
+
+    let activeAgent = Array.from(aiAgents.values()).find(
+      (agent) =>
+        agent.sessionId === sessionId && agent.isActive && agent.autoReply
     );
-    
+
     // If no agent in memory, try to load from database
     if (!activeAgent) {
       const db = require('./config/database').getDb();
       if (db) {
-        const agentData = await db.collection('ai_agents').findOne({ 
-          sessionId: sessionId, 
+        const agentData = await db.collection('ai_agents').findOne({
+          sessionId: sessionId,
           isActive: true,
-          autoReply: true 
+          autoReply: true,
         });
-        
+
         if (agentData) {
           activeAgent = await ensureAgentInMemory(agentData._id);
         }
@@ -630,8 +668,8 @@ async function saveSessionData(sessionId, sessionData) {
           {
             $set: {
               ...dataToSave,
-              updatedAt: new Date()
-            }
+              updatedAt: new Date(),
+            },
           },
           { upsert: true }
         );
@@ -663,8 +701,8 @@ async function saveQRCodeData(sessionId, qrCode, qrCodeImage) {
           qrCodeImage,
           createdAt: new Date(),
           expiresAt: new Date(Date.now() + 5 * 60 * 1000), // 5 minutes TTL
-          isActive: true
-        }
+          isActive: true,
+        },
       },
       { upsert: true }
     );
@@ -681,20 +719,20 @@ async function loadQRCodeData(sessionId) {
 
   try {
     const qrCodes = db.collection('qr_codes');
-    const qrData = await qrCodes.findOne({ 
-      sessionId, 
+    const qrData = await qrCodes.findOne({
+      sessionId,
       isActive: true,
-      expiresAt: { $gt: new Date() }
+      expiresAt: { $gt: new Date() },
     });
-    
+
     if (qrData) {
       logger.info(`QR Code loaded from MongoDB for session ${sessionId}`);
       return {
         qrCode: qrData.qrCode,
-        qrCodeImage: qrData.qrCodeImage
+        qrCodeImage: qrData.qrCodeImage,
       };
     }
-    
+
     return null;
   } catch (error) {
     logger.warn(`Failed to load QR code from MongoDB: ${error.message}`);
@@ -727,7 +765,7 @@ async function cleanupExpiredQRCodes() {
   try {
     const qrCodes = db.collection('qr_codes');
     const result = await qrCodes.deleteMany({
-      expiresAt: { $lt: new Date() }
+      expiresAt: { $lt: new Date() },
     });
     if (result.deletedCount > 0) {
       logger.info(`Cleaned up ${result.deletedCount} expired QR codes`);
@@ -744,7 +782,7 @@ async function saveWebhookData(sessionId, webhookData, userId = null) {
 
   try {
     const webhooksCollection = db.collection('webhooks');
-    
+
     // If webhookData is a single webhook object, save it as individual document
     if (webhookData.id) {
       await webhooksCollection.insertOne({
@@ -752,9 +790,11 @@ async function saveWebhookData(sessionId, webhookData, userId = null) {
         userId: userId,
         sessionId: sessionId,
         createdAt: webhookData.createdAt || new Date(),
-        updatedAt: new Date()
+        updatedAt: new Date(),
       });
-      logger.info(`Individual webhook saved to MongoDB for session ${sessionId}`);
+      logger.info(
+        `Individual webhook saved to MongoDB for session ${sessionId}`
+      );
     } else {
       // Legacy support: save as array (deprecated)
       await webhooksCollection.updateOne(
@@ -764,15 +804,19 @@ async function saveWebhookData(sessionId, webhookData, userId = null) {
             sessionId,
             userId: userId,
             webhooks: webhookData,
-            updatedAt: new Date()
-          }
+            updatedAt: new Date(),
+          },
         },
         { upsert: true }
       );
-      logger.info(`Webhook configuration saved to MongoDB for session ${sessionId}`);
+      logger.info(
+        `Webhook configuration saved to MongoDB for session ${sessionId}`
+      );
     }
   } catch (error) {
-    logger.warn(`Failed to save webhook configuration to MongoDB: ${error.message}`);
+    logger.warn(
+      `Failed to save webhook configuration to MongoDB: ${error.message}`
+    );
   }
 }
 
@@ -784,15 +828,19 @@ async function loadWebhookData(sessionId) {
   try {
     const webhooksCollection = db.collection('webhooks');
     const webhookDoc = await webhooksCollection.findOne({ sessionId });
-    
+
     if (webhookDoc && webhookDoc.webhooks) {
-      logger.info(`Webhook configuration loaded from MongoDB for session ${sessionId}`);
+      logger.info(
+        `Webhook configuration loaded from MongoDB for session ${sessionId}`
+      );
       return webhookDoc.webhooks;
     }
-    
+
     return null;
   } catch (error) {
-    logger.warn(`Failed to load webhook configuration from MongoDB: ${error.message}`);
+    logger.warn(
+      `Failed to load webhook configuration from MongoDB: ${error.message}`
+    );
     return null;
   }
 }
@@ -810,9 +858,13 @@ async function deleteWebhookData(sessionId, userId = null) {
     } else {
       await webhooksCollection.deleteMany({ sessionId });
     }
-    logger.info(`Webhook configuration deleted from MongoDB for session ${sessionId}`);
+    logger.info(
+      `Webhook configuration deleted from MongoDB for session ${sessionId}`
+    );
   } catch (error) {
-    logger.warn(`Failed to delete webhook configuration from MongoDB: ${error.message}`);
+    logger.warn(
+      `Failed to delete webhook configuration from MongoDB: ${error.message}`
+    );
   }
 }
 
@@ -850,7 +902,7 @@ async function saveMessageToMongoDB(sessionId, messageId, messageData) {
       messageText: extractMessageText(messageData.message),
       messageType: getMessageType(messageData.message),
       chatInfo: chatInfo, // Include group info if available
-      createdAt: new Date()
+      createdAt: new Date(),
     };
 
     await messagesCollection.updateOne(
@@ -858,12 +910,12 @@ async function saveMessageToMongoDB(sessionId, messageId, messageData) {
       { $set: document },
       { upsert: true }
     );
-    
+
     // Save/update group info separately if it's a group
     if (chatInfo && chatInfo.type === 'group') {
       await saveGroupInfoToMongoDB(sessionId, messageData.jid, chatInfo);
     }
-    
+
     logger.debug(`Message saved to MongoDB: ${sessionId}/${messageId}`);
   } catch (error) {
     logger.warn(`Failed to save message to MongoDB: ${error.message}`);
@@ -881,7 +933,7 @@ async function saveGroupInfoToMongoDB(sessionId, groupJid, groupInfo) {
       sessionId,
       jid: groupJid,
       ...groupInfo,
-      lastUpdated: new Date()
+      lastUpdated: new Date(),
     };
 
     await groupsCollection.updateOne(
@@ -889,7 +941,7 @@ async function saveGroupInfoToMongoDB(sessionId, groupJid, groupInfo) {
       { $set: document },
       { upsert: true }
     );
-    
+
     logger.debug(`Group info saved to MongoDB: ${sessionId}/${groupJid}`);
   } catch (error) {
     logger.warn(`Failed to save group info to MongoDB: ${error.message}`);
@@ -910,7 +962,7 @@ async function loadMessagesFromMongoDB(sessionId, limit = 50, offset = 0) {
       .limit(limit)
       .toArray();
 
-    return messages.map(msg => ({
+    return messages.map((msg) => ({
       messageId: msg.messageId,
       jid: msg.jid,
       timestamp: msg.timestamp,
@@ -918,7 +970,7 @@ async function loadMessagesFromMongoDB(sessionId, limit = 50, offset = 0) {
       messageText: msg.messageText,
       messageType: msg.messageType,
       chatInfo: msg.chatInfo || null, // Include saved group/contact info
-      message: msg.message // Full message object for compatibility
+      message: msg.message, // Full message object for compatibility
     }));
   } catch (error) {
     logger.warn(`Failed to load messages from MongoDB: ${error.message}`);
@@ -928,12 +980,14 @@ async function loadMessagesFromMongoDB(sessionId, limit = 50, offset = 0) {
 
 // Helper function to extract message text
 function extractMessageText(message) {
-  return message.message?.conversation ||
-         message.message?.extendedTextMessage?.text ||
-         message.message?.imageMessage?.caption ||
-         message.message?.videoMessage?.caption ||
-         message.message?.documentMessage?.caption ||
-         '[Media]';
+  return (
+    message.message?.conversation ||
+    message.message?.extendedTextMessage?.text ||
+    message.message?.imageMessage?.caption ||
+    message.message?.videoMessage?.caption ||
+    message.message?.documentMessage?.caption ||
+    '[Media]'
+  );
 }
 
 // Helper function to get message type
@@ -967,21 +1021,27 @@ async function loadExistingSessions() {
     for (const sessionId of sessionDirs) {
       try {
         let userId = null;
-        
+
         // Try to load userId from MongoDB first
         const db = database.getDb();
         if (db) {
           try {
-            const existingSession = await db.collection('whatsapp_sessions').findOne({ sessionId });
+            const existingSession = await db
+              .collection('whatsapp_sessions')
+              .findOne({ sessionId });
             if (existingSession && existingSession.userId) {
               userId = existingSession.userId;
-              logger.info(`Recuperando sessão ${sessionId} para usuário ${userId}...`);
+              logger.info(
+                `Recuperando sessão ${sessionId} para usuário ${userId}...`
+              );
             }
           } catch (dbError) {
-            logger.warn(`Erro ao buscar userId no MongoDB para sessão ${sessionId}: ${dbError.message}`);
+            logger.warn(
+              `Erro ao buscar userId no MongoDB para sessão ${sessionId}: ${dbError.message}`
+            );
           }
         }
-        
+
         // Only recover session if we have a valid userId or if no database is available
         if (userId || !database.getDb()) {
           const sessionDataFile = path.join(
@@ -995,10 +1055,10 @@ async function loadExistingSessions() {
             const savedData = JSON.parse(
               fs.readFileSync(sessionDataFile, 'utf8')
             );
-            
+
             // Recover session with proper userId
             await createWhatsAppSession(sessionId, userId);
-            
+
             // Try to recover QR code data from MongoDB if session is not connected
             const sessionData = sessions.get(sessionId);
             if (sessionData && !sessionData.isConnected) {
@@ -1006,17 +1066,25 @@ async function loadExistingSessions() {
               if (qrData) {
                 sessionData.qrCode = qrData.qrCode;
                 sessionData.qrCodeImage = qrData.qrCodeImage;
-                logger.info(`QR Code recovered from MongoDB for session ${sessionId}`);
+                logger.info(
+                  `QR Code recovered from MongoDB for session ${sessionId}`
+                );
               }
             }
-            
+
             // Try to recover webhook configuration from MongoDB
             const webhookData = await loadWebhookData(sessionId);
             if (webhookData) {
               webhooks.set(sessionId, webhookData);
-              logger.info(`Webhook configuration recovered from MongoDB for session ${sessionId}: ${JSON.stringify(webhookData)}`);
+              logger.info(
+                `Webhook configuration recovered from MongoDB for session ${sessionId}: ${JSON.stringify(
+                  webhookData
+                )}`
+              );
             } else {
-              logger.info(`No webhook configuration found in MongoDB for session ${sessionId}`);
+              logger.info(
+                `No webhook configuration found in MongoDB for session ${sessionId}`
+              );
             }
           } else {
             // Se não há dados salvos, mas existe diretório de auth, tentar criar sessão
@@ -1026,7 +1094,9 @@ async function loadExistingSessions() {
             await createWhatsAppSession(sessionId, userId);
           }
         } else {
-          logger.warn(`Skipping recovery of session ${sessionId} - no userId found in database. Session will need to be recreated by user.`);
+          logger.warn(
+            `Skipping recovery of session ${sessionId} - no userId found in database. Session will need to be recreated by user.`
+          );
         }
       } catch (error) {
         logger.error(`Erro ao recuperar sessão ${sessionId}: ${error.message}`);
@@ -1046,16 +1116,21 @@ async function cleanupOrphanedSessions() {
     }
 
     // Find sessions with null userId
-    const orphanedSessions = await db.collection('whatsapp_sessions').find({ 
-      userId: null 
-    }).toArray();
+    const orphanedSessions = await db
+      .collection('whatsapp_sessions')
+      .find({
+        userId: null,
+      })
+      .toArray();
 
     if (orphanedSessions.length > 0) {
-      logger.info(`Encontradas ${orphanedSessions.length} sessões órfãs (sem userId)`);
-      
+      logger.info(
+        `Encontradas ${orphanedSessions.length} sessões órfãs (sem userId)`
+      );
+
       for (const session of orphanedSessions) {
         const sessionId = session.sessionId;
-        
+
         // Remove from memory if exists
         if (sessions.has(sessionId)) {
           const sessionData = sessions.get(sessionId);
@@ -1069,7 +1144,7 @@ async function cleanupOrphanedSessions() {
           sessions.delete(sessionId);
           logger.info(`Removida sessão órfã ${sessionId} da memória`);
         }
-        
+
         // Remove from database
         await db.collection('whatsapp_sessions').deleteOne({ sessionId });
         logger.info(`Removida sessão órfã ${sessionId} do banco de dados`);
@@ -1093,11 +1168,11 @@ function storeMessage(sessionId, messageId, message) {
       timestamp: new Date(),
       jid: message.key.remoteJid,
     };
-    
+
     sessionMessages.set(messageId, messageData);
 
     // Save to MongoDB asynchronously
-    saveMessageToMongoDB(sessionId, messageId, messageData).catch(error => {
+    saveMessageToMongoDB(sessionId, messageId, messageData).catch((error) => {
       logger.warn(`Failed to save message to MongoDB: ${error.message}`);
     });
 
@@ -1141,15 +1216,19 @@ async function getContactOrGroupInfo(jid, sock) {
       // É um grupo - buscar metadados do grupo
       try {
         const groupMetadata = await sock.groupMetadata(jid);
-        
+
         // Get admin list
         const admins = groupMetadata.participants
-          ? groupMetadata.participants.filter(p => p.admin === 'admin' || p.admin === 'superadmin').map(p => p.id)
+          ? groupMetadata.participants
+              .filter((p) => p.admin === 'admin' || p.admin === 'superadmin')
+              .map((p) => p.id)
           : [];
-        
+
         // Get super admins
         const superAdmins = groupMetadata.participants
-          ? groupMetadata.participants.filter(p => p.admin === 'superadmin').map(p => p.id)
+          ? groupMetadata.participants
+              .filter((p) => p.admin === 'superadmin')
+              .map((p) => p.id)
           : [];
 
         return {
@@ -1166,13 +1245,13 @@ async function getContactOrGroupInfo(jid, sock) {
           superAdmins: superAdmins,
           announce: groupMetadata.announce || false, // Only admins can send messages
           restrict: groupMetadata.restrict || false, // Only admins can edit group info
-          subjectTime: groupMetadata.subjectTime 
+          subjectTime: groupMetadata.subjectTime
             ? new Date(groupMetadata.subjectTime * 1000).toISOString()
             : null,
-          descTime: groupMetadata.descTime 
+          descTime: groupMetadata.descTime
             ? new Date(groupMetadata.descTime * 1000).toISOString()
             : null,
-          groupInviteCode: null // We'll try to get this separately if needed
+          groupInviteCode: null, // We'll try to get this separately if needed
         };
       } catch (error) {
         logger.warn(
@@ -1192,19 +1271,23 @@ async function getContactOrGroupInfo(jid, sock) {
           restrict: false,
           subjectTime: null,
           descTime: null,
-          groupInviteCode: null
+          groupInviteCode: null,
         };
       }
     } else if (jid.endsWith('@s.whatsapp.net')) {
       // É um contato individual - buscar nome
       try {
         // Tentar buscar nome do contato na agenda
-        const contactInfo = await sock.onWhatsApp(jid.includes('@') ? jid.split('@')[0] : jid);
+        const contactInfo = await sock.onWhatsApp(
+          jid.includes('@') ? jid.split('@')[0] : jid
+        );
         if (contactInfo && contactInfo.length > 0) {
           return {
             type: 'contact',
             name:
-              contactInfo[0].name || contactInfo[0].notify || (jid.includes('@') ? jid.split('@')[0] : jid),
+              contactInfo[0].name ||
+              contactInfo[0].notify ||
+              (jid.includes('@') ? jid.split('@')[0] : jid),
             number: jid.includes('@') ? jid.split('@')[0] : jid,
             exists: contactInfo[0].exists,
             isRegistered: true,
@@ -1248,30 +1331,43 @@ async function getContactOrGroupInfo(jid, sock) {
 // Função para enviar webhook
 async function sendWebhook(sessionId, eventType, data) {
   try {
-    logger.info(`Attempting to send webhook for session ${sessionId}, event: ${eventType}`);
-    
+    logger.info(
+      `Attempting to send webhook for session ${sessionId}, event: ${eventType}`
+    );
+
     // Obter webhooks ativos para este evento
     const activeWebhooks = await getActiveWebhooksFromDB(sessionId, eventType);
-    logger.info(`Found ${activeWebhooks.length} active webhooks for session ${sessionId}, event: ${eventType}`);
-    
+    logger.info(
+      `Found ${activeWebhooks.length} active webhooks for session ${sessionId}, event: ${eventType}`
+    );
+
     if (activeWebhooks.length === 0) {
-      logger.warn(`No active webhooks found for session ${sessionId}, event: ${eventType}`);
+      logger.warn(
+        `No active webhooks found for session ${sessionId}, event: ${eventType}`
+      );
       return;
     }
 
     // Filtrar mensagens de tipo não suportado para evitar spam de webhooks
     if (eventType === 'messages.upsert' && data) {
       // Lista de critérios para filtrar mensagens não suportadas
-      const isUnsupportedMessage = (
-        data.messageType === 'unknown' || 
+      const isUnsupportedMessage =
+        data.messageType === 'unknown' ||
         data.content === 'Tipo de mensagem não suportado' ||
-        (data.messageType === null && data.content === 'Tipo de mensagem não suportado') ||
+        (data.messageType === null &&
+          data.content === 'Tipo de mensagem não suportado') ||
         // Filtrar mensagens vazias ou malformadas
-        (!data.messageType && !data.content && !data.mediaData && !data.mediaDownload)
-      );
-      
+        (!data.messageType &&
+          !data.content &&
+          !data.mediaData &&
+          !data.mediaDownload);
+
       if (isUnsupportedMessage) {
-        logger.info(`🚫 Mensagem filtrada (tipo não suportado) - Session: ${sessionId}, Type: ${data.messageType || 'null'}, Content: "${data.content || 'empty'}"`);
+        logger.info(
+          `🚫 Mensagem filtrada (tipo não suportado) - Session: ${sessionId}, Type: ${
+            data.messageType || 'null'
+          }, Content: "${data.content || 'empty'}"`
+        );
         return;
       }
     }
@@ -1287,15 +1383,15 @@ async function sendWebhook(sessionId, eventType, data) {
             data.chat.id,
             session.sock
           );
-          
+
           // Enhanced chat information organization
           enrichedData.chat = {
             ...enrichedData.chat,
             name: chatInfo.name,
             type: chatInfo.type,
-            isGroup: chatInfo.type === 'group'
+            isGroup: chatInfo.type === 'group',
           };
-          
+
           // Add group-specific information
           if (chatInfo.type === 'group') {
             enrichedData.chat.group = {
@@ -1306,40 +1402,50 @@ async function sendWebhook(sessionId, eventType, data) {
               isRestrict: chatInfo.isRestrict,
               createdAt: chatInfo.createdAt,
               admins: chatInfo.admins || [],
-              superAdmins: chatInfo.superAdmins || []
+              superAdmins: chatInfo.superAdmins || [],
             };
           } else {
             // Add private chat information
             enrichedData.chat.contact = {
               name: chatInfo.name,
               number: data.chat?.id ? data.chat.id.split('@')[0] : 'unknown',
-              isRegistered: chatInfo.isRegistered
+              isRegistered: chatInfo.isRegistered,
             };
           }
 
           // Enhanced participant information for group messages
-          if (chatInfo.type === 'group' && data.sender.id && !data.sender.isMe) {
+          if (
+            chatInfo.type === 'group' &&
+            data.sender.id &&
+            !data.sender.isMe
+          ) {
             try {
               const participantInfo = await getContactOrGroupInfo(
                 data.sender.id,
                 session.sock
               );
-              
+
               enrichedData.sender = {
                 ...enrichedData.sender,
                 name: participantInfo.name,
-                number: data.sender?.id ? data.sender.id.split('@')[0] : 'unknown',
-                isRegistered: participantInfo.isRegistered
+                number: data.sender?.id
+                  ? data.sender.id.split('@')[0]
+                  : 'unknown',
+                isRegistered: participantInfo.isRegistered,
               };
             } catch (error) {
               logger.warn(
                 `Erro ao buscar info do participante ${data.sender.id}: ${error.message}`
               );
-              
+
               enrichedData.sender = {
                 ...enrichedData.sender,
-                name: data.sender?.id ? data.sender.id.split('@')[0] : 'unknown',
-                number: data.sender?.id ? data.sender.id.split('@')[0] : 'unknown'
+                name: data.sender?.id
+                  ? data.sender.id.split('@')[0]
+                  : 'unknown',
+                number: data.sender?.id
+                  ? data.sender.id.split('@')[0]
+                  : 'unknown',
               };
             }
           } else if (chatInfo.type === 'private') {
@@ -1348,7 +1454,7 @@ async function sendWebhook(sessionId, eventType, data) {
               ...enrichedData.sender,
               name: chatInfo.name,
               number: data.chat?.id ? data.chat.id.split('@')[0] : 'unknown',
-              isRegistered: chatInfo.isRegistered
+              isRegistered: chatInfo.isRegistered,
             };
           }
         } catch (error) {
@@ -1362,7 +1468,7 @@ async function sendWebhook(sessionId, eventType, data) {
       sessionId,
       eventType,
       timestamp: new Date().toISOString(),
-      data: enrichedData
+      data: enrichedData,
     };
 
     // Enviar para todos os webhooks ativos em paralelo
@@ -1373,8 +1479,8 @@ async function sendWebhook(sessionId, eventType, data) {
           webhook: {
             id: webhook.id,
             name: webhook.name,
-            priority: webhook.priority
-          }
+            priority: webhook.priority,
+          },
         };
 
         const response = await fetch(webhook.url, {
@@ -1384,7 +1490,7 @@ async function sendWebhook(sessionId, eventType, data) {
             'User-Agent': 'Baileys-API-Webhook/1.0.0',
             'X-Webhook-ID': webhook.id,
             'X-Webhook-Name': webhook.name,
-            'X-Webhook-Priority': webhook.priority.toString()
+            'X-Webhook-Priority': webhook.priority.toString(),
           },
           body: JSON.stringify(webhookPayload),
           timeout: 15000, // 15 segundos timeout
@@ -1394,9 +1500,15 @@ async function sendWebhook(sessionId, eventType, data) {
           logger.warn(
             `Webhook ${webhook.name} (${webhook.id}) failed for session ${sessionId}: ${response.status} ${response.statusText}`
           );
-          return { success: false, webhook: webhook.id, error: `${response.status} ${response.statusText}` };
+          return {
+            success: false,
+            webhook: webhook.id,
+            error: `${response.status} ${response.statusText}`,
+          };
         } else {
-          logger.info(`Webhook ${webhook.name} sent successfully for session ${sessionId}`);
+          logger.info(
+            `Webhook ${webhook.name} sent successfully for session ${sessionId}`
+          );
           return { success: true, webhook: webhook.id };
         }
       } catch (error) {
@@ -1409,16 +1521,21 @@ async function sendWebhook(sessionId, eventType, data) {
 
     // Aguardar todos os webhooks (máximo 15 segundos cada)
     const results = await Promise.allSettled(webhookPromises);
-    
-    const successCount = results.filter(r => r.status === 'fulfilled' && r.value.success).length;
-    const totalCount = activeWebhooks.length;
-    
-    if (successCount > 0) {
-      logger.info(`Webhooks sent: ${successCount}/${totalCount} successful for session ${sessionId} event ${eventType}`);
-    } else {
-      logger.warn(`All webhooks failed for session ${sessionId} event ${eventType}`);
-    }
 
+    const successCount = results.filter(
+      (r) => r.status === 'fulfilled' && r.value.success
+    ).length;
+    const totalCount = activeWebhooks.length;
+
+    if (successCount > 0) {
+      logger.info(
+        `Webhooks sent: ${successCount}/${totalCount} successful for session ${sessionId} event ${eventType}`
+      );
+    } else {
+      logger.warn(
+        `All webhooks failed for session ${sessionId} event ${eventType}`
+      );
+    }
   } catch (error) {
     logger.error(
       `Error in sendWebhook for session ${sessionId}: ${error.message}`
@@ -1437,19 +1554,21 @@ async function createDownloadIndexes() {
       logger.warn('MongoDB não disponível - índices de download não criados');
       return;
     }
-    
+
     const collection = db.collection(DOWNLOADS_COLLECTION);
-    
+
     // Índices para melhorar performance
     await collection.createIndex({ downloadId: 1 }, { unique: true });
     await collection.createIndex({ sessionId: 1 });
     await collection.createIndex({ expiresAt: 1 });
     await collection.createIndex({ messageId: 1 });
     await collection.createIndex({ createdAt: -1 });
-    
+
     logger.info('📊 Índices MongoDB criados para downloads');
   } catch (error) {
-    logger.warn(`Erro ao criar índices MongoDB para downloads: ${error.message}`);
+    logger.warn(
+      `Erro ao criar índices MongoDB para downloads: ${error.message}`
+    );
   }
 }
 
@@ -1457,24 +1576,30 @@ async function createDownloadIndexes() {
 setTimeout(createDownloadIndexes, 5000); // 5 segundos após startup
 
 // Log sobre a migração para MongoDB
-logger.info('🔄 Sistema de downloads migrado para MongoDB - metadados persistidos permanentemente');
+logger.info(
+  '🔄 Sistema de downloads migrado para MongoDB - metadados persistidos permanentemente'
+);
 
 // Funções para gerenciar downloads no MongoDB
 async function saveDownloadMetadata(downloadMetadata) {
   try {
     const db = database.getDb();
     if (!db) {
-      logger.warn('MongoDB não disponível - metadados de download não persistidos');
+      logger.warn(
+        'MongoDB não disponível - metadados de download não persistidos'
+      );
       return false;
     }
-    
+
     await db.collection(DOWNLOADS_COLLECTION).insertOne({
       ...downloadMetadata,
       createdAt: new Date(),
-      updatedAt: new Date()
+      updatedAt: new Date(),
     });
-    
-    logger.debug(`💾 Metadados salvos no MongoDB: ${downloadMetadata.downloadId}`);
+
+    logger.debug(
+      `💾 Metadados salvos no MongoDB: ${downloadMetadata.downloadId}`
+    );
     return true;
   } catch (error) {
     logger.error(`Erro ao salvar metadados de download: ${error.message}`);
@@ -1489,11 +1614,11 @@ async function getDownloadMetadata(downloadId) {
       logger.warn('MongoDB não disponível - usando fallback em memória');
       return null;
     }
-    
+
     const metadata = await db.collection(DOWNLOADS_COLLECTION).findOne({
-      downloadId: downloadId
+      downloadId: downloadId,
     });
-    
+
     return metadata;
   } catch (error) {
     logger.error(`Erro ao buscar metadados de download: ${error.message}`);
@@ -1505,14 +1630,16 @@ async function deleteDownloadMetadata(downloadId) {
   try {
     const db = database.getDb();
     if (!db) {
-      logger.warn('MongoDB não disponível - não foi possível remover metadados');
+      logger.warn(
+        'MongoDB não disponível - não foi possível remover metadados'
+      );
       return false;
     }
-    
+
     const result = await db.collection(DOWNLOADS_COLLECTION).deleteOne({
-      downloadId: downloadId
+      downloadId: downloadId,
     });
-    
+
     return result.deletedCount > 0;
   } catch (error) {
     logger.error(`Erro ao remover metadados de download: ${error.message}`);
@@ -1526,12 +1653,15 @@ async function getExpiredDownloads() {
     if (!db) {
       return [];
     }
-    
+
     const now = new Date();
-    const expiredDownloads = await db.collection(DOWNLOADS_COLLECTION).find({
-      expiresAt: { $lt: now }
-    }).toArray();
-    
+    const expiredDownloads = await db
+      .collection(DOWNLOADS_COLLECTION)
+      .find({
+        expiresAt: { $lt: now },
+      })
+      .toArray();
+
     return expiredDownloads;
   } catch (error) {
     logger.error(`Erro ao buscar downloads expirados: ${error.message}`);
@@ -1545,12 +1675,14 @@ async function getAllDownloads(sessionId = null) {
     if (!db) {
       return [];
     }
-    
+
     const query = sessionId ? { sessionId } : {};
-    const downloads = await db.collection(DOWNLOADS_COLLECTION).find(query)
+    const downloads = await db
+      .collection(DOWNLOADS_COLLECTION)
+      .find(query)
       .sort({ createdAt: -1 })
       .toArray();
-    
+
     return downloads;
   } catch (error) {
     logger.error(`Erro ao listar downloads: ${error.message}`);
@@ -1562,11 +1694,11 @@ async function getAllDownloads(sessionId = null) {
 async function cleanupExpiredFiles() {
   const fs = require('fs');
   let cleanedCount = 0;
-  
+
   try {
     // Buscar downloads expirados no MongoDB
     const expiredDownloads = await getExpiredDownloads();
-    
+
     for (const metadata of expiredDownloads) {
       try {
         // Remover arquivo do disco
@@ -1574,21 +1706,23 @@ async function cleanupExpiredFiles() {
           fs.unlinkSync(metadata.filePath);
           cleanedCount++;
         }
-        
+
         // Remover metadados do MongoDB
         await deleteDownloadMetadata(metadata.downloadId);
-        
       } catch (error) {
-        logger.warn(`Erro ao remover arquivo expirado ${metadata.downloadId}: ${error.message}`);
+        logger.warn(
+          `Erro ao remover arquivo expirado ${metadata.downloadId}: ${error.message}`
+        );
       }
     }
-    
+
     if (cleanedCount > 0) {
-      logger.info(`🧹 Limpeza automática: ${cleanedCount} arquivos expirados removidos do disco e MongoDB`);
+      logger.info(
+        `🧹 Limpeza automática: ${cleanedCount} arquivos expirados removidos do disco e MongoDB`
+      );
     } else {
       logger.debug(`🧹 Limpeza automática: nenhum arquivo expirado encontrado`);
     }
-    
   } catch (error) {
     logger.error(`Erro na limpeza automática: ${error.message}`);
   }
@@ -1612,13 +1746,13 @@ function getFileExtension(mimetype, messageType = null, isPtt = false) {
   const mimeToExt = {
     // Imagens
     'image/jpeg': 'jpg',
-    'image/jpg': 'jpg', 
+    'image/jpg': 'jpg',
     'image/png': 'png',
     'image/gif': 'gif',
     'image/webp': 'webp',
     'image/bmp': 'bmp',
     'image/tiff': 'tiff',
-    
+
     // Vídeos
     'video/mp4': 'mp4',
     'video/webm': 'webm',
@@ -1626,7 +1760,7 @@ function getFileExtension(mimetype, messageType = null, isPtt = false) {
     'video/x-msvideo': 'avi',
     'video/3gpp': '3gp',
     'video/x-ms-wmv': 'wmv',
-    
+
     // Áudios comuns
     'audio/mpeg': 'mp3',
     'audio/mp3': 'mp3',
@@ -1640,38 +1774,44 @@ function getFileExtension(mimetype, messageType = null, isPtt = false) {
     'audio/wave': 'wav',
     'audio/flac': 'flac',
     'audio/x-m4a': 'm4a',
-    
+
     // Áudios específicos do WhatsApp
     'audio/mp4; codecs=opus': 'opus',
     'audio/ogg; codecs=opus': 'opus',
     'audio/webm; codecs=opus': 'opus',
-    
+
     // Documentos
     'application/pdf': 'pdf',
     'application/msword': 'doc',
-    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document':
+      'docx',
     'application/vnd.ms-excel': 'xls',
     'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
     'application/vnd.ms-powerpoint': 'ppt',
-    'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'pptx',
+    'application/vnd.openxmlformats-officedocument.presentationml.presentation':
+      'pptx',
     'text/plain': 'txt',
     'text/csv': 'csv',
     'application/json': 'json',
     'application/xml': 'xml',
     'text/xml': 'xml',
-    
+
     // Arquivos comprimidos
     'application/zip': 'zip',
     'application/x-rar-compressed': 'rar',
     'application/x-7z-compressed': '7z',
     'application/x-tar': 'tar',
-    'application/gzip': 'gz'
+    'application/gzip': 'gz',
   };
-  
+
   // Tratamento especial para mensagens de voz (PTT)
   if (isPtt || messageType === 'audio') {
     // WhatsApp geralmente usa Opus para mensagens de voz
-    if (!mimetype || mimetype.includes('application/octet-stream') || mimetype === 'application/ogg') {
+    if (
+      !mimetype ||
+      mimetype.includes('application/octet-stream') ||
+      mimetype === 'application/ogg'
+    ) {
       return 'ogg'; // Formato padrão para mensagens de voz do WhatsApp
     }
     if (mimetype.includes('opus')) {
@@ -1689,12 +1829,12 @@ function getFileExtension(mimetype, messageType = null, isPtt = false) {
     // Fallback para áudio não identificado
     return 'ogg';
   }
-  
+
   // Tratamento para mimetypes mal formatados ou incompletos
   if (mimetype) {
     // Verificar se contém palavras-chave conhecidas
     const lowerMime = mimetype.toLowerCase();
-    
+
     if (lowerMime.includes('image')) {
       if (lowerMime.includes('jpeg') || lowerMime.includes('jpg')) return 'jpg';
       if (lowerMime.includes('png')) return 'png';
@@ -1702,14 +1842,15 @@ function getFileExtension(mimetype, messageType = null, isPtt = false) {
       if (lowerMime.includes('webp')) return 'webp';
       return 'jpg'; // fallback para imagens
     }
-    
+
     if (lowerMime.includes('video')) {
       if (lowerMime.includes('mp4')) return 'mp4';
       if (lowerMime.includes('webm')) return 'webm';
-      if (lowerMime.includes('quicktime') || lowerMime.includes('mov')) return 'mov';
+      if (lowerMime.includes('quicktime') || lowerMime.includes('mov'))
+        return 'mov';
       return 'mp4'; // fallback para vídeos
     }
-    
+
     if (lowerMime.includes('audio')) {
       if (lowerMime.includes('mpeg') || lowerMime.includes('mp3')) return 'mp3';
       if (lowerMime.includes('mp4') || lowerMime.includes('m4a')) return 'm4a';
@@ -1719,20 +1860,20 @@ function getFileExtension(mimetype, messageType = null, isPtt = false) {
       return 'mp3'; // fallback para áudios
     }
   }
-  
+
   // Busca exata no mapeamento
   const exactMatch = mimeToExt[mimetype];
   if (exactMatch) {
     return exactMatch;
   }
-  
+
   // Fallback baseado no tipo de mensagem
   if (messageType === 'image') return 'jpg';
   if (messageType === 'video') return 'mp4';
   if (messageType === 'audio') return 'ogg';
   if (messageType === 'document') return 'pdf';
   if (messageType === 'sticker') return 'webp';
-  
+
   return 'bin';
 }
 
@@ -1743,7 +1884,9 @@ async function downloadMediaToFile(sock, message, sessionId) {
     const fs = require('fs');
     const path = require('path');
 
-    logger.info(`🔍 Iniciando download de mídia para sessão ${sessionId}, mensagem ${message.key.id}`);
+    logger.info(
+      `🔍 Iniciando download de mídia para sessão ${sessionId}, mensagem ${message.key.id}`
+    );
 
     // Verificar tamanho do arquivo e extrair metadados antes de baixar
     let fileLength = 0;
@@ -1751,7 +1894,7 @@ async function downloadMediaToFile(sock, message, sessionId) {
     let originalFileName = '';
     let messageType = '';
     let isPtt = false;
-    
+
     if (message.message.imageMessage) {
       fileLength = message.message.imageMessage.fileLength;
       mimetype = message.message.imageMessage.mimetype;
@@ -1765,9 +1908,13 @@ async function downloadMediaToFile(sock, message, sessionId) {
       mimetype = message.message.audioMessage.mimetype;
       messageType = 'audio';
       isPtt = message.message.audioMessage.ptt || false;
-      
+
       // Log para debug de mensagens de voz
-      logger.info(`🎤 Áudio detectado - PTT: ${isPtt}, Mimetype: ${mimetype || 'undefined'}, Tamanho: ${fileLength}`);
+      logger.info(
+        `🎤 Áudio detectado - PTT: ${isPtt}, Mimetype: ${
+          mimetype || 'undefined'
+        }, Tamanho: ${fileLength}`
+      );
     } else if (message.message.documentMessage) {
       fileLength = message.message.documentMessage.fileLength;
       mimetype = message.message.documentMessage.mimetype;
@@ -1784,7 +1931,7 @@ async function downloadMediaToFile(sock, message, sessionId) {
       logger.warn('Tipo de mídia não identificado na mensagem');
       return {
         error: 'UNSUPPORTED_MEDIA_TYPE',
-        message: 'Tipo de mídia não suportado ou não identificado'
+        message: 'Tipo de mídia não suportado ou não identificado',
       };
     }
 
@@ -1805,7 +1952,11 @@ async function downloadMediaToFile(sock, message, sessionId) {
     }
 
     // Baixar o arquivo
-    logger.info(`📥 Fazendo download do ${messageType} (${(fileLength / 1024).toFixed(2)}KB)`);
+    logger.info(
+      `📥 Fazendo download do ${messageType} (${(fileLength / 1024).toFixed(
+        2
+      )}KB)`
+    );
     const buffer = await downloadMediaMessage(
       message,
       'buffer',
@@ -1820,16 +1971,18 @@ async function downloadMediaToFile(sock, message, sessionId) {
       logger.warn(`⚠️  Buffer de mídia vazio ou inválido para ${messageType}`);
       return {
         error: 'EMPTY_BUFFER',
-        message: 'Arquivo de mídia vazio ou corrompido'
+        message: 'Arquivo de mídia vazio ou corrompido',
       };
     }
 
-    logger.info(`✅ Buffer de ${messageType} baixado com sucesso (${buffer.length} bytes)`);
+    logger.info(
+      `✅ Buffer de ${messageType} baixado com sucesso (${buffer.length} bytes)`
+    );
 
     // Gerar ID único e nome do arquivo com detecção inteligente de extensão
     const downloadId = generateDownloadId();
     const fileExtension = getFileExtension(mimetype, messageType, isPtt);
-    
+
     // Gerar nome de arquivo mais descritivo baseado no tipo
     let fileName;
     if (originalFileName) {
@@ -1845,14 +1998,19 @@ async function downloadMediaToFile(sock, message, sessionId) {
       // Outros tipos de mídia
       fileName = `${messageType}_${downloadId}.${fileExtension}`;
     }
-    
-    const safeFileName = `${downloadId}_${fileName.replace(/[^a-zA-Z0-9._-]/g, '_')}`;
-    
+
+    const safeFileName = `${downloadId}_${fileName.replace(
+      /[^a-zA-Z0-9._-]/g,
+      '_'
+    )}`;
+
     // Log para debug de arquivos de voz
     if (isPtt || messageType === 'audio') {
-      logger.info(`📁 Arquivo de áudio: ${fileName} (${fileExtension}) - PTT: ${isPtt}`);
+      logger.info(
+        `📁 Arquivo de áudio: ${fileName} (${fileExtension}) - PTT: ${isPtt}`
+      );
     }
-    
+
     // Criar diretório se não existir
     const downloadsDir = path.join(process.cwd(), 'downloads');
     if (!fs.existsSync(downloadsDir)) {
@@ -1861,14 +2019,15 @@ async function downloadMediaToFile(sock, message, sessionId) {
 
     // Caminho completo do arquivo
     const filePath = path.join(downloadsDir, safeFileName);
-    
+
     // Salvar arquivo no disco
     fs.writeFileSync(filePath, buffer);
 
     // Obter URL base do servidor
-    const baseUrl = process.env.CORS_ORIGIN || `http://localhost:${process.env.PORT || 3000}`;
+    const baseUrl =
+      process.env.CORS_ORIGIN || `http://localhost:${process.env.PORT || 3000}`;
     const serverUrl = baseUrl.replace('5173', process.env.PORT || '3000'); // Replace frontend port with backend port
-    
+
     // Gerar link único de download
     const downloadUrl = `${serverUrl}/api/baileys/download/${downloadId}`;
 
@@ -1886,21 +2045,21 @@ async function downloadMediaToFile(sock, message, sessionId) {
       messageType,
       isPtt: isPtt || false,
       uploadedAt: new Date(),
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 dias
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 dias
     };
-    
+
     // Salvar metadados no MongoDB
     const saveSuccess = await saveDownloadMetadata(fileMetadata);
     if (!saveSuccess) {
-      logger.warn(`⚠️  Metadados de download não persistidos no MongoDB para ${downloadId}`);
+      logger.warn(
+        `⚠️  Metadados de download não persistidos no MongoDB para ${downloadId}`
+      );
     }
 
     logger.info(
       `📥 Mídia salva: ${fileName} (${(buffer.length / 1024).toFixed(2)}KB)`
     );
-    logger.info(
-      `🔗 Link direto de download: ${downloadUrl}`
-    );
+    logger.info(`🔗 Link direto de download: ${downloadUrl}`);
 
     // Para compatibilidade, também retornar base64 se for menor que 3MB
     let base64Data = null;
@@ -1917,7 +2076,7 @@ async function downloadMediaToFile(sock, message, sessionId) {
       size: buffer.length,
       sizeFormatted: `${(buffer.length / 1024).toFixed(2)}KB`,
       base64: base64Data,
-      expiresAt: fileMetadata.expiresAt
+      expiresAt: fileMetadata.expiresAt,
     };
   } catch (error) {
     logger.error(`Erro ao baixar mídia: ${error.message}`);
@@ -1931,7 +2090,7 @@ async function downloadMediaToFile(sock, message, sessionId) {
 // Função legacy para compatibilidade - baixar mídia e converter para base64 (máximo 3MB)
 async function downloadMediaAsBase64(sock, message) {
   const downloadResult = await downloadMediaToFile(sock, message, 'legacy');
-  
+
   if (downloadResult.success && downloadResult.base64) {
     return {
       success: true,
@@ -1943,7 +2102,8 @@ async function downloadMediaAsBase64(sock, message) {
     // Se arquivo foi baixado mas é muito grande para base64
     return {
       error: 'FILE_TOO_LARGE_FOR_BASE64',
-      message: 'Arquivo baixado mas muito grande para base64 (>3MB). Use downloadUrl.',
+      message:
+        'Arquivo baixado mas muito grande para base64 (>3MB). Use downloadUrl.',
       downloadUrl: downloadResult.downloadUrl,
       size: downloadResult.size,
       sizeFormatted: downloadResult.sizeFormatted,
@@ -1956,7 +2116,7 @@ async function downloadMediaAsBase64(sock, message) {
 // Função para extrair dados completos da mensagem (agora com mídia em base64)
 async function extractMessageData(message, sock = null) {
   const isGroup = message.key.remoteJid?.endsWith('@g.us') || false;
-  
+
   const messageData = {
     messageId: message.key.id,
     timestamp: message.messageTimestamp,
@@ -1965,31 +2125,31 @@ async function extractMessageData(message, sock = null) {
     quotedMessage: null,
     mediaData: null,
     mediaDownload: null,
-    
+
     // Chat info structure
     chat: {
       id: message.key.remoteJid,
       type: isGroup ? 'group' : 'private',
-      isGroup: isGroup
+      isGroup: isGroup,
     },
-    
+
     // Sender info structure
     sender: {
       id: isGroup ? message.key.participant : message.key.remoteJid,
       pushName: message.pushName,
-      isMe: message.key.fromMe
-    }
+      isMe: message.key.fromMe,
+    },
   };
 
   // Helper function to extract quoted message from contextInfo (based on official Baileys WAProto)
   const extractQuotedMessage = (contextInfo) => {
     if (!contextInfo?.quotedMessage || !contextInfo.stanzaId) return null;
-    
+
     const quoted = contextInfo.quotedMessage;
     let quotedContent = '';
     let quotedType = 'unknown';
     let quotedMediaData = null;
-    
+
     // Text messages
     if (quoted.conversation) {
       quotedContent = quoted.conversation;
@@ -2006,7 +2166,7 @@ async function extractMessageData(message, sock = null) {
         mimetype: quoted.imageMessage.mimetype,
         width: quoted.imageMessage.width,
         height: quoted.imageMessage.height,
-        fileLength: quoted.imageMessage.fileLength
+        fileLength: quoted.imageMessage.fileLength,
       };
     } else if (quoted.videoMessage) {
       quotedContent = quoted.videoMessage.caption || '';
@@ -2016,7 +2176,7 @@ async function extractMessageData(message, sock = null) {
         width: quoted.videoMessage.width,
         height: quoted.videoMessage.height,
         seconds: quoted.videoMessage.seconds,
-        fileLength: quoted.videoMessage.fileLength
+        fileLength: quoted.videoMessage.fileLength,
       };
     } else if (quoted.audioMessage) {
       quotedContent = '';
@@ -2025,7 +2185,7 @@ async function extractMessageData(message, sock = null) {
         mimetype: quoted.audioMessage.mimetype,
         seconds: quoted.audioMessage.seconds,
         ptt: quoted.audioMessage.ptt || false,
-        fileLength: quoted.audioMessage.fileLength
+        fileLength: quoted.audioMessage.fileLength,
       };
     } else if (quoted.documentMessage) {
       quotedContent = quoted.documentMessage.caption || '';
@@ -2034,7 +2194,7 @@ async function extractMessageData(message, sock = null) {
         mimetype: quoted.documentMessage.mimetype,
         fileName: quoted.documentMessage.fileName,
         title: quoted.documentMessage.title,
-        fileLength: quoted.documentMessage.fileLength
+        fileLength: quoted.documentMessage.fileLength,
       };
     } else if (quoted.stickerMessage) {
       quotedContent = '';
@@ -2043,7 +2203,7 @@ async function extractMessageData(message, sock = null) {
         mimetype: quoted.stickerMessage.mimetype,
         width: quoted.stickerMessage.width,
         height: quoted.stickerMessage.height,
-        fileLength: quoted.stickerMessage.fileLength
+        fileLength: quoted.stickerMessage.fileLength,
       };
     }
     // Other message types
@@ -2056,20 +2216,22 @@ async function extractMessageData(message, sock = null) {
       quotedMediaData = {
         latitude: quoted.locationMessage.degreesLatitude,
         longitude: quoted.locationMessage.degreesLongitude,
-        address: quoted.locationMessage.address
+        address: quoted.locationMessage.address,
       };
     } else if (quoted.liveLocationMessage) {
       quotedContent = quoted.liveLocationMessage.caption || '';
       quotedType = 'liveLocation';
       quotedMediaData = {
         latitude: quoted.liveLocationMessage.degreesLatitude,
-        longitude: quoted.liveLocationMessage.degreesLongitude
+        longitude: quoted.liveLocationMessage.degreesLongitude,
       };
     } else if (quoted.contactsArrayMessage) {
-      quotedContent = `${quoted.contactsArrayMessage.contacts?.length || 0} contatos`;
+      quotedContent = `${
+        quoted.contactsArrayMessage.contacts?.length || 0
+      } contatos`;
       quotedType = 'contactsArray';
     }
-    
+
     return {
       messageId: contextInfo.stanzaId,
       participant: contextInfo.participant,
@@ -2081,7 +2243,7 @@ async function extractMessageData(message, sock = null) {
       // Additional contextInfo fields that might be useful
       isForwarded: contextInfo.isForwarded || false,
       forwardingScore: contextInfo.forwardingScore || 0,
-      mentions: contextInfo.mentionedJid || []
+      mentions: contextInfo.mentionedJid || [],
     };
   };
 
@@ -2093,10 +2255,12 @@ async function extractMessageData(message, sock = null) {
     } else if (message.message.extendedTextMessage) {
       messageData.messageType = 'text';
       messageData.content = message.message.extendedTextMessage.text;
-      
+
       // Extract quoted message if present
       if (message.message.extendedTextMessage.contextInfo?.quotedMessage) {
-        messageData.quotedMessage = extractQuotedMessage(message.message.extendedTextMessage.contextInfo);
+        messageData.quotedMessage = extractQuotedMessage(
+          message.message.extendedTextMessage.contextInfo
+        );
       }
     } else if (message.message.imageMessage) {
       messageData.messageType = 'image';
@@ -2111,15 +2275,23 @@ async function extractMessageData(message, sock = null) {
 
       // Extract quoted message if present
       if (message.message.imageMessage.contextInfo?.quotedMessage) {
-        messageData.quotedMessage = extractQuotedMessage(message.message.imageMessage.contextInfo);
+        messageData.quotedMessage = extractQuotedMessage(
+          message.message.imageMessage.contextInfo
+        );
       }
 
       // Baixar mídia automaticamente se sock foi fornecido
       if (sock) {
-        const sessionId = global.whatsappSessions ? 
-          Object.keys(global.whatsappSessions).find(id => global.whatsappSessions[id] === sock) || 'unknown' :
-          'unknown';
-        messageData.mediaDownload = await downloadMediaToFile(sock, message, sessionId);
+        const sessionId = global.whatsappSessions
+          ? Object.keys(global.whatsappSessions).find(
+              (id) => global.whatsappSessions[id] === sock
+            ) || 'unknown'
+          : 'unknown';
+        messageData.mediaDownload = await downloadMediaToFile(
+          sock,
+          message,
+          sessionId
+        );
       }
     } else if (message.message.videoMessage) {
       messageData.messageType = 'video';
@@ -2135,15 +2307,23 @@ async function extractMessageData(message, sock = null) {
 
       // Extract quoted message if present
       if (message.message.videoMessage.contextInfo?.quotedMessage) {
-        messageData.quotedMessage = extractQuotedMessage(message.message.videoMessage.contextInfo);
+        messageData.quotedMessage = extractQuotedMessage(
+          message.message.videoMessage.contextInfo
+        );
       }
 
       // Baixar mídia automaticamente se sock foi fornecido
       if (sock) {
-        const sessionId = global.whatsappSessions ? 
-          Object.keys(global.whatsappSessions).find(id => global.whatsappSessions[id] === sock) || 'unknown' :
-          'unknown';
-        messageData.mediaDownload = await downloadMediaToFile(sock, message, sessionId);
+        const sessionId = global.whatsappSessions
+          ? Object.keys(global.whatsappSessions).find(
+              (id) => global.whatsappSessions[id] === sock
+            ) || 'unknown'
+          : 'unknown';
+        messageData.mediaDownload = await downloadMediaToFile(
+          sock,
+          message,
+          sessionId
+        );
       }
     } else if (message.message.audioMessage) {
       messageData.messageType = 'audio';
@@ -2157,15 +2337,23 @@ async function extractMessageData(message, sock = null) {
 
       // Extract quoted message if present
       if (message.message.audioMessage.contextInfo?.quotedMessage) {
-        messageData.quotedMessage = extractQuotedMessage(message.message.audioMessage.contextInfo);
+        messageData.quotedMessage = extractQuotedMessage(
+          message.message.audioMessage.contextInfo
+        );
       }
 
       // Baixar mídia automaticamente se sock foi fornecido
       if (sock) {
-        const sessionId = global.whatsappSessions ? 
-          Object.keys(global.whatsappSessions).find(id => global.whatsappSessions[id] === sock) || 'unknown' :
-          'unknown';
-        messageData.mediaDownload = await downloadMediaToFile(sock, message, sessionId);
+        const sessionId = global.whatsappSessions
+          ? Object.keys(global.whatsappSessions).find(
+              (id) => global.whatsappSessions[id] === sock
+            ) || 'unknown'
+          : 'unknown';
+        messageData.mediaDownload = await downloadMediaToFile(
+          sock,
+          message,
+          sessionId
+        );
       }
     } else if (message.message.documentMessage) {
       messageData.messageType = 'document';
@@ -2181,15 +2369,23 @@ async function extractMessageData(message, sock = null) {
 
       // Extract quoted message if present
       if (message.message.documentMessage.contextInfo?.quotedMessage) {
-        messageData.quotedMessage = extractQuotedMessage(message.message.documentMessage.contextInfo);
+        messageData.quotedMessage = extractQuotedMessage(
+          message.message.documentMessage.contextInfo
+        );
       }
 
       // Baixar mídia automaticamente se sock foi fornecido
       if (sock) {
-        const sessionId = global.whatsappSessions ? 
-          Object.keys(global.whatsappSessions).find(id => global.whatsappSessions[id] === sock) || 'unknown' :
-          'unknown';
-        messageData.mediaDownload = await downloadMediaToFile(sock, message, sessionId);
+        const sessionId = global.whatsappSessions
+          ? Object.keys(global.whatsappSessions).find(
+              (id) => global.whatsappSessions[id] === sock
+            ) || 'unknown'
+          : 'unknown';
+        messageData.mediaDownload = await downloadMediaToFile(
+          sock,
+          message,
+          sessionId
+        );
       }
     } else if (message.message.stickerMessage) {
       messageData.messageType = 'sticker';
@@ -2204,15 +2400,23 @@ async function extractMessageData(message, sock = null) {
 
       // Extract quoted message if present
       if (message.message.stickerMessage.contextInfo?.quotedMessage) {
-        messageData.quotedMessage = extractQuotedMessage(message.message.stickerMessage.contextInfo);
+        messageData.quotedMessage = extractQuotedMessage(
+          message.message.stickerMessage.contextInfo
+        );
       }
 
       // Baixar mídia automaticamente se sock foi fornecido
       if (sock) {
-        const sessionId = global.whatsappSessions ? 
-          Object.keys(global.whatsappSessions).find(id => global.whatsappSessions[id] === sock) || 'unknown' :
-          'unknown';
-        messageData.mediaDownload = await downloadMediaToFile(sock, message, sessionId);
+        const sessionId = global.whatsappSessions
+          ? Object.keys(global.whatsappSessions).find(
+              (id) => global.whatsappSessions[id] === sock
+            ) || 'unknown'
+          : 'unknown';
+        messageData.mediaDownload = await downloadMediaToFile(
+          sock,
+          message,
+          sessionId
+        );
       }
     } else if (message.message.contactMessage) {
       messageData.messageType = 'contact';
@@ -2220,10 +2424,12 @@ async function extractMessageData(message, sock = null) {
         displayName: message.message.contactMessage.displayName,
         vcard: message.message.contactMessage.vcard,
       };
-      
+
       // Extract quoted message if present
       if (message.message.contactMessage.contextInfo?.quotedMessage) {
-        messageData.quotedMessage = extractQuotedMessage(message.message.contactMessage.contextInfo);
+        messageData.quotedMessage = extractQuotedMessage(
+          message.message.contactMessage.contextInfo
+        );
       }
     } else if (message.message.locationMessage) {
       messageData.messageType = 'location';
@@ -2233,10 +2439,12 @@ async function extractMessageData(message, sock = null) {
         name: message.message.locationMessage.name,
         address: message.message.locationMessage.address,
       };
-      
+
       // Extract quoted message if present
       if (message.message.locationMessage.contextInfo?.quotedMessage) {
-        messageData.quotedMessage = extractQuotedMessage(message.message.locationMessage.contextInfo);
+        messageData.quotedMessage = extractQuotedMessage(
+          message.message.locationMessage.contextInfo
+        );
       }
     } else if (message.message.liveLocationMessage) {
       messageData.messageType = 'liveLocation';
@@ -2244,34 +2452,43 @@ async function extractMessageData(message, sock = null) {
         latitude: message.message.liveLocationMessage.degreesLatitude,
         longitude: message.message.liveLocationMessage.degreesLongitude,
         caption: message.message.liveLocationMessage.caption,
-        sequenceNumber: message.message.liveLocationMessage.sequenceNumber
+        sequenceNumber: message.message.liveLocationMessage.sequenceNumber,
       };
     } else if (message.message.contactsArrayMessage) {
       messageData.messageType = 'contactsArray';
       messageData.content = {
         displayName: message.message.contactsArrayMessage.displayName,
-        contactsCount: message.message.contactsArrayMessage.contacts?.length || 0
+        contactsCount:
+          message.message.contactsArrayMessage.contacts?.length || 0,
       };
     } else if (message.message.reactionMessage) {
       messageData.messageType = 'reaction';
       messageData.content = {
         text: message.message.reactionMessage.text,
-        targetMessageKey: message.message.reactionMessage.key
+        targetMessageKey: message.message.reactionMessage.key,
       };
     } else if (message.message.protocolMessage) {
       // Filtrar mensagens de protocolo (como mensagens deletadas, etc.)
-      logger.debug(`Mensagem de protocolo ignorada: ${message.message.protocolMessage.type}`);
+      logger.debug(
+        `Mensagem de protocolo ignorada: ${message.message.protocolMessage.type}`
+      );
       return null; // Retorna null para indicar que deve ser ignorada
-    } else if (message.message.senderKeyDistributionMessage || 
-               message.message.fastRatchetKeySenderKeyDistributionMessage) {
+    } else if (
+      message.message.senderKeyDistributionMessage ||
+      message.message.fastRatchetKeySenderKeyDistributionMessage
+    ) {
       // Filtrar mensagens de distribuição de chave (protocolo interno)
       logger.debug('Mensagem de distribuição de chave ignorada');
       return null; // Retorna null para indicar que deve ser ignorada
     } else {
       // Log detalhado para debug de tipos não suportados
       const messageKeys = message.message ? Object.keys(message.message) : [];
-      logger.warn(`Tipo de mensagem não suportado encontrado: ${messageKeys.join(', ')} - MessageID: ${message.key?.id}`);
-      
+      logger.warn(
+        `Tipo de mensagem não suportado encontrado: ${messageKeys.join(
+          ', '
+        )} - MessageID: ${message.key?.id}`
+      );
+
       messageData.messageType = 'unknown';
       messageData.content = 'Tipo de mensagem não suportado';
     }
@@ -2332,12 +2549,12 @@ async function createWhatsAppSession(sessionId, userId = null) {
           sessionData.qrCode = qr;
           sessionData.isConnected = false;
           sessionData.connectionState = 'qr_generated';
-          
+
           // Generate QR code image
           try {
             const QRCode = require('qrcode');
             sessionData.qrCodeImage = await QRCode.toDataURL(qr);
-            
+
             // Save QR code to MongoDB for persistence
             await saveQRCodeData(sessionId, qr, sessionData.qrCodeImage);
           } catch (error) {
@@ -2345,12 +2562,12 @@ async function createWhatsAppSession(sessionId, userId = null) {
           }
         }
         logger.info(`QR Code gerado para sessão ${sessionId}`);
-        
+
         // Send webhook for QR code generation
         await sendWebhook(sessionId, 'connection.update', {
           connectionState: 'qr_generated',
           qrCode: qr,
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
       }
 
@@ -2381,14 +2598,14 @@ async function createWhatsAppSession(sessionId, userId = null) {
           sessionData.lastError = errorMessage;
           sessionData.lastDisconnectTime = new Date();
         }
-        
+
         // Send webhook for disconnection
         await sendWebhook(sessionId, 'connection.update', {
           connectionState: 'disconnected',
           timestamp: new Date().toISOString(),
           error: errorMessage,
           statusCode: statusCode,
-          shouldReconnect: shouldReconnect
+          shouldReconnect: shouldReconnect,
         });
 
         if (shouldReconnect) {
@@ -2509,12 +2726,12 @@ async function createWhatsAppSession(sessionId, userId = null) {
           await saveSessionData(sessionId, sessionData);
         }
         logger.info(`Sessão ${sessionId} conectada com sucesso`);
-        
+
         // Send webhook for successful connection
         await sendWebhook(sessionId, 'connection.update', {
           connectionState: 'connected',
           timestamp: new Date().toISOString(),
-          connectedAt: sessionData.connectedAt
+          connectedAt: sessionData.connectedAt,
         });
       } else if (connection === 'connecting') {
         connectionState = 'connecting';
@@ -2541,13 +2758,19 @@ async function createWhatsAppSession(sessionId, userId = null) {
         const messageData = await extractMessageData(message, sock);
 
         // Debug: Log all webhooks in memory
-        logger.info(`Current webhooks in memory: ${JSON.stringify(Array.from(webhooks.entries()))}`);
-        
+        logger.info(
+          `Current webhooks in memory: ${JSON.stringify(
+            Array.from(webhooks.entries())
+          )}`
+        );
+
         // Enviar webhook apenas se messageData não for null (filtra mensagens de protocolo)
         if (messageData !== null) {
           await sendWebhook(sessionId, 'messages.upsert', messageData);
         } else {
-          logger.debug(`Mensagem ignorada para webhook - SessionID: ${sessionId}, MessageID: ${message.key?.id}`);
+          logger.debug(
+            `Mensagem ignorada para webhook - SessionID: ${sessionId}, MessageID: ${message.key?.id}`
+          );
         }
 
         // Hook para message collector - coletar mensagens de grupos
@@ -2571,7 +2794,7 @@ async function createWhatsAppSession(sessionId, userId = null) {
       createdAt: new Date(),
       userId: userId, // Associate session with user
     };
-    
+
     sessions.set(sessionId, sessionData);
 
     // Save initial session data to MongoDB
@@ -2603,7 +2826,7 @@ async function handleMessageParts(sock, message, sessionId) {
   const chatKey = `${sessionId}_${jid}`;
   const senderId = message.key.participant || message.key.remoteJid;
   const senderKey = `${chatKey}_${senderId}`;
-  
+
   // Inicializar buffer para este remetente específico se não existir
   if (!messageParts.has(senderKey)) {
     messageParts.set(senderKey, []);
@@ -2615,96 +2838,121 @@ async function handleMessageParts(sock, message, sessionId) {
     timestamp: Date.now(),
     messageKey: message.key,
     pushName: message.pushName || 'Usuário',
-    senderId: senderId
+    senderId: senderId,
   };
-  
+
   const parts = messageParts.get(senderKey);
   parts.push(messagePart);
-  
+
   // Limpar timer anterior se existir
   if (messageTimers.has(senderKey)) {
     clearTimeout(messageTimers.get(senderKey));
   }
-  
+
   // Lógica inteligente para determinar tempo de espera
   let waitTime = 8000; // Base: 8 segundos
-  
+
   // Se a mensagem termina com pontuação, pode ser final
   if (/[.!?:]$/.test(messageText.trim())) {
     waitTime = 5000; // 5 segundos se termina com pontuação
   }
-  
+
   // Se a mensagem é muito curta, provavelmente há mais
   if (messageText.length < 20) {
     waitTime = 10000; // 10 segundos para mensagens curtas
   }
-  
+
   // Se já há várias partes, aumentar tempo de espera
   if (parts.length > 3) {
     waitTime = 12000; // 12 segundos se já há muitas partes
   }
-  
+
   // Se a mensagem termina com "..." pode ter continuação
   if (messageText.trim().endsWith('...')) {
     waitTime = 15000; // 15 segundos se termina com reticências
   }
-  
-  logger.info(`Mensagem ${parts.length} recebida de ${senderId}. Aguardando ${waitTime/1000}s por mais mensagens...`);
-  
+
+  logger.info(
+    `Mensagem ${parts.length} recebida de ${senderId}. Aguardando ${
+      waitTime / 1000
+    }s por mais mensagens...`
+  );
+
   // Definir timer para processar mensagem completa
   const timer = setTimeout(async () => {
     const currentParts = messageParts.get(senderKey) || [];
     if (currentParts.length > 0) {
       // Combinar todas as partes em uma mensagem completa
-      const fullText = currentParts.map(part => part.text).join('\n'); // Usar quebra de linha para preservar separação
+      const fullText = currentParts.map((part) => part.text).join('\n'); // Usar quebra de linha para preservar separação
       const firstMessage = currentParts[0];
       const lastMessage = currentParts[currentParts.length - 1];
-      
+
       // Criar objeto de mensagem completa usando a última mensagem como base
       const completeMessage = {
         key: lastMessage.messageKey, // Usar última mensagem para reply
         pushName: firstMessage.pushName,
         message: {
           conversation: fullText,
-          extendedTextMessage: { text: fullText }
-        }
+          extendedTextMessage: { text: fullText },
+        },
       };
-      
-      logger.info(`Processando mensagem completa (${currentParts.length} partes) de ${senderId}: ${fullText.substring(0, 150)}...`);
-      
+
+      logger.info(
+        `Processando mensagem completa (${
+          currentParts.length
+        } partes) de ${senderId}: ${fullText.substring(0, 150)}...`
+      );
+
       // Processar mensagem completa com todas as partes
-      await processCompleteMessage(sock, completeMessage, sessionId, currentParts);
-      
+      await processCompleteMessage(
+        sock,
+        completeMessage,
+        sessionId,
+        currentParts
+      );
+
       // Limpar buffer
       messageParts.set(senderKey, []);
     }
     messageTimers.delete(senderKey);
   }, waitTime);
-  
+
   messageTimers.set(senderKey, timer);
 }
 
 // Função robusta para verificar se é mensagem de grupo usando Baileys
 function isMessageFromGroup(message) {
-  const { isJidGroup, isJidBroadcast, isJidStatusBroadcast, isJidNewsletter } = require('@whiskeysockets/baileys');
-  
+  const {
+    isJidGroup,
+    isJidBroadcast,
+    isJidStatusBroadcast,
+    isJidNewsletter,
+  } = require('@whiskeysockets/baileys');
+
   const jid = message.key.remoteJid;
   const participant = message.key.participant;
-  
+
   // Verificações usando funções oficiais da Baileys
   const isGroup = isJidGroup(jid);
   const isBroadcast = isJidBroadcast(jid);
   const isStatusBroadcast = isJidStatusBroadcast(jid);
   const isNewsletter = isJidNewsletter(jid);
-  
+
   // Log detalhado para debug
-  logger.debug(`Message analysis: jid=${jid}, participant=${participant}, isGroup=${isGroup}, isBroadcast=${isBroadcast}, isStatus=${isStatusBroadcast}, isNewsletter=${isNewsletter}`);
-  
+  logger.debug(
+    `Message analysis: jid=${jid}, participant=${participant}, isGroup=${isGroup}, isBroadcast=${isBroadcast}, isStatus=${isStatusBroadcast}, isNewsletter=${isNewsletter}`
+  );
+
   // Retorna verdadeiro apenas para grupos reais (não broadcasts ou newsletters)
   return isGroup && !isBroadcast && !isStatusBroadcast && !isNewsletter;
 }
 
-async function processCompleteMessage(sock, message, sessionId, allMessageParts = []) {
+async function processCompleteMessage(
+  sock,
+  message,
+  sessionId,
+  allMessageParts = []
+) {
   try {
     const jid = message.key.remoteJid;
     const messageText =
@@ -2717,22 +2965,23 @@ async function processCompleteMessage(sock, message, sessionId, allMessageParts 
 
     // Check for active AI agent for this session
     const { aiAgents, ensureAgentInMemory } = require('./routes/aiAgents');
-    
+
     // First check memory, then try to load from database
-    let activeAgent = Array.from(aiAgents.values()).find(agent => 
-      agent.sessionId === sessionId && agent.isActive && agent.autoReply
+    let activeAgent = Array.from(aiAgents.values()).find(
+      (agent) =>
+        agent.sessionId === sessionId && agent.isActive && agent.autoReply
     );
-    
+
     // If no agent in memory, try to load from database
     if (!activeAgent) {
       const db = require('./config/database').getDb();
       if (db) {
-        const agentData = await db.collection('ai_agents').findOne({ 
-          sessionId: sessionId, 
+        const agentData = await db.collection('ai_agents').findOne({
+          sessionId: sessionId,
           isActive: true,
-          autoReply: true 
+          autoReply: true,
         });
-        
+
         if (agentData) {
           activeAgent = await ensureAgentInMemory(agentData._id);
         }
@@ -2743,10 +2992,14 @@ async function processCompleteMessage(sock, message, sessionId, allMessageParts 
     if (activeAgent && HUMAN_BEHAVIOR.AUTO_MARK_READ) {
       // Se há múltiplas partes, marcar todas como lidas
       if (allMessageParts.length > 1) {
-        const messageKeys = allMessageParts.map(part => part.messageKey);
-        logger.info(`Marcando ${messageKeys.length} mensagens da sequência como lidas...`);
+        const messageKeys = allMessageParts.map((part) => part.messageKey);
+        logger.info(
+          `Marcando ${messageKeys.length} mensagens da sequência como lidas...`
+        );
         await sock.readMessages(messageKeys);
-        logger.info(`✓ Todas as ${messageKeys.length} mensagens foram marcadas como lidas`);
+        logger.info(
+          `✓ Todas as ${messageKeys.length} mensagens foram marcadas como lidas`
+        );
       } else {
         // Apenas uma mensagem, marcar normalmente
         await sock.readMessages([message.key]);
@@ -2756,25 +3009,35 @@ async function processCompleteMessage(sock, message, sessionId, allMessageParts 
 
     // Check if message is from a group using robust verification
     const isGroupMessage = isMessageFromGroup(message);
-    
+
     // Process message only if agent exists and wants to reply to this type of chat
     if (activeAgent && messageText.trim()) {
       // Skip if this is a group message and agent doesn't want to reply to groups
       if (isGroupMessage && !activeAgent.replyToGroups) {
-        logger.info(`🚫 Agent ${activeAgent.id} SKIPPING group message from ${jid} (replyToGroups: ${activeAgent.replyToGroups})`);
-        logger.debug(`Group verification details: jid=${jid}, isGroup=${isGroupMessage}, agentReplyToGroups=${activeAgent.replyToGroups}`);
+        logger.info(
+          `🚫 Agent ${activeAgent.id} SKIPPING group message from ${jid} (replyToGroups: ${activeAgent.replyToGroups})`
+        );
+        logger.debug(
+          `Group verification details: jid=${jid}, isGroup=${isGroupMessage}, agentReplyToGroups=${activeAgent.replyToGroups}`
+        );
         return; // Exit early, don't process group messages when disabled
       }
-      
+
       // Debug log for group message processing
       if (isGroupMessage) {
-        logger.info(`✅ Agent ${activeAgent.id} PROCESSING group message from ${jid} (replyToGroups: ${activeAgent.replyToGroups})`);
+        logger.info(
+          `✅ Agent ${activeAgent.id} PROCESSING group message from ${jid} (replyToGroups: ${activeAgent.replyToGroups})`
+        );
       } else {
-        logger.info(`✅ Agent ${activeAgent.id} PROCESSING private message from ${jid}`);
+        logger.info(
+          `✅ Agent ${activeAgent.id} PROCESSING private message from ${jid}`
+        );
       }
       try {
-        logger.info(`Processing message with AI agent ${activeAgent.id} for session ${sessionId}`);
-        
+        logger.info(
+          `Processing message with AI agent ${activeAgent.id} for session ${sessionId}`
+        );
+
         // Process message with AI agent
         const messageData = {
           content: messageText,
@@ -2786,31 +3049,43 @@ async function processCompleteMessage(sock, message, sessionId, allMessageParts 
           sender: {
             id: message.key.participant || message.key.remoteJid,
             pushName: message.pushName || 'Usuário',
-            isMe: message.key.fromMe
+            isMe: message.key.fromMe,
           },
           chat: {
             id: jid,
             isGroup: isGroupMessage,
             type: isGroupMessage ? 'group' : 'private',
-            name: isGroupMessage ? 'Grupo' : 'Contato'
+            name: isGroupMessage ? 'Grupo' : 'Contato',
           },
           // Adicionar informações sobre mensagens múltiplas
           isMultiPart: allMessageParts.length > 1,
           partCount: allMessageParts.length,
-          allMessageKeys: allMessageParts.map(part => part.messageKey)
+          allMessageKeys: allMessageParts.map((part) => part.messageKey),
         };
 
         const aiResult = await activeAgent.processMessage(messageData, sock);
 
-        if (aiResult && aiResult.shouldReply && aiResult.response && aiResult.response.trim()) {
+        if (
+          aiResult &&
+          aiResult.shouldReply &&
+          aiResult.response &&
+          aiResult.response.trim()
+        ) {
           // Delay aleatório de 5-10 segundos antes da resposta
           const responseDelay = 5000 + Math.random() * 5000; // 5-10 segundos
-          logger.info(`AI agent ${activeAgent.id} aguardando ${Math.round(responseDelay/1000)}s antes de responder...`);
+          logger.info(
+            `AI agent ${activeAgent.id} aguardando ${Math.round(
+              responseDelay / 1000
+            )}s antes de responder...`
+          );
           await delay(responseDelay);
-          
+
           // Simulate typing time based on response length
           const typingTime = Math.min(
-            Math.max(aiResult.response.length * 50, HUMAN_BEHAVIOR.MIN_TYPING_TIME),
+            Math.max(
+              aiResult.response.length * 50,
+              HUMAN_BEHAVIOR.MIN_TYPING_TIME
+            ),
             HUMAN_BEHAVIOR.MAX_TYPING_TIME
           );
 
@@ -2821,63 +3096,66 @@ async function processCompleteMessage(sock, message, sessionId, allMessageParts 
           // Send AI response with quoted message (resposta à última mensagem da sequência)
           const quotedMessage = {
             key: message.key,
-            message: message.message
+            message: message.message,
           };
-          
+
           // Se há múltiplas partes, adicionar informação no log
           if (allMessageParts.length > 1) {
-            logger.info(`Respondendo à sequência de ${allMessageParts.length} mensagens`);
+            logger.info(
+              `Respondendo à sequência de ${allMessageParts.length} mensagens`
+            );
           }
-          
-          await sock.sendMessage(jid, { 
-            text: aiResult.response 
-          }, { 
-            quoted: quotedMessage 
-          });
-          
+
+          await sock.sendMessage(
+            jid,
+            {
+              text: aiResult.response,
+            },
+            {
+              quoted: quotedMessage,
+            }
+          );
+
           // Update presence to available
           await sock.sendPresenceUpdate('available');
 
-          logger.info(`AI agent ${activeAgent.id} responded to ${jid}: ${aiResult.response.substring(0, 100)}...`);
+          logger.info(
+            `AI agent ${
+              activeAgent.id
+            } responded to ${jid}: ${aiResult.response.substring(0, 100)}...`
+          );
         }
       } catch (error) {
-        logger.error(`Error processing message with AI agent: ${error.message}`);
-        
+        logger.error(
+          `Error processing message with AI agent: ${error.message}`
+        );
+
         // Fallback to simple response on AI error with quoted message
-        const fallbackResponse = 'Desculpe, ocorreu um erro ao processar sua mensagem. Tente novamente.';
+        const fallbackResponse =
+          'Desculpe, ocorreu um erro ao processar sua mensagem. Tente novamente.';
         const quotedMessage = {
           key: message.key,
-          message: message.message
+          message: message.message,
         };
-        
+
         // Marcar todas as mensagens como lidas mesmo em caso de erro
-        if (activeAgent && HUMAN_BEHAVIOR.AUTO_MARK_READ && allMessageParts.length > 1) {
-          const messageKeys = allMessageParts.map(part => part.messageKey);
+        if (
+          activeAgent &&
+          HUMAN_BEHAVIOR.AUTO_MARK_READ &&
+          allMessageParts.length > 1
+        ) {
+          const messageKeys = allMessageParts.map((part) => part.messageKey);
           await sock.readMessages(messageKeys);
         }
-        
-        await sock.sendMessage(jid, { text: fallbackResponse }, { quoted: quotedMessage });
+
+        await sock.sendMessage(
+          jid,
+          { text: fallbackResponse },
+          { quoted: quotedMessage }
+        );
       }
     } else {
       // Original simple auto-reply logic (only if no AI agent is active)
-      if (
-        messageText.toLowerCase().includes('oi') ||
-        messageText.toLowerCase().includes('olá') ||
-        messageText.toLowerCase().includes('ola')
-      ) {
-        const responses = [
-          'Olá! Como posso ajudar você?',
-          'Oi! Em que posso ser útil?',
-          'Olá! Estou aqui para ajudar.',
-          'Oi! Como você está?',
-        ];
-
-        const randomResponse =
-          responses[Math.floor(Math.random() * responses.length)];
-
-        // Send simple response
-        await sock.sendMessage(jid, { text: randomResponse });
-      }
     }
   } catch (error) {
     logger.error(`Erro ao processar mensagem recebida: ${error.message}`);
@@ -2920,12 +3198,12 @@ async function downloadMedia(sock, message, filename) {
 // Dual authentication middleware for session creation
 const dualAuth = async (req, res, next) => {
   const authHeader = req.headers.authorization;
-  
+
   // If Authorization header exists and starts with 'Bearer baileys_', use API token auth
   if (authHeader && authHeader.startsWith('Bearer baileys_')) {
     return apiTokenAuth(req, res, next);
   }
-  
+
   // Otherwise, use web authentication (cookies/JWT)
   const { authenticateToken } = require('./middleware/auth');
   return authenticateToken(req, res, next);
@@ -2952,7 +3230,7 @@ app.post('/api/baileys/session/create', dualAuth, async (req, res) => {
 
     // Create unique session ID by combining user ID and session name
     const uniqueSessionId = `${userId}_${sessionId}`;
-    
+
     const result = await createWhatsAppSession(uniqueSessionId, userId);
 
     // Sempre retornar o QR code quando criar uma nova sessão
@@ -2990,9 +3268,9 @@ app.post('/api/baileys/session/create', dualAuth, async (req, res) => {
     const response = {
       ...result,
       sessionId: sessionId, // Show original sessionId to user
-      internalSessionId: uniqueSessionId // For debugging purposes
+      internalSessionId: uniqueSessionId, // For debugging purposes
     };
-    
+
     res.json(response);
   } catch (error) {
     res.status(500).json({
@@ -3002,104 +3280,112 @@ app.post('/api/baileys/session/create', dualAuth, async (req, res) => {
   }
 });
 
-app.post('/api/baileys/session/:sessionId/regenerate-qr', checkSessionOwnership, async (req, res) => {
-  try {
-    const { sessionId } = req.params;
-    const session = sessions.get(sessionId);
-
-    if (!session) {
-      return res.status(404).json({
-        success: false,
-        message: 'Sessão não encontrada',
-      });
-    }
-
-    if (session.isConnected) {
-      return res.status(400).json({
-        success: false,
-        message: 'Sessão já conectada, não é possível regenerar QR code',
-      });
-    }
-
-    // Preserve userId from current session
-    const userId = session.userId;
-
-    // Fechar sessão atual e criar nova
+app.post(
+  '/api/baileys/session/:sessionId/regenerate-qr',
+  checkSessionOwnership,
+  async (req, res) => {
     try {
-      if (session.sock) {
-        await session.sock.logout();
+      const { sessionId } = req.params;
+      const session = sessions.get(sessionId);
+
+      if (!session) {
+        return res.status(404).json({
+          success: false,
+          message: 'Sessão não encontrada',
+        });
       }
-    } catch (error) {
-      logger.warn(`Erro ao fechar sessão anterior: ${error.message}`);
-    }
 
-    // Remover sessão atual
-    sessions.delete(sessionId);
-    sessionQueues.delete(sessionId);
-    messageRateLimit.delete(sessionId);
-    reconnectionAttempts.delete(sessionId);
+      if (session.isConnected) {
+        return res.status(400).json({
+          success: false,
+          message: 'Sessão já conectada, não é possível regenerar QR code',
+        });
+      }
 
-    // Criar nova sessão preservando userId
-    const result = await createWhatsAppSession(sessionId, userId);
+      // Preserve userId from current session
+      const userId = session.userId;
 
-    if (result.success && result.qrCode) {
+      // Fechar sessão atual e criar nova
       try {
-        result.qrCodeImage = await QRCode.toDataURL(result.qrCode);
+        if (session.sock) {
+          await session.sock.logout();
+        }
       } catch (error) {
-        logger.error(`Erro ao gerar QR code imagem: ${error.message}`);
+        logger.warn(`Erro ao fechar sessão anterior: ${error.message}`);
       }
-    }
 
-    res.json(result);
-  } catch (error) {
-    logger.error(`Erro ao regenerar QR code: ${error.message}`);
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-});
+      // Remover sessão atual
+      sessions.delete(sessionId);
+      sessionQueues.delete(sessionId);
+      messageRateLimit.delete(sessionId);
+      reconnectionAttempts.delete(sessionId);
 
-app.get('/api/baileys/session/:sessionId/status', checkSessionOwnership, (req, res) => {
-  try {
-    const { sessionId } = req.params;
-    const session = sessions.get(sessionId);
+      // Criar nova sessão preservando userId
+      const result = await createWhatsAppSession(sessionId, userId);
 
-    if (!session) {
-      return res.status(404).json({
+      if (result.success && result.qrCode) {
+        try {
+          result.qrCodeImage = await QRCode.toDataURL(result.qrCode);
+        } catch (error) {
+          logger.error(`Erro ao gerar QR code imagem: ${error.message}`);
+        }
+      }
+
+      res.json(result);
+    } catch (error) {
+      logger.error(`Erro ao regenerar QR code: ${error.message}`);
+      res.status(500).json({
         success: false,
-        message: 'Sessão não encontrada',
+        message: error.message,
       });
     }
-
-    res.json({
-      success: true,
-      sessionId,
-      isConnected: session.isConnected,
-      connectionState: session.connectionState || 'unknown',
-      createdAt: session.createdAt,
-      connectedAt: session.connectedAt || null,
-      lastError: session.lastError || null,
-      lastDisconnectTime: session.lastDisconnectTime || null,
-      user: session.sock.user || null,
-      hasQrCode: !!session.qrCode,
-      webhookUrl: webhooks.get(sessionId) || null,
-      messageCount: messageStore.get(sessionId)?.size || 0,
-      queueLength: sessionQueues.get(sessionId)?.messages?.length || 0,
-      reconnectionAttempts: reconnectionAttempts.get(sessionId) || 0,
-    });
-  } catch (error) {
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
   }
-});
+);
+
+app.get(
+  '/api/baileys/session/:sessionId/status',
+  checkSessionOwnership,
+  (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      const session = sessions.get(sessionId);
+
+      if (!session) {
+        return res.status(404).json({
+          success: false,
+          message: 'Sessão não encontrada',
+        });
+      }
+
+      res.json({
+        success: true,
+        sessionId,
+        isConnected: session.isConnected,
+        connectionState: session.connectionState || 'unknown',
+        createdAt: session.createdAt,
+        connectedAt: session.connectedAt || null,
+        lastError: session.lastError || null,
+        lastDisconnectTime: session.lastDisconnectTime || null,
+        user: session.sock.user || null,
+        hasQrCode: !!session.qrCode,
+        webhookUrl: webhooks.get(sessionId) || null,
+        messageCount: messageStore.get(sessionId)?.size || 0,
+        queueLength: sessionQueues.get(sessionId)?.messages?.length || 0,
+        reconnectionAttempts: reconnectionAttempts.get(sessionId) || 0,
+      });
+    } catch (error) {
+      res.status(500).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+);
 
 app.get('/api/baileys/sessions', (req, res) => {
   try {
     const userId = req.user?.id || req.user?._id; // Get user ID from API token middleware
-    
+
     if (!userId) {
       return res.status(401).json({
         success: false,
@@ -3109,7 +3395,10 @@ app.get('/api/baileys/sessions', (req, res) => {
 
     // Filter sessions by userId
     const sessionList = Array.from(sessions.entries())
-      .filter(([id, session]) => session.userId && session.userId.toString() === userId.toString())
+      .filter(
+        ([id, session]) =>
+          session.userId && session.userId.toString() === userId.toString()
+      )
       .map(([id, session]) => ({
         sessionId: id,
         isConnected: session.isConnected,
@@ -3119,11 +3408,11 @@ app.get('/api/baileys/sessions', (req, res) => {
         lastError: session.lastError || null,
         user: session.sock.user || null,
         hasQrCode: !!session.qrCode,
-      webhookUrl: webhooks.get(id) || null,
-      messageCount: messageStore.get(id)?.size || 0,
-      queueLength: sessionQueues.get(id)?.messages?.length || 0,
-      reconnectionAttempts: reconnectionAttempts.get(id) || 0,
-    }));
+        webhookUrl: webhooks.get(id) || null,
+        messageCount: messageStore.get(id)?.size || 0,
+        queueLength: sessionQueues.get(id)?.messages?.length || 0,
+        reconnectionAttempts: reconnectionAttempts.get(id) || 0,
+      }));
 
     res.json({
       success: true,
@@ -3142,7 +3431,7 @@ app.get('/api/baileys/sessions', (req, res) => {
 app.post('/api/baileys/sessions/cleanup-orphaned', async (req, res) => {
   try {
     const userId = req.user?.id || req.user?._id;
-    
+
     if (!userId) {
       return res.status(401).json({
         success: false,
@@ -3152,10 +3441,10 @@ app.post('/api/baileys/sessions/cleanup-orphaned', async (req, res) => {
 
     // Check if user is admin (you might want to add role checking here)
     // For now, allow any authenticated user to run cleanup on their orphaned sessions
-    
+
     logger.info(`Usuário ${userId} solicitou limpeza de sessões órfãs`);
     await cleanupOrphanedSessions();
-    
+
     res.json({
       success: true,
       message: 'Limpeza de sessões órfãs concluída',
@@ -3169,64 +3458,68 @@ app.post('/api/baileys/sessions/cleanup-orphaned', async (req, res) => {
   }
 });
 
-app.post('/api/baileys/session/:sessionId/send-message', checkSessionOwnership, async (req, res) => {
-  try {
-    const { sessionId } = req.params;
-    const { to, message, quotedMessageId } = req.body;
+app.post(
+  '/api/baileys/session/:sessionId/send-message',
+  checkSessionOwnership,
+  async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      const { to, message, quotedMessageId } = req.body;
 
-    const session = sessions.get(sessionId);
-    if (!session || !session.isConnected) {
-      return res.status(400).json({
+      const session = sessions.get(sessionId);
+      if (!session || !session.isConnected) {
+        return res.status(400).json({
+          success: false,
+          message: 'Sessão não encontrada ou não conectada',
+        });
+      }
+
+      // Verificar se o número está no formato correto
+      const jid = to.includes('@') ? to : `${to}@s.whatsapp.net`;
+
+      let quotedMessage = null;
+      if (quotedMessageId) {
+        const originalMessage = getMessageById(sessionId, quotedMessageId);
+        if (originalMessage) {
+          quotedMessage = originalMessage.message;
+        }
+      }
+
+      const result = await queueMessage(
+        sessionId,
+        session.sock,
+        jid,
+        { text: message },
+        quotedMessage
+      );
+
+      res.json({
+        success: true,
+        message: 'Mensagem enviada com sucesso',
+        messageId: result.key.id,
+        messageData: {
+          to: jid,
+          sentAt: new Date().toISOString(),
+          messageType: 'text',
+          content: message,
+          quotedMessageId: quotedMessageId || null,
+          status: 'sent',
+        },
+        sessionInfo: {
+          sessionId,
+          isConnected: session.isConnected,
+          user: session.sock.user,
+        },
+      });
+    } catch (error) {
+      logger.error(`Erro ao enviar mensagem: ${error.message}`);
+      res.status(500).json({
         success: false,
-        message: 'Sessão não encontrada ou não conectada',
+        message: error.message,
       });
     }
-
-    // Verificar se o número está no formato correto
-    const jid = to.includes('@') ? to : `${to}@s.whatsapp.net`;
-
-    let quotedMessage = null;
-    if (quotedMessageId) {
-      const originalMessage = getMessageById(sessionId, quotedMessageId);
-      if (originalMessage) {
-        quotedMessage = originalMessage.message;
-      }
-    }
-
-    const result = await queueMessage(
-      sessionId,
-      session.sock,
-      jid,
-      { text: message },
-      quotedMessage
-    );
-
-    res.json({
-      success: true,
-      message: 'Mensagem enviada com sucesso',
-      messageId: result.key.id,
-      messageData: {
-        to: jid,
-        sentAt: new Date().toISOString(),
-        messageType: 'text',
-        content: message,
-        quotedMessageId: quotedMessageId || null,
-        status: 'sent',
-      },
-      sessionInfo: {
-        sessionId,
-        isConnected: session.isConnected,
-        user: session.sock.user,
-      },
-    });
-  } catch (error) {
-    logger.error(`Erro ao enviar mensagem: ${error.message}`);
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
   }
-});
+);
 
 app.post(
   '/api/baileys/session/:sessionId/send-media',
@@ -3265,12 +3558,14 @@ app.post(
         try {
           await session.sock.sendPresenceUpdate('recording', jid);
           logger.info(`Status "gravando" enviado para ${jid}`);
-          
+
           // Simular tempo de gravação mais longo (3-7 segundos)
           const recordingTime = Math.floor(Math.random() * 4000) + 3000;
           await delay(recordingTime);
         } catch (presenceError) {
-          logger.warn(`Erro ao enviar status de gravação: ${presenceError.message}`);
+          logger.warn(
+            `Erro ao enviar status de gravação: ${presenceError.message}`
+          );
           // Continuar mesmo se o status falhar
         }
       }
@@ -3318,13 +3613,15 @@ app.post(
         try {
           await session.sock.sendPresenceUpdate('unavailable', jid);
           logger.info(`Status "gravando" removido para ${jid}`);
-          
+
           // Aguardar um pouco e depois voltar ao status disponível
           await delay(1000);
           await session.sock.sendPresenceUpdate('available', jid);
           logger.info(`Status voltou para "disponível" para ${jid}`);
         } catch (presenceError) {
-          logger.warn(`Erro ao remover status de gravação: ${presenceError.message}`);
+          logger.warn(
+            `Erro ao remover status de gravação: ${presenceError.message}`
+          );
         }
 
         // Enviar caption como resposta à mensagem de voz se fornecida
@@ -3332,22 +3629,26 @@ app.post(
           try {
             // Aguardar um pouco para garantir que a mensagem foi entregue
             await delay(500);
-            
+
             // Enviar caption como resposta à mensagem de voz
             const captionResult = await queueMessage(
               sessionId,
               session.sock,
               jid,
               {
-                text: caption.trim()
+                text: caption.trim(),
               },
               result // Referenciar a mensagem de voz completa
             );
-            
+
             captionMessageId = captionResult.key.id;
-            logger.info(`Caption enviada como resposta à mensagem de voz: ${captionMessageId}`);
+            logger.info(
+              `Caption enviada como resposta à mensagem de voz: ${captionMessageId}`
+            );
           } catch (captionError) {
-            logger.warn(`Erro ao enviar caption para mensagem de voz: ${captionError.message}`);
+            logger.warn(
+              `Erro ao enviar caption para mensagem de voz: ${captionError.message}`
+            );
           }
         }
       }
@@ -3367,15 +3668,18 @@ app.post(
             : ext.includes('.mp4', '.mov', '.avi', '.mkv')
             ? 'video'
             : isAudio
-            ? (isVoiceMessage) ? 'voice' : 'audio'
+            ? isVoiceMessage
+              ? 'voice'
+              : 'audio'
             : 'document',
           fileName: filename || req.file.originalname,
           fileSize: req.file.size,
           mimetype: req.file.mimetype,
-          caption: (isAudio && isVoiceMessage && caption) ? '' : caption || '', // Caption vazia para voice se será enviada como reply
+          caption: isAudio && isVoiceMessage && caption ? '' : caption || '', // Caption vazia para voice se será enviada como reply
           status: 'sent',
           presenceUpdated: isAudio && isVoiceMessage,
-          captionSentAsReply: isAudio && isVoiceMessage && !!caption && !!captionMessageId,
+          captionSentAsReply:
+            isAudio && isVoiceMessage && !!caption && !!captionMessageId,
           captionMessageId: captionMessageId,
         },
         sessionInfo: {
@@ -3395,218 +3699,225 @@ app.post(
 );
 
 // Rota para mencionar todos os participantes do grupo (silenciosamente)
-app.post('/api/baileys/session/:sessionId/mention-all', checkSessionOwnership, async (req, res) => {
-  try {
-    const { sessionId } = req.params;
-    const { groupId, message, silentMode = true } = req.body;
-
-    if (!groupId || !message) {
-      return res.status(400).json({
-        success: false,
-        message: 'groupId e message são obrigatórios',
-      });
-    }
-
-    const session = sessions.get(sessionId);
-    if (!session || !session.isConnected) {
-      return res.status(400).json({
-        success: false,
-        message: 'Sessão não encontrada ou não conectada',
-      });
-    }
-
-    // Verificar se é um ID de grupo válido
-    const jid = groupId.includes('@g.us') ? groupId : `${groupId}@g.us`;
-
+app.post(
+  '/api/baileys/session/:sessionId/mention-all',
+  checkSessionOwnership,
+  async (req, res) => {
     try {
-      // Obter metadados do grupo para listar participantes
-      const groupMetadata = await session.sock.groupMetadata(jid);
-      
-      if (!groupMetadata || !groupMetadata.participants) {
-        return res.status(404).json({
+      const { sessionId } = req.params;
+      const { groupId, message, silentMode = true } = req.body;
+
+      if (!groupId || !message) {
+        return res.status(400).json({
           success: false,
-          message: 'Grupo não encontrado ou sem participantes',
+          message: 'groupId e message são obrigatórios',
         });
       }
 
-      const participants = groupMetadata.participants;
-      const participantIds = participants.map(p => p.id);
-
-      let result;
-
-      if (silentMode) {
-        // Modo silencioso: usar caracteres invisíveis para mencionar sem @ azuis
-        // Adiciona Zero Width Space (U+200B) e caracteres invisíveis para bypass das notificações
-        const zeroWidthSpace = '\u200B'; // Unicode Zero Width Space
-        const invisibleChar = '\u2800';  // Unicode U+2800 (mais compatível com WhatsApp)
-        const zwjoiner = '\u200D';       // Zero Width Joiner
-        
-        // Criar menções invisíveis usando caracteres zero-width
-        const messageWithInvisibleMentions = message + zeroWidthSpace + invisibleChar + zwjoiner;
-        
-        result = await queueMessage(
-          sessionId,
-          session.sock,
-          jid,
-          {
-            text: messageWithInvisibleMentions,
-            mentions: participantIds // Menciona todos mas com caracteres invisíveis
-          }
-        );
-      } else {
-        // Modo com menções visíveis: enviar com @ azul para todos os participantes
-        result = await queueMessage(
-          sessionId,
-          session.sock,
-          jid,
-          {
-            text: message,
-            mentions: participantIds
-          }
-        );
+      const session = sessions.get(sessionId);
+      if (!session || !session.isConnected) {
+        return res.status(400).json({
+          success: false,
+          message: 'Sessão não encontrada ou não conectada',
+        });
       }
 
-      res.json({
-        success: true,
-        message: silentMode ? 'Mensagem enviada para o grupo (modo silencioso)' : 'Mensagem enviada mencionando todos os participantes',
-        messageId: result.key.id,
-        groupInfo: {
-          id: jid,
-          name: groupMetadata.subject,
-          participantCount: participants.length,
-          silentMode: silentMode
-        },
-        messageData: {
-          to: jid,
-          sentAt: new Date().toISOString(),
-          messageType: 'text',
-          content: message,
-          participantsReached: participants.length, // Todos do grupo recebem a mensagem
-          participantsMentioned: participants.length, // Em ambos os modos todos são mencionados
-          mentionType: silentMode ? 'invisible_mentions' : 'visible_mentions',
-          invisibleCharacters: silentMode ? ['U+200B', 'U+2800', 'U+200D'] : null,
-          status: 'sent',
-        },
-        sessionInfo: {
-          sessionId,
-          isConnected: session.isConnected,
-          user: session.sock.user,
-        },
-      });
+      // Verificar se é um ID de grupo válido
+      const jid = groupId.includes('@g.us') ? groupId : `${groupId}@g.us`;
 
-    } catch (groupError) {
-      logger.error(`Erro ao obter dados do grupo: ${groupError.message}`);
-      res.status(400).json({
-        success: false,
-        message: 'Erro ao acessar dados do grupo. Verifique se o bot faz parte do grupo.',
-        error: groupError.message,
-      });
-    }
+      try {
+        // Obter metadados do grupo para listar participantes
+        const groupMetadata = await session.sock.groupMetadata(jid);
 
-  } catch (error) {
-    logger.error(`Erro ao mencionar todos: ${error.message}`);
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-});
+        if (!groupMetadata || !groupMetadata.participants) {
+          return res.status(404).json({
+            success: false,
+            message: 'Grupo não encontrado ou sem participantes',
+          });
+        }
 
-app.post('/api/baileys/session/:sessionId/download-media', checkSessionOwnership, async (req, res) => {
-  try {
-    const { sessionId } = req.params;
-    const { messageId } = req.body;
+        const participants = groupMetadata.participants;
+        const participantIds = participants.map((p) => p.id);
 
-    if (!messageId) {
-      return res.status(400).json({
-        success: false,
-        message: 'messageId é obrigatório',
-      });
-    }
+        let result;
 
-    const session = sessions.get(sessionId);
-    if (!session || !session.isConnected) {
-      return res.status(400).json({
-        success: false,
-        message: 'Sessão não encontrada ou não conectada',
-      });
-    }
+        if (silentMode) {
+          // Modo silencioso: usar caracteres invisíveis para mencionar sem @ azuis
+          // Adiciona Zero Width Space (U+200B) e caracteres invisíveis para bypass das notificações
+          const zeroWidthSpace = '\u200B'; // Unicode Zero Width Space
+          const invisibleChar = '\u2800'; // Unicode U+2800 (mais compatível com WhatsApp)
+          const zwjoiner = '\u200D'; // Zero Width Joiner
 
-    // Buscar a mensagem armazenada
-    const messageData = getMessageById(sessionId, messageId);
-    if (!messageData) {
-      return res.status(404).json({
-        success: false,
-        message: 'Mensagem não encontrada',
-      });
-    }
+          // Criar menções invisíveis usando caracteres zero-width
+          const messageWithInvisibleMentions =
+            message + zeroWidthSpace + invisibleChar + zwjoiner;
 
-    const message = messageData.message;
+          result = await queueMessage(sessionId, session.sock, jid, {
+            text: messageWithInvisibleMentions,
+            mentions: participantIds, // Menciona todos mas com caracteres invisíveis
+          });
+        } else {
+          // Modo com menções visíveis: enviar com @ azul para todos os participantes
+          result = await queueMessage(sessionId, session.sock, jid, {
+            text: message,
+            mentions: participantIds,
+          });
+        }
 
-    // Verificar se a mensagem contém mídia
-    const hasMedia =
-      message.message?.imageMessage ||
-      message.message?.videoMessage ||
-      message.message?.audioMessage ||
-      message.message?.documentMessage ||
-      message.message?.stickerMessage;
-
-    if (!hasMedia) {
-      return res.status(400).json({
-        success: false,
-        message: 'Mensagem não contém mídia para download',
-      });
-    }
-
-    // Gerar nome do arquivo baseado no tipo de mídia
-    let filename = `media_${messageId}`;
-    if (message.message.imageMessage) {
-      filename += '.jpg';
-    } else if (message.message.videoMessage) {
-      filename += '.mp4';
-    } else if (message.message.audioMessage) {
-      filename += message.message.audioMessage.ptt ? '.ogg' : '.mp3';
-    } else if (message.message.documentMessage) {
-      filename = message.message.documentMessage.fileName || `${filename}.bin`;
-    } else if (message.message.stickerMessage) {
-      filename += '.webp';
-    }
-
-    // Baixar a mídia
-    const downloadResult = await downloadMedia(session.sock, message, filename);
-
-    if (downloadResult.success) {
-      res.json({
-        success: true,
-        message: 'Mídia baixada com sucesso',
-        messageId,
-        downloadInfo: {
-          fileName: filename,
-          filePath: downloadResult.filePath,
-          fileSize: downloadResult.size,
-          downloadedAt: new Date().toISOString(),
-        },
-        sessionInfo: {
-          sessionId,
-          isConnected: session.isConnected,
-          user: session.sock.user,
-        },
-      });
-    } else {
+        res.json({
+          success: true,
+          message: silentMode
+            ? 'Mensagem enviada para o grupo (modo silencioso)'
+            : 'Mensagem enviada mencionando todos os participantes',
+          messageId: result.key.id,
+          groupInfo: {
+            id: jid,
+            name: groupMetadata.subject,
+            participantCount: participants.length,
+            silentMode: silentMode,
+          },
+          messageData: {
+            to: jid,
+            sentAt: new Date().toISOString(),
+            messageType: 'text',
+            content: message,
+            participantsReached: participants.length, // Todos do grupo recebem a mensagem
+            participantsMentioned: participants.length, // Em ambos os modos todos são mencionados
+            mentionType: silentMode ? 'invisible_mentions' : 'visible_mentions',
+            invisibleCharacters: silentMode
+              ? ['U+200B', 'U+2800', 'U+200D']
+              : null,
+            status: 'sent',
+          },
+          sessionInfo: {
+            sessionId,
+            isConnected: session.isConnected,
+            user: session.sock.user,
+          },
+        });
+      } catch (groupError) {
+        logger.error(`Erro ao obter dados do grupo: ${groupError.message}`);
+        res.status(400).json({
+          success: false,
+          message:
+            'Erro ao acessar dados do grupo. Verifique se o bot faz parte do grupo.',
+          error: groupError.message,
+        });
+      }
+    } catch (error) {
+      logger.error(`Erro ao mencionar todos: ${error.message}`);
       res.status(500).json({
         success: false,
-        message: 'Erro ao baixar mídia',
-        error: downloadResult.error,
+        message: error.message,
       });
     }
-  } catch (error) {
-    logger.error(`Erro ao baixar mídia: ${error.message}`);
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
   }
-});
+);
+
+app.post(
+  '/api/baileys/session/:sessionId/download-media',
+  checkSessionOwnership,
+  async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      const { messageId } = req.body;
+
+      if (!messageId) {
+        return res.status(400).json({
+          success: false,
+          message: 'messageId é obrigatório',
+        });
+      }
+
+      const session = sessions.get(sessionId);
+      if (!session || !session.isConnected) {
+        return res.status(400).json({
+          success: false,
+          message: 'Sessão não encontrada ou não conectada',
+        });
+      }
+
+      // Buscar a mensagem armazenada
+      const messageData = getMessageById(sessionId, messageId);
+      if (!messageData) {
+        return res.status(404).json({
+          success: false,
+          message: 'Mensagem não encontrada',
+        });
+      }
+
+      const message = messageData.message;
+
+      // Verificar se a mensagem contém mídia
+      const hasMedia =
+        message.message?.imageMessage ||
+        message.message?.videoMessage ||
+        message.message?.audioMessage ||
+        message.message?.documentMessage ||
+        message.message?.stickerMessage;
+
+      if (!hasMedia) {
+        return res.status(400).json({
+          success: false,
+          message: 'Mensagem não contém mídia para download',
+        });
+      }
+
+      // Gerar nome do arquivo baseado no tipo de mídia
+      let filename = `media_${messageId}`;
+      if (message.message.imageMessage) {
+        filename += '.jpg';
+      } else if (message.message.videoMessage) {
+        filename += '.mp4';
+      } else if (message.message.audioMessage) {
+        filename += message.message.audioMessage.ptt ? '.ogg' : '.mp3';
+      } else if (message.message.documentMessage) {
+        filename =
+          message.message.documentMessage.fileName || `${filename}.bin`;
+      } else if (message.message.stickerMessage) {
+        filename += '.webp';
+      }
+
+      // Baixar a mídia
+      const downloadResult = await downloadMedia(
+        session.sock,
+        message,
+        filename
+      );
+
+      if (downloadResult.success) {
+        res.json({
+          success: true,
+          message: 'Mídia baixada com sucesso',
+          messageId,
+          downloadInfo: {
+            fileName: filename,
+            filePath: downloadResult.filePath,
+            fileSize: downloadResult.size,
+            downloadedAt: new Date().toISOString(),
+          },
+          sessionInfo: {
+            sessionId,
+            isConnected: session.isConnected,
+            user: session.sock.user,
+          },
+        });
+      } else {
+        res.status(500).json({
+          success: false,
+          message: 'Erro ao baixar mídia',
+          error: downloadResult.error,
+        });
+      }
+    } catch (error) {
+      logger.error(`Erro ao baixar mídia: ${error.message}`);
+      res.status(500).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+);
 
 // Rota para servir arquivos de mídia baixados via link único
 app.get('/api/baileys/download/:downloadId', async (req, res) => {
@@ -3635,7 +3946,7 @@ app.get('/api/baileys/download/:downloadId', async (req, res) => {
       } catch (cleanupError) {
         logger.warn(`Erro ao limpar arquivo expirado: ${cleanupError.message}`);
       }
-      
+
       return res.status(410).send('Link de download expirado');
     }
 
@@ -3646,34 +3957,55 @@ app.get('/api/baileys/download/:downloadId', async (req, res) => {
     }
 
     // Configurar headers apropriados para download direto
-    res.setHeader('Content-Type', fileMetadata.mimetype || 'application/octet-stream');
+    res.setHeader(
+      'Content-Type',
+      fileMetadata.mimetype || 'application/octet-stream'
+    );
     res.setHeader('Content-Length', fileMetadata.size);
-    
+
     // Escapar nome do arquivo para Content-Disposition (suporte UTF-8)
-    const cleanFileName = fileMetadata.originalFileName.replace(/[^\w\s.-]/g, '_');
-    res.setHeader('Content-Disposition', `attachment; filename="${cleanFileName}"; filename*=UTF-8''${encodeURIComponent(cleanFileName)}`);
-    
+    const cleanFileName = fileMetadata.originalFileName.replace(
+      /[^\w\s.-]/g,
+      '_'
+    );
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${cleanFileName}"; filename*=UTF-8''${encodeURIComponent(
+        cleanFileName
+      )}`
+    );
+
     // Headers de segurança e controle de cache
     res.setHeader('Cache-Control', 'private, max-age=3600, must-revalidate');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
     res.setHeader('Accept-Ranges', 'bytes');
-    
+
     // Headers informativos
     res.setHeader('X-Download-ID', downloadId);
     res.setHeader('X-File-Name', fileMetadata.originalFileName);
     res.setHeader('X-Session-ID', fileMetadata.sessionId);
-    res.setHeader('X-File-Type', fileMetadata.originalFileName.includes('voice_') ? 'voice-message' : 'media');
+    res.setHeader(
+      'X-File-Type',
+      fileMetadata.originalFileName.includes('voice_')
+        ? 'voice-message'
+        : 'media'
+    );
     res.setHeader('X-Content-Type-Options', 'nosniff');
-    
+
     // Header para melhor compatibilidade com downloads
-    res.setHeader('Access-Control-Expose-Headers', 'Content-Disposition,X-File-Name,X-File-Type');
+    res.setHeader(
+      'Access-Control-Expose-Headers',
+      'Content-Disposition,X-File-Name,X-File-Type'
+    );
 
     // Enviar arquivo
     const fileStream = fs.createReadStream(fileMetadata.filePath);
-    
+
     fileStream.on('error', (error) => {
-      logger.error(`Erro ao transmitir arquivo ${downloadId}: ${error.message}`);
+      logger.error(
+        `Erro ao transmitir arquivo ${downloadId}: ${error.message}`
+      );
       if (!res.headersSent) {
         res.status(500).send('Erro ao transmitir arquivo');
       }
@@ -3682,8 +4014,9 @@ app.get('/api/baileys/download/:downloadId', async (req, res) => {
     fileStream.pipe(res);
 
     // Log do download
-    logger.info(`Arquivo baixado: ${fileMetadata.originalFileName} (${downloadId}) por IP: ${req.ip}`);
-
+    logger.info(
+      `Arquivo baixado: ${fileMetadata.originalFileName} (${downloadId}) por IP: ${req.ip}`
+    );
   } catch (error) {
     logger.error(`Erro na rota de download: ${error.message}`);
     res.status(500).send('Erro interno do servidor');
@@ -3696,8 +4029,8 @@ app.get('/api/baileys/downloads', async (req, res) => {
     const sessionId = req.query.sessionId; // Opcional: filtrar por sessão
     const allDownloads = await getAllDownloads(sessionId);
     const now = new Date();
-    
-    const downloads = allDownloads.map(metadata => {
+
+    const downloads = allDownloads.map((metadata) => {
       const isExpired = now > new Date(metadata.expiresAt);
       return {
         downloadId: metadata.downloadId,
@@ -3712,7 +4045,7 @@ app.get('/api/baileys/downloads', async (req, res) => {
         uploadedAt: metadata.uploadedAt,
         expiresAt: metadata.expiresAt,
         isExpired,
-        downloadUrl: isExpired ? null : metadata.downloadUrl
+        downloadUrl: isExpired ? null : metadata.downloadUrl,
       };
     });
 
@@ -3720,759 +4053,665 @@ app.get('/api/baileys/downloads', async (req, res) => {
       success: true,
       downloads,
       total: downloads.length,
-      active: downloads.filter(d => !d.isExpired).length,
-      expired: downloads.filter(d => d.isExpired).length,
-      sessionFilter: sessionId || null
+      active: downloads.filter((d) => !d.isExpired).length,
+      expired: downloads.filter((d) => d.isExpired).length,
+      sessionFilter: sessionId || null,
     });
-
   } catch (error) {
     logger.error(`Erro ao listar downloads: ${error.message}`);
     res.status(500).json({
       success: false,
-      message: 'Erro interno do servidor'
+      message: 'Erro interno do servidor',
     });
   }
 });
 
-app.post('/api/baileys/session/:sessionId/mark-read', checkSessionOwnership, async (req, res) => {
-  try {
-    const { sessionId } = req.params;
-    const { jid, messageId } = req.body;
+app.post(
+  '/api/baileys/session/:sessionId/mark-read',
+  checkSessionOwnership,
+  async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      const { jid, messageId } = req.body;
 
-    const session = sessions.get(sessionId);
-    if (!session || !session.isConnected) {
-      return res.status(400).json({
-        success: false,
-        message: 'Sessão não encontrada ou não conectada',
-      });
-    }
-
-    await session.sock.readMessages([
-      {
-        remoteJid: jid,
-        id: messageId,
-      },
-    ]);
-
-    res.json({
-      success: true,
-      message: 'Mensagem marcada como lida',
-    });
-  } catch (error) {
-    logger.error(`Erro ao marcar como lida: ${error.message}`);
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-});
-
-app.post('/api/baileys/session/:sessionId/typing', checkSessionOwnership, async (req, res) => {
-  try {
-    const { sessionId } = req.params;
-    const { jid, isTyping = true } = req.body;
-
-    const session = sessions.get(sessionId);
-    if (!session || !session.isConnected) {
-      return res.status(400).json({
-        success: false,
-        message: 'Sessão não encontrada ou não conectada',
-      });
-    }
-
-    const presence = isTyping ? 'composing' : 'paused';
-    await session.sock.sendPresenceUpdate(presence, jid);
-
-    res.json({
-      success: true,
-      message: `Status de digitação ${isTyping ? 'iniciado' : 'parado'}`,
-    });
-  } catch (error) {
-    logger.error(`Erro ao enviar status de digitação: ${error.message}`);
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-});
-
-app.post('/api/baileys/session/:sessionId/reply-message', checkSessionOwnership, async (req, res) => {
-  try {
-    const { sessionId } = req.params;
-    const { messageId, reply } = req.body;
-
-    if (!messageId || !reply) {
-      return res.status(400).json({
-        success: false,
-        message: 'messageId e reply são obrigatórios',
-      });
-    }
-
-    const session = sessions.get(sessionId);
-    if (!session || !session.isConnected) {
-      return res.status(400).json({
-        success: false,
-        message: 'Sessão não encontrada ou não conectada',
-      });
-    }
-
-    // Buscar a mensagem original
-    const originalMessage = getMessageById(sessionId, messageId);
-    if (!originalMessage) {
-      return res.status(404).json({
-        success: false,
-        message: 'Mensagem não encontrada',
-      });
-    }
-
-    const jid = originalMessage.jid;
-
-    // Enviar resposta citando a mensagem original corretamente
-    const result = await queueMessage(
-      sessionId,
-      session.sock,
-      jid,
-      { text: reply },
-      originalMessage.message
-    );
-
-    res.json({
-      success: true,
-      message: 'Resposta enviada com sucesso',
-      messageId: result.key.id,
-      quotedMessageId: messageId,
-      messageData: {
-        to: jid,
-        sentAt: new Date().toISOString(),
-        messageType: 'text',
-        content: reply,
-        isReply: true,
-        originalMessage: {
-          messageId: messageId,
-          jid: originalMessage.jid,
-          timestamp: originalMessage.timestamp,
-        },
-        status: 'sent',
-      },
-      sessionInfo: {
-        sessionId,
-        isConnected: session.isConnected,
-        user: session.sock.user,
-      },
-    });
-  } catch (error) {
-    logger.error(`Erro ao responder mensagem: ${error.message}`);
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-});
-
-app.get('/api/baileys/session/:sessionId/messages', checkSessionOwnership, async (req, res) => {
-  try {
-    const { sessionId } = req.params;
-    const { limit = 50, offset = 0, source = 'auto' } = req.query;
-
-    const session = sessions.get(sessionId);
-    if (!session) {
-      return res.status(404).json({
-        success: false,
-        message: 'Sessão não encontrada',
-      });
-    }
-
-    let messages = [];
-    let total = 0;
-
-    // Try to get messages from MongoDB first (persistent storage)
-    if (source === 'auto' || source === 'mongodb') {
-      try {
-        const mongoMessages = await loadMessagesFromMongoDB(sessionId, parseInt(limit), parseInt(offset));
-        if (mongoMessages.length > 0) {
-          messages = mongoMessages;
-          total = mongoMessages.length;
-          
-          // Get total count from MongoDB
-          const db = database.getDb();
-          if (db) {
-            const messagesCollection = db.collection('messages');
-            total = await messagesCollection.countDocuments({ sessionId });
-          }
-          
-          return res.json({
-            success: true,
-            messages,
-            total,
-            source: 'mongodb',
-            sessionId
-          });
-        }
-      } catch (error) {
-        logger.warn(`Failed to load messages from MongoDB: ${error.message}`);
-      }
-    }
-
-    // Fallback to memory store if MongoDB is unavailable or source is 'memory'
-    if (source === 'auto' || source === 'memory') {
-      const sessionMessages = messageStore.get(sessionId);
-      if (!sessionMessages) {
-        return res.json({
-          success: true,
-          messages: [],
-          total: 0,
-          source: 'memory',
-          sessionId
+      const session = sessions.get(sessionId);
+      if (!session || !session.isConnected) {
+        return res.status(400).json({
+          success: false,
+          message: 'Sessão não encontrada ou não conectada',
         });
       }
 
-      // Convert Map to Array and apply pagination
-      const messageEntries = Array.from(sessionMessages.entries());
-      const totalInMemory = messageEntries.length;
-      const paginatedEntries = messageEntries.slice(-parseInt(limit) - parseInt(offset), messageEntries.length - parseInt(offset));
+      await session.sock.readMessages([
+        {
+          remoteJid: jid,
+          id: messageId,
+        },
+      ]);
 
-      // Get contact info for unique JIDs (only if session is connected)
-      const contactInfoCache = new Map();
-      if (session.isConnected && session.sock) {
-        const uniqueJids = [...new Set(paginatedEntries.map(([id, data]) => data.jid))];
-        
-        for (const jid of uniqueJids) {
-          try {
-            const contactInfo = await getContactOrGroupInfo(jid, session.sock);
-            contactInfoCache.set(jid, contactInfo);
-          } catch (error) {
-            logger.warn(`Failed to get contact info for ${jid}: ${error.message}`);
-          }
-        }
-      }
-
-      messages = paginatedEntries.map(([id, data]) => {
-        const message = data.message;
-        const contactInfo = contactInfoCache.get(data.jid);
-
-        const messageInfo = {
-          messageId: id,
-          jid: data.jid,
-          chatInfo: contactInfo,
-          timestamp: data.timestamp,
-          isFromMe: message.key.fromMe,
-          messageText: extractMessageText(message),
-          messageType: getMessageType(message),
-          isReply: false,
-          quotedMessage: null,
-          pushName: message.pushName || null
-        };
-
-        // Add participant info if it's a group
-        if (contactInfo && contactInfo.type === 'group' && message.key.participant) {
-          messageInfo.participant = {
-            jid: message.key.participant,
-            number: message.key.participant && message.key.participant.includes('@') ? message.key.participant.split('@')[0] : (message.key.participant || 'unknown'),
-            pushName: message.pushName || null,
-          };
-        }
-
-        // Check if it's a reply
-        if (message.message?.extendedTextMessage?.contextInfo?.quotedMessage) {
-          const contextInfo = message.message.extendedTextMessage.contextInfo;
-          messageInfo.isReply = true;
-          messageInfo.quotedMessage = {
-            messageId: contextInfo.stanzaId,
-            participant: contextInfo.participant,
-            text: contextInfo.quotedMessage?.conversation ||
-                  contextInfo.quotedMessage?.extendedTextMessage?.text ||
-                  '[Mídia citada]',
-            fromMe: contextInfo.participant === message.key.remoteJid
-          };
-        }
-
-        return messageInfo;
-      });
-
-      return res.json({
+      res.json({
         success: true,
-        messages: messages.reverse(), // Most recent first
-        total: totalInMemory,
-        source: 'memory',
-        sessionId
+        message: 'Mensagem marcada como lida',
       });
-    }
-
-    // If no messages found in either source
-    res.json({
-      success: true,
-      messages: [],
-      total: 0,
-      source: 'none',
-      sessionId
-    });
-  } catch (error) {
-    logger.error(`Erro ao listar mensagens: ${error.message}`);
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-});
-
-app.post('/api/baileys/session/:sessionId/webhook', checkSessionOwnership, async (req, res) => {
-  try {
-    const { sessionId } = req.params;
-    const { webhookUrl } = req.body;
-    const userId = req.user.id;
-
-    if (!webhookUrl) {
-      return res.status(400).json({
+    } catch (error) {
+      logger.error(`Erro ao marcar como lida: ${error.message}`);
+      res.status(500).json({
         success: false,
-        message: 'webhookUrl é obrigatório',
+        message: error.message,
       });
     }
+  }
+);
 
-    // Validar URL
+app.post(
+  '/api/baileys/session/:sessionId/typing',
+  checkSessionOwnership,
+  async (req, res) => {
     try {
-      new URL(webhookUrl);
-    } catch {
-      return res.status(400).json({
-        success: false,
-        message: 'URL do webhook inválida',
-      });
-    }
+      const { sessionId } = req.params;
+      const { jid, isTyping = true } = req.body;
 
-    const session = sessions.get(sessionId);
-    if (!session) {
-      return res.status(404).json({
-        success: false,
-        message: 'Sessão não encontrada',
-      });
-    }
-
-    const db = database.getDb();
-    if (!db) {
-      return res.status(503).json({
-        success: false,
-        message: 'Banco de dados não disponível',
-      });
-    }
-
-    const webhooksCollection = db.collection('webhooks');
-    
-    // Remover webhook "Principal" existente se houver
-    await webhooksCollection.deleteMany({
-      userId: userId,
-      sessionId: sessionId,
-      name: 'Principal'
-    });
-
-    // Criar novo webhook
-    const newWebhook = {
-      id: crypto.randomUUID(),
-      userId: userId,
-      sessionId: sessionId,
-      name: 'Principal',
-      url: webhookUrl,
-      active: true,
-      priority: 1,
-      events: ['*'],
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-
-    await webhooksCollection.insertOne(newWebhook);
-
-    res.json({
-      success: true,
-      message: 'Webhook configurado com sucesso',
-      webhookUrl,
-      sessionId,
-      webhookInfo: {
-        id: newWebhook.id,
-        name: newWebhook.name,
-        note: 'Endpoint legado - use /webhooks para gerenciamento completo'
+      const session = sessions.get(sessionId);
+      if (!session || !session.isConnected) {
+        return res.status(400).json({
+          success: false,
+          message: 'Sessão não encontrada ou não conectada',
+        });
       }
-    });
-  } catch (error) {
-    logger.error(`Erro ao configurar webhook: ${error.message}`);
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
+
+      const presence = isTyping ? 'composing' : 'paused';
+      await session.sock.sendPresenceUpdate(presence, jid);
+
+      res.json({
+        success: true,
+        message: `Status de digitação ${isTyping ? 'iniciado' : 'parado'}`,
+      });
+    } catch (error) {
+      logger.error(`Erro ao enviar status de digitação: ${error.message}`);
+      res.status(500).json({
+        success: false,
+        message: error.message,
+      });
+    }
   }
-});
+);
 
-app.get('/api/baileys/session/:sessionId/webhook', checkSessionOwnership, async (req, res) => {
-  try {
-    const { sessionId } = req.params;
-    const userId = req.user.id;
+app.post(
+  '/api/baileys/session/:sessionId/reply-message',
+  checkSessionOwnership,
+  async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      const { messageId, reply } = req.body;
 
-    const session = sessions.get(sessionId);
-    if (!session) {
-      return res.status(404).json({
-        success: false,
-        message: 'Sessão não encontrada',
-      });
-    }
+      if (!messageId || !reply) {
+        return res.status(400).json({
+          success: false,
+          message: 'messageId e reply são obrigatórios',
+        });
+      }
 
-    const db = database.getDb();
-    if (!db) {
-      return res.status(503).json({
-        success: false,
-        message: 'Banco de dados não disponível',
-      });
-    }
+      const session = sessions.get(sessionId);
+      if (!session || !session.isConnected) {
+        return res.status(400).json({
+          success: false,
+          message: 'Sessão não encontrada ou não conectada',
+        });
+      }
 
-    const webhooksCollection = db.collection('webhooks');
-    
-    // Buscar webhook "Principal" ou o primeiro ativo
-    const principalWebhook = await webhooksCollection.findOne({
-      userId: userId,
-      sessionId: sessionId,
-      name: 'Principal'
-    });
-
-    if (!principalWebhook) {
-      // Se não tem Principal, busca o primeiro ativo
-      const activeWebhook = await webhooksCollection.findOne({
-        userId: userId,
-        sessionId: sessionId,
-        active: true
-      });
-
-      if (!activeWebhook) {
+      // Buscar a mensagem original
+      const originalMessage = getMessageById(sessionId, messageId);
+      if (!originalMessage) {
         return res.status(404).json({
           success: false,
-          message: 'Webhook não configurado para esta sessão',
+          message: 'Mensagem não encontrada',
         });
       }
+
+      const jid = originalMessage.jid;
+
+      // Enviar resposta citando a mensagem original corretamente
+      const result = await queueMessage(
+        sessionId,
+        session.sock,
+        jid,
+        { text: reply },
+        originalMessage.message
+      );
+
+      res.json({
+        success: true,
+        message: 'Resposta enviada com sucesso',
+        messageId: result.key.id,
+        quotedMessageId: messageId,
+        messageData: {
+          to: jid,
+          sentAt: new Date().toISOString(),
+          messageType: 'text',
+          content: reply,
+          isReply: true,
+          originalMessage: {
+            messageId: messageId,
+            jid: originalMessage.jid,
+            timestamp: originalMessage.timestamp,
+          },
+          status: 'sent',
+        },
+        sessionInfo: {
+          sessionId,
+          isConnected: session.isConnected,
+          user: session.sock.user,
+        },
+      });
+    } catch (error) {
+      logger.error(`Erro ao responder mensagem: ${error.message}`);
+      res.status(500).json({
+        success: false,
+        message: error.message,
+      });
     }
-
-    const webhook = principalWebhook || activeWebhook;
-
-    res.json({
-      success: true,
-      webhookUrl: webhook.url,
-      sessionId,
-      webhookInfo: {
-        id: webhook.id,
-        name: webhook.name,
-        active: webhook.active,
-        priority: webhook.priority,
-        note: 'Endpoint legado - use /webhooks para informações completas'
-      }
-    });
-  } catch (error) {
-    logger.error(`Erro ao obter webhook: ${error.message}`);
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
   }
-});
+);
 
-app.delete('/api/baileys/session/:sessionId/webhook', checkSessionOwnership, async (req, res) => {
-  try {
-    const { sessionId } = req.params;
-    const userId = req.user.id;
+app.get(
+  '/api/baileys/session/:sessionId/messages',
+  checkSessionOwnership,
+  async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      const { limit = 50, offset = 0, source = 'auto' } = req.query;
 
-    const session = sessions.get(sessionId);
-    if (!session) {
-      return res.status(404).json({
+      const session = sessions.get(sessionId);
+      if (!session) {
+        return res.status(404).json({
+          success: false,
+          message: 'Sessão não encontrada',
+        });
+      }
+
+      let messages = [];
+      let total = 0;
+
+      // Try to get messages from MongoDB first (persistent storage)
+      if (source === 'auto' || source === 'mongodb') {
+        try {
+          const mongoMessages = await loadMessagesFromMongoDB(
+            sessionId,
+            parseInt(limit),
+            parseInt(offset)
+          );
+          if (mongoMessages.length > 0) {
+            messages = mongoMessages;
+            total = mongoMessages.length;
+
+            // Get total count from MongoDB
+            const db = database.getDb();
+            if (db) {
+              const messagesCollection = db.collection('messages');
+              total = await messagesCollection.countDocuments({ sessionId });
+            }
+
+            return res.json({
+              success: true,
+              messages,
+              total,
+              source: 'mongodb',
+              sessionId,
+            });
+          }
+        } catch (error) {
+          logger.warn(`Failed to load messages from MongoDB: ${error.message}`);
+        }
+      }
+
+      // Fallback to memory store if MongoDB is unavailable or source is 'memory'
+      if (source === 'auto' || source === 'memory') {
+        const sessionMessages = messageStore.get(sessionId);
+        if (!sessionMessages) {
+          return res.json({
+            success: true,
+            messages: [],
+            total: 0,
+            source: 'memory',
+            sessionId,
+          });
+        }
+
+        // Convert Map to Array and apply pagination
+        const messageEntries = Array.from(sessionMessages.entries());
+        const totalInMemory = messageEntries.length;
+        const paginatedEntries = messageEntries.slice(
+          -parseInt(limit) - parseInt(offset),
+          messageEntries.length - parseInt(offset)
+        );
+
+        // Get contact info for unique JIDs (only if session is connected)
+        const contactInfoCache = new Map();
+        if (session.isConnected && session.sock) {
+          const uniqueJids = [
+            ...new Set(paginatedEntries.map(([id, data]) => data.jid)),
+          ];
+
+          for (const jid of uniqueJids) {
+            try {
+              const contactInfo = await getContactOrGroupInfo(
+                jid,
+                session.sock
+              );
+              contactInfoCache.set(jid, contactInfo);
+            } catch (error) {
+              logger.warn(
+                `Failed to get contact info for ${jid}: ${error.message}`
+              );
+            }
+          }
+        }
+
+        messages = paginatedEntries.map(([id, data]) => {
+          const message = data.message;
+          const contactInfo = contactInfoCache.get(data.jid);
+
+          const messageInfo = {
+            messageId: id,
+            jid: data.jid,
+            chatInfo: contactInfo,
+            timestamp: data.timestamp,
+            isFromMe: message.key.fromMe,
+            messageText: extractMessageText(message),
+            messageType: getMessageType(message),
+            isReply: false,
+            quotedMessage: null,
+            pushName: message.pushName || null,
+          };
+
+          // Add participant info if it's a group
+          if (
+            contactInfo &&
+            contactInfo.type === 'group' &&
+            message.key.participant
+          ) {
+            messageInfo.participant = {
+              jid: message.key.participant,
+              number:
+                message.key.participant && message.key.participant.includes('@')
+                  ? message.key.participant.split('@')[0]
+                  : message.key.participant || 'unknown',
+              pushName: message.pushName || null,
+            };
+          }
+
+          // Check if it's a reply
+          if (
+            message.message?.extendedTextMessage?.contextInfo?.quotedMessage
+          ) {
+            const contextInfo = message.message.extendedTextMessage.contextInfo;
+            messageInfo.isReply = true;
+            messageInfo.quotedMessage = {
+              messageId: contextInfo.stanzaId,
+              participant: contextInfo.participant,
+              text:
+                contextInfo.quotedMessage?.conversation ||
+                contextInfo.quotedMessage?.extendedTextMessage?.text ||
+                '[Mídia citada]',
+              fromMe: contextInfo.participant === message.key.remoteJid,
+            };
+          }
+
+          return messageInfo;
+        });
+
+        return res.json({
+          success: true,
+          messages: messages.reverse(), // Most recent first
+          total: totalInMemory,
+          source: 'memory',
+          sessionId,
+        });
+      }
+
+      // If no messages found in either source
+      res.json({
+        success: true,
+        messages: [],
+        total: 0,
+        source: 'none',
+        sessionId,
+      });
+    } catch (error) {
+      logger.error(`Erro ao listar mensagens: ${error.message}`);
+      res.status(500).json({
         success: false,
-        message: 'Sessão não encontrada',
+        message: error.message,
       });
     }
+  }
+);
 
-    const db = database.getDb();
-    if (!db) {
-      return res.status(503).json({
-        success: false,
-        message: 'Banco de dados não disponível',
-      });
-    }
+app.post(
+  '/api/baileys/session/:sessionId/webhook',
+  checkSessionOwnership,
+  async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      const { webhookUrl } = req.body;
+      const userId = req.user.id;
 
-    const webhooksCollection = db.collection('webhooks');
-    
-    // Buscar webhook "Principal" ou o primeiro ativo
-    const principalWebhook = await webhooksCollection.findOne({
-      userId: userId,
-      sessionId: sessionId,
-      name: 'Principal'
-    });
+      if (!webhookUrl) {
+        return res.status(400).json({
+          success: false,
+          message: 'webhookUrl é obrigatório',
+        });
+      }
 
-    let webhookToRemove = principalWebhook;
-    
-    if (!principalWebhook) {
-      // Se não tem Principal, busca o primeiro ativo
-      webhookToRemove = await webhooksCollection.findOne({
+      // Validar URL
+      try {
+        new URL(webhookUrl);
+      } catch {
+        return res.status(400).json({
+          success: false,
+          message: 'URL do webhook inválida',
+        });
+      }
+
+      const session = sessions.get(sessionId);
+      if (!session) {
+        return res.status(404).json({
+          success: false,
+          message: 'Sessão não encontrada',
+        });
+      }
+
+      const db = database.getDb();
+      if (!db) {
+        return res.status(503).json({
+          success: false,
+          message: 'Banco de dados não disponível',
+        });
+      }
+
+      const webhooksCollection = db.collection('webhooks');
+
+      // Remover webhook "Principal" existente se houver
+      await webhooksCollection.deleteMany({
         userId: userId,
         sessionId: sessionId,
-        active: true
+        name: 'Principal',
       });
-    }
-    
-    if (!webhookToRemove) {
-      return res.status(404).json({
+
+      // Criar novo webhook
+      const newWebhook = {
+        id: crypto.randomUUID(),
+        userId: userId,
+        sessionId: sessionId,
+        name: 'Principal',
+        url: webhookUrl,
+        active: true,
+        priority: 1,
+        events: ['*'],
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      await webhooksCollection.insertOne(newWebhook);
+
+      res.json({
+        success: true,
+        message: 'Webhook configurado com sucesso',
+        webhookUrl,
+        sessionId,
+        webhookInfo: {
+          id: newWebhook.id,
+          name: newWebhook.name,
+          note: 'Endpoint legado - use /webhooks para gerenciamento completo',
+        },
+      });
+    } catch (error) {
+      logger.error(`Erro ao configurar webhook: ${error.message}`);
+      res.status(500).json({
         success: false,
-        message: 'Nenhum webhook encontrado para remover',
+        message: error.message,
       });
     }
-
-    await webhooksCollection.deleteOne({ _id: webhookToRemove._id });
-
-    res.json({
-      success: true,
-      message: 'Webhook removido com sucesso',
-      sessionId,
-      removedWebhook: {
-        id: webhookToRemove.id,
-        name: webhookToRemove.name,
-        url: webhookToRemove.url,
-        note: 'Endpoint legado - use /webhooks/:id para remoção específica'
-      }
-    });
-  } catch (error) {
-    logger.error(`Erro ao remover webhook: ${error.message}`);
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
   }
-});
+);
+
+app.get(
+  '/api/baileys/session/:sessionId/webhook',
+  checkSessionOwnership,
+  async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      const userId = req.user.id;
+
+      const session = sessions.get(sessionId);
+      if (!session) {
+        return res.status(404).json({
+          success: false,
+          message: 'Sessão não encontrada',
+        });
+      }
+
+      const db = database.getDb();
+      if (!db) {
+        return res.status(503).json({
+          success: false,
+          message: 'Banco de dados não disponível',
+        });
+      }
+
+      const webhooksCollection = db.collection('webhooks');
+
+      // Buscar webhook "Principal" ou o primeiro ativo
+      const principalWebhook = await webhooksCollection.findOne({
+        userId: userId,
+        sessionId: sessionId,
+        name: 'Principal',
+      });
+
+      if (!principalWebhook) {
+        // Se não tem Principal, busca o primeiro ativo
+        const activeWebhook = await webhooksCollection.findOne({
+          userId: userId,
+          sessionId: sessionId,
+          active: true,
+        });
+
+        if (!activeWebhook) {
+          return res.status(404).json({
+            success: false,
+            message: 'Webhook não configurado para esta sessão',
+          });
+        }
+      }
+
+      const webhook = principalWebhook || activeWebhook;
+
+      res.json({
+        success: true,
+        webhookUrl: webhook.url,
+        sessionId,
+        webhookInfo: {
+          id: webhook.id,
+          name: webhook.name,
+          active: webhook.active,
+          priority: webhook.priority,
+          note: 'Endpoint legado - use /webhooks para informações completas',
+        },
+      });
+    } catch (error) {
+      logger.error(`Erro ao obter webhook: ${error.message}`);
+      res.status(500).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+);
+
+app.delete(
+  '/api/baileys/session/:sessionId/webhook',
+  checkSessionOwnership,
+  async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      const userId = req.user.id;
+
+      const session = sessions.get(sessionId);
+      if (!session) {
+        return res.status(404).json({
+          success: false,
+          message: 'Sessão não encontrada',
+        });
+      }
+
+      const db = database.getDb();
+      if (!db) {
+        return res.status(503).json({
+          success: false,
+          message: 'Banco de dados não disponível',
+        });
+      }
+
+      const webhooksCollection = db.collection('webhooks');
+
+      // Buscar webhook "Principal" ou o primeiro ativo
+      const principalWebhook = await webhooksCollection.findOne({
+        userId: userId,
+        sessionId: sessionId,
+        name: 'Principal',
+      });
+
+      let webhookToRemove = principalWebhook;
+
+      if (!principalWebhook) {
+        // Se não tem Principal, busca o primeiro ativo
+        webhookToRemove = await webhooksCollection.findOne({
+          userId: userId,
+          sessionId: sessionId,
+          active: true,
+        });
+      }
+
+      if (!webhookToRemove) {
+        return res.status(404).json({
+          success: false,
+          message: 'Nenhum webhook encontrado para remover',
+        });
+      }
+
+      await webhooksCollection.deleteOne({ _id: webhookToRemove._id });
+
+      res.json({
+        success: true,
+        message: 'Webhook removido com sucesso',
+        sessionId,
+        removedWebhook: {
+          id: webhookToRemove.id,
+          name: webhookToRemove.name,
+          url: webhookToRemove.url,
+          note: 'Endpoint legado - use /webhooks/:id para remoção específica',
+        },
+      });
+    } catch (error) {
+      logger.error(`Erro ao remover webhook: ${error.message}`);
+      res.status(500).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+);
 
 // ========================================
 // NOVOS ENDPOINTS PARA MÚLTIPLOS WEBHOOKS
 // ========================================
 
 // Listar todos os webhooks de uma sessão
-app.get('/api/baileys/session/:sessionId/webhooks', apiTokenAuth, checkSessionOwnership, async (req, res) => {
-  try {
-    const { sessionId } = req.params;
-    const userId = req.user.id;
+app.get(
+  '/api/baileys/session/:sessionId/webhooks',
+  apiTokenAuth,
+  checkSessionOwnership,
+  async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      const userId = req.user.id;
 
-    const session = sessions.get(sessionId);
-    if (!session) {
-      return res.status(404).json({
+      const session = sessions.get(sessionId);
+      if (!session) {
+        return res.status(404).json({
+          success: false,
+          message: 'Sessão não encontrada',
+        });
+      }
+
+      const db = database.getDb();
+      if (!db) {
+        return res.status(503).json({
+          success: false,
+          message: 'Banco de dados não disponível',
+        });
+      }
+
+      const webhooksCollection = db.collection('webhooks');
+
+      const sessionWebhooks = await webhooksCollection
+        .find({
+          userId: userId,
+          sessionId: sessionId,
+        })
+        .sort({ priority: 1, createdAt: 1 })
+        .toArray();
+
+      // Convert MongoDB _id to id for frontend compatibility
+      const webhooks = sessionWebhooks.map((webhook) => ({
+        ...webhook,
+        id: webhook.id || webhook._id.toString(),
+      }));
+
+      res.json({
+        success: true,
+        sessionId,
+        webhooks: webhooks,
+        total: webhooks.length,
+        limit: 3,
+      });
+    } catch (error) {
+      logger.error(`Erro ao listar webhooks: ${error.message}`);
+      res.status(500).json({
         success: false,
-        message: 'Sessão não encontrada',
+        message: error.message,
       });
     }
-
-    const db = database.getDb();
-    if (!db) {
-      return res.status(503).json({
-        success: false,
-        message: 'Banco de dados não disponível',
-      });
-    }
-
-    const webhooksCollection = db.collection('webhooks');
-    
-    const sessionWebhooks = await webhooksCollection.find({
-      userId: userId,
-      sessionId: sessionId
-    }).sort({ priority: 1, createdAt: 1 }).toArray();
-
-    // Convert MongoDB _id to id for frontend compatibility
-    const webhooks = sessionWebhooks.map(webhook => ({
-      ...webhook,
-      id: webhook.id || webhook._id.toString()
-    }));
-
-    res.json({
-      success: true,
-      sessionId,
-      webhooks: webhooks,
-      total: webhooks.length,
-      limit: 3
-    });
-  } catch (error) {
-    logger.error(`Erro ao listar webhooks: ${error.message}`);
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
   }
-});
+);
 
 // Adicionar novo webhook à sessão
-app.post('/api/baileys/session/:sessionId/webhooks', apiTokenAuth, checkSessionOwnership, async (req, res) => {
-  try {
-    const { sessionId } = req.params;
-    const { name, url, active, priority, events } = req.body;
-    const userId = req.user.id;
-
-    const session = sessions.get(sessionId);
-    if (!session) {
-      return res.status(404).json({
-        success: false,
-        message: 'Sessão não encontrada',
-      });
-    }
-
-    if (!url) {
-      return res.status(400).json({
-        success: false,
-        message: 'URL do webhook é obrigatória',
-      });
-    }
-
-    // Validar URL
+app.post(
+  '/api/baileys/session/:sessionId/webhooks',
+  apiTokenAuth,
+  checkSessionOwnership,
+  async (req, res) => {
     try {
-      new URL(url);
-    } catch {
-      return res.status(400).json({
-        success: false,
-        message: 'URL inválida',
-      });
-    }
+      const { sessionId } = req.params;
+      const { name, url, active, priority, events } = req.body;
+      const userId = req.user.id;
 
-    const db = database.getDb();
-    if (!db) {
-      return res.status(503).json({
-        success: false,
-        message: 'Banco de dados não disponível',
-      });
-    }
+      const session = sessions.get(sessionId);
+      if (!session) {
+        return res.status(404).json({
+          success: false,
+          message: 'Sessão não encontrada',
+        });
+      }
 
-    const webhooksCollection = db.collection('webhooks');
-    
-    // Verificar limite de 3 webhooks por sessão
-    const existingCount = await webhooksCollection.countDocuments({
-      userId: userId,
-      sessionId: sessionId
-    });
+      if (!url) {
+        return res.status(400).json({
+          success: false,
+          message: 'URL do webhook é obrigatória',
+        });
+      }
 
-    if (existingCount >= 3) {
-      return res.status(400).json({
-        success: false,
-        message: 'Máximo de 3 webhooks permitidos por sessão',
-      });
-    }
-
-    // Criar novo webhook
-    const newWebhook = {
-      id: crypto.randomUUID(),
-      userId: userId,
-      sessionId: sessionId,
-      name: name || `Webhook ${existingCount + 1}`,
-      url: url,
-      active: active !== undefined ? active : true,
-      priority: priority || (existingCount + 1),
-      events: events || ['messages.upsert', 'connection.update'],
-      createdAt: new Date(),
-      updatedAt: new Date()
-    };
-
-    await webhooksCollection.insertOne(newWebhook);
-
-    res.json({
-      success: true,
-      message: 'Webhook adicionado com sucesso',
-      webhook: {
-        ...newWebhook,
-        id: newWebhook.id
-      },
-      sessionId
-    });
-
-  } catch (error) {
-    logger.error(`Erro ao adicionar webhook: ${error.message}`);
-    res.status(400).json({
-      success: false,
-      message: error.message,
-    });
-  }
-});
-
-// Obter webhook específico
-app.get('/api/baileys/session/:sessionId/webhooks/:webhookId', apiTokenAuth, checkSessionOwnership, async (req, res) => {
-  try {
-    const { sessionId, webhookId } = req.params;
-    const userId = req.user.id;
-
-    const session = sessions.get(sessionId);
-    if (!session) {
-      return res.status(404).json({
-        success: false,
-        message: 'Sessão não encontrada',
-      });
-    }
-
-    const db = database.getDb();
-    if (!db) {
-      return res.status(503).json({
-        success: false,
-        message: 'Banco de dados não disponível',
-      });
-    }
-
-    const webhooksCollection = db.collection('webhooks');
-    
-    // Search by both id field and _id field for compatibility
-    const webhook = await webhooksCollection.findOne({
-      $and: [
-        { userId: userId },
-        { sessionId: sessionId },
-        {
-          $or: [
-            { id: webhookId },
-            { _id: webhookId }
-          ]
-        }
-      ]
-    });
-
-    if (!webhook) {
-      return res.status(404).json({
-        success: false,
-        message: 'Webhook não encontrado',
-      });
-    }
-
-    // Convert MongoDB _id to id for frontend compatibility
-    const responseWebhook = {
-      ...webhook,
-      id: webhook.id || webhook._id.toString()
-    };
-
-    res.json({
-      success: true,
-      webhook: responseWebhook,
-      sessionId
-    });
-  } catch (error) {
-    logger.error(`Erro ao obter webhook específico: ${error.message}`);
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-});
-
-// Atualizar webhook específico
-app.put('/api/baileys/session/:sessionId/webhooks/:webhookId', apiTokenAuth, checkSessionOwnership, async (req, res) => {
-  try {
-    const { sessionId, webhookId } = req.params;
-    const { name, url, active, priority, events } = req.body;
-    const userId = req.user.id;
-
-    const session = sessions.get(sessionId);
-    if (!session) {
-      return res.status(404).json({
-        success: false,
-        message: 'Sessão não encontrada',
-      });
-    }
-
-    const db = database.getDb();
-    if (!db) {
-      return res.status(503).json({
-        success: false,
-        message: 'Banco de dados não disponível',
-      });
-    }
-
-    // Validar URL se fornecida
-    if (url) {
+      // Validar URL
       try {
         new URL(url);
       } catch {
@@ -4481,348 +4720,513 @@ app.put('/api/baileys/session/:sessionId/webhooks/:webhookId', apiTokenAuth, che
           message: 'URL inválida',
         });
       }
-    }
 
-    const webhooksCollection = db.collection('webhooks');
-    
-    // Build update object with only provided fields
-    const updateData = {
-      updatedAt: new Date()
-    };
-    
-    if (name !== undefined) updateData.name = name;
-    if (url !== undefined) updateData.url = url;
-    if (active !== undefined) updateData.active = active;
-    if (priority !== undefined) updateData.priority = priority;
-    if (events !== undefined) updateData.events = events;
-
-    // Search by both id field and _id field for compatibility
-    const result = await webhooksCollection.updateOne(
-      {
-        $and: [
-          { userId: userId },
-          { sessionId: sessionId },
-          {
-            $or: [
-              { id: webhookId },
-              { _id: webhookId }
-            ]
-          }
-        ]
-      },
-      { $set: updateData }
-    );
-
-    if (result.matchedCount === 0) {
-      return res.status(404).json({
-        success: false,
-        message: 'Webhook não encontrado',
-      });
-    }
-
-    // Get updated webhook
-    const updatedWebhook = await webhooksCollection.findOne({
-      $and: [
-        { userId: userId },
-        { sessionId: sessionId },
-        {
-          $or: [
-            { id: webhookId },
-            { _id: webhookId }
-          ]
-        }
-      ]
-    });
-
-    // Convert MongoDB _id to id for frontend compatibility
-    const responseWebhook = {
-      ...updatedWebhook,
-      id: updatedWebhook.id || updatedWebhook._id.toString()
-    };
-
-    res.json({
-      success: true,
-      message: 'Webhook atualizado com sucesso',
-      webhook: responseWebhook,
-      sessionId
-    });
-  } catch (error) {
-    logger.error(`Erro ao atualizar webhook: ${error.message}`);
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-});
-
-// Remover webhook específico
-app.delete('/api/baileys/session/:sessionId/webhooks/:webhookId', apiTokenAuth, checkSessionOwnership, async (req, res) => {
-  try {
-    const { sessionId, webhookId } = req.params;
-    const userId = req.user.id;
-
-    const session = sessions.get(sessionId);
-    if (!session) {
-      return res.status(404).json({
-        success: false,
-        message: 'Sessão não encontrada',
-      });
-    }
-
-    const db = database.getDb();
-    if (!db) {
-      return res.status(503).json({
-        success: false,
-        message: 'Banco de dados não disponível',
-      });
-    }
-
-    const webhooksCollection = db.collection('webhooks');
-    
-    // Search by both id field and _id field for compatibility
-    const result = await webhooksCollection.deleteOne({
-      $and: [
-        { userId: userId },
-        { sessionId: sessionId },
-        {
-          $or: [
-            { id: webhookId },
-            { _id: webhookId }
-          ]
-        }
-      ]
-    });
-
-    if (result.deletedCount === 0) {
-      return res.status(404).json({
-        success: false,
-        message: 'Webhook não encontrado',
-      });
-    }
-
-    res.json({
-      success: true,
-      message: 'Webhook removido com sucesso',
-      sessionId
-    });
-  } catch (error) {
-    logger.error(`Erro ao remover webhook: ${error.message}`);
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-});
-
-// Ativar/desativar webhook específico
-app.patch('/api/baileys/session/:sessionId/webhooks/:webhookId/toggle', apiTokenAuth, checkSessionOwnership, async (req, res) => {
-  try {
-    const { sessionId, webhookId } = req.params;
-    const userId = req.user.id;
-
-    const session = sessions.get(sessionId);
-    if (!session) {
-      return res.status(404).json({
-        success: false,
-        message: 'Sessão não encontrada',
-      });
-    }
-
-    const db = database.getDb();
-    if (!db) {
-      return res.status(503).json({
-        success: false,
-        message: 'Banco de dados não disponível',
-      });
-    }
-
-    const webhooksCollection = db.collection('webhooks');
-    
-    // First get current webhook to toggle its active state
-    const currentWebhook = await webhooksCollection.findOne({
-      $and: [
-        { userId: userId },
-        { sessionId: sessionId },
-        {
-          $or: [
-            { id: webhookId },
-            { _id: webhookId }
-          ]
-        }
-      ]
-    });
-
-    if (!currentWebhook) {
-      return res.status(404).json({
-        success: false,
-        message: 'Webhook não encontrado',
-      });
-    }
-
-    // Toggle the active state
-    const newActiveState = !currentWebhook.active;
-    
-    const result = await webhooksCollection.updateOne(
-      {
-        $and: [
-          { userId: userId },
-          { sessionId: sessionId },
-          {
-            $or: [
-              { id: webhookId },
-              { _id: webhookId }
-            ]
-          }
-        ]
-      },
-      { 
-        $set: { 
-          active: newActiveState,
-          updatedAt: new Date()
-        }
+      const db = database.getDb();
+      if (!db) {
+        return res.status(503).json({
+          success: false,
+          message: 'Banco de dados não disponível',
+        });
       }
-    );
 
-    if (result.matchedCount === 0) {
-      return res.status(404).json({
-        success: false,
-        message: 'Webhook não encontrado',
+      const webhooksCollection = db.collection('webhooks');
+
+      // Verificar limite de 3 webhooks por sessão
+      const existingCount = await webhooksCollection.countDocuments({
+        userId: userId,
+        sessionId: sessionId,
       });
-    }
 
-    res.json({
-      success: true,
-      message: `Webhook ${newActiveState ? 'ativado' : 'desativado'} com sucesso`,
-      active: newActiveState,
-      sessionId
-    });
-  } catch (error) {
-    logger.error(`Erro ao alternar webhook: ${error.message}`);
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-});
-
-// Testar webhook específico
-app.post('/api/baileys/session/:sessionId/webhooks/:webhookId/test', apiTokenAuth, checkSessionOwnership, async (req, res) => {
-  try {
-    const { sessionId, webhookId } = req.params;
-    const userId = req.user.id;
-
-    const session = sessions.get(sessionId);
-    if (!session) {
-      return res.status(404).json({
-        success: false,
-        message: 'Sessão não encontrada',
-      });
-    }
-
-    const db = database.getDb();
-    if (!db) {
-      return res.status(503).json({
-        success: false,
-        message: 'Banco de dados não disponível',
-      });
-    }
-
-    const webhooksCollection = db.collection('webhooks');
-    
-    // Search by both id field and _id field for compatibility
-    const webhook = await webhooksCollection.findOne({
-      $and: [
-        { userId: userId },
-        { sessionId: sessionId },
-        {
-          $or: [
-            { id: webhookId },
-            { _id: webhookId }
-          ]
-        }
-      ]
-    });
-
-    if (!webhook) {
-      return res.status(404).json({
-        success: false,
-        message: 'Webhook não encontrado',
-      });
-    }
-
-    // Create test payload
-    const testPayload = {
-      event: 'webhook.test',
-      sessionId: sessionId,
-      timestamp: new Date().toISOString(),
-      data: {
-        message: 'Este é um teste do webhook',
-        webhookId: webhook.id || webhook._id.toString(),
-        webhookName: webhook.name
+      if (existingCount >= 3) {
+        return res.status(400).json({
+          success: false,
+          message: 'Máximo de 3 webhooks permitidos por sessão',
+        });
       }
-    };
 
-    try {
-      // Send test request to webhook URL
-      const response = await fetch(webhook.url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'User-Agent': 'Baileys-API-Webhook-Test/1.0'
-        },
-        body: JSON.stringify(testPayload),
-        timeout: 10000 // 10 second timeout
-      });
-
-      const responseData = {
-        success: true,
-        message: 'Teste de webhook enviado com sucesso',
-        webhook: {
-          id: webhook.id || webhook._id.toString(),
-          name: webhook.name,
-          url: webhook.url
-        },
-        test: {
-          status: response.status,
-          statusText: response.statusText,
-          timestamp: new Date().toISOString()
-        },
-        sessionId
+      // Criar novo webhook
+      const newWebhook = {
+        id: crypto.randomUUID(),
+        userId: userId,
+        sessionId: sessionId,
+        name: name || `Webhook ${existingCount + 1}`,
+        url: url,
+        active: active !== undefined ? active : true,
+        priority: priority || existingCount + 1,
+        events: events || ['messages.upsert', 'connection.update'],
+        createdAt: new Date(),
+        updatedAt: new Date(),
       };
 
-      // Try to get response text, but don't fail if it's not JSON
-      try {
-        const responseText = await response.text();
-        if (responseText) {
-          responseData.test.response = responseText.substring(0, 1000); // Limit response size
-        }
-      } catch (e) {
-        // Ignore response text errors
-      }
+      await webhooksCollection.insertOne(newWebhook);
 
-      res.json(responseData);
-    } catch (fetchError) {
-      logger.error(`Erro ao testar webhook ${webhookId}: ${fetchError.message}`);
+      res.json({
+        success: true,
+        message: 'Webhook adicionado com sucesso',
+        webhook: {
+          ...newWebhook,
+          id: newWebhook.id,
+        },
+        sessionId,
+      });
+    } catch (error) {
+      logger.error(`Erro ao adicionar webhook: ${error.message}`);
       res.status(400).json({
         success: false,
-        message: 'Falha ao testar webhook',
-        error: fetchError.message,
-        webhook: {
-          id: webhook.id || webhook._id.toString(),
-          name: webhook.name,
-          url: webhook.url
-        },
-        sessionId
+        message: error.message,
       });
     }
-  } catch (error) {
-    logger.error(`Erro ao testar webhook: ${error.message}`);
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
   }
-});
+);
+
+// Obter webhook específico
+app.get(
+  '/api/baileys/session/:sessionId/webhooks/:webhookId',
+  apiTokenAuth,
+  checkSessionOwnership,
+  async (req, res) => {
+    try {
+      const { sessionId, webhookId } = req.params;
+      const userId = req.user.id;
+
+      const session = sessions.get(sessionId);
+      if (!session) {
+        return res.status(404).json({
+          success: false,
+          message: 'Sessão não encontrada',
+        });
+      }
+
+      const db = database.getDb();
+      if (!db) {
+        return res.status(503).json({
+          success: false,
+          message: 'Banco de dados não disponível',
+        });
+      }
+
+      const webhooksCollection = db.collection('webhooks');
+
+      // Search by both id field and _id field for compatibility
+      const webhook = await webhooksCollection.findOne({
+        $and: [
+          { userId: userId },
+          { sessionId: sessionId },
+          {
+            $or: [{ id: webhookId }, { _id: webhookId }],
+          },
+        ],
+      });
+
+      if (!webhook) {
+        return res.status(404).json({
+          success: false,
+          message: 'Webhook não encontrado',
+        });
+      }
+
+      // Convert MongoDB _id to id for frontend compatibility
+      const responseWebhook = {
+        ...webhook,
+        id: webhook.id || webhook._id.toString(),
+      };
+
+      res.json({
+        success: true,
+        webhook: responseWebhook,
+        sessionId,
+      });
+    } catch (error) {
+      logger.error(`Erro ao obter webhook específico: ${error.message}`);
+      res.status(500).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+);
+
+// Atualizar webhook específico
+app.put(
+  '/api/baileys/session/:sessionId/webhooks/:webhookId',
+  apiTokenAuth,
+  checkSessionOwnership,
+  async (req, res) => {
+    try {
+      const { sessionId, webhookId } = req.params;
+      const { name, url, active, priority, events } = req.body;
+      const userId = req.user.id;
+
+      const session = sessions.get(sessionId);
+      if (!session) {
+        return res.status(404).json({
+          success: false,
+          message: 'Sessão não encontrada',
+        });
+      }
+
+      const db = database.getDb();
+      if (!db) {
+        return res.status(503).json({
+          success: false,
+          message: 'Banco de dados não disponível',
+        });
+      }
+
+      // Validar URL se fornecida
+      if (url) {
+        try {
+          new URL(url);
+        } catch {
+          return res.status(400).json({
+            success: false,
+            message: 'URL inválida',
+          });
+        }
+      }
+
+      const webhooksCollection = db.collection('webhooks');
+
+      // Build update object with only provided fields
+      const updateData = {
+        updatedAt: new Date(),
+      };
+
+      if (name !== undefined) updateData.name = name;
+      if (url !== undefined) updateData.url = url;
+      if (active !== undefined) updateData.active = active;
+      if (priority !== undefined) updateData.priority = priority;
+      if (events !== undefined) updateData.events = events;
+
+      // Search by both id field and _id field for compatibility
+      const result = await webhooksCollection.updateOne(
+        {
+          $and: [
+            { userId: userId },
+            { sessionId: sessionId },
+            {
+              $or: [{ id: webhookId }, { _id: webhookId }],
+            },
+          ],
+        },
+        { $set: updateData }
+      );
+
+      if (result.matchedCount === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'Webhook não encontrado',
+        });
+      }
+
+      // Get updated webhook
+      const updatedWebhook = await webhooksCollection.findOne({
+        $and: [
+          { userId: userId },
+          { sessionId: sessionId },
+          {
+            $or: [{ id: webhookId }, { _id: webhookId }],
+          },
+        ],
+      });
+
+      // Convert MongoDB _id to id for frontend compatibility
+      const responseWebhook = {
+        ...updatedWebhook,
+        id: updatedWebhook.id || updatedWebhook._id.toString(),
+      };
+
+      res.json({
+        success: true,
+        message: 'Webhook atualizado com sucesso',
+        webhook: responseWebhook,
+        sessionId,
+      });
+    } catch (error) {
+      logger.error(`Erro ao atualizar webhook: ${error.message}`);
+      res.status(500).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+);
+
+// Remover webhook específico
+app.delete(
+  '/api/baileys/session/:sessionId/webhooks/:webhookId',
+  apiTokenAuth,
+  checkSessionOwnership,
+  async (req, res) => {
+    try {
+      const { sessionId, webhookId } = req.params;
+      const userId = req.user.id;
+
+      const session = sessions.get(sessionId);
+      if (!session) {
+        return res.status(404).json({
+          success: false,
+          message: 'Sessão não encontrada',
+        });
+      }
+
+      const db = database.getDb();
+      if (!db) {
+        return res.status(503).json({
+          success: false,
+          message: 'Banco de dados não disponível',
+        });
+      }
+
+      const webhooksCollection = db.collection('webhooks');
+
+      // Search by both id field and _id field for compatibility
+      const result = await webhooksCollection.deleteOne({
+        $and: [
+          { userId: userId },
+          { sessionId: sessionId },
+          {
+            $or: [{ id: webhookId }, { _id: webhookId }],
+          },
+        ],
+      });
+
+      if (result.deletedCount === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'Webhook não encontrado',
+        });
+      }
+
+      res.json({
+        success: true,
+        message: 'Webhook removido com sucesso',
+        sessionId,
+      });
+    } catch (error) {
+      logger.error(`Erro ao remover webhook: ${error.message}`);
+      res.status(500).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+);
+
+// Ativar/desativar webhook específico
+app.patch(
+  '/api/baileys/session/:sessionId/webhooks/:webhookId/toggle',
+  apiTokenAuth,
+  checkSessionOwnership,
+  async (req, res) => {
+    try {
+      const { sessionId, webhookId } = req.params;
+      const userId = req.user.id;
+
+      const session = sessions.get(sessionId);
+      if (!session) {
+        return res.status(404).json({
+          success: false,
+          message: 'Sessão não encontrada',
+        });
+      }
+
+      const db = database.getDb();
+      if (!db) {
+        return res.status(503).json({
+          success: false,
+          message: 'Banco de dados não disponível',
+        });
+      }
+
+      const webhooksCollection = db.collection('webhooks');
+
+      // First get current webhook to toggle its active state
+      const currentWebhook = await webhooksCollection.findOne({
+        $and: [
+          { userId: userId },
+          { sessionId: sessionId },
+          {
+            $or: [{ id: webhookId }, { _id: webhookId }],
+          },
+        ],
+      });
+
+      if (!currentWebhook) {
+        return res.status(404).json({
+          success: false,
+          message: 'Webhook não encontrado',
+        });
+      }
+
+      // Toggle the active state
+      const newActiveState = !currentWebhook.active;
+
+      const result = await webhooksCollection.updateOne(
+        {
+          $and: [
+            { userId: userId },
+            { sessionId: sessionId },
+            {
+              $or: [{ id: webhookId }, { _id: webhookId }],
+            },
+          ],
+        },
+        {
+          $set: {
+            active: newActiveState,
+            updatedAt: new Date(),
+          },
+        }
+      );
+
+      if (result.matchedCount === 0) {
+        return res.status(404).json({
+          success: false,
+          message: 'Webhook não encontrado',
+        });
+      }
+
+      res.json({
+        success: true,
+        message: `Webhook ${
+          newActiveState ? 'ativado' : 'desativado'
+        } com sucesso`,
+        active: newActiveState,
+        sessionId,
+      });
+    } catch (error) {
+      logger.error(`Erro ao alternar webhook: ${error.message}`);
+      res.status(500).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+);
+
+// Testar webhook específico
+app.post(
+  '/api/baileys/session/:sessionId/webhooks/:webhookId/test',
+  apiTokenAuth,
+  checkSessionOwnership,
+  async (req, res) => {
+    try {
+      const { sessionId, webhookId } = req.params;
+      const userId = req.user.id;
+
+      const session = sessions.get(sessionId);
+      if (!session) {
+        return res.status(404).json({
+          success: false,
+          message: 'Sessão não encontrada',
+        });
+      }
+
+      const db = database.getDb();
+      if (!db) {
+        return res.status(503).json({
+          success: false,
+          message: 'Banco de dados não disponível',
+        });
+      }
+
+      const webhooksCollection = db.collection('webhooks');
+
+      // Search by both id field and _id field for compatibility
+      const webhook = await webhooksCollection.findOne({
+        $and: [
+          { userId: userId },
+          { sessionId: sessionId },
+          {
+            $or: [{ id: webhookId }, { _id: webhookId }],
+          },
+        ],
+      });
+
+      if (!webhook) {
+        return res.status(404).json({
+          success: false,
+          message: 'Webhook não encontrado',
+        });
+      }
+
+      // Create test payload
+      const testPayload = {
+        event: 'webhook.test',
+        sessionId: sessionId,
+        timestamp: new Date().toISOString(),
+        data: {
+          message: 'Este é um teste do webhook',
+          webhookId: webhook.id || webhook._id.toString(),
+          webhookName: webhook.name,
+        },
+      };
+
+      try {
+        // Send test request to webhook URL
+        const response = await fetch(webhook.url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'User-Agent': 'Baileys-API-Webhook-Test/1.0',
+          },
+          body: JSON.stringify(testPayload),
+          timeout: 10000, // 10 second timeout
+        });
+
+        const responseData = {
+          success: true,
+          message: 'Teste de webhook enviado com sucesso',
+          webhook: {
+            id: webhook.id || webhook._id.toString(),
+            name: webhook.name,
+            url: webhook.url,
+          },
+          test: {
+            status: response.status,
+            statusText: response.statusText,
+            timestamp: new Date().toISOString(),
+          },
+          sessionId,
+        };
+
+        // Try to get response text, but don't fail if it's not JSON
+        try {
+          const responseText = await response.text();
+          if (responseText) {
+            responseData.test.response = responseText.substring(0, 1000); // Limit response size
+          }
+        } catch (e) {
+          // Ignore response text errors
+        }
+
+        res.json(responseData);
+      } catch (fetchError) {
+        logger.error(
+          `Erro ao testar webhook ${webhookId}: ${fetchError.message}`
+        );
+        res.status(400).json({
+          success: false,
+          message: 'Falha ao testar webhook',
+          error: fetchError.message,
+          webhook: {
+            id: webhook.id || webhook._id.toString(),
+            name: webhook.name,
+            url: webhook.url,
+          },
+          sessionId,
+        });
+      }
+    } catch (error) {
+      logger.error(`Erro ao testar webhook: ${error.message}`);
+      res.status(500).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+);
 
 // Função avançada para simular comportamento humano realista
 async function sendMessageWithAdvancedHumanBehavior(
@@ -4907,27 +5311,28 @@ async function sendMessageWithAdvancedHumanBehavior(
 
     // 3. MARCAR COMO VISTO - apenas se há agente ativo e configurado
     const { aiAgents, ensureAgentInMemory } = require('./routes/aiAgents');
-    
-    let activeAgent = Array.from(aiAgents.values()).find(agent => 
-      agent.sessionId === sessionId && agent.isActive && agent.autoReply
+
+    let activeAgent = Array.from(aiAgents.values()).find(
+      (agent) =>
+        agent.sessionId === sessionId && agent.isActive && agent.autoReply
     );
-    
+
     // If no agent in memory, try to load from database
     if (!activeAgent) {
       const db = require('./config/database').getDb();
       if (db) {
-        const agentData = await db.collection('ai_agents').findOne({ 
-          sessionId: sessionId, 
+        const agentData = await db.collection('ai_agents').findOne({
+          sessionId: sessionId,
           isActive: true,
-          autoReply: true 
+          autoReply: true,
         });
-        
+
         if (agentData) {
           activeAgent = await ensureAgentInMemory(agentData._id);
         }
       }
     }
-    
+
     if (activeAgent && HUMAN_BEHAVIOR.AUTO_MARK_READ) {
       await delay(300 + Math.random() * 200); // Delay natural antes de marcar como visto
       await sock.readMessages([
@@ -5056,165 +5461,174 @@ async function sendMessageWithAdvancedHumanBehavior(
   }
 }
 
-app.post('/api/baileys/session/:sessionId/smart-reply', checkSessionOwnership, async (req, res) => {
-  try {
-    const { sessionId } = req.params;
-    const {
-      to,
-      message,
-      replyToMessage = null,
-      readingSpeed = 150, // palavras por minuto
-      typingSpeed = 40, // palavras por minuto
-      thinkingTime = true,
-      naturalPauses = true,
-      typoSimulation = false,
-      emotionalDelay = true,
-      contextAwareness = true,
-      quotedMessageId = null,
-      // Parâmetros em português
-      para,
-      mensagem,
-      mensagemResposta,
-      velocidadeLeitura,
-      velocidadeDigitacao,
-      tempoReflexao,
-      pausasNaturais,
-      simularErros,
-      delayEmocional,
-      conscienciaContexto,
-      idMensagemCitada,
-    } = req.body;
+app.post(
+  '/api/baileys/session/:sessionId/smart-reply',
+  checkSessionOwnership,
+  async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      const {
+        to,
+        message,
+        replyToMessage = null,
+        readingSpeed = 150, // palavras por minuto
+        typingSpeed = 40, // palavras por minuto
+        thinkingTime = true,
+        naturalPauses = true,
+        typoSimulation = false,
+        emotionalDelay = true,
+        contextAwareness = true,
+        quotedMessageId = null,
+        // Parâmetros em português
+        para,
+        mensagem,
+        mensagemResposta,
+        velocidadeLeitura,
+        velocidadeDigitacao,
+        tempoReflexao,
+        pausasNaturais,
+        simularErros,
+        delayEmocional,
+        conscienciaContexto,
+        idMensagemCitada,
+      } = req.body;
 
-    // Mapear parâmetros em português para inglês (priorizar português se fornecido)
-    const finalTo = para || to;
-    const finalMessage = mensagem || message;
-    const finalReplyToMessage = mensagemResposta || replyToMessage;
-    const finalReadingSpeed = velocidadeLeitura || readingSpeed;
-    const finalTypingSpeed = velocidadeDigitacao || typingSpeed;
-    const finalThinkingTime =
-      tempoReflexao !== undefined ? tempoReflexao : thinkingTime;
-    const finalNaturalPauses =
-      pausasNaturais !== undefined ? pausasNaturais : naturalPauses;
-    const finalTypoSimulation =
-      simularErros !== undefined ? simularErros : typoSimulation;
-    const finalEmotionalDelay =
-      delayEmocional !== undefined ? delayEmocional : emotionalDelay;
-    const finalContextAwareness =
-      conscienciaContexto !== undefined
-        ? conscienciaContexto
-        : contextAwareness;
-    const finalQuotedMessageId = idMensagemCitada || quotedMessageId;
+      // Mapear parâmetros em português para inglês (priorizar português se fornecido)
+      const finalTo = para || to;
+      const finalMessage = mensagem || message;
+      const finalReplyToMessage = mensagemResposta || replyToMessage;
+      const finalReadingSpeed = velocidadeLeitura || readingSpeed;
+      const finalTypingSpeed = velocidadeDigitacao || typingSpeed;
+      const finalThinkingTime =
+        tempoReflexao !== undefined ? tempoReflexao : thinkingTime;
+      const finalNaturalPauses =
+        pausasNaturais !== undefined ? pausasNaturais : naturalPauses;
+      const finalTypoSimulation =
+        simularErros !== undefined ? simularErros : typoSimulation;
+      const finalEmotionalDelay =
+        delayEmocional !== undefined ? delayEmocional : emotionalDelay;
+      const finalContextAwareness =
+        conscienciaContexto !== undefined
+          ? conscienciaContexto
+          : contextAwareness;
+      const finalQuotedMessageId = idMensagemCitada || quotedMessageId;
 
-    if (!finalTo || !finalMessage) {
-      return res.status(400).json({
-        success: false,
-        message: 'Campos "to"/"para" e "message"/"mensagem" são obrigatórios',
-      });
-    }
-
-    const session = sessions.get(sessionId);
-    if (!session || !session.isConnected) {
-      return res.status(400).json({
-        success: false,
-        message: 'Sessão não encontrada ou não conectada',
-      });
-    }
-
-    const jid = finalTo.includes('@') ? finalTo : `${finalTo}@s.whatsapp.net`;
-
-    // Buscar mensagem citada se fornecida
-    let quotedMessage = null;
-    if (finalQuotedMessageId) {
-      const originalMessage = getMessageById(sessionId, finalQuotedMessageId);
-      if (originalMessage) {
-        quotedMessage = originalMessage.message;
+      if (!finalTo || !finalMessage) {
+        return res.status(400).json({
+          success: false,
+          message: 'Campos "to"/"para" e "message"/"mensagem" são obrigatórios',
+        });
       }
-    }
 
-    // Preparar opções para comportamento humano avançado
-    const behaviorOptions = {
-      readingSpeed: finalReadingSpeed,
-      typingSpeed: finalTypingSpeed,
-      thinkingTime: finalThinkingTime,
-      naturalPauses: finalNaturalPauses,
-      typoSimulation: finalTypoSimulation,
-      emotionalDelay: finalEmotionalDelay,
-      contextAwareness: finalContextAwareness,
-      replyToMessage: finalReplyToMessage,
-      quotedMessage,
-    };
+      const session = sessions.get(sessionId);
+      if (!session || !session.isConnected) {
+        return res.status(400).json({
+          success: false,
+          message: 'Sessão não encontrada ou não conectada',
+        });
+      }
 
-    // Enviar com comportamento humano avançado
-    const result = await sendMessageWithAdvancedHumanBehavior(
-      session.sock,
-      jid,
-      { text: finalMessage },
-      behaviorOptions
-    );
+      const jid = finalTo.includes('@') ? finalTo : `${finalTo}@s.whatsapp.net`;
 
-    res.json({
-      success: true,
-      message: 'Resposta inteligente enviada com comportamento humano avançado',
-      messageId: result.sentMessage.key.id,
-      behaviorStats: result.behaviorStats,
-      messageData: {
-        para: jid,
-        enviadoEm: new Date().toISOString(),
-        tipoMensagem: 'texto',
-        conteudo: finalMessage,
-        idMensagemCitada: finalQuotedMessageId || null,
-        status: 'enviado',
-      },
-      infoSessao: {
-        sessionId,
-        conectado: session.isConnected,
-        usuario: session.sock.user,
-      },
-    });
-  } catch (error) {
-    logger.error(`Erro na resposta inteligente: ${error.message}`);
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
-  }
-});
+      // Buscar mensagem citada se fornecida
+      let quotedMessage = null;
+      if (finalQuotedMessageId) {
+        const originalMessage = getMessageById(sessionId, finalQuotedMessageId);
+        if (originalMessage) {
+          quotedMessage = originalMessage.message;
+        }
+      }
 
-app.delete('/api/baileys/session/:sessionId', checkSessionOwnership, async (req, res) => {
-  try {
-    const { sessionId } = req.params;
+      // Preparar opções para comportamento humano avançado
+      const behaviorOptions = {
+        readingSpeed: finalReadingSpeed,
+        typingSpeed: finalTypingSpeed,
+        thinkingTime: finalThinkingTime,
+        naturalPauses: finalNaturalPauses,
+        typoSimulation: finalTypoSimulation,
+        emotionalDelay: finalEmotionalDelay,
+        contextAwareness: finalContextAwareness,
+        replyToMessage: finalReplyToMessage,
+        quotedMessage,
+      };
 
-    const session = sessions.get(sessionId);
-    if (!session) {
-      return res.status(404).json({
+      // Enviar com comportamento humano avançado
+      const result = await sendMessageWithAdvancedHumanBehavior(
+        session.sock,
+        jid,
+        { text: finalMessage },
+        behaviorOptions
+      );
+
+      res.json({
+        success: true,
+        message:
+          'Resposta inteligente enviada com comportamento humano avançado',
+        messageId: result.sentMessage.key.id,
+        behaviorStats: result.behaviorStats,
+        messageData: {
+          para: jid,
+          enviadoEm: new Date().toISOString(),
+          tipoMensagem: 'texto',
+          conteudo: finalMessage,
+          idMensagemCitada: finalQuotedMessageId || null,
+          status: 'enviado',
+        },
+        infoSessao: {
+          sessionId,
+          conectado: session.isConnected,
+          usuario: session.sock.user,
+        },
+      });
+    } catch (error) {
+      logger.error(`Erro na resposta inteligente: ${error.message}`);
+      res.status(500).json({
         success: false,
-        message: 'Sessão não encontrada',
+        message: error.message,
       });
     }
-
-    // Fechar conexão
-    if (session.sock) {
-      await session.sock.logout();
-    }
-
-    // Remover da memória
-    sessions.delete(sessionId);
-    sessionQueues.delete(sessionId);
-    messageRateLimit.delete(sessionId);
-    reconnectionAttempts.delete(sessionId);
-
-    res.json({
-      success: true,
-      message: 'Sessão deletada com sucesso',
-    });
-  } catch (error) {
-    logger.error(`Erro ao deletar sessão: ${error.message}`);
-    res.status(500).json({
-      success: false,
-      message: error.message,
-    });
   }
-});
+);
+
+app.delete(
+  '/api/baileys/session/:sessionId',
+  checkSessionOwnership,
+  async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+
+      const session = sessions.get(sessionId);
+      if (!session) {
+        return res.status(404).json({
+          success: false,
+          message: 'Sessão não encontrada',
+        });
+      }
+
+      // Fechar conexão
+      if (session.sock) {
+        await session.sock.logout();
+      }
+
+      // Remover da memória
+      sessions.delete(sessionId);
+      sessionQueues.delete(sessionId);
+      messageRateLimit.delete(sessionId);
+      reconnectionAttempts.delete(sessionId);
+
+      res.json({
+        success: true,
+        message: 'Sessão deletada com sucesso',
+      });
+    } catch (error) {
+      logger.error(`Erro ao deletar sessão: ${error.message}`);
+      res.status(500).json({
+        success: false,
+        message: error.message,
+      });
+    }
+  }
+);
 
 app.get('/api/baileys/info', (req, res) => {
   res.json({
@@ -5257,7 +5671,8 @@ app.get('/api/baileys/info', (req, res) => {
       'POST /api/baileys/session/:id/send-message': 'Enviar mensagem de texto',
       'POST /api/baileys/session/:id/send-media':
         'Enviar mídia (imagem/vídeo/áudio/documento)',
-      'POST /api/baileys/session/:id/reply-message': 'Responder mensagem por ID',
+      'POST /api/baileys/session/:id/reply-message':
+        'Responder mensagem por ID',
       'POST /api/baileys/session/:id/smart-reply':
         'Resposta inteligente com comportamento humano',
 
@@ -5267,36 +5682,55 @@ app.get('/api/baileys/info', (req, res) => {
 
       // Histórico e Mídia
       'GET /api/baileys/session/:id/messages': 'Listar mensagens armazenadas',
-      'POST /api/baileys/session/:id/download-media': 'Baixar mídia das mensagens',
+      'POST /api/baileys/session/:id/download-media':
+        'Baixar mídia das mensagens',
 
       // Webhooks (Legado)
-      'POST /api/baileys/session/:id/webhook': 'Configurar webhook principal (legado)',
-      'GET /api/baileys/session/:id/webhook': 'Obter webhook principal (legado)',
-      'DELETE /api/baileys/session/:id/webhook': 'Remover webhook principal (legado)',
+      'POST /api/baileys/session/:id/webhook':
+        'Configurar webhook principal (legado)',
+      'GET /api/baileys/session/:id/webhook':
+        'Obter webhook principal (legado)',
+      'DELETE /api/baileys/session/:id/webhook':
+        'Remover webhook principal (legado)',
 
       // Webhooks (Múltiplos - Sistema Avançado)
-      'GET /api/baileys/session/:id/webhooks': 'Listar todos os webhooks (máx 3)',
+      'GET /api/baileys/session/:id/webhooks':
+        'Listar todos os webhooks (máx 3)',
       'POST /api/baileys/session/:id/webhooks': 'Adicionar novo webhook',
-      'GET /api/baileys/session/:id/webhooks/:webhookId': 'Obter webhook específico',
+      'GET /api/baileys/session/:id/webhooks/:webhookId':
+        'Obter webhook específico',
       'PUT /api/baileys/session/:id/webhooks/:webhookId': 'Atualizar webhook',
-      'DELETE /api/baileys/session/:id/webhooks/:webhookId': 'Remover webhook específico',
-      'PATCH /api/baileys/session/:id/webhooks/:webhookId/toggle': 'Ativar/desativar webhook',
-      'POST /api/baileys/session/:id/webhooks/:webhookId/test': 'Testar webhook',
+      'DELETE /api/baileys/session/:id/webhooks/:webhookId':
+        'Remover webhook específico',
+      'PATCH /api/baileys/session/:id/webhooks/:webhookId/toggle':
+        'Ativar/desativar webhook',
+      'POST /api/baileys/session/:id/webhooks/:webhookId/test':
+        'Testar webhook',
 
       // Grupos
       'POST /api/baileys/groups/:sessionId/create': 'Criar novo grupo',
-      'GET /api/baileys/groups/:sessionId/:groupId/info': 'Obter informações do grupo',
-      'POST /api/baileys/groups/:sessionId/:groupId/add-participants': 'Adicionar participantes',
-      'POST /api/baileys/groups/:sessionId/:groupId/remove-participants': 'Remover participantes',
-      'POST /api/baileys/groups/:sessionId/:groupId/promote': 'Promover participantes a admin',
-      'POST /api/baileys/groups/:sessionId/:groupId/demote': 'Despromover admins',
-      'PUT /api/baileys/groups/:sessionId/:groupId/subject': 'Atualizar nome do grupo',
-      'PUT /api/baileys/groups/:sessionId/:groupId/description': 'Atualizar descrição do grupo',
-      'PUT /api/baileys/groups/:sessionId/:groupId/settings': 'Configurar permissões do grupo',
+      'GET /api/baileys/groups/:sessionId/:groupId/info':
+        'Obter informações do grupo',
+      'POST /api/baileys/groups/:sessionId/:groupId/add-participants':
+        'Adicionar participantes',
+      'POST /api/baileys/groups/:sessionId/:groupId/remove-participants':
+        'Remover participantes',
+      'POST /api/baileys/groups/:sessionId/:groupId/promote':
+        'Promover participantes a admin',
+      'POST /api/baileys/groups/:sessionId/:groupId/demote':
+        'Despromover admins',
+      'PUT /api/baileys/groups/:sessionId/:groupId/subject':
+        'Atualizar nome do grupo',
+      'PUT /api/baileys/groups/:sessionId/:groupId/description':
+        'Atualizar descrição do grupo',
+      'PUT /api/baileys/groups/:sessionId/:groupId/settings':
+        'Configurar permissões do grupo',
       'POST /api/baileys/groups/:sessionId/:groupId/leave': 'Sair do grupo',
       'GET /api/baileys/groups/:sessionId/list': 'Listar grupos',
-      'GET /api/baileys/groups/:sessionId/:groupId/invite-code': 'Obter código de convite',
-      'POST /api/baileys/groups/:sessionId/:groupId/revoke-invite': 'Revogar código de convite',
+      'GET /api/baileys/groups/:sessionId/:groupId/invite-code':
+        'Obter código de convite',
+      'POST /api/baileys/groups/:sessionId/:groupId/revoke-invite':
+        'Revogar código de convite',
 
       // Agentes de IA
       'POST /api/baileys/agents/create': 'Criar novo agente de IA',
@@ -5304,7 +5738,8 @@ app.get('/api/baileys/info', (req, res) => {
       'GET /api/baileys/agents/:agentId': 'Obter informações do agente',
       'PATCH /api/baileys/agents/:agentId/deactivate': 'Desativar agente',
       'DELETE /api/baileys/agents/:agentId': 'Remover agente',
-      'POST /api/baileys/agents/process-message': 'Processar mensagem com agente',
+      'POST /api/baileys/agents/process-message':
+        'Processar mensagem com agente',
 
       // Informações
       'GET /api/baileys/info': 'Informações da API',
@@ -5346,11 +5781,11 @@ async function initializeApp() {
   // Carregar sessões existentes após inicialização
   logger.info('Carregando sessões existentes...');
   await loadExistingSessions();
-  
+
   // Limpar sessões órfãs (sem userId)
   logger.info('Limpando sessões órfãs...');
   await cleanupOrphanedSessions();
-  
+
   // Setup MongoDB collections with proper indexes
   const db = database.getDb();
   if (db) {
@@ -5358,33 +5793,39 @@ async function initializeApp() {
       // Create TTL index for QR codes collection
       const qrCodes = db.collection('qr_codes');
       await qrCodes.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 });
-      
+
       // Create index for webhooks collection
       const webhooksCollection = db.collection('webhooks');
       await webhooksCollection.createIndex({ sessionId: 1 });
-      
+
       // Create indexes for messages collection
       const messagesCollection = db.collection('messages');
       await messagesCollection.createIndex({ sessionId: 1, timestamp: -1 });
-      await messagesCollection.createIndex({ sessionId: 1, messageId: 1 }, { unique: true });
+      await messagesCollection.createIndex(
+        { sessionId: 1, messageId: 1 },
+        { unique: true }
+      );
       await messagesCollection.createIndex({ userId: 1 });
-      
+
       // Create indexes for groups collection
       const groupsCollection = db.collection('groups');
-      await groupsCollection.createIndex({ sessionId: 1, jid: 1 }, { unique: true });
+      await groupsCollection.createIndex(
+        { sessionId: 1, jid: 1 },
+        { unique: true }
+      );
       await groupsCollection.createIndex({ sessionId: 1 });
       await groupsCollection.createIndex({ jid: 1 });
-      
+
       logger.info('MongoDB indexes created successfully');
     } catch (error) {
       logger.warn(`Failed to create MongoDB indexes: ${error.message}`);
     }
   }
-  
+
   // Initial cleanup of expired QR codes
   logger.info('Limpando QR codes expirados...');
   await cleanupExpiredQRCodes();
-  
+
   // Setup periodic cleanup of expired QR codes (every 10 minutes)
   setInterval(async () => {
     try {
@@ -5393,9 +5834,9 @@ async function initializeApp() {
       logger.error(`Erro na limpeza automática de QR codes: ${error.message}`);
     }
   }, 10 * 60 * 1000); // 10 minutes
-  
+
   logger.info('Carregamento de sessões concluído!');
-  
+
   // Integrar sistema de coleta de mensagens
   logger.info('Integrando sistema de coleta de mensagens...');
   try {
@@ -5428,4 +5869,12 @@ process.on('SIGINT', async () => {
 global.createWhatsAppSession = createWhatsAppSession;
 global.downloadMediaToFile = downloadMediaToFile;
 
-module.exports = { app, getSessions, initializeApp, createWhatsAppSession, getEnrichedSessionData, saveDownloadMetadata, downloadMediaToFile };
+module.exports = {
+  app,
+  getSessions,
+  initializeApp,
+  createWhatsAppSession,
+  getEnrichedSessionData,
+  saveDownloadMetadata,
+  downloadMediaToFile,
+};

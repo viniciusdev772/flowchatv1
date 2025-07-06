@@ -158,7 +158,7 @@ class AIAgent {
     this.createdAt = config.createdAt || new Date().toISOString();
     this.updatedAt = new Date().toISOString();
     this.messageCount = config.messageCount || 0;
-    this.conversationHistory = config.conversationHistory || [];
+    // conversationHistory removed - now using MongoDB only for persistent history
   }
 
   async processMessage(messageData, whatsappClient = null) {
@@ -215,7 +215,7 @@ class AIAgent {
         }
       }
 
-      // Create rich conversation entry
+      // Create rich conversation entry with comprehensive context
       const conversationEntry = {
         type: 'user',
         content: messageText,
@@ -228,12 +228,20 @@ class AIAgent {
         },
         chat: {
           id: chatInfo.id,
-          type: chatInfo.type || (isGroup ? 'group' : 'private'),
-          isGroup: isGroup,
-          name: chatInfo.name || (isGroup ? 'Grupo' : senderInfo.pushName || 'Contato')
+          type: chatInfo.type || (finalIsGroup ? 'group' : 'private'),
+          isGroup: finalIsGroup,
+          name: chatInfo.name || (finalIsGroup ? 'Grupo' : senderInfo.pushName || 'Contato')
         },
-        messageType: messageData.messageType,
-        hasQuotedMessage: !!messageData.quotedMessage
+        messageType: messageData.messageType || 'text',
+        hasQuotedMessage: !!messageData.quotedMessage,
+        // Additional context for better conversation continuity
+        isMultiPart: messageData.isMultiPart || false,
+        partCount: messageData.partCount || 1,
+        contextData: {
+          userAgent: 'whatsapp',
+          platform: 'baileys',
+          sessionId: this.sessionId
+        }
       };
 
       // Save to MongoDB instead of memory
@@ -374,8 +382,9 @@ Regras importantes:
       // Prepare messages array for ChatOpenAI
       const messages = [new SystemMessage(systemPrompt)];
 
-      // Load conversation history from MongoDB instead of memory
-      const recentHistory = await this.loadConversationHistory(conversationEntry.chat.id, 6);
+      // Load conversation history from MongoDB for context (last 10 messages)
+      const recentHistory = await this.loadConversationHistory(conversationEntry.chat.id, 10);
+      console.log(`📚 Loaded ${recentHistory.length} previous messages for context from chat ${conversationEntry.chat.id}`);
       
       // Add conversation history for context
       recentHistory.forEach((msg) => {
@@ -494,7 +503,7 @@ Regras importantes:
         updatedAt: this.updatedAt,
         // Save API key to preserve across server restarts (stored securely in database)
         openaiApiKey: this.openaiApiKey || '',
-        conversationHistory: this.conversationHistory.slice(-10), // Keep only last 10 messages in DB
+        // conversationHistory now handled separately in ai_agent_conversations collection
       };
 
       await db
@@ -538,7 +547,7 @@ Regras importantes:
       };
 
       await db.collection('ai_agent_conversations').insertOne(entryWithAgent);
-      console.log(`Conversation entry saved for agent ${this.id}`);
+      console.log(`💾 Conversation entry saved: ${conversationEntry.type} message for agent ${this.id} in chat ${conversationEntry.chat?.id}`);
     } catch (error) {
       console.error('Error saving conversation entry:', error);
     }
@@ -561,6 +570,16 @@ Regras importantes:
         .sort({ createdAt: -1 })
         .limit(limit)
         .toArray();
+
+      // Log for debugging
+      if (conversations.length > 0) {
+        console.log(`📖 Found ${conversations.length} conversation entries for chat ${chatId}`);
+        const oldestMsg = conversations[conversations.length - 1];
+        const newestMsg = conversations[0];
+        console.log(`📅 History span: ${oldestMsg.createdAt} to ${newestMsg.createdAt}`);
+      } else {
+        console.log(`📖 No conversation history found for chat ${chatId}`);
+      }
 
       // Return in chronological order (oldest first)
       return conversations.reverse();
