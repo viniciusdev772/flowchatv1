@@ -586,7 +586,7 @@ export default function AIAgent() {
                             formErrors.session 
                               ? "border-red-300 hover:border-red-400" 
                               : "border-gray-200 hover:border-purple-300"
-                          )}
+                          )}>
                             <span className="flex items-center">
                               {selectedSession ? (
                                 <>
