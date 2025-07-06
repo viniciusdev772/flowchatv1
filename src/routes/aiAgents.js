@@ -624,26 +624,65 @@ async function loadAgentsFromDatabase() {
       .toArray();
 
     for (const agentData of agentsData) {
-      // Don't load if already in memory (API key required)
-      if (!aiAgents.has(agentData._id)) {
-        console.log(
-          `Skipping agent ${agentData._id} - API key required for full functionality`
-        );
-        continue;
-      }
-
-      // Update memory agent with database data
-      const memoryAgent = aiAgents.get(agentData._id);
-      if (memoryAgent) {
-        Object.assign(memoryAgent, agentData);
-        memoryAgent.id = agentData._id;
-      }
+      // Criar agente sem API key (será necessário reconfigurar)
+      const agentConfig = {
+        ...agentData,
+        id: agentData._id,
+        openaiApiKey: '', // API key não é salva por segurança, precisa ser reconfigurada
+      };
+      
+      const agent = new AIAgent(agentConfig);
+      aiAgents.set(agent.id, agent);
+      
+      console.log(`Loaded agent ${agent.id} (${agent.name}) from database - API key required for activation`);
     }
 
     console.log(`Loaded ${agentsData.length} AI agents from database`);
   } catch (error) {
     console.error('Error loading agents from database:', error);
   }
+}
+
+// Function to get agent from database by ID
+async function getAgentFromDatabase(agentId) {
+  try {
+    const db = database.getDb();
+    if (!db) return null;
+
+    const agentData = await db
+      .collection('ai_agents')
+      .findOne({ _id: agentId });
+
+    if (agentData) {
+      return {
+        ...agentData,
+        id: agentData._id,
+        openaiApiKey: '', // API key not stored for security
+      };
+    }
+    return null;
+  } catch (error) {
+    console.error('Error getting agent from database:', error);
+    return null;
+  }
+}
+
+// Function to ensure agent exists in memory (load from DB if needed)
+async function ensureAgentInMemory(agentId) {
+  if (aiAgents.has(agentId)) {
+    return aiAgents.get(agentId);
+  }
+
+  // Try to load from database
+  const agentData = await getAgentFromDatabase(agentId);
+  if (agentData) {
+    const agent = new AIAgent(agentData);
+    aiAgents.set(agent.id, agent);
+    console.log(`Agent ${agentId} loaded from database to memory`);
+    return agent;
+  }
+
+  return null;
 }
 
 async function saveAgentToDatabase(agent) {
@@ -738,9 +777,9 @@ router.get('/list', (req, res) => {
 });
 
 // Get AI Agent by ID
-router.get('/:agentId', (req, res) => {
+router.get('/:agentId', async (req, res) => {
   try {
-    const agent = aiAgents.get(req.params.agentId);
+    const agent = await ensureAgentInMemory(req.params.agentId);
 
     if (!agent) {
       return res.status(404).json({
@@ -762,10 +801,54 @@ router.get('/:agentId', (req, res) => {
   }
 });
 
+// Update AI Agent API Key
+router.patch('/:agentId/api-key', async (req, res) => {
+  try {
+    const { agentId } = req.params;
+    const { openaiApiKey } = req.body;
+
+    if (!openaiApiKey || openaiApiKey.trim() === '') {
+      return res.status(400).json({
+        success: false,
+        message: 'API key da OpenAI é obrigatória',
+      });
+    }
+
+    // Get agent from memory or database
+    let agent = await ensureAgentInMemory(agentId);
+
+    if (!agent) {
+      return res.status(404).json({
+        success: false,
+        message: 'Agente não encontrado',
+      });
+    }
+
+    // Update API key
+    agent.openaiApiKey = openaiApiKey;
+    agent.updatedAt = new Date().toISOString();
+
+    // Save to database (without API key for security)
+    await agent.save();
+
+    res.json({
+      success: true,
+      message: 'API key atualizada com sucesso',
+      agent: agent.getStats(),
+    });
+  } catch (error) {
+    console.error('Error updating agent API key:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao atualizar API key',
+    });
+  }
+});
+
 // Deactivate AI Agent
 router.patch('/:agentId/deactivate', async (req, res) => {
   try {
-    const agent = aiAgents.get(req.params.agentId);
+    const agent = await ensureAgentInMemory(req.params.agentId);
 
     if (!agent) {
       return res.status(404).json({
@@ -868,7 +951,7 @@ router.post('/process-message', async (req, res) => {
 // Get agent conversation history
 router.get('/:agentId/conversations/:chatId', async (req, res) => {
   try {
-    const agent = aiAgents.get(req.params.agentId);
+    const agent = await ensureAgentInMemory(req.params.agentId);
     const { chatId } = req.params;
     const { limit = 50 } = req.query;
 
@@ -900,7 +983,7 @@ router.get('/:agentId/conversations/:chatId', async (req, res) => {
 // Clear agent conversation history
 router.delete('/:agentId/conversations/:chatId?', async (req, res) => {
   try {
-    const agent = aiAgents.get(req.params.agentId);
+    const agent = await ensureAgentInMemory(req.params.agentId);
     const { chatId } = req.params;
 
     if (!agent) {
@@ -931,7 +1014,7 @@ router.delete('/:agentId/conversations/:chatId?', async (req, res) => {
 // Get agent conversation statistics
 router.get('/:agentId/stats', async (req, res) => {
   try {
-    const agent = aiAgents.get(req.params.agentId);
+    const agent = await ensureAgentInMemory(req.params.agentId);
 
     if (!agent) {
       return res.status(404).json({
@@ -963,9 +1046,24 @@ router.get('/:agentId/stats', async (req, res) => {
 async function processWhatsAppMessage(whatsappClient, messageData, sessionId) {
   try {
     // Find active agent for this session
-    const agent = Array.from(aiAgents.values()).find(
+    let agent = Array.from(aiAgents.values()).find(
       (agent) => agent.sessionId === sessionId && agent.isActive
     );
+
+    // If no agent in memory, try to load from database
+    if (!agent) {
+      const db = require('../config/database').getDb();
+      if (db) {
+        const agentData = await db.collection('ai_agents').findOne({ 
+          sessionId: sessionId, 
+          isActive: true
+        });
+        
+        if (agentData) {
+          agent = await ensureAgentInMemory(agentData._id);
+        }
+      }
+    }
 
     if (!agent) {
       console.log(`No active agent found for session: ${sessionId}`);
@@ -1039,5 +1137,13 @@ async function processWhatsAppMessage(whatsappClient, messageData, sessionId) {
   }
 }
 
-// Export the AI Agent class, agents map and helper function for use in other modules
-module.exports = { router, AIAgent, aiAgents, processWhatsAppMessage };
+// Export the AI Agent class, agents map and helper functions for use in other modules
+module.exports = { 
+  router, 
+  AIAgent, 
+  aiAgents, 
+  processWhatsAppMessage, 
+  ensureAgentInMemory,
+  loadAgentsFromDatabase,
+  getAgentFromDatabase
+};

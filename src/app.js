@@ -475,10 +475,27 @@ async function sendMessageWithHumanBehavior(
     }
 
     // Check for active AI agent for this session (only mark as read if agent is active)
-    const { aiAgents } = require('./routes/aiAgents');
-    const activeAgent = Array.from(aiAgents.values()).find(agent => 
+    const { aiAgents, ensureAgentInMemory } = require('./routes/aiAgents');
+    
+    let activeAgent = Array.from(aiAgents.values()).find(agent => 
       agent.sessionId === sessionId && agent.isActive && agent.autoReply
     );
+    
+    // If no agent in memory, try to load from database
+    if (!activeAgent) {
+      const db = require('./config/database').getDb();
+      if (db) {
+        const agentData = await db.collection('ai_agents').findOne({ 
+          sessionId: sessionId, 
+          isActive: true,
+          autoReply: true 
+        });
+        
+        if (agentData) {
+          activeAgent = await ensureAgentInMemory(agentData._id);
+        }
+      }
+    }
 
     // 1. Marcar como visto primeiro (simula usuário lendo) - apenas se agente ativo e configurado
     if (activeAgent && HUMAN_BEHAVIOR.AUTO_MARK_READ) {
@@ -2573,7 +2590,7 @@ async function createWhatsAppSession(sessionId, userId = null) {
 }
 
 // Handler para mensagens recebidas (resposta automática inteligente)
-// Função para capturar mensagens picotadas e processar com delay
+// Função para capturar mensagens múltiplas e processar com delay inteligente
 async function handleMessageParts(sock, message, sessionId) {
   const jid = message.key.remoteJid;
   const messageText =
@@ -2584,10 +2601,12 @@ async function handleMessageParts(sock, message, sessionId) {
   if (!messageText.trim()) return;
 
   const chatKey = `${sessionId}_${jid}`;
+  const senderId = message.key.participant || message.key.remoteJid;
+  const senderKey = `${chatKey}_${senderId}`;
   
-  // Inicializar buffer para este chat se não existir
-  if (!messageParts.has(chatKey)) {
-    messageParts.set(chatKey, []);
+  // Inicializar buffer para este remetente específico se não existir
+  if (!messageParts.has(senderKey)) {
+    messageParts.set(senderKey, []);
   }
 
   // Adicionar mensagem ao buffer
@@ -2595,27 +2614,55 @@ async function handleMessageParts(sock, message, sessionId) {
     text: messageText,
     timestamp: Date.now(),
     messageKey: message.key,
-    pushName: message.pushName || 'Usuário'
+    pushName: message.pushName || 'Usuário',
+    senderId: senderId
   };
   
-  messageParts.get(chatKey).push(messagePart);
+  const parts = messageParts.get(senderKey);
+  parts.push(messagePart);
   
   // Limpar timer anterior se existir
-  if (messageTimers.has(chatKey)) {
-    clearTimeout(messageTimers.get(chatKey));
+  if (messageTimers.has(senderKey)) {
+    clearTimeout(messageTimers.get(senderKey));
   }
   
-  // Definir timer para processar mensagem completa (aguarda 3 segundos por mais partes)
+  // Lógica inteligente para determinar tempo de espera
+  let waitTime = 8000; // Base: 8 segundos
+  
+  // Se a mensagem termina com pontuação, pode ser final
+  if (/[.!?:]$/.test(messageText.trim())) {
+    waitTime = 5000; // 5 segundos se termina com pontuação
+  }
+  
+  // Se a mensagem é muito curta, provavelmente há mais
+  if (messageText.length < 20) {
+    waitTime = 10000; // 10 segundos para mensagens curtas
+  }
+  
+  // Se já há várias partes, aumentar tempo de espera
+  if (parts.length > 3) {
+    waitTime = 12000; // 12 segundos se já há muitas partes
+  }
+  
+  // Se a mensagem termina com "..." pode ter continuação
+  if (messageText.trim().endsWith('...')) {
+    waitTime = 15000; // 15 segundos se termina com reticências
+  }
+  
+  logger.info(`Mensagem ${parts.length} recebida de ${senderId}. Aguardando ${waitTime/1000}s por mais mensagens...`);
+  
+  // Definir timer para processar mensagem completa
   const timer = setTimeout(async () => {
-    const parts = messageParts.get(chatKey) || [];
-    if (parts.length > 0) {
+    const currentParts = messageParts.get(senderKey) || [];
+    if (currentParts.length > 0) {
       // Combinar todas as partes em uma mensagem completa
-      const fullText = parts.map(part => part.text).join(' ');
-      const firstMessage = parts[0];
+      const fullText = currentParts.map(part => part.text).join('\n'); // Usar quebra de linha para preservar separação
+      const firstMessage = currentParts[0];
+      const lastMessage = currentParts[currentParts.length - 1];
       
-      // Criar objeto de mensagem completa
+      // Criar objeto de mensagem completa usando a última mensagem como base
       const completeMessage = {
-        key: firstMessage.messageKey,
+        key: lastMessage.messageKey, // Usar última mensagem para reply
         pushName: firstMessage.pushName,
         message: {
           conversation: fullText,
@@ -2623,18 +2670,18 @@ async function handleMessageParts(sock, message, sessionId) {
         }
       };
       
-      logger.info(`Mensagem completa processada (${parts.length} partes) na sessão ${sessionId} de ${jid}: ${fullText.substring(0, 100)}...`);
+      logger.info(`Processando mensagem completa (${currentParts.length} partes) de ${senderId}: ${fullText.substring(0, 150)}...`);
       
       // Processar mensagem completa
       await processCompleteMessage(sock, completeMessage, sessionId);
       
       // Limpar buffer
-      messageParts.set(chatKey, []);
+      messageParts.set(senderKey, []);
     }
-    messageTimers.delete(chatKey);
-  }, 3000); // Aguarda 3 segundos por mais partes
+    messageTimers.delete(senderKey);
+  }, waitTime);
   
-  messageTimers.set(chatKey, timer);
+  messageTimers.set(senderKey, timer);
 }
 
 async function processCompleteMessage(sock, message, sessionId) {
@@ -2649,10 +2696,28 @@ async function processCompleteMessage(sock, message, sessionId) {
     await delay(500 + Math.random() * 1500);
 
     // Check for active AI agent for this session
-    const { aiAgents } = require('./routes/aiAgents');
-    const activeAgent = Array.from(aiAgents.values()).find(agent => 
+    const { aiAgents, ensureAgentInMemory } = require('./routes/aiAgents');
+    
+    // First check memory, then try to load from database
+    let activeAgent = Array.from(aiAgents.values()).find(agent => 
       agent.sessionId === sessionId && agent.isActive && agent.autoReply
     );
+    
+    // If no agent in memory, try to load from database
+    if (!activeAgent) {
+      const db = require('./config/database').getDb();
+      if (db) {
+        const agentData = await db.collection('ai_agents').findOne({ 
+          sessionId: sessionId, 
+          isActive: true,
+          autoReply: true 
+        });
+        
+        if (agentData) {
+          activeAgent = await ensureAgentInMemory(agentData._id);
+        }
+      }
+    }
 
     // Marcar como visto apenas se há agente ativo e configurado para auto-read
     if (activeAgent && HUMAN_BEHAVIOR.AUTO_MARK_READ) {
@@ -4782,10 +4847,27 @@ async function sendMessageWithAdvancedHumanBehavior(
     }
 
     // 3. MARCAR COMO VISTO - apenas se há agente ativo e configurado
-    const { aiAgents } = require('./routes/aiAgents');
-    const activeAgent = Array.from(aiAgents.values()).find(agent => 
+    const { aiAgents, ensureAgentInMemory } = require('./routes/aiAgents');
+    
+    let activeAgent = Array.from(aiAgents.values()).find(agent => 
       agent.sessionId === sessionId && agent.isActive && agent.autoReply
     );
+    
+    // If no agent in memory, try to load from database
+    if (!activeAgent) {
+      const db = require('./config/database').getDb();
+      if (db) {
+        const agentData = await db.collection('ai_agents').findOne({ 
+          sessionId: sessionId, 
+          isActive: true,
+          autoReply: true 
+        });
+        
+        if (agentData) {
+          activeAgent = await ensureAgentInMemory(agentData._id);
+        }
+      }
+    }
     
     if (activeAgent && HUMAN_BEHAVIOR.AUTO_MARK_READ) {
       await delay(300 + Math.random() * 200); // Delay natural antes de marcar como visto
