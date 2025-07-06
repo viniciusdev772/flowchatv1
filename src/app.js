@@ -389,6 +389,9 @@ const groupsRouter = require('./api/groups');
 const { router: messageCollectorRouter, integrateWithMainApp } = require('./api/messageCollector');
 const aiSummaryRouter = require('./api/aiSummary');
 
+// Importar rotas de agentes de IA
+const { router: aiAgentsRouter } = require('./routes/aiAgents');
+
 // Configurações de comportamento humano
 const HUMAN_BEHAVIOR = {
   MIN_TYPING_TIME: 1000, // Tempo mínimo digitando (1s)
@@ -2581,26 +2584,74 @@ async function handleIncomingMessage(sock, message, sessionId) {
       await sock.readMessages([message.key]);
     }
 
-    // Aqui você pode implementar sua lógica de resposta automática
-    // Por exemplo, responder apenas se a mensagem contém certas palavras-chave
+    // Check for active AI agent for this session
+    const { aiAgents } = require('./routes/aiAgents');
+    const activeAgent = Array.from(aiAgents.values()).find(agent => 
+      agent.sessionId === sessionId && agent.isActive && agent.autoReply
+    );
 
-    if (
-      messageText.toLowerCase().includes('oi') ||
-      messageText.toLowerCase().includes('olá') ||
-      messageText.toLowerCase().includes('ola')
-    ) {
-      const responses = [
-        'Olá! Como posso ajudar você?',
-        'Oi! Em que posso ser útil?',
-        'Olá! Estou aqui para ajudar.',
-        'Oi! Como você está?',
-      ];
+    // Check if message is from a group
+    const isGroupMessage = jid.includes('@g.us');
+    
+    // Skip if agent doesn't want to reply to groups and this is a group message
+    if (activeAgent && messageText.trim() && !(isGroupMessage && !activeAgent.replyToGroups)) {
+      try {
+        logger.info(`Processing message with AI agent ${activeAgent.id} for session ${sessionId}`);
+        
+        // Process message with AI agent
+        const aiResponse = await activeAgent.processMessage({
+          text: messageText,
+          from: jid,
+          timestamp: new Date().toISOString(),
+          body: messageText
+        });
 
-      const randomResponse =
-        responses[Math.floor(Math.random() * responses.length)];
+        if (aiResponse && aiResponse.trim()) {
+          // Simulate typing time based on response length
+          const typingTime = Math.min(
+            Math.max(aiResponse.length * 50, HUMAN_BEHAVIOR.MIN_TYPING_TIME),
+            HUMAN_BEHAVIOR.MAX_TYPING_TIME
+          );
 
-      // Usar a fila de mensagens para resposta automática
-      //await queueMessage(sessionId, sock, jid, randomResponse, message);
+          // Show typing indicator
+          await sock.sendPresenceUpdate('composing', jid);
+          await delay(typingTime);
+
+          // Send AI response
+          await sock.sendMessage(jid, { text: aiResponse });
+          
+          // Update presence to available
+          await sock.sendPresenceUpdate('available');
+
+          logger.info(`AI agent ${activeAgent.id} responded to ${jid}: ${aiResponse.substring(0, 100)}...`);
+        }
+      } catch (error) {
+        logger.error(`Error processing message with AI agent: ${error.message}`);
+        
+        // Fallback to simple response on AI error
+        const fallbackResponse = 'Desculpe, ocorreu um erro ao processar sua mensagem. Tente novamente.';
+        await sock.sendMessage(jid, { text: fallbackResponse });
+      }
+    } else {
+      // Original simple auto-reply logic (only if no AI agent is active)
+      if (
+        messageText.toLowerCase().includes('oi') ||
+        messageText.toLowerCase().includes('olá') ||
+        messageText.toLowerCase().includes('ola')
+      ) {
+        const responses = [
+          'Olá! Como posso ajudar você?',
+          'Oi! Em que posso ser útil?',
+          'Olá! Estou aqui para ajudar.',
+          'Oi! Como você está?',
+        ];
+
+        const randomResponse =
+          responses[Math.floor(Math.random() * responses.length)];
+
+        // Send simple response
+        await sock.sendMessage(jid, { text: randomResponse });
+      }
     }
   } catch (error) {
     logger.error(`Erro ao processar mensagem recebida: ${error.message}`);
@@ -4999,6 +5050,14 @@ app.get('/api/baileys/info', (req, res) => {
       'GET /api/baileys/groups/:sessionId/:groupId/invite-code': 'Obter código de convite',
       'POST /api/baileys/groups/:sessionId/:groupId/revoke-invite': 'Revogar código de convite',
 
+      // Agentes de IA
+      'POST /api/baileys/agents/create': 'Criar novo agente de IA',
+      'GET /api/baileys/agents/list': 'Listar todos os agentes',
+      'GET /api/baileys/agents/:agentId': 'Obter informações do agente',
+      'PATCH /api/baileys/agents/:agentId/deactivate': 'Desativar agente',
+      'DELETE /api/baileys/agents/:agentId': 'Remover agente',
+      'POST /api/baileys/agents/process-message': 'Processar mensagem com agente',
+
       // Informações
       'GET /api/baileys/info': 'Informações da API',
       'GET /': 'Redireciona para documentação Swagger',
@@ -5008,6 +5067,9 @@ app.get('/api/baileys/info', (req, res) => {
 
 // Usar rotas de grupos
 app.use('/api/baileys/groups', groupsRouter);
+
+// Usar rotas de agentes de IA
+app.use('/api/baileys/agents', aiAgentsRouter);
 
 // APIs movidas para /api/management para usar autenticação consistente
 

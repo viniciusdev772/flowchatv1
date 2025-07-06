@@ -44,13 +44,15 @@ function classNames(...classes) {
 
 export default function AIAgent() {
   const [currentStep, setCurrentStep] = useState(0);
-  const [availableNumbers, setAvailableNumbers] = useState([]);
-  const [selectedNumber, setSelectedNumber] = useState(null);
+  const [availableSessions, setAvailableSessions] = useState([]);
+  const [selectedSession, setSelectedSession] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
   const [deploymentProgress, setDeploymentProgress] = useState(0);
   const [showDeployModal, setShowDeployModal] = useState(false);
   const [deploymentStatus, setDeploymentStatus] = useState('idle');
+  const [token, setToken] = useState('');
+  const [tokenLoading, setTokenLoading] = useState(true);
   
   const [agentConfig, setAgentConfig] = useState({
     name: '',
@@ -62,11 +64,12 @@ export default function AIAgent() {
     creativity: 70,
     learningEnabled: true,
     autoReply: true,
-    smartReplies: true
+    smartReplies: true,
+    replyToGroups: true
   });
 
   const steps = [
-    { id: 0, name: 'Número WhatsApp', icon: PhoneIcon, description: 'Selecione o número para seu agente' },
+    { id: 0, name: 'Sessão WhatsApp', icon: PhoneIcon, description: 'Selecione a sessão para seu agente' },
     { id: 1, name: 'Identidade', icon: AcademicCapIcon, description: 'Defina nome e especialização' },
     { id: 2, name: 'Inteligência', icon: CpuChipIcon, description: 'Configure modelo e parâmetros' },
     { id: 3, name: 'Personalidade', icon: BeakerIcon, description: 'Escolha comportamento do agente' },
@@ -99,49 +102,156 @@ export default function AIAgent() {
   ];
 
   useEffect(() => {
-    loadAvailableNumbers();
+    const initializeAgent = async () => {
+      await fetchToken();
+    };
+    initializeAgent();
   }, []);
 
-  const loadAvailableNumbers = async () => {
+  useEffect(() => {
+    if (token) {
+      loadAvailableSessions();
+    } else if (!tokenLoading) {
+      setIsLoading(false);
+    }
+  }, [token, tokenLoading]);
+
+  const fetchToken = async () => {
     try {
-      setIsLoading(true);
-      const response = await apiRequest('/api/baileys/sessions', 'GET');
+      setTokenLoading(true);
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
       
-      if (response.success) {
-        const connectedSessions = response.data.filter(session => 
-          session.status === 'connected' || session.status === 'open'
-        );
-        setAvailableNumbers(connectedSessions);
+      // Get first available token for AI agent
+      const response = await fetch(`${apiUrl}/api/management/tokens/list`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.tokens && result.tokens.length > 0) {
+          // Use first token for AI agent
+          const firstToken = result.tokens[0];
+          setToken(firstToken.value);
+        } else {
+          console.error('No tokens available for AI agent');
+        }
+      } else {
+        console.error('Error fetching tokens:', response.status);
       }
     } catch (error) {
-      console.error('Error loading available numbers:', error);
+      console.error('Error fetching token:', error);
+    } finally {
+      setTokenLoading(false);
+    }
+  };
+
+  const loadAvailableSessions = async () => {
+    try {
+      setIsLoading(true);
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      
+      const response = await fetch(`${apiUrl}/api/baileys/sessions`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success) {
+          const connectedSessions = result.data.filter(session => 
+            session.status === 'connected' || session.status === 'open'
+          );
+          setAvailableSessions(connectedSessions);
+        } else {
+          console.error('Sessions API returned error:', result.message);
+        }
+      } else {
+        console.error('Sessions request failed with status:', response.status);
+      }
+    } catch (error) {
+      console.error('Error loading available sessions:', error);
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleDeploy = async () => {
-    setIsCreating(true);
-    setDeploymentProgress(0);
-    setDeploymentStatus('initializing');
-    setShowDeployModal(true);
-    
-    // Simulate deployment progress
-    const statusSteps = [
-      { progress: 20, status: 'configuring' },
-      { progress: 40, status: 'training' },
-      { progress: 60, status: 'testing' },
-      { progress: 80, status: 'deploying' },
-      { progress: 100, status: 'completed' }
-    ];
-    
-    for (const step of statusSteps) {
+    try {
+      setIsCreating(true);
+      setDeploymentProgress(0);
+      setDeploymentStatus('initializing');
+      setShowDeployModal(true);
+      
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      
+      // Create AI agent via backend API
+      const agentData = {
+        sessionId: selectedSession.sessionId,
+        name: agentConfig.name,
+        description: agentConfig.description,
+        model: agentConfig.model,
+        personality: agentConfig.personality,
+        specialization: agentConfig.specialization,
+        creativity: agentConfig.creativity,
+        learningEnabled: agentConfig.learningEnabled,
+        autoReply: agentConfig.autoReply,
+        smartReplies: agentConfig.smartReplies,
+        replyToGroups: agentConfig.replyToGroups,
+        openaiApiKey: agentConfig.apiKey,
+        tools: ['web_search'] // Initial tools
+      };
+      
+      // Deployment progress simulation with real API call
+      setDeploymentProgress(20);
+      setDeploymentStatus('configuring');
       await new Promise(resolve => setTimeout(resolve, 1000));
-      setDeploymentProgress(step.progress);
-      setDeploymentStatus(step.status);
+      
+      setDeploymentProgress(40);
+      setDeploymentStatus('training');
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const response = await fetch(`${apiUrl}/api/baileys/agents/create`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(agentData)
+      });
+      
+      setDeploymentProgress(80);
+      setDeploymentStatus('deploying');
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success) {
+          setDeploymentProgress(100);
+          setDeploymentStatus('completed');
+        } else {
+          throw new Error(result.message || 'Failed to create agent');
+        }
+      } else {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+    } catch (error) {
+      console.error('Error deploying agent:', error);
+      setDeploymentStatus('error');
+      // Reset after showing error
+      setTimeout(() => {
+        setShowDeployModal(false);
+        setDeploymentStatus('idle');
+      }, 3000);
+    } finally {
+      setIsCreating(false);
     }
-    
-    setIsCreating(false);
   };
 
   const nextStep = () => {
@@ -159,7 +269,7 @@ export default function AIAgent() {
   const canProceed = () => {
     switch (currentStep) {
       case 0:
-        return selectedNumber !== null;
+        return selectedSession !== null;
       case 1:
         return agentConfig.name.trim() !== '';
       case 2:
@@ -193,7 +303,7 @@ export default function AIAgent() {
               Inicializando Sistema de IA
             </h2>
             <p className="text-gray-600">
-              Carregando números disponíveis...
+              {tokenLoading ? 'Autenticando...' : 'Carregando sessões disponíveis...'}
             </p>
             <div className="mt-6">
               <div className="w-full bg-gray-200 rounded-full h-2">
@@ -296,31 +406,31 @@ export default function AIAgent() {
                     <div className="text-center">
                       <InformationCircleIcon className="w-12 h-12 text-blue-500 mx-auto mb-4" />
                       <h3 className="text-lg font-semibold text-gray-900 mb-2">
-                        Selecione um Número WhatsApp
+                        Selecione uma Sessão WhatsApp
                       </h3>
                       <p className="text-gray-600">
-                        Escolha qual número será usado pelo seu agente de IA
+                        Escolha qual sessão será usada pelo seu agente de IA
                       </p>
                     </div>
 
-                    {availableNumbers.length > 0 ? (
-                      <Listbox value={selectedNumber} onChange={setSelectedNumber}>
+                    {availableSessions.length > 0 ? (
+                      <Listbox value={selectedSession} onChange={setSelectedSession}>
                         <div className="relative">
                           <Listbox.Button className="relative w-full cursor-pointer rounded-xl bg-gray-50 border-2 border-gray-200 hover:border-purple-300 py-4 pl-6 pr-10 text-left focus:outline-none focus:ring-2 focus:ring-purple-500 transition-all duration-200">
                             <span className="flex items-center">
-                              {selectedNumber ? (
+                              {selectedSession ? (
                                 <>
                                   <div className="w-3 h-3 bg-green-500 rounded-full mr-3" />
                                   <span className="block truncate font-medium">
-                                    {selectedNumber.sessionId}
+                                    {selectedSession.sessionId}
                                   </span>
                                   <span className="ml-2 text-sm text-gray-500">
-                                    ({selectedNumber.status})
+                                    ({selectedSession.status})
                                   </span>
                                 </>
                               ) : (
                                 <span className="block truncate text-gray-400">
-                                  Selecione um número...
+                                  Selecione uma sessão...
                                 </span>
                               )}
                             </span>
@@ -336,7 +446,7 @@ export default function AIAgent() {
                             leaveTo="opacity-0"
                           >
                             <Listbox.Options className="absolute z-10 mt-2 max-h-60 w-full overflow-auto rounded-xl bg-white py-2 shadow-2xl ring-1 ring-black ring-opacity-5 focus:outline-none">
-                              {availableNumbers.map((session) => (
+                              {availableSessions.map((session) => (
                                 <Listbox.Option
                                   key={session.sessionId}
                                   className={({ active }) =>
@@ -378,10 +488,10 @@ export default function AIAgent() {
                       <div className="text-center py-12 bg-yellow-50 rounded-xl border-2 border-yellow-200">
                         <ExclamationTriangleIcon className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
                         <h3 className="text-lg font-semibold text-yellow-800 mb-2">
-                          Nenhum número disponível
+                          Nenhuma sessão disponível
                         </h3>
                         <p className="text-yellow-700">
-                          Conecte pelo menos um número WhatsApp para continuar
+                          Conecte pelo menos uma sessão WhatsApp para continuar
                         </p>
                       </div>
                     )}
@@ -731,6 +841,32 @@ export default function AIAgent() {
                                         />
                                       </Switch>
                                     </Field>
+
+                                    <Field className="flex items-center justify-between">
+                                      <div>
+                                        <Label className="text-sm font-medium text-gray-900">
+                                          Responder em Grupos
+                                        </Label>
+                                        <Description className="text-sm text-gray-500">
+                                          Permite que o agente responda mensagens de grupos
+                                        </Description>
+                                      </div>
+                                      <Switch
+                                        checked={agentConfig.replyToGroups}
+                                        onChange={(checked) => setAgentConfig(prev => ({ ...prev, replyToGroups: checked }))}
+                                        className={classNames(
+                                          agentConfig.replyToGroups ? 'bg-purple-600' : 'bg-gray-200',
+                                          'relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500 focus:ring-offset-2'
+                                        )}
+                                      >
+                                        <span
+                                          className={classNames(
+                                            agentConfig.replyToGroups ? 'translate-x-6' : 'translate-x-1',
+                                            'inline-block h-4 w-4 transform rounded-full bg-white transition-transform'
+                                          )}
+                                        />
+                                      </Switch>
+                                    </Field>
                                   </div>
                                 </Disclosure.Panel>
                               </Transition>
@@ -763,9 +899,9 @@ export default function AIAgent() {
                       </h4>
                       <div className="space-y-3">
                         <div className="flex justify-between items-center">
-                          <span className="text-gray-600">Número WhatsApp:</span>
+                          <span className="text-gray-600">Sessão WhatsApp:</span>
                           <span className="font-medium bg-gray-200 px-3 py-1 rounded-lg text-sm">
-                            {selectedNumber?.sessionId}
+                            {selectedSession?.sessionId}
                           </span>
                         </div>
                         <div className="flex justify-between items-center">
@@ -788,6 +924,16 @@ export default function AIAgent() {
                           <span className="text-gray-600">Personalidade:</span>
                           <span className="font-medium">
                             {personalities.find(p => p.id === agentConfig.personality)?.name}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-600">Responde em Grupos:</span>
+                          <span className={`font-medium px-2 py-1 rounded-lg text-sm ${
+                            agentConfig.replyToGroups 
+                              ? 'bg-green-100 text-green-800' 
+                              : 'bg-red-100 text-red-800'
+                          }`}>
+                            {agentConfig.replyToGroups ? 'Sim' : 'Não'}
                           </span>
                         </div>
                       </div>
