@@ -403,7 +403,7 @@ const HUMAN_BEHAVIOR = {
   MAX_DELAY_BETWEEN_MESSAGES: 5000, // Delay máximo entre mensagens (5s)
   MAX_MESSAGES_PER_MINUTE: 10, // Máximo 10 mensagens por minuto
   SEEN_DELAY: 500, // Delay antes de marcar como visto (0.5s)
-  AUTO_MARK_READ: false, // Desabilitado permanentemente
+  AUTO_MARK_READ: process.env.AUTO_MARK_READ !== 'false', // true por padrão, false se definido como 'false'
 };
 
 // Configurações de reconexão
@@ -2601,17 +2601,32 @@ async function handleIncomingMessage(sock, message, sessionId) {
         logger.info(`Processing message with AI agent ${activeAgent.id} for session ${sessionId}`);
         
         // Process message with AI agent
-        const aiResponse = await activeAgent.processMessage({
+        const messageData = {
+          content: messageText,
           text: messageText,
-          from: jid,
+          body: messageText,
+          messageId: message.key.id,
           timestamp: new Date().toISOString(),
-          body: messageText
-        });
+          messageType: 'text',
+          sender: {
+            id: message.key.participant || message.key.remoteJid,
+            pushName: message.pushName || 'Usuário',
+            isMe: message.key.fromMe
+          },
+          chat: {
+            id: jid,
+            isGroup: isGroupMessage,
+            type: isGroupMessage ? 'group' : 'private',
+            name: isGroupMessage ? 'Grupo' : 'Contato'
+          }
+        };
 
-        if (aiResponse && aiResponse.trim()) {
+        const aiResult = await activeAgent.processMessage(messageData, sock);
+
+        if (aiResult && aiResult.shouldReply && aiResult.response && aiResult.response.trim()) {
           // Simulate typing time based on response length
           const typingTime = Math.min(
-            Math.max(aiResponse.length * 50, HUMAN_BEHAVIOR.MIN_TYPING_TIME),
+            Math.max(aiResult.response.length * 50, HUMAN_BEHAVIOR.MIN_TYPING_TIME),
             HUMAN_BEHAVIOR.MAX_TYPING_TIME
           );
 
@@ -2620,12 +2635,12 @@ async function handleIncomingMessage(sock, message, sessionId) {
           await delay(typingTime);
 
           // Send AI response
-          await sock.sendMessage(jid, { text: aiResponse });
+          await sock.sendMessage(jid, { text: aiResult.response });
           
           // Update presence to available
           await sock.sendPresenceUpdate('available');
 
-          logger.info(`AI agent ${activeAgent.id} responded to ${jid}: ${aiResponse.substring(0, 100)}...`);
+          logger.info(`AI agent ${activeAgent.id} responded to ${jid}: ${aiResult.response.substring(0, 100)}...`);
         }
       } catch (error) {
         logger.error(`Error processing message with AI agent: ${error.message}`);

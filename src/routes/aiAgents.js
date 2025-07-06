@@ -163,6 +163,8 @@ class AIAgent {
 
   async processMessage(messageData, whatsappClient = null) {
     try {
+      console.log(`[AI Agent ${this.id}] Processing message:`, JSON.stringify(messageData, null, 2));
+      
       this.messageCount++;
       this.updatedAt = new Date().toISOString();
 
@@ -172,8 +174,11 @@ class AIAgent {
       const senderInfo = messageData.sender || {};
       const chatInfo = messageData.chat || {};
 
+      console.log(`[AI Agent ${this.id}] Extracted - messageText: "${messageText}", isGroup: ${isGroup}, senderInfo:`, senderInfo);
+
       // Skip empty messages
       if (!messageText.trim()) {
+        console.log(`[AI Agent ${this.id}] Skipping empty message`);
         return { shouldReply: false };
       }
 
@@ -223,7 +228,14 @@ class AIAgent {
       await this.saveConversationEntry(conversationEntry);
 
       // Generate AI response with rich context
+      console.log(`[AI Agent ${this.id}] Generating AI response...`);
       const response = await this.generateResponse(messageData, conversationEntry);
+      console.log(`[AI Agent ${this.id}] Generated response: "${response}"`);
+      
+      if (!response || response.trim() === '') {
+        console.warn(`[AI Agent ${this.id}] Empty response generated, using fallback`);
+        throw new Error('Empty response generated');
+      }
 
       // Create response entry
       const responseEntry = {
@@ -277,13 +289,18 @@ class AIAgent {
 
   async generateResponse(messageData, conversationEntry) {
     try {
+      console.log(`[AI Agent ${this.id}] Starting generateResponse...`);
+      
       const { ChatOpenAI } = require('@langchain/openai');
       const { HumanMessage, SystemMessage } = require('@langchain/core/messages');
 
       // Validate API key
       if (!this.openaiApiKey || this.openaiApiKey.trim() === '') {
+        console.error(`[AI Agent ${this.id}] OpenAI API key is missing or empty`);
         throw new Error('OpenAI API key is required');
       }
+      
+      console.log(`[AI Agent ${this.id}] API key validated, initializing ChatOpenAI...`);
 
       const llm = new ChatOpenAI({
         apiKey: this.openaiApiKey,
@@ -368,10 +385,13 @@ Regras importantes:
       const currentMessageContent = isGroup ? `${messageText} (enviado por ${senderName})` : messageText;
       messages.push(new HumanMessage(currentMessageContent.trim()));
 
+      console.log(`[AI Agent ${this.id}] Calling OpenAI with ${messages.length} messages...`);
       const response = await llm.invoke(messages);
+      console.log(`[AI Agent ${this.id}] OpenAI response received:`, response);
 
       // Extract response content properly
       let responseContent = response.content || '';
+      console.log(`[AI Agent ${this.id}] Extracted response content: "${responseContent}"`);
 
       // Se não conseguiu gerar resposta, criar uma resposta padrão baseada na personalidade
       if (!responseContent || responseContent.trim() === '') {
