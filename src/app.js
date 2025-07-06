@@ -105,6 +105,8 @@ const messageRateLimit = new Map(); // Rate limiting por sessão
 const reconnectionAttempts = new Map(); // Controle de tentativas de reconexão
 const messageStore = new Map(); // Armazenamento de mensagens para reply por ID
 const webhooks = new Map(); // Múltiplos webhooks por sessão (máximo 3)
+const messageParts = new Map(); // Buffer para mensagens picotadas por chat
+const messageTimers = new Map(); // Timers para processar mensagens completas
 
 // Estrutura de webhook:
 // webhooks.set('sessionId', [
@@ -403,7 +405,7 @@ const HUMAN_BEHAVIOR = {
   MAX_DELAY_BETWEEN_MESSAGES: 5000, // Delay máximo entre mensagens (5s)
   MAX_MESSAGES_PER_MINUTE: 10, // Máximo 10 mensagens por minuto
   SEEN_DELAY: 500, // Delay antes de marcar como visto (0.5s)
-  AUTO_MARK_READ: process.env.AUTO_MARK_READ !== 'false', // true por padrão, false se definido como 'false'
+  AUTO_MARK_READ: process.env.AUTO_MARK_READ === 'true', // false por padrão, true apenas se definido como 'true'
 };
 
 // Configurações de reconexão
@@ -472,8 +474,14 @@ async function sendMessageWithHumanBehavior(
       );
     }
 
-    // 1. Marcar como visto primeiro (simula usuário lendo) - apenas se configurado
-    if (HUMAN_BEHAVIOR.AUTO_MARK_READ) {
+    // Check for active AI agent for this session (only mark as read if agent is active)
+    const { aiAgents } = require('./routes/aiAgents');
+    const activeAgent = Array.from(aiAgents.values()).find(agent => 
+      agent.sessionId === sessionId && agent.isActive && agent.autoReply
+    );
+
+    // 1. Marcar como visto primeiro (simula usuário lendo) - apenas se agente ativo e configurado
+    if (activeAgent && HUMAN_BEHAVIOR.AUTO_MARK_READ) {
       await delay(HUMAN_BEHAVIOR.SEEN_DELAY);
       await sock.readMessages([
         {
@@ -2532,7 +2540,7 @@ async function createWhatsAppSession(sessionId, userId = null) {
 
         if (!message.key.fromMe && message.message) {
           // Processar mensagem recebida
-          await handleIncomingMessage(sock, message, sessionId);
+          await handleMessageParts(sock, message, sessionId);
         }
       }
     });
@@ -2565,7 +2573,71 @@ async function createWhatsAppSession(sessionId, userId = null) {
 }
 
 // Handler para mensagens recebidas (resposta automática inteligente)
-async function handleIncomingMessage(sock, message, sessionId) {
+// Função para capturar mensagens picotadas e processar com delay
+async function handleMessageParts(sock, message, sessionId) {
+  const jid = message.key.remoteJid;
+  const messageText =
+    message.message?.conversation ||
+    message.message?.extendedTextMessage?.text ||
+    '';
+
+  if (!messageText.trim()) return;
+
+  const chatKey = `${sessionId}_${jid}`;
+  
+  // Inicializar buffer para este chat se não existir
+  if (!messageParts.has(chatKey)) {
+    messageParts.set(chatKey, []);
+  }
+
+  // Adicionar mensagem ao buffer
+  const messagePart = {
+    text: messageText,
+    timestamp: Date.now(),
+    messageKey: message.key,
+    pushName: message.pushName || 'Usuário'
+  };
+  
+  messageParts.get(chatKey).push(messagePart);
+  
+  // Limpar timer anterior se existir
+  if (messageTimers.has(chatKey)) {
+    clearTimeout(messageTimers.get(chatKey));
+  }
+  
+  // Definir timer para processar mensagem completa (aguarda 3 segundos por mais partes)
+  const timer = setTimeout(async () => {
+    const parts = messageParts.get(chatKey) || [];
+    if (parts.length > 0) {
+      // Combinar todas as partes em uma mensagem completa
+      const fullText = parts.map(part => part.text).join(' ');
+      const firstMessage = parts[0];
+      
+      // Criar objeto de mensagem completa
+      const completeMessage = {
+        key: firstMessage.messageKey,
+        pushName: firstMessage.pushName,
+        message: {
+          conversation: fullText,
+          extendedTextMessage: { text: fullText }
+        }
+      };
+      
+      logger.info(`Mensagem completa processada (${parts.length} partes) na sessão ${sessionId} de ${jid}: ${fullText.substring(0, 100)}...`);
+      
+      // Processar mensagem completa
+      await processCompleteMessage(sock, completeMessage, sessionId);
+      
+      // Limpar buffer
+      messageParts.set(chatKey, []);
+    }
+    messageTimers.delete(chatKey);
+  }, 3000); // Aguarda 3 segundos por mais partes
+  
+  messageTimers.set(chatKey, timer);
+}
+
+async function processCompleteMessage(sock, message, sessionId) {
   try {
     const jid = message.key.remoteJid;
     const messageText =
@@ -2573,24 +2645,19 @@ async function handleIncomingMessage(sock, message, sessionId) {
       message.message?.extendedTextMessage?.text ||
       '';
 
-    // Log da mensagem recebida
-    logger.info(
-      `Mensagem recebida na sessão ${sessionId} de ${jid}: ${messageText}`
-    );
-
     // Simular delay de leitura humana
     await delay(500 + Math.random() * 1500);
-
-    // Marcar como visto apenas se configurado para auto-read
-    if (HUMAN_BEHAVIOR.AUTO_MARK_READ) {
-      await sock.readMessages([message.key]);
-    }
 
     // Check for active AI agent for this session
     const { aiAgents } = require('./routes/aiAgents');
     const activeAgent = Array.from(aiAgents.values()).find(agent => 
       agent.sessionId === sessionId && agent.isActive && agent.autoReply
     );
+
+    // Marcar como visto apenas se há agente ativo e configurado para auto-read
+    if (activeAgent && HUMAN_BEHAVIOR.AUTO_MARK_READ) {
+      await sock.readMessages([message.key]);
+    }
 
     // Check if message is from a group
     const isGroupMessage = jid.includes('@g.us');
@@ -2624,6 +2691,11 @@ async function handleIncomingMessage(sock, message, sessionId) {
         const aiResult = await activeAgent.processMessage(messageData, sock);
 
         if (aiResult && aiResult.shouldReply && aiResult.response && aiResult.response.trim()) {
+          // Delay aleatório de 5-10 segundos antes da resposta
+          const responseDelay = 5000 + Math.random() * 5000; // 5-10 segundos
+          logger.info(`AI agent ${activeAgent.id} aguardando ${Math.round(responseDelay/1000)}s antes de responder...`);
+          await delay(responseDelay);
+          
           // Simulate typing time based on response length
           const typingTime = Math.min(
             Math.max(aiResult.response.length * 50, HUMAN_BEHAVIOR.MIN_TYPING_TIME),
@@ -2634,8 +2706,17 @@ async function handleIncomingMessage(sock, message, sessionId) {
           await sock.sendPresenceUpdate('composing', jid);
           await delay(typingTime);
 
-          // Send AI response
-          await sock.sendMessage(jid, { text: aiResult.response });
+          // Send AI response with quoted message (resposta à mensagem original)
+          const quotedMessage = {
+            key: message.key,
+            message: message.message
+          };
+          
+          await sock.sendMessage(jid, { 
+            text: aiResult.response 
+          }, { 
+            quoted: quotedMessage 
+          });
           
           // Update presence to available
           await sock.sendPresenceUpdate('available');
@@ -2645,9 +2726,13 @@ async function handleIncomingMessage(sock, message, sessionId) {
       } catch (error) {
         logger.error(`Error processing message with AI agent: ${error.message}`);
         
-        // Fallback to simple response on AI error
+        // Fallback to simple response on AI error with quoted message
         const fallbackResponse = 'Desculpe, ocorreu um erro ao processar sua mensagem. Tente novamente.';
-        await sock.sendMessage(jid, { text: fallbackResponse });
+        const quotedMessage = {
+          key: message.key,
+          message: message.message
+        };
+        await sock.sendMessage(jid, { text: fallbackResponse }, { quoted: quotedMessage });
       }
     } else {
       // Original simple auto-reply logic (only if no AI agent is active)
@@ -4696,8 +4781,13 @@ async function sendMessageWithAdvancedHumanBehavior(
       await delay(thinkingDelay);
     }
 
-    // 3. MARCAR COMO VISTO - apenas se configurado
-    if (HUMAN_BEHAVIOR.AUTO_MARK_READ) {
+    // 3. MARCAR COMO VISTO - apenas se há agente ativo e configurado
+    const { aiAgents } = require('./routes/aiAgents');
+    const activeAgent = Array.from(aiAgents.values()).find(agent => 
+      agent.sessionId === sessionId && agent.isActive && agent.autoReply
+    );
+    
+    if (activeAgent && HUMAN_BEHAVIOR.AUTO_MARK_READ) {
       await delay(300 + Math.random() * 200); // Delay natural antes de marcar como visto
       await sock.readMessages([
         {
