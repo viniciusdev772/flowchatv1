@@ -39,104 +39,338 @@ const createAgentSchema = z.object({
 
 // Web Search Tool - now implemented directly in OpenAI SDK calls
 
+// Enhanced web search with multiple sources
 async function executeWebSearch(query) {
-  try {
-    const fetch = require('node-fetch');
-    const cheerio = require('cheerio');
+  const fetch = require('node-fetch');
+  const cheerio = require('cheerio');
+  
+  console.log(`🔍 AI Agent performing multi-source web search for: "${query}"`);
+  
+  const headers = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+    'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
+    'Accept-Encoding': 'gzip, deflate, br',
+    'DNT': '1',
+    'Connection': 'keep-alive',
+    'Upgrade-Insecure-Requests': '1',
+  };
 
-    console.log(`🔍 AI Agent performing web search for: "${query}"`);
+  const allResults = [];
+  const searchSources = [];
+  const searchPromises = [];
 
-    // Use DuckDuckGo search (no API key required)
-    const searchUrl = `https://duckduckgo.com/html/?q=${encodeURIComponent(
-      query
-    )}`;
-    const response = await fetch(searchUrl, {
-      headers: {
-        'User-Agent':
-          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        Accept:
-          'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-        'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
-        'Accept-Encoding': 'gzip, deflate, br',
-        DNT: '1',
-        Connection: 'keep-alive',
-        'Upgrade-Insecure-Requests': '1',
-      },
-    });
+  // Perform all searches in parallel for better performance
+  searchPromises.push(
+    searchDuckDuckGo(query, fetch, cheerio, headers)
+      .then(results => ({ source: 'duckduckgo', results, emoji: '🦆' }))
+      .catch(error => ({ source: 'duckduckgo', results: [], error: error.message, emoji: '🦆' }))
+  );
 
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
+  searchPromises.push(
+    searchBing(query, fetch, cheerio, headers)
+      .then(results => ({ source: 'bing', results, emoji: '🔍' }))
+      .catch(error => ({ source: 'bing', results: [], error: error.message, emoji: '🔍' }))
+  );
 
-    const html = await response.text();
-    const $ = cheerio.load(html);
+  searchPromises.push(
+    searchYahoo(query, fetch, cheerio, headers)
+      .then(results => ({ source: 'yahoo', results, emoji: '🟣' }))
+      .catch(error => ({ source: 'yahoo', results: [], error: error.message, emoji: '🟣' }))
+  );
 
-    const results = [];
+  searchPromises.push(
+    searchSearx(query, fetch, cheerio, headers)
+      .then(results => ({ source: 'searx', results, emoji: '🌐' }))
+      .catch(error => ({ source: 'searx', results: [], error: error.message, emoji: '🌐' }))
+  );
 
-    // DuckDuckGo result parsing
-    $('.result').each((i, elem) => {
-      if (i >= 8) return false; // Limit to 8 results
+  searchPromises.push(
+    searchBrave(query, fetch, cheerio, headers)
+      .then(results => ({ source: 'brave', results, emoji: '🦁' }))
+      .catch(error => ({ source: 'brave', results: [], error: error.message, emoji: '🦁' }))
+  );
 
-      const $elem = $(elem);
-      const titleLink = $elem.find('.result__title a');
-      const title = titleLink.text().trim();
-      const url = titleLink.attr('href');
-      const snippet = $elem.find('.result__snippet').text().trim();
+  searchPromises.push(
+    searchYandex(query, fetch, cheerio, headers)
+      .then(results => ({ source: 'yandex', results, emoji: '🐻' }))
+      .catch(error => ({ source: 'yandex', results: [], error: error.message, emoji: '🐻' }))
+  );
 
-      if (title && url && snippet) {
-        results.push({
-          title,
-          snippet,
-          url: url.startsWith('//') ? `https:${url}` : url,
-          source: 'duckduckgo',
-        });
+  // Wait for all searches to complete (with timeout)
+  const searchResponses = await Promise.allSettled(
+    searchPromises.map(promise => 
+      Promise.race([
+        promise,
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Timeout')), 10000)
+        )
+      ])
+    )
+  );
+
+  // Process results
+  for (const response of searchResponses) {
+    if (response.status === 'fulfilled') {
+      const { source, results, error, emoji } = response.value;
+      if (results && results.length > 0) {
+        allResults.push(...results);
+        searchSources.push(source);
+        console.log(`${emoji} ${source}: ${results.length} results`);
+      } else if (error) {
+        console.error(`${emoji} ${source} search failed:`, error);
       }
-    });
+    }
+  }
 
-    // If no results found with .result, try alternative selectors
-    if (results.length === 0) {
-      $('.web-result').each((i, elem) => {
-        if (i >= 8) return false;
 
-        const $elem = $(elem);
-        const titleLink = $elem.find('h2 a, .result__title a');
-        const title = titleLink.text().trim();
-        const url = titleLink.attr('href');
-        const snippet = $elem.find('.result__snippet, .snippet').text().trim();
+  // Remove duplicates and limit results
+  const uniqueResults = removeDuplicateResults(allResults);
+  const finalResults = uniqueResults.slice(0, 12); // Max 12 results total
 
-        if (title && url && snippet) {
-          results.push({
-            title,
-            snippet,
-            url: url.startsWith('//') ? `https:${url}` : url,
-            source: 'duckduckgo',
-          });
-        }
+  const searchResults = {
+    query,
+    results: finalResults,
+    timestamp: new Date().toISOString(),
+    sources: searchSources,
+    total: finalResults.length,
+    totalFound: allResults.length,
+    duplicatesRemoved: allResults.length - uniqueResults.length
+  };
+
+  console.log(`✅ Multi-source search completed: ${finalResults.length} unique results from ${searchSources.length} sources`);
+  
+  return JSON.stringify(searchResults);
+}
+
+// DuckDuckGo search function
+async function searchDuckDuckGo(query, fetch, cheerio, headers) {
+  const searchUrl = `https://duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
+  const response = await fetch(searchUrl, { headers, timeout: 8000 });
+  
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+  }
+
+  const html = await response.text();
+  const $ = cheerio.load(html);
+  const results = [];
+
+  $('.result').each((i, elem) => {
+    if (i >= 6) return false;
+    
+    const $elem = $(elem);
+    const titleLink = $elem.find('.result__title a');
+    const title = titleLink.text().trim();
+    const url = titleLink.attr('href');
+    const snippet = $elem.find('.result__snippet').text().trim();
+    
+    if (title && url && snippet) {
+      results.push({
+        title,
+        snippet,
+        url: url.startsWith('//') ? `https:${url}` : url,
+        source: 'duckduckgo',
       });
     }
+  });
 
-    const searchResults = {
-      query,
-      results,
-      timestamp: new Date().toISOString(),
-      source: 'duckduckgo',
-      total: results.length,
-    };
+  return results;
+}
 
-    console.log(`✅ Found ${results.length} search results for "${query}"`);
-
-    return JSON.stringify(searchResults);
-  } catch (error) {
-    console.error('Web search error:', error);
-    return JSON.stringify({
-      query,
-      results: [],
-      error: error.message,
-      timestamp: new Date().toISOString(),
-      source: 'duckduckgo',
-      total: 0,
-    });
+// Bing search function  
+async function searchBing(query, fetch, cheerio, headers) {
+  const searchUrl = `https://www.bing.com/search?q=${encodeURIComponent(query)}&setlang=pt-BR`;
+  const response = await fetch(searchUrl, { headers, timeout: 8000 });
+  
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
   }
+
+  const html = await response.text();
+  const $ = cheerio.load(html);
+  const results = [];
+
+  $('.b_algo').each((i, elem) => {
+    if (i >= 6) return false;
+    
+    const $elem = $(elem);
+    const titleLink = $elem.find('h2 a');
+    const title = titleLink.text().trim();
+    const url = titleLink.attr('href');
+    const snippet = $elem.find('.b_caption p, .b_snippet').first().text().trim();
+    
+    if (title && url && snippet) {
+      results.push({
+        title,
+        snippet,
+        url,
+        source: 'bing',
+      });
+    }
+  });
+
+  return results;
+}
+
+// Yahoo search function
+async function searchYahoo(query, fetch, cheerio, headers) {
+  const searchUrl = `https://search.yahoo.com/search?p=${encodeURIComponent(query)}&ei=UTF-8&lang=pt-BR`;
+  const response = await fetch(searchUrl, { headers, timeout: 8000 });
+  
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+  }
+
+  const html = await response.text();
+  const $ = cheerio.load(html);
+  const results = [];
+
+  $('.algo').each((i, elem) => {
+    if (i >= 5) return false;
+    
+    const $elem = $(elem);
+    const titleLink = $elem.find('h3 a');
+    const title = titleLink.text().trim();
+    const url = titleLink.attr('href');
+    const snippet = $elem.find('.compText').text().trim();
+    
+    if (title && url && snippet) {
+      results.push({
+        title,
+        snippet,
+        url,
+        source: 'yahoo',
+      });
+    }
+  });
+
+  return results;
+}
+
+// Searx search function (open source metasearch engine)
+async function searchSearx(query, fetch, cheerio, headers) {
+  const searchUrl = `https://searx.be/search?q=${encodeURIComponent(query)}&language=pt-BR&format=html`;
+  const response = await fetch(searchUrl, { headers, timeout: 8000 });
+  
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+  }
+
+  const html = await response.text();
+  const $ = cheerio.load(html);
+  const results = [];
+
+  $('.result').each((i, elem) => {
+    if (i >= 5) return false;
+    
+    const $elem = $(elem);
+    const titleLink = $elem.find('h3 a');
+    const title = titleLink.text().trim();
+    const url = titleLink.attr('href');
+    const snippet = $elem.find('.content').text().trim();
+    
+    if (title && url && snippet) {
+      results.push({
+        title,
+        snippet,
+        url,
+        source: 'searx',
+      });
+    }
+  });
+
+  return results;
+}
+
+// Brave search function
+async function searchBrave(query, fetch, cheerio, headers) {
+  const searchUrl = `https://search.brave.com/search?q=${encodeURIComponent(query)}&source=web`;
+  const response = await fetch(searchUrl, { headers, timeout: 8000 });
+  
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+  }
+
+  const html = await response.text();
+  const $ = cheerio.load(html);
+  const results = [];
+
+  $('[data-type="web"] .snippet').each((i, elem) => {
+    if (i >= 5) return false;
+    
+    const $elem = $(elem);
+    const titleLink = $elem.find('.snippet-title');
+    const title = titleLink.text().trim();
+    const url = titleLink.find('a').attr('href');
+    const snippet = $elem.find('.snippet-description').text().trim();
+    
+    if (title && url && snippet) {
+      results.push({
+        title,
+        snippet,
+        url,
+        source: 'brave',
+      });
+    }
+  });
+
+  return results;
+}
+
+// Yandex search function
+async function searchYandex(query, fetch, cheerio, headers) {
+  const searchUrl = `https://yandex.com/search/?text=${encodeURIComponent(query)}&lr=21601`; // lr=21601 for Brazil
+  const response = await fetch(searchUrl, { headers, timeout: 8000 });
+  
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+  }
+
+  const html = await response.text();
+  const $ = cheerio.load(html);
+  const results = [];
+
+  $('.organic').each((i, elem) => {
+    if (i >= 5) return false;
+    
+    const $elem = $(elem);
+    const titleLink = $elem.find('.organic__url');
+    const title = $elem.find('.organic__title-wrapper').text().trim();
+    const url = titleLink.attr('href');
+    const snippet = $elem.find('.organic__text').text().trim();
+    
+    if (title && url && snippet) {
+      results.push({
+        title,
+        snippet,
+        url: url.startsWith('//') ? `https:${url}` : url,
+        source: 'yandex',
+      });
+    }
+  });
+
+  return results;
+}
+
+// Remove duplicate results based on URL and title similarity
+function removeDuplicateResults(results) {
+  const seen = new Set();
+  const unique = [];
+  
+  for (const result of results) {
+    // Create a key based on normalized URL and title
+    const urlKey = result.url.replace(/^https?:\/\/(www\.)?/, '').toLowerCase();
+    const titleKey = result.title.toLowerCase().substring(0, 50);
+    const key = `${urlKey}|${titleKey}`;
+    
+    if (!seen.has(key)) {
+      seen.add(key);
+      unique.push(result);
+    }
+  }
+  
+  return unique;
 }
 
 // AI Agent class
@@ -471,10 +705,10 @@ Regras importantes:
       // Prepare messages array for OpenAI API
       const messages = [{ role: 'system', content: systemPrompt }];
 
-      // Load conversation history from MongoDB for context (last 10 messages)
+      // Load conversation history from MongoDB for context (last 15 messages for better context)
       const recentHistory = await this.loadConversationHistory(
         conversationEntry.chat.id,
-        10
+        15
       );
       console.log(
         `📚 Loaded ${recentHistory.length} previous messages for context from chat ${conversationEntry.chat.id}`
@@ -482,18 +716,20 @@ Regras importantes:
 
       // Add conversation history for context
       recentHistory.forEach((msg) => {
-        if (msg.content && msg.content.trim() !== '') {
-          if (msg.type === 'user') {
-            const senderInfo = msg.sender?.pushName
-              ? ` (${msg.sender.pushName})`
-              : '';
-            const messageContent = isGroup
-              ? `${msg.content}${senderInfo}`
-              : msg.content;
-            messages.push({ role: 'user', content: messageContent });
-          } else {
-            messages.push({ role: 'assistant', content: msg.content });
-          }
+        if (msg.type === 'user' && msg.content && msg.content.trim() !== '') {
+          const senderInfo = msg.sender?.pushName
+            ? ` (${msg.sender.pushName})`
+            : '';
+          const messageContent = isGroup
+            ? `${msg.content}${senderInfo}`
+            : msg.content;
+          messages.push({ role: 'user', content: messageContent });
+        } else if (msg.type === 'assistant' && msg.content && msg.content.trim() !== '') {
+          messages.push({ role: 'assistant', content: msg.content });
+        } else if (msg.type === 'tool_call' && msg.toolResult) {
+          // Add tool call context for better understanding
+          const toolContext = `[Busca anterior: "${msg.toolArgs?.query}" - Encontrados ${msg.toolResult?.results?.length || 0} resultados sobre: ${msg.toolResult?.results?.slice(0,2).map(r => r.title).join(', ') || 'N/A'}]`;
+          messages.push({ role: 'system', content: toolContext });
         }
       });
 
@@ -582,7 +818,7 @@ Regras importantes:
                 
                 // Send notification to user that search is starting
                 await this.sendToolNotification(
-                  `🔍 Buscando informações sobre: "${args.query}"...`,
+                  `🔍 Buscando em múltiplas fontes: "${args.query}"...\n🌐 Consultando: DuckDuckGo, Bing, Yahoo, Searx, Brave, Yandex`,
                   conversationEntry.chat.id,
                   whatsappClient
                 );
@@ -597,12 +833,28 @@ Regras importantes:
                   `✅ Search completed, result length: ${toolResult.length}`
                 );
                 
+                // Save tool call to conversation history for context
+                const toolCallEntry = {
+                  type: 'tool_call',
+                  toolName: toolCall.function.name,
+                  toolArgs: args,
+                  toolResult: searchData,
+                  timestamp: new Date().toISOString(),
+                  chat: conversationEntry.chat,
+                  agentId: this.id,
+                  sessionId: this.sessionId
+                };
+                await this.saveConversationEntry(toolCallEntry);
+                
                 // Small delay before completion notification
                 await new Promise(resolve => setTimeout(resolve, 1000));
                 
-                // Send completion notification
+                // Send completion notification with detailed info
+                const sourcesUsed = searchData.sources?.join(', ') || 'N/A';
+                const duplicatesInfo = searchData.duplicatesRemoved > 0 ? ` (${searchData.duplicatesRemoved} duplicatas removidas)` : '';
+                
                 await this.sendToolNotification(
-                  `✅ Busca concluída! Encontrei ${resultCount} resultados relevantes.`,
+                  `✅ Busca concluída!\n📊 ${resultCount} resultados únicos de ${searchData.sources?.length || 0} fontes\n🌐 Fontes: ${sourcesUsed}${duplicatesInfo}`,
                   conversationEntry.chat.id,
                   whatsappClient
                 );
@@ -860,6 +1112,13 @@ Regras importantes:
       console.log(
         `💾 Conversation entry saved: ${conversationEntry.type} message for agent ${this.id} in chat ${conversationEntry.chat?.id}`
       );
+      
+      // Log additional details for debugging
+      if (conversationEntry.type === 'tool_call') {
+        console.log(`🔧 Tool call saved: ${conversationEntry.toolName} with ${conversationEntry.toolResult?.results?.length || 0} results`);
+      } else {
+        console.log(`💬 Content preview: "${conversationEntry.content?.substring(0, 50) || 'N/A'}..."`);
+      }
     } catch (error) {
       console.error('Error saving conversation entry:', error);
     }
@@ -895,6 +1154,13 @@ Regras importantes:
         console.log(
           `📅 History span: ${oldestMsg.createdAt} to ${newestMsg.createdAt}`
         );
+        
+        // Log types of messages for debugging
+        const messageTypes = conversations.reduce((acc, msg) => {
+          acc[msg.type] = (acc[msg.type] || 0) + 1;
+          return acc;
+        }, {});
+        console.log(`📊 Message types in history:`, messageTypes);
       } else {
         console.log(`📖 No conversation history found for chat ${chatId}`);
       }
