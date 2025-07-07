@@ -510,11 +510,17 @@ Regras importantes:
 
       if (supportsTools) {
         try {
-          // Try with tools
+          // Use newer bind_tools method with tool_choice to force tool calling when needed
           console.log(
             `🔧 Attempting response with tools for model: ${this.model}`
           );
-          const llmWithTools = llm.bindTools([webSearchTool]);
+          
+          // Bind tools with proper tool choice
+          const llmWithTools = llm.bind({
+            tools: [webSearchTool],
+            tool_choice: "auto" // Let model decide when to use tools
+          });
+          
           response = await llmWithTools.invoke(messages);
 
           console.log(
@@ -522,18 +528,36 @@ Regras importantes:
               response.tool_calls?.length || 0
             }`
           );
+          console.log(`📋 Response type:`, typeof response);
+          console.log(`📋 Response keys:`, Object.keys(response || {}));
+          console.log(`📋 Has additional_kwargs:`, !!response.additional_kwargs);
+          console.log(`📋 Additional kwargs:`, response.additional_kwargs);
+
+          // Check for tool calls in multiple possible locations
+          let toolCalls = response.tool_calls;
+          if (!toolCalls && response.additional_kwargs?.function_call) {
+            // Handle legacy format
+            toolCalls = [{
+              name: response.additional_kwargs.function_call.name,
+              args: JSON.parse(response.additional_kwargs.function_call.arguments || '{}'),
+              id: 'legacy_' + Date.now()
+            }];
+          }
+          if (!toolCalls && response.additional_kwargs?.tool_calls) {
+            toolCalls = response.additional_kwargs.tool_calls;
+          }
 
           // Process tool calls if any
-          while (response.tool_calls && response.tool_calls.length > 0) {
+          while (toolCalls && toolCalls.length > 0) {
             console.log(
-              `🔧 Processing ${response.tool_calls.length} tool calls`
+              `🔧 Processing ${toolCalls.length} tool calls`
             );
 
             // Add the AI message with tool calls to conversation
             messages.push(response);
 
             // Execute tool calls
-            for (const toolCall of response.tool_calls) {
+            for (const toolCall of toolCalls) {
               let toolResult;
 
               console.log(
@@ -568,6 +592,19 @@ Regras importantes:
             // Get response after tool execution
             console.log(`🔄 Getting final response after tool execution`);
             response = await llmWithTools.invoke(messages);
+            
+            // Check again for more tool calls
+            toolCalls = response.tool_calls;
+            if (!toolCalls && response.additional_kwargs?.function_call) {
+              toolCalls = [{
+                name: response.additional_kwargs.function_call.name,
+                args: JSON.parse(response.additional_kwargs.function_call.arguments || '{}'),
+                id: 'legacy_' + Date.now()
+              }];
+            }
+            if (!toolCalls && response.additional_kwargs?.tool_calls) {
+              toolCalls = response.additional_kwargs.tool_calls;
+            }
           }
         } catch (toolError) {
           console.log(
