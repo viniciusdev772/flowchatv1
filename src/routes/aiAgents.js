@@ -179,6 +179,32 @@ class AIAgent {
     // conversationHistory removed - now using MongoDB only for persistent history
   }
 
+  // Method to send tool execution notifications to user
+  async sendToolNotification(message, chatId, whatsappClient) {
+    if (!whatsappClient || !chatId) {
+      console.log(`📱 Tool notification (no WhatsApp client): ${message}`);
+      return;
+    }
+    
+    try {
+      // Send typing indicator
+      await whatsappClient.sendPresenceUpdate('composing', chatId);
+      
+      // Small delay for natural feeling
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Send notification message
+      await whatsappClient.sendMessage(chatId, { text: message });
+      
+      // Return to available presence
+      await whatsappClient.sendPresenceUpdate('available');
+      
+      console.log(`📱 Tool notification sent: ${message}`);
+    } catch (error) {
+      console.error('Error sending tool notification:', error);
+    }
+  }
+
   async processMessage(messageData, whatsappClient = null) {
     try {
       this.messageCount++;
@@ -292,7 +318,8 @@ class AIAgent {
       // Generate AI response with rich context
       const response = await this.generateResponse(
         messageData,
-        conversationEntry
+        conversationEntry,
+        whatsappClient
       );
 
       if (!response || response.trim() === '') {
@@ -349,7 +376,7 @@ class AIAgent {
     }
   }
 
-  async generateResponse(messageData, conversationEntry) {
+  async generateResponse(messageData, conversationEntry, whatsappClient = null) {
     try {
       const { ChatOpenAI } = require('@langchain/openai');
       const {
@@ -427,11 +454,11 @@ ${contextInfo}
 FERRAMENTAS DISPONÍVEIS:
 Você tem acesso a ferramentas que são executadas automaticamente pelo sistema quando você as solicita.
 
-IMPORTANTE: NUNCA escreva texto como "[web_search(...)]" na sua resposta. O sistema executará as ferramentas automaticamente quando necessário.
-
 Ferramentas disponíveis:
 - web_search: Busca informações atualizadas na internet
   Use quando precisar de: notícias atuais, preços, clima, eventos recentes, informações que podem estar desatualizadas
+
+IMPORTANTE: Quando decidir usar uma ferramenta, informe ao usuário que está buscando informações antes de fazer a busca.
 
 Regras importantes:
 1. Sempre responda em português brasileiro
@@ -454,8 +481,8 @@ Regras importantes:
           ? `A mensagem recebida é do tipo: ${messageType}`
           : ''
       }
-9. NUNCA mencione que está usando ferramentas, apenas forneça a informação encontrada
-10. Se precisar de informações atuais, use web_search automaticamente sem avisar o usuário`;
+9. Quando usar ferramentas, primeiro avise o usuário que está buscando informações
+10. Após obter resultados, forneça as informações de forma natural e útil`;
 
       const messageText =
         messageData.content || messageData.text || messageData.body || '';
@@ -569,15 +596,46 @@ Regras importantes:
                 console.log(
                   `🔍 Model requested web search: "${toolCall.args.query}"`
                 );
+                
+                // Send notification to user that search is starting
+                await this.sendToolNotification(
+                  `🔍 Buscando informações sobre: "${toolCall.args.query}"...`,
+                  conversationEntry.chat.id,
+                  whatsappClient
+                );
+                
                 toolResult = await executeWebSearch(toolCall.args.query);
+                
+                // Parse results to get count
+                const searchData = JSON.parse(toolResult);
+                const resultCount = searchData.results?.length || 0;
+                
                 console.log(
                   `✅ Search completed, result length: ${toolResult.length}`
                 );
+                
+                // Small delay before completion notification
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                // Send completion notification
+                await this.sendToolNotification(
+                  `✅ Busca concluída! Encontrei ${resultCount} resultados relevantes.`,
+                  conversationEntry.chat.id,
+                  whatsappClient
+                );
+                
               } else {
                 toolResult = JSON.stringify({
                   error: `Unknown tool: ${toolCall.name}`,
                 });
                 console.log(`❌ Unknown tool: ${toolCall.name}`);
+                
+                // Send error notification
+                await this.sendToolNotification(
+                  `❌ Ferramenta desconhecida: ${toolCall.name}`,
+                  conversationEntry.chat.id,
+                  whatsappClient
+                );
               }
 
               // Add tool result to conversation
