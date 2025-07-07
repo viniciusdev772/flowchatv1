@@ -33,7 +33,7 @@ const createAgentSchema = z.object({
   autoReply: z.boolean(),
   smartReplies: z.boolean(),
   openaiApiKey: z.string().min(1, 'Chave da API OpenAI é obrigatória'),
-  tools: z.array(z.string()).default(['web_search']),
+  tools: z.array(z.string()).default(['web_search', 'web_scrape', 'html_analysis']),
   replyToGroups: z.boolean().default(true), // Nova opção para responder grupos
 });
 
@@ -55,6 +55,403 @@ async function executeWebSearch(query) {
     'Connection': 'keep-alive',
     'Upgrade-Insecure-Requests': '1',
   };
+
+// Web scraping tool - downloads and analyzes website content
+async function executeWebScrape(url) {
+  const fetch = require('node-fetch');
+  const cheerio = require('cheerio');
+  
+  console.log(`🌐 AI Agent downloading website: "${url}"`);
+  
+  const headers = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+    'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
+    'Accept-Encoding': 'gzip, deflate, br',
+    'DNT': '1',
+    'Connection': 'keep-alive',
+    'Upgrade-Insecure-Requests': '1',
+  };
+
+  try {
+    // Validate URL
+    const urlObj = new URL(url);
+    if (!['http:', 'https:'].includes(urlObj.protocol)) {
+      throw new Error('Only HTTP and HTTPS URLs are supported');
+    }
+
+    const response = await fetch(url, { 
+      headers, 
+      timeout: 15000,
+      follow: 5, // Follow up to 5 redirects
+      compress: true
+    });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const contentType = response.headers.get('content-type') || '';
+    if (!contentType.includes('text/html')) {
+      throw new Error(`Content type not supported: ${contentType}`);
+    }
+
+    const html = await response.text();
+    const $ = cheerio.load(html);
+    
+    // Extract comprehensive information
+    const pageData = {
+      url: url,
+      title: $('title').text().trim() || 'No title',
+      description: $('meta[name="description"]').attr('content') || $('meta[property="og:description"]').attr('content') || '',
+      
+      // Text content
+      headings: {
+        h1: $('h1').map((i, el) => $(el).text().trim()).get().slice(0, 5),
+        h2: $('h2').map((i, el) => $(el).text().trim()).get().slice(0, 8),
+        h3: $('h3').map((i, el) => $(el).text().trim()).get().slice(0, 10)
+      },
+      
+      // Main content - try to find article content
+      content: extractMainContent($),
+      
+      // Links
+      links: $('a[href]').map((i, el) => {
+        const href = $(el).attr('href');
+        const text = $(el).text().trim();
+        if (href && text && href.startsWith('http')) {
+          return { text, url: href };
+        }
+      }).get().slice(0, 10),
+      
+      // Images
+      images: $('img[src]').map((i, el) => {
+        const src = $(el).attr('src');
+        const alt = $(el).attr('alt') || '';
+        if (src) {
+          return { src: src.startsWith('http') ? src : new URL(src, url).href, alt };
+        }
+      }).get().slice(0, 8),
+      
+      // Meta information
+      meta: {
+        author: $('meta[name="author"]').attr('content') || $('meta[property="article:author"]').attr('content') || '',
+        publishDate: $('meta[property="article:published_time"]').attr('content') || $('meta[name="date"]').attr('content') || '',
+        keywords: $('meta[name="keywords"]').attr('content') || '',
+        language: $('html').attr('lang') || $('meta[http-equiv="content-language"]').attr('content') || ''
+      },
+      
+      // Structure info
+      structure: {
+        totalLinks: $('a[href]').length,
+        totalImages: $('img[src]').length,
+        totalHeadings: $('h1, h2, h3, h4, h5, h6').length,
+        hasNavigation: $('nav').length > 0,
+        hasFooter: $('footer').length > 0,
+        hasAside: $('aside').length > 0
+      },
+      
+      timestamp: new Date().toISOString(),
+      contentLength: html.length,
+      textLength: $.text().length
+    };
+
+    console.log(`✅ Website downloaded successfully. Content: ${pageData.textLength} chars, ${pageData.structure.totalLinks} links, ${pageData.structure.totalImages} images`);
+    
+    return JSON.stringify(pageData);
+    
+  } catch (error) {
+    console.error(`❌ Website download failed: ${error.message}`);
+    return JSON.stringify({
+      error: error.message,
+      url: url,
+      timestamp: new Date().toISOString()
+    });
+  }
+}
+
+// Helper function to extract main content from HTML
+function extractMainContent($) {
+  // Try different strategies to find main content
+  const contentSelectors = [
+    'article',
+    'main',
+    '[role="main"]',
+    '.content',
+    '.main-content',
+    '.article-content',
+    '.post-content',
+    '.entry-content',
+    '#content',
+    '#main-content'
+  ];
+  
+  let mainContent = '';
+  
+  for (const selector of contentSelectors) {
+    const element = $(selector).first();
+    if (element.length > 0) {
+      mainContent = element.text().trim();
+      if (mainContent.length > 100) { // If we found substantial content
+        break;
+      }
+    }
+  }
+  
+  // Fallback: get text from body, but clean it up
+  if (!mainContent || mainContent.length < 100) {
+    // Remove script, style, nav, footer, aside content
+    $('script, style, nav, footer, aside, .sidebar, .menu, .navigation, .ads, .advertisement').remove();
+    mainContent = $('body').text().trim();
+  }
+  
+  // Clean up whitespace and limit length
+  mainContent = mainContent.replace(/\s+/g, ' ').trim();
+  
+  // Return first 2000 characters to avoid overwhelming the AI
+  return mainContent.substring(0, 2000) + (mainContent.length > 2000 ? '...' : '');
+}
+
+// HTML analysis tool - analyzes HTML structure and extracts specific information
+async function executeHtmlAnalysis(url, analysisType = 'general') {
+  const fetch = require('node-fetch');
+  const cheerio = require('cheerio');
+  
+  console.log(`🔍 AI Agent analyzing HTML structure for: "${url}" (type: ${analysisType})`);
+  
+  const headers = {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+    'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
+  };
+
+  try {
+    const response = await fetch(url, { headers, timeout: 15000 });
+    
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const html = await response.text();
+    const $ = cheerio.load(html);
+    
+    let analysis = {};
+    
+    switch (analysisType) {
+      case 'news':
+        analysis = analyzeNewsArticle($);
+        break;
+      case 'ecommerce':
+        analysis = analyzeEcommercePage($);
+        break;
+      case 'contact':
+        analysis = analyzeContactInfo($);
+        break;
+      case 'social':
+        analysis = analyzeSocialMedia($);
+        break;
+      case 'forms':
+        analysis = analyzeForms($);
+        break;
+      default:
+        analysis = analyzeGeneralStructure($);
+    }
+    
+    analysis.url = url;
+    analysis.analysisType = analysisType;
+    analysis.timestamp = new Date().toISOString();
+    
+    console.log(`✅ HTML analysis completed for ${analysisType} analysis`);
+    
+    return JSON.stringify(analysis);
+    
+  } catch (error) {
+    console.error(`❌ HTML analysis failed: ${error.message}`);
+    return JSON.stringify({
+      error: error.message,
+      url: url,
+      analysisType: analysisType,
+      timestamp: new Date().toISOString()
+    });
+  }
+}
+
+// Specific analysis functions
+function analyzeNewsArticle($) {
+  return {
+    headline: $('h1').first().text().trim(),
+    subheadline: $('h2').first().text().trim(),
+    author: $('meta[name="author"]').attr('content') || $('.author').text().trim(),
+    publishDate: $('meta[property="article:published_time"]').attr('content') || $('time').attr('datetime'),
+    category: $('meta[property="article:section"]').attr('content') || $('.category').text().trim(),
+    tags: $('meta[name="keywords"]').attr('content') || $('.tags').text().trim(),
+    wordCount: $('article, .article-content, .post-content').text().trim().split(/\s+/).length,
+    imageCount: $('article img, .article-content img').length,
+    videoCount: $('video, iframe[src*="youtube"], iframe[src*="vimeo"]').length,
+    hasComments: $('.comments, #comments, .comment-section').length > 0,
+    socialSharing: $('[href*="facebook.com"], [href*="twitter.com"], [href*="whatsapp.com"]').length > 0
+  };
+}
+
+function analyzeEcommercePage($) {
+  return {
+    productName: $('h1, .product-title, .product-name').first().text().trim(),
+    price: $('.price, .product-price, [class*="price"]').first().text().trim(),
+    description: $('.product-description, .product-summary').first().text().trim().substring(0, 500),
+    images: $('img').length,
+    reviews: $('.review, .rating, [class*="review"]').length,
+    inStock: $('[class*="stock"], [class*="availability"]').text().toLowerCase().includes('stock'),
+    addToCartButton: $('[class*="add-to-cart"], [class*="buy"], button[type="submit"]').length > 0,
+    breadcrumbs: $('.breadcrumb, .breadcrumbs').text().trim(),
+    category: $('.category, .product-category').text().trim(),
+    brand: $('.brand, .product-brand').text().trim()
+  };
+}
+
+function analyzeContactInfo($) {
+  const text = $('body').text();
+  return {
+    emails: extractEmails(text),
+    phones: extractPhones(text),
+    addresses: extractAddresses($),
+    socialMedia: extractSocialLinks($),
+    contactForm: $('form[class*="contact"], form[id*="contact"]').length > 0,
+    contactPage: $('a[href*="contact"]').length > 0,
+    businessHours: extractBusinessHours(text),
+    location: $('.address, .location, [class*="address"]').text().trim()
+  };
+}
+
+function analyzeSocialMedia($) {
+  return {
+    platforms: {
+      facebook: $('[href*="facebook.com"]').length,
+      twitter: $('[href*="twitter.com"]').length,
+      instagram: $('[href*="instagram.com"]').length,
+      linkedin: $('[href*="linkedin.com"]').length,
+      youtube: $('[href*="youtube.com"]').length,
+      tiktok: $('[href*="tiktok.com"]').length,
+      whatsapp: $('[href*="whatsapp.com"]').length
+    },
+    shareButtons: $('.share, [class*="share"]').length,
+    socialLogin: $('[class*="social-login"], [class*="oauth"]').length > 0,
+    embedPosts: $('blockquote[class*="twitter"], iframe[src*="facebook"], iframe[src*="instagram"]').length
+  };
+}
+
+function analyzeForms($) {
+  const forms = $('form');
+  return {
+    totalForms: forms.length,
+    formTypes: forms.map((i, form) => {
+      const $form = $(form);
+      const action = $form.attr('action') || '';
+      const method = $form.attr('method') || 'GET';
+      const inputs = $form.find('input').length;
+      const textareas = $form.find('textarea').length;
+      const selects = $form.find('select').length;
+      return {
+        action,
+        method,
+        inputs,
+        textareas,
+        selects,
+        hasSubmit: $form.find('input[type="submit"], button[type="submit"]').length > 0
+      };
+    }).get(),
+    hasContactForm: $('form[class*="contact"], form[id*="contact"]').length > 0,
+    hasSearchForm: $('form[class*="search"], form[id*="search"]').length > 0,
+    hasLoginForm: $('form[class*="login"], form[id*="login"]').length > 0,
+    hasRegistrationForm: $('form[class*="register"], form[id*="register"]').length > 0
+  };
+}
+
+function analyzeGeneralStructure($) {
+  return {
+    title: $('title').text().trim(),
+    headings: {
+      h1: $('h1').length,
+      h2: $('h2').length,
+      h3: $('h3').length,
+      h4: $('h4').length,
+      h5: $('h5').length,
+      h6: $('h6').length
+    },
+    content: {
+      paragraphs: $('p').length,
+      lists: $('ul, ol').length,
+      tables: $('table').length,
+      images: $('img').length,
+      videos: $('video').length,
+      iframes: $('iframe').length
+    },
+    navigation: {
+      hasNav: $('nav').length > 0,
+      menuItems: $('nav a, .menu a, .navigation a').length,
+      hasBreadcrumbs: $('.breadcrumb, .breadcrumbs').length > 0
+    },
+    structure: {
+      hasHeader: $('header').length > 0,
+      hasFooter: $('footer').length > 0,
+      hasAside: $('aside').length > 0,
+      hasMain: $('main').length > 0,
+      hasArticle: $('article').length > 0,
+      hasSection: $('section').length > 0
+    },
+    forms: $('form').length,
+    links: $('a[href]').length,
+    externalLinks: $('a[href^="http"]').length,
+    hasJavaScript: $('script').length,
+    hasCSS: $('style, link[rel="stylesheet"]').length,
+    language: $('html').attr('lang') || 'unknown'
+  };
+}
+
+// Helper functions for contact analysis
+function extractEmails(text) {
+  const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+  return text.match(emailRegex) || [];
+}
+
+function extractPhones(text) {
+  const phoneRegex = /(?:\+?55\s?)?(?:\(?[0-9]{2}\)?\s?)?(?:[0-9]{4,5}[-.\s]?[0-9]{4})/g;
+  return text.match(phoneRegex) || [];
+}
+
+function extractAddresses($) {
+  const addressSelectors = ['.address', '.location', '[class*="address"]', '[class*="location"]'];
+  const addresses = [];
+  
+  addressSelectors.forEach(selector => {
+    $(selector).each((i, elem) => {
+      const text = $(elem).text().trim();
+      if (text.length > 10) {
+        addresses.push(text);
+      }
+    });
+  });
+  
+  return addresses;
+}
+
+function extractSocialLinks($) {
+  const socialPlatforms = ['facebook', 'twitter', 'instagram', 'linkedin', 'youtube', 'tiktok', 'whatsapp'];
+  const links = {};
+  
+  socialPlatforms.forEach(platform => {
+    const link = $(`a[href*="${platform}.com"]`).first().attr('href');
+    if (link) {
+      links[platform] = link;
+    }
+  });
+  
+  return links;
+}
+
+function extractBusinessHours(text) {
+  const hoursRegex = /(?:segunda|terça|quarta|quinta|sexta|sábado|domingo|seg|ter|qua|qui|sex|sab|dom).*?(?:[0-9]{1,2}:[0-9]{2}|[0-9]{1,2}h)/gi;
+  return text.match(hoursRegex) || [];
+}
 
   const allResults = [];
   const searchSources = [];
@@ -665,10 +1062,17 @@ FERRAMENTAS DISPONÍVEIS:
 Você tem acesso a ferramentas que são executadas automaticamente pelo sistema quando você as solicita.
 
 Ferramentas disponíveis:
-- web_search: Busca informações atualizadas na internet
+- web_search: Busca informações atualizadas na internet via múltiplos buscadores
   Use quando precisar de: notícias atuais, preços, clima, eventos recentes, informações que podem estar desatualizadas
 
-IMPORTANTE: Quando decidir usar uma ferramenta, informe ao usuário que está buscando informações antes de fazer a busca.
+- web_scrape: Baixa e analisa o conteúdo completo de um site específico
+  Use quando precisar de: conteúdo detalhado de uma página, estrutura de um site, análise completa de uma URL
+
+- html_analysis: Analisa a estrutura HTML e extrai informações específicas de um site
+  Use quando precisar de: análise especializada (notícias, e-commerce, contatos, redes sociais, formulários)
+  Tipos disponíveis: 'news', 'ecommerce', 'contact', 'social', 'forms', 'general'
+
+IMPORTANTE: Quando decidir usar uma ferramenta, informe ao usuário que está processando a solicitação antes de executar.
 
 Regras importantes:
 1. Sempre responda em português brasileiro
@@ -760,23 +1164,64 @@ Regras importantes:
             messages: messages,
             temperature: this.creativity / 100,
             max_tokens: 1000,
-            tools: [{
-              type: "function",
-              function: {
-                name: "web_search",
-                description: "Busca informações atualizadas na internet via DuckDuckGo. Use quando precisar de informações atuais, notícias, preços, eventos, clima, etc.",
-                parameters: {
-                  type: "object",
-                  properties: {
-                    query: {
-                      type: "string",
-                      description: "Termo de busca para procurar na internet"
-                    }
-                  },
-                  required: ["query"]
+            tools: [
+              {
+                type: "function",
+                function: {
+                  name: "web_search",
+                  description: "Busca informações atualizadas na internet via DuckDuckGo, Bing, Yahoo e outros buscadores. Use quando precisar de informações atuais, notícias, preços, eventos, clima, etc.",
+                  parameters: {
+                    type: "object",
+                    properties: {
+                      query: {
+                        type: "string",
+                        description: "Termo de busca para procurar na internet"
+                      }
+                    },
+                    required: ["query"]
+                  }
+                }
+              },
+              {
+                type: "function",
+                function: {
+                  name: "web_scrape",
+                  description: "Baixa e analisa o conteúdo completo de um site específico. Extrai título, descrição, conteúdo principal, links, imagens e estrutura HTML. Use quando precisar analisar uma página específica.",
+                  parameters: {
+                    type: "object",
+                    properties: {
+                      url: {
+                        type: "string",
+                        description: "URL completa do site a ser analisado (deve começar com http:// ou https://)"
+                      }
+                    },
+                    required: ["url"]
+                  }
+                }
+              },
+              {
+                type: "function",
+                function: {
+                  name: "html_analysis",
+                  description: "Analisa a estrutura HTML e extrai informações específicas de um site. Tipos disponíveis: 'news' (notícias), 'ecommerce' (loja), 'contact' (contato), 'social' (redes sociais), 'forms' (formulários), 'general' (geral).",
+                  parameters: {
+                    type: "object",
+                    properties: {
+                      url: {
+                        type: "string",
+                        description: "URL completa do site a ser analisado"
+                      },
+                      analysisType: {
+                        type: "string",
+                        description: "Tipo de análise: 'news', 'ecommerce', 'contact', 'social', 'forms', 'general'",
+                        enum: ["news", "ecommerce", "contact", "social", "forms", "general"]
+                      }
+                    },
+                    required: ["url"]
+                  }
                 }
               }
-            }],
+            ],
             tool_choice: "auto"
           });
 
@@ -858,6 +1303,128 @@ Regras importantes:
                   conversationEntry.chat.id,
                   whatsappClient
                 );
+                
+              } else if (toolCall.function.name === 'web_scrape') {
+                const args = JSON.parse(toolCall.function.arguments);
+                console.log(
+                  `🌐 Model requested web scraping: "${args.url}"`
+                );
+                
+                // Send notification to user that scraping is starting
+                await this.sendToolNotification(
+                  `🌐 Baixando e analisando site: "${args.url}"...\n📊 Extraindo conteúdo, links, imagens e estrutura`,
+                  conversationEntry.chat.id,
+                  whatsappClient
+                );
+                
+                toolResult = await executeWebScrape(args.url);
+                
+                // Parse results to get info
+                const scrapeData = JSON.parse(toolResult);
+                
+                console.log(
+                  `✅ Web scraping completed for: ${args.url}`
+                );
+                
+                // Save tool call to conversation history for context
+                const toolCallEntry = {
+                  type: 'tool_call',
+                  toolName: toolCall.function.name,
+                  toolArgs: args,
+                  toolResult: scrapeData,
+                  timestamp: new Date().toISOString(),
+                  chat: conversationEntry.chat,
+                  agentId: this.id,
+                  sessionId: this.sessionId
+                };
+                await this.saveConversationEntry(toolCallEntry);
+                
+                // Small delay before completion notification
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                // Send completion notification with detailed info
+                if (scrapeData.error) {
+                  await this.sendToolNotification(
+                    `❌ Erro ao baixar site:\n${scrapeData.error}`,
+                    conversationEntry.chat.id,
+                    whatsappClient
+                  );
+                } else {
+                  await this.sendToolNotification(
+                    `✅ Site analisado com sucesso!\n📄 ${scrapeData.textLength || 0} caracteres de texto\n🔗 ${scrapeData.structure?.totalLinks || 0} links encontrados\n🖼️ ${scrapeData.structure?.totalImages || 0} imagens encontradas`,
+                    conversationEntry.chat.id,
+                    whatsappClient
+                  );
+                }
+                
+              } else if (toolCall.function.name === 'html_analysis') {
+                const args = JSON.parse(toolCall.function.arguments);
+                const analysisType = args.analysisType || 'general';
+                console.log(
+                  `🔍 Model requested HTML analysis: "${args.url}" (type: ${analysisType})`
+                );
+                
+                // Send notification to user that analysis is starting
+                await this.sendToolNotification(
+                  `🔍 Analisando estrutura HTML: "${args.url}"...\n📋 Tipo de análise: ${analysisType}\n🔬 Extraindo informações específicas`,
+                  conversationEntry.chat.id,
+                  whatsappClient
+                );
+                
+                toolResult = await executeHtmlAnalysis(args.url, analysisType);
+                
+                // Parse results to get info
+                const analysisData = JSON.parse(toolResult);
+                
+                console.log(
+                  `✅ HTML analysis completed for: ${args.url} (${analysisType})`
+                );
+                
+                // Save tool call to conversation history for context
+                const toolCallEntry = {
+                  type: 'tool_call',
+                  toolName: toolCall.function.name,
+                  toolArgs: args,
+                  toolResult: analysisData,
+                  timestamp: new Date().toISOString(),
+                  chat: conversationEntry.chat,
+                  agentId: this.id,
+                  sessionId: this.sessionId
+                };
+                await this.saveConversationEntry(toolCallEntry);
+                
+                // Small delay before completion notification
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                // Send completion notification with detailed info
+                if (analysisData.error) {
+                  await this.sendToolNotification(
+                    `❌ Erro na análise HTML:\n${analysisData.error}`,
+                    conversationEntry.chat.id,
+                    whatsappClient
+                  );
+                } else {
+                  let analysisInfo = '';
+                  switch (analysisType) {
+                    case 'news':
+                      analysisInfo = `📰 Título: ${analysisData.headline || 'N/A'}\n👤 Autor: ${analysisData.author || 'N/A'}\n📅 Data: ${analysisData.publishDate || 'N/A'}`;
+                      break;
+                    case 'ecommerce':
+                      analysisInfo = `🛍️ Produto: ${analysisData.productName || 'N/A'}\n💰 Preço: ${analysisData.price || 'N/A'}\n📦 Em estoque: ${analysisData.inStock ? 'Sim' : 'Não'}`;
+                      break;
+                    case 'contact':
+                      analysisInfo = `📧 E-mails: ${analysisData.emails?.length || 0}\n📞 Telefones: ${analysisData.phones?.length || 0}\n🌐 Redes sociais: ${Object.keys(analysisData.socialMedia || {}).length}`;
+                      break;
+                    default:
+                      analysisInfo = `📄 Título: ${analysisData.title || 'N/A'}\n🔗 Links: ${analysisData.links || 0}\n🖼️ Imagens: ${analysisData.content?.images || 0}`;
+                  }
+                  
+                  await this.sendToolNotification(
+                    `✅ Análise HTML concluída!\n📋 Tipo: ${analysisType}\n${analysisInfo}`,
+                    conversationEntry.chat.id,
+                    whatsappClient
+                  );
+                }
                 
               } else {
                 toolResult = JSON.stringify({
