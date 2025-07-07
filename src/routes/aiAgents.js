@@ -1109,17 +1109,26 @@ Regras importantes:
       // Prepare messages array for OpenAI API
       const messages = [{ role: 'system', content: systemPrompt }];
 
-      // Load conversation history from MongoDB for context (last 15 messages for better context)
+      // Load conversation history from MongoDB for context (reduced to 8 messages to save tokens)
       const recentHistory = await this.loadConversationHistory(
         conversationEntry.chat.id,
-        15
+        8
       );
       console.log(
         `📚 Loaded ${recentHistory.length} previous messages for context from chat ${conversationEntry.chat.id}`
       );
 
-      // Add conversation history for context
+      // Add conversation history for context (with token optimization)
+      let totalTokensEstimate = 0;
       recentHistory.forEach((msg) => {
+        // Estimate tokens (roughly 4 chars per token) and limit total context
+        const contentLength = msg.content?.length || 0;
+        const estimatedTokens = Math.ceil(contentLength / 4);
+        
+        if (totalTokensEstimate + estimatedTokens > 1500) { // Limit context to ~1500 tokens
+          return; // Skip this message to stay within token limits
+        }
+        
         if (msg.type === 'user' && msg.content && msg.content.trim() !== '') {
           const senderInfo = msg.sender?.pushName
             ? ` (${msg.sender.pushName})`
@@ -1128,14 +1137,21 @@ Regras importantes:
             ? `${msg.content}${senderInfo}`
             : msg.content;
           messages.push({ role: 'user', content: messageContent });
+          totalTokensEstimate += estimatedTokens;
         } else if (msg.type === 'assistant' && msg.content && msg.content.trim() !== '') {
           messages.push({ role: 'assistant', content: msg.content });
+          totalTokensEstimate += estimatedTokens;
         } else if (msg.type === 'tool_call' && msg.toolResult) {
-          // Add tool call context for better understanding
-          const toolContext = `[Busca anterior: "${msg.toolArgs?.query}" - Encontrados ${msg.toolResult?.results?.length || 0} resultados sobre: ${msg.toolResult?.results?.slice(0,2).map(r => r.title).join(', ') || 'N/A'}]`;
-          messages.push({ role: 'system', content: toolContext });
+          // Add simplified tool call context
+          const toolContext = msg.toolResult.summary || `[${msg.toolName}: ${msg.toolArgs?.query || 'executado'}]`;
+          if (toolContext.length < 100) { // Only add if short
+            messages.push({ role: 'system', content: toolContext });
+            totalTokensEstimate += Math.ceil(toolContext.length / 4);
+          }
         }
       });
+      
+      console.log(`🎯 Estimated context tokens: ~${totalTokensEstimate}`);
 
       // Add current message with sender context
       const currentMessageContent = isGroup
@@ -1158,12 +1174,12 @@ Regras importantes:
             `🔧 Attempting response with tools for model: ${this.model}`
           );
           
-          // Create chat completion with tools
+          // Create chat completion with tools (optimized for quota management)
           response = await openai.chat.completions.create({
             model: this.model,
             messages: messages,
             temperature: this.creativity / 100,
-            max_tokens: 1000,
+            max_tokens: 800, // Reduced from 1000 to save quota
             tools: [
               {
                 type: "function",
@@ -1454,7 +1470,7 @@ Regras importantes:
               model: this.model,
               messages: messages,
               temperature: this.creativity / 100,
-              max_tokens: 1000,
+              max_tokens: 600, // Reduced for final response to save quota
             });
             
             // Check again for more tool calls
@@ -1471,7 +1487,7 @@ Regras importantes:
             model: this.model,
             messages: messages,
             temperature: this.creativity / 100,
-            max_tokens: 1000,
+            max_tokens: 600, // Reduced to save quota
           });
         }
       } else {
@@ -1482,7 +1498,7 @@ Regras importantes:
           model: this.model,
           messages: messages,
           temperature: this.creativity / 100,
-          max_tokens: 1000,
+          max_tokens: 600, // Reduced to save quota
         });
       }
 
@@ -1543,10 +1559,16 @@ Regras importantes:
       console.error('Error details:', error.message);
       console.error('Error stack:', error.stack);
 
-      // Specific error handling
+      // Specific error handling with quota management
       let errorMessage = 'Erro interno do sistema';
+      let useExtendedFallback = false;
+      
       if (error.message.includes('API key')) {
         errorMessage = 'Chave da API OpenAI inválida ou não configurada';
+      } else if (error.message.includes('429') || error.message.includes('quota') || error.message.includes('exceeded')) {
+        errorMessage = 'Quota da API OpenAI excedida - usando modo econômico';
+        useExtendedFallback = true;
+        console.warn(`⚠️ OpenAI quota exceeded for agent ${this.id}. Switching to fallback mode.`);
       } else if (
         error.message.includes('timeout') ||
         error.message.includes('ECONNRESET')
@@ -1554,6 +1576,7 @@ Regras importantes:
         errorMessage = 'Timeout na conexão com OpenAI';
       } else if (error.message.includes('rate limit')) {
         errorMessage = 'Limite de requisições excedido';
+        useExtendedFallback = true;
       } else if (error.message.includes('invalid_request_error')) {
         errorMessage = 'Parâmetros inválidos na requisição';
       } else if (error.message.includes('Empty message content')) {
@@ -1578,7 +1601,32 @@ Regras importantes:
           'Compreendo que isso pode ser frustrante. Vamos tentar novamente?',
       };
 
-      return fallbackResponses[this.personality] || 'Como posso ajudá-lo hoje?';
+      // Extended fallback for quota issues
+      const quotaFallbackResponses = {
+        professional:
+          'Sistema em modo econômico devido ao alto volume de consultas. Ainda posso ajudá-lo com informações básicas.',
+        friendly:
+          'Oi! Estou em modo econômico agora para economizar recursos, mas ainda posso conversar! Como posso ajudar?',
+        creative:
+          'Modo criativo econômico ativado! Vamos ser mais diretos - me conte o que você precisa.',
+        analytical:
+          'Sistema operando em modo reduzido. Posso fornecer respostas básicas sem consultas externas.',
+        casual:
+          'Opa! Tô em modo econômico aqui, mas ainda posso bater um papo! Me fala o que precisa.',
+        empathetic:
+          'Entendo que você precisa de ajuda. Estou em modo econômico, mas farei o meu melhor para ajudá-lo.',
+      };
+
+      const responseText = useExtendedFallback 
+        ? quotaFallbackResponses[this.personality] || 'Sistema em modo econômico. Como posso ajudá-lo de forma simples?'
+        : fallbackResponses[this.personality] || 'Como posso ajudá-lo hoje?';
+
+      // Log quota issues for monitoring
+      if (useExtendedFallback) {
+        console.warn(`💰 Agent ${this.id} using quota fallback response. Consider upgrading OpenAI plan.`);
+      }
+
+      return responseText;
     }
   }
 
@@ -1658,7 +1706,7 @@ Regras importantes:
     await this.save();
   }
 
-  // MongoDB conversation persistence methods
+  // MongoDB conversation persistence methods with automatic summarization
   async saveConversationEntry(conversationEntry) {
     try {
       const db = database.getDb();
@@ -1667,8 +1715,29 @@ Regras importantes:
         return;
       }
 
+      // Create a copy to avoid mutating the original
+      let entryToSave = { ...conversationEntry };
+      
+      // Summarize content if it's too long to save tokens
+      if (entryToSave.content && entryToSave.content.length > 500) {
+        entryToSave.originalLength = entryToSave.content.length;
+        entryToSave.content = await this.summarizeContent(entryToSave.content, entryToSave.type);
+        entryToSave.wasSummarized = true;
+        console.log(`📝 Content summarized: ${entryToSave.originalLength} → ${entryToSave.content.length} chars`);
+      }
+
+      // Summarize tool results if they're too large
+      if (entryToSave.toolResult && typeof entryToSave.toolResult === 'object') {
+        const toolResultStr = JSON.stringify(entryToSave.toolResult);
+        if (toolResultStr.length > 1000) {
+          entryToSave.toolResult = await this.summarizeToolResult(entryToSave.toolResult, entryToSave.toolName);
+          entryToSave.toolResultWasSummarized = true;
+          console.log(`🔧 Tool result summarized for ${entryToSave.toolName}`);
+        }
+      }
+
       const entryWithAgent = {
-        ...conversationEntry,
+        ...entryToSave,
         agentId: this.id,
         sessionId: this.sessionId,
         createdAt: new Date(),
@@ -1684,10 +1753,162 @@ Regras importantes:
       if (conversationEntry.type === 'tool_call') {
         console.log(`🔧 Tool call saved: ${conversationEntry.toolName} with ${conversationEntry.toolResult?.results?.length || 0} results`);
       } else {
-        console.log(`💬 Content preview: "${conversationEntry.content?.substring(0, 50) || 'N/A'}..."`);
+        console.log(`💬 Content preview: "${entryToSave.content?.substring(0, 50) || 'N/A'}..."`);
       }
     } catch (error) {
       console.error('Error saving conversation entry:', error);
+    }
+  }
+
+  // Summarize content to reduce token usage
+  async summarizeContent(content, messageType) {
+    try {
+      // Don't summarize if content is already short
+      if (content.length <= 500) {
+        return content;
+      }
+
+      // For very short messages, just truncate
+      if (content.length <= 800) {
+        return content.substring(0, 400) + '... [mensagem truncada]';
+      }
+
+      // Use a lightweight summarization approach to avoid API calls
+      // Extract key sentences based on punctuation and length
+      const sentences = content.split(/[.!?]+/).filter(s => s.trim().length > 10);
+      
+      if (sentences.length <= 3) {
+        // If few sentences, just truncate
+        return content.substring(0, 400) + '... [conteúdo resumido]';
+      }
+
+      // Take first sentence, middle sentence, and last sentence
+      const summary = [
+        sentences[0]?.trim(),
+        sentences[Math.floor(sentences.length / 2)]?.trim(),
+        sentences[sentences.length - 1]?.trim()
+      ].filter(Boolean).join('. ') + '.';
+
+      // If summary is still too long, truncate
+      if (summary.length > 400) {
+        return summary.substring(0, 400) + '... [resumo]';
+      }
+
+      return summary + ' [resumo automático]';
+      
+    } catch (error) {
+      console.error('Error summarizing content:', error);
+      // Fallback to simple truncation
+      return content.substring(0, 400) + '... [erro no resumo - truncado]';
+    }
+  }
+
+  // Summarize tool results to reduce token usage
+  async summarizeToolResult(toolResult, toolName) {
+    try {
+      if (!toolResult || typeof toolResult !== 'object') {
+        return toolResult;
+      }
+
+      switch (toolName) {
+        case 'web_search':
+          return {
+            query: toolResult.query,
+            total: toolResult.total || 0,
+            sources: toolResult.sources || [],
+            summary: `Encontrados ${toolResult.total || 0} resultados de ${toolResult.sources?.length || 0} fontes`,
+            // Keep only first 3 results with limited content
+            results: (toolResult.results || []).slice(0, 3).map(r => ({
+              title: r.title?.substring(0, 100) || '',
+              snippet: r.snippet?.substring(0, 150) || '',
+              url: r.url,
+              source: r.source
+            })),
+            wasSummarized: true
+          };
+
+        case 'web_scrape':
+          return {
+            url: toolResult.url,
+            title: toolResult.title?.substring(0, 100) || '',
+            description: toolResult.description?.substring(0, 200) || '',
+            textLength: toolResult.textLength || 0,
+            structure: toolResult.structure || {},
+            summary: `Site analisado: ${toolResult.textLength || 0} chars, ${toolResult.structure?.totalLinks || 0} links`,
+            // Summarize content
+            content: toolResult.content?.substring(0, 300) + '...' || '',
+            wasSummarized: true
+          };
+
+        case 'html_analysis':
+          return {
+            url: toolResult.url,
+            analysisType: toolResult.analysisType,
+            title: toolResult.title?.substring(0, 100) || '',
+            summary: `Análise ${toolResult.analysisType} concluída para ${toolResult.url}`,
+            // Keep key fields but limit content
+            keyFindings: this.extractKeyFindings(toolResult, toolResult.analysisType),
+            wasSummarized: true
+          };
+
+        default:
+          // Generic summarization for unknown tool results
+          const summary = {
+            summary: `Resultado da ferramenta ${toolName}`,
+            wasSummarized: true
+          };
+          
+          // Keep only essential fields
+          Object.keys(toolResult).slice(0, 5).forEach(key => {
+            if (typeof toolResult[key] === 'string' && toolResult[key].length > 200) {
+              summary[key] = toolResult[key].substring(0, 200) + '...';
+            } else if (typeof toolResult[key] !== 'object') {
+              summary[key] = toolResult[key];
+            }
+          });
+          
+          return summary;
+      }
+    } catch (error) {
+      console.error('Error summarizing tool result:', error);
+      return {
+        summary: `Erro ao resumir resultado de ${toolName}`,
+        wasSummarized: true,
+        error: error.message
+      };
+    }
+  }
+
+  // Extract key findings from HTML analysis
+  extractKeyFindings(analysisData, analysisType) {
+    switch (analysisType) {
+      case 'news':
+        return {
+          headline: analysisData.headline?.substring(0, 100),
+          author: analysisData.author,
+          publishDate: analysisData.publishDate,
+          category: analysisData.category
+        };
+      case 'ecommerce':
+        return {
+          productName: analysisData.productName?.substring(0, 100),
+          price: analysisData.price,
+          inStock: analysisData.inStock,
+          brand: analysisData.brand
+        };
+      case 'contact':
+        return {
+          emailCount: analysisData.emails?.length || 0,
+          phoneCount: analysisData.phones?.length || 0,
+          socialCount: Object.keys(analysisData.socialMedia || {}).length,
+          hasContactForm: analysisData.contactForm
+        };
+      default:
+        return {
+          title: analysisData.title?.substring(0, 100),
+          linksCount: analysisData.links || 0,
+          imagesCount: analysisData.content?.images || 0
+        };
     }
   }
 
