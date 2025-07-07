@@ -11,7 +11,7 @@ const createAgentSchema = z.object({
   sessionId: z.string().min(1, 'Session ID é obrigatório'),
   name: z.string().min(1, 'Nome é obrigatório').max(100, 'Nome muito longo'),
   description: z.string().optional(),
-  model: z.enum(['gpt-4.1', 'gpt-4.1', 'claude-3', 'gemini-pro']),
+  model: z.enum(['gpt-4.1', 'gpt-4o', 'gpt-4', 'gpt-3.5-turbo']),
   personality: z.enum([
     'professional',
     'friendly',
@@ -425,18 +425,13 @@ ${this.description ? `Descrição: ${this.description}` : ''}
 ${contextInfo}
 
 FERRAMENTAS DISPONÍVEIS:
-Você tem acesso às seguintes ferramentas que pode usar quando necessário:
+Você tem acesso a ferramentas que são executadas automaticamente pelo sistema quando você as solicita.
 
-1. web_search(query) - Busca informações atualizadas na internet via DuckDuckGo
-   - Use quando precisar de informações atuais, notícias, preços, eventos, clima, etc.
-   - Sempre que não tiver certeza sobre dados que podem estar desatualizados
-   - Para verificar informações recentes ou em tempo real
+IMPORTANTE: NUNCA escreva texto como "[web_search(...)]" na sua resposta. O sistema executará as ferramentas automaticamente quando necessário.
 
-COMO USAR AS FERRAMENTAS:
-- Quando identificar que precisa de informações atualizadas, use web_search
-- Analise a pergunta do usuário e determine se precisa de dados da internet
-- Após usar web_search, incorpore as informações encontradas na sua resposta
-- Seja inteligente sobre quando usar: perguntas sobre fatos atuais, preços, clima, notícias, etc.
+Ferramentas disponíveis:
+- web_search: Busca informações atualizadas na internet
+  Use quando precisar de: notícias atuais, preços, clima, eventos recentes, informações que podem estar desatualizadas
 
 Regras importantes:
 1. Sempre responda em português brasileiro
@@ -453,13 +448,14 @@ Regras importantes:
           ? 'Em grupos, seja respeitoso com todos os participantes'
           : 'Mantenha uma conversa natural e personalizada'
       }
-7. Use as ferramentas disponíveis quando apropriado para dar respostas mais precisas e atualizadas
+7. Use as ferramentas disponíveis quando apropriado para dar respostas mais precisas e atualizadas  
 8. ${
         messageType !== 'text'
           ? `A mensagem recebida é do tipo: ${messageType}`
           : ''
       }
-9. Sempre que usar web_search, incorpore as informações encontradas de forma natural na resposta`;
+9. NUNCA mencione que está usando ferramentas, apenas forneça a informação encontrada
+10. Se precisar de informações atuais, use web_search automaticamente sem avisar o usuário`;
 
       const messageText =
         messageData.content || messageData.text || messageData.body || '';
@@ -510,7 +506,7 @@ Regras importantes:
 
       // Check if we should attempt tool use (only for specific model versions)
       const supportsTools =
-        this.model.includes('gpt-4.1') || this.model.includes('gpt-4.1');
+        this.model.includes('gpt-4') || this.model.includes('gpt-3.5-turbo');
 
       if (supportsTools) {
         try {
