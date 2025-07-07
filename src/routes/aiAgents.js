@@ -2506,6 +2506,33 @@ router.patch('/:agentId/settings', async (req, res) => {
   }
 });
 
+// Activate AI Agent
+router.patch('/:agentId/activate', async (req, res) => {
+  try {
+    const agent = await getAgentFromDatabase(req.params.agentId);
+
+    if (!agent) {
+      return res.status(404).json({
+        success: false,
+        message: 'Agente não encontrado',
+      });
+    }
+
+    await agent.activate();
+
+    res.json({
+      success: true,
+      message: 'Agente ativado com sucesso',
+    });
+  } catch (error) {
+    console.error('Error activating AI agent:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao ativar agente',
+    });
+  }
+});
+
 // Deactivate AI Agent
 router.patch('/:agentId/deactivate', async (req, res) => {
   try {

@@ -514,25 +514,12 @@ async function sendMessageWithHumanBehavior(
     // Check for active AI agent for this session (only mark as read if agent is active)
     const { getAgentFromDatabase, findAgentBySessionId } = require('./routes/aiAgents');
 
-    let activeAgent = Array.from(aiAgents.values()).find(
-      (agent) =>
-        agent.sessionId === sessionId && agent.isActive && agent.autoReply
-    );
-
-    // If no agent in memory, try to load from database
-    if (!activeAgent) {
-      const db = require('./config/database').getDb();
-      if (db) {
-        const agentData = await db.collection('ai_agents').findOne({
-          sessionId: sessionId,
-          isActive: true,
-          autoReply: true,
-        });
-
-        if (agentData) {
-          activeAgent = await getAgentFromDatabase(agentData._id);
-        }
-      }
+    // Get active agent with auto-reply enabled from database
+    let activeAgent = await findAgentBySessionId(sessionId, true);
+    
+    // Additional check for autoReply setting
+    if (activeAgent && !activeAgent.autoReply) {
+      activeAgent = null;
     }
 
     // 1. Marcar como visto primeiro (simula usuário lendo) - apenas se agente ativo e configurado
@@ -2967,25 +2954,12 @@ async function processCompleteMessage(
     const { getAgentFromDatabase, findAgentBySessionId } = require('./routes/aiAgents');
 
     // First check memory, then try to load from database
-    let activeAgent = Array.from(aiAgents.values()).find(
-      (agent) =>
-        agent.sessionId === sessionId && agent.isActive && agent.autoReply
-    );
-
-    // If no agent in memory, try to load from database
-    if (!activeAgent) {
-      const db = require('./config/database').getDb();
-      if (db) {
-        const agentData = await db.collection('ai_agents').findOne({
-          sessionId: sessionId,
-          isActive: true,
-          autoReply: true,
-        });
-
-        if (agentData) {
-          activeAgent = await getAgentFromDatabase(agentData._id);
-        }
-      }
+    // Get active agent with auto-reply enabled from database
+    let activeAgent = await findAgentBySessionId(sessionId, true);
+    
+    // Additional check for autoReply setting
+    if (activeAgent && !activeAgent.autoReply) {
+      activeAgent = null;
     }
 
     // Marcar como visto apenas se há agente ativo e configurado para auto-read
@@ -5312,25 +5286,12 @@ async function sendMessageWithAdvancedHumanBehavior(
     // 3. MARCAR COMO VISTO - apenas se há agente ativo e configurado
     const { getAgentFromDatabase, findAgentBySessionId } = require('./routes/aiAgents');
 
-    let activeAgent = Array.from(aiAgents.values()).find(
-      (agent) =>
-        agent.sessionId === sessionId && agent.isActive && agent.autoReply
-    );
-
-    // If no agent in memory, try to load from database
-    if (!activeAgent) {
-      const db = require('./config/database').getDb();
-      if (db) {
-        const agentData = await db.collection('ai_agents').findOne({
-          sessionId: sessionId,
-          isActive: true,
-          autoReply: true,
-        });
-
-        if (agentData) {
-          activeAgent = await getAgentFromDatabase(agentData._id);
-        }
-      }
+    // Get active agent with auto-reply enabled from database
+    let activeAgent = await findAgentBySessionId(sessionId, true);
+    
+    // Additional check for autoReply setting
+    if (activeAgent && !activeAgent.autoReply) {
+      activeAgent = null;
     }
 
     if (activeAgent && HUMAN_BEHAVIOR.AUTO_MARK_READ) {
