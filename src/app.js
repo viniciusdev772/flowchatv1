@@ -512,7 +512,7 @@ async function sendMessageWithHumanBehavior(
     }
 
     // Check for active AI agent for this session (only mark as read if agent is active)
-    const { aiAgents, ensureAgentInMemory } = require('./routes/aiAgents');
+    const { getAgentFromDatabase, findAgentBySessionId } = require('./routes/aiAgents');
 
     let activeAgent = Array.from(aiAgents.values()).find(
       (agent) =>
@@ -530,7 +530,7 @@ async function sendMessageWithHumanBehavior(
         });
 
         if (agentData) {
-          activeAgent = await ensureAgentInMemory(agentData._id);
+          activeAgent = await getAgentFromDatabase(agentData._id);
         }
       }
     }
@@ -2964,7 +2964,7 @@ async function processCompleteMessage(
     await delay(500 + Math.random() * 1500);
 
     // Check for active AI agent for this session
-    const { aiAgents, ensureAgentInMemory } = require('./routes/aiAgents');
+    const { getAgentFromDatabase, findAgentBySessionId } = require('./routes/aiAgents');
 
     // First check memory, then try to load from database
     let activeAgent = Array.from(aiAgents.values()).find(
@@ -2983,7 +2983,7 @@ async function processCompleteMessage(
         });
 
         if (agentData) {
-          activeAgent = await ensureAgentInMemory(agentData._id);
+          activeAgent = await getAgentFromDatabase(agentData._id);
         }
       }
     }
@@ -5310,7 +5310,7 @@ async function sendMessageWithAdvancedHumanBehavior(
     }
 
     // 3. MARCAR COMO VISTO - apenas se há agente ativo e configurado
-    const { aiAgents, ensureAgentInMemory } = require('./routes/aiAgents');
+    const { getAgentFromDatabase, findAgentBySessionId } = require('./routes/aiAgents');
 
     let activeAgent = Array.from(aiAgents.values()).find(
       (agent) =>
@@ -5328,7 +5328,7 @@ async function sendMessageWithAdvancedHumanBehavior(
         });
 
         if (agentData) {
-          activeAgent = await ensureAgentInMemory(agentData._id);
+          activeAgent = await getAgentFromDatabase(agentData._id);
         }
       }
     }

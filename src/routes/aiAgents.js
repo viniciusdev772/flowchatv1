@@ -2224,29 +2224,7 @@ function checkAgentHealth(agent) {
   };
 }
 
-// Function to get agent from database by ID
-async function getAgentFromDatabase(agentId) {
-  try {
-    const db = database.getDb();
-    if (!db) return null;
-
-    const agentData = await db
-      .collection('ai_agents')
-      .findOne({ _id: agentId });
-
-    if (agentData) {
-      return {
-        ...agentData,
-        id: agentData._id,
-        openaiApiKey: agentData.openaiApiKey || '', // Restore API key from database
-      };
-    }
-    return null;
-  } catch (error) {
-    console.error('Error getting agent from database:', error);
-    return null;
-  }
-}
+// Removed duplicate getAgentFromDatabase function
 
 // Function to get agent from database (no memory caching)
 async function getAgentFromDatabase(agentId) {
