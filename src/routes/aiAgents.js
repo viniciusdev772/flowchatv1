@@ -37,22 +37,7 @@ const createAgentSchema = z.object({
   replyToGroups: z.boolean().default(true), // Nova opção para responder grupos
 });
 
-// Web Search Tool using DuckDuckGo
-const webSearchTool = {
-  name: 'web_search',
-  description:
-    'Busca informações atualizadas na internet via DuckDuckGo. Use quando precisar de informações atuais, notícias, preços, eventos, clima, etc.',
-  parameters: {
-    type: 'object',
-    properties: {
-      query: {
-        type: 'string',
-        description: 'Termo de busca para procurar na internet',
-      },
-    },
-    required: ['query'],
-  },
-};
+// Web Search Tool - now implemented directly in OpenAI SDK calls
 
 async function executeWebSearch(query) {
   try {
@@ -378,13 +363,7 @@ class AIAgent {
 
   async generateResponse(messageData, conversationEntry, whatsappClient = null) {
     try {
-      const { ChatOpenAI } = require('@langchain/openai');
-      const {
-        HumanMessage,
-        SystemMessage,
-        AIMessage,
-        ToolMessage,
-      } = require('@langchain/core/messages');
+      const OpenAI = require('openai');
 
       // Validate API key
       if (!this.openaiApiKey || this.openaiApiKey.trim() === '') {
@@ -394,11 +373,8 @@ class AIAgent {
         throw new Error('OpenAI API key is required');
       }
 
-      const llm = new ChatOpenAI({
+      const openai = new OpenAI({
         apiKey: this.openaiApiKey,
-        model: this.model,
-        temperature: this.creativity / 100,
-        maxTokens: 1000,
         timeout: 30000,
       });
 
@@ -492,8 +468,8 @@ Regras importantes:
         throw new Error('Empty message content');
       }
 
-      // Prepare messages array for ChatOpenAI
-      const messages = [new SystemMessage(systemPrompt)];
+      // Prepare messages array for OpenAI API
+      const messages = [{ role: 'system', content: systemPrompt }];
 
       // Load conversation history from MongoDB for context (last 10 messages)
       const recentHistory = await this.loadConversationHistory(
@@ -514,9 +490,9 @@ Regras importantes:
             const messageContent = isGroup
               ? `${msg.content}${senderInfo}`
               : msg.content;
-            messages.push(new HumanMessage(messageContent));
+            messages.push({ role: 'user', content: messageContent });
           } else {
-            messages.push(new SystemMessage(`Assistente: ${msg.content}`));
+            messages.push({ role: 'assistant', content: msg.content });
           }
         }
       });
@@ -525,86 +501,93 @@ Regras importantes:
       const currentMessageContent = isGroup
         ? `${messageText} (enviado por ${senderName})`
         : messageText;
-      messages.push(new HumanMessage(currentMessageContent.trim()));
+      messages.push({ role: 'user', content: currentMessageContent.trim() });
 
-      // First try a regular response to ensure basic functionality works
-      console.log(`📨 Invoking LLM with ${messages.length} messages`);
-      let response;
-
+      // Create chat completion with tools
+      console.log(`📨 Creating chat completion with ${messages.length} messages`);
+      
       // Check if we should attempt tool use (only for specific model versions)
       const supportsTools =
         this.model.includes('gpt-4') || this.model.includes('gpt-3.5-turbo');
 
+      let response;
+      
       if (supportsTools) {
         try {
-          // Use newer bind_tools method with tool_choice to force tool calling when needed
           console.log(
             `🔧 Attempting response with tools for model: ${this.model}`
           );
           
-          // Bind tools with proper tool choice
-          const llmWithTools = llm.bind({
-            tools: [webSearchTool],
-            tool_choice: "auto" // Let model decide when to use tools
+          // Create chat completion with tools
+          response = await openai.chat.completions.create({
+            model: this.model,
+            messages: messages,
+            temperature: this.creativity / 100,
+            max_tokens: 1000,
+            tools: [{
+              type: "function",
+              function: {
+                name: "web_search",
+                description: "Busca informações atualizadas na internet via DuckDuckGo. Use quando precisar de informações atuais, notícias, preços, eventos, clima, etc.",
+                parameters: {
+                  type: "object",
+                  properties: {
+                    query: {
+                      type: "string",
+                      description: "Termo de busca para procurar na internet"
+                    }
+                  },
+                  required: ["query"]
+                }
+              }
+            }],
+            tool_choice: "auto"
           });
-          
-          response = await llmWithTools.invoke(messages);
 
           console.log(
             `📤 Initial response received. Tool calls: ${
-              response.tool_calls?.length || 0
+              response.choices[0]?.message?.tool_calls?.length || 0
             }`
           );
-          console.log(`📋 Response type:`, typeof response);
-          console.log(`📋 Response keys:`, Object.keys(response || {}));
-          console.log(`📋 Has additional_kwargs:`, !!response.additional_kwargs);
-          console.log(`📋 Additional kwargs:`, response.additional_kwargs);
-
-          // Check for tool calls in multiple possible locations
-          let toolCalls = response.tool_calls;
-          if (!toolCalls && response.additional_kwargs?.function_call) {
-            // Handle legacy format
-            toolCalls = [{
-              name: response.additional_kwargs.function_call.name,
-              args: JSON.parse(response.additional_kwargs.function_call.arguments || '{}'),
-              id: 'legacy_' + Date.now()
-            }];
-          }
-          if (!toolCalls && response.additional_kwargs?.tool_calls) {
-            toolCalls = response.additional_kwargs.tool_calls;
-          }
 
           // Process tool calls if any
+          let toolCalls = response.choices[0]?.message?.tool_calls;
+          
           while (toolCalls && toolCalls.length > 0) {
             console.log(
               `🔧 Processing ${toolCalls.length} tool calls`
             );
 
             // Add the AI message with tool calls to conversation
-            messages.push(response);
+            messages.push({
+              role: "assistant",
+              content: response.choices[0].message.content,
+              tool_calls: toolCalls
+            });
 
             // Execute tool calls
             for (const toolCall of toolCalls) {
               let toolResult;
 
               console.log(
-                `🛠️ Executing tool: ${toolCall.name} with args:`,
-                toolCall.args
+                `🛠️ Executing tool: ${toolCall.function.name} with args:`,
+                toolCall.function.arguments
               );
 
-              if (toolCall.name === 'web_search') {
+              if (toolCall.function.name === 'web_search') {
+                const args = JSON.parse(toolCall.function.arguments);
                 console.log(
-                  `🔍 Model requested web search: "${toolCall.args.query}"`
+                  `🔍 Model requested web search: "${args.query}"`
                 );
                 
                 // Send notification to user that search is starting
                 await this.sendToolNotification(
-                  `🔍 Buscando informações sobre: "${toolCall.args.query}"...`,
+                  `🔍 Buscando informações sobre: "${args.query}"...`,
                   conversationEntry.chat.id,
                   whatsappClient
                 );
                 
-                toolResult = await executeWebSearch(toolCall.args.query);
+                toolResult = await executeWebSearch(args.query);
                 
                 // Parse results to get count
                 const searchData = JSON.parse(toolResult);
@@ -626,43 +609,37 @@ Regras importantes:
                 
               } else {
                 toolResult = JSON.stringify({
-                  error: `Unknown tool: ${toolCall.name}`,
+                  error: `Unknown tool: ${toolCall.function.name}`,
                 });
-                console.log(`❌ Unknown tool: ${toolCall.name}`);
+                console.log(`❌ Unknown tool: ${toolCall.function.name}`);
                 
                 // Send error notification
                 await this.sendToolNotification(
-                  `❌ Ferramenta desconhecida: ${toolCall.name}`,
+                  `❌ Ferramenta desconhecida: ${toolCall.function.name}`,
                   conversationEntry.chat.id,
                   whatsappClient
                 );
               }
 
               // Add tool result to conversation
-              messages.push(
-                new ToolMessage({
-                  content: toolResult,
-                  tool_call_id: toolCall.id,
-                })
-              );
+              messages.push({
+                role: "tool",
+                content: toolResult,
+                tool_call_id: toolCall.id
+              });
             }
 
             // Get response after tool execution
             console.log(`🔄 Getting final response after tool execution`);
-            response = await llmWithTools.invoke(messages);
+            response = await openai.chat.completions.create({
+              model: this.model,
+              messages: messages,
+              temperature: this.creativity / 100,
+              max_tokens: 1000,
+            });
             
             // Check again for more tool calls
-            toolCalls = response.tool_calls;
-            if (!toolCalls && response.additional_kwargs?.function_call) {
-              toolCalls = [{
-                name: response.additional_kwargs.function_call.name,
-                args: JSON.parse(response.additional_kwargs.function_call.arguments || '{}'),
-                id: 'legacy_' + Date.now()
-              }];
-            }
-            if (!toolCalls && response.additional_kwargs?.tool_calls) {
-              toolCalls = response.additional_kwargs.tool_calls;
-            }
+            toolCalls = response.choices[0]?.message?.tool_calls;
           }
         } catch (toolError) {
           console.log(
@@ -670,27 +647,31 @@ Regras importantes:
             toolError.message
           );
           console.log(`Error stack:`, toolError.stack);
-          // Fallback to regular LLM without tools
-          response = await llm.invoke(messages);
+          // Fallback to regular completion without tools
+          response = await openai.chat.completions.create({
+            model: this.model,
+            messages: messages,
+            temperature: this.creativity / 100,
+            max_tokens: 1000,
+          });
         }
       } else {
         console.log(
           `🚫 Model ${this.model} does not support tools, using regular response`
         );
-        response = await llm.invoke(messages);
+        response = await openai.chat.completions.create({
+          model: this.model,
+          messages: messages,
+          temperature: this.creativity / 100,
+          max_tokens: 1000,
+        });
       }
 
-      // Extract response content properly - try multiple formats
+      // Extract response content from OpenAI SDK format
       let responseContent = '';
 
-      if (response) {
-        // Try different possible response formats
-        responseContent =
-          response.content ||
-          response.text ||
-          response.message ||
-          (response.generations && response.generations[0]?.text) ||
-          (typeof response === 'string' ? response : '');
+      if (response && response.choices && response.choices[0]) {
+        responseContent = response.choices[0].message?.content || '';
       }
 
       console.log(`📝 Response content extracted:`, {
@@ -698,8 +679,9 @@ Regras importantes:
         contentLength: responseContent?.length || 0,
         contentPreview: responseContent?.substring(0, 100) || 'EMPTY',
         responseType: typeof response,
-        responseKeys: Object.keys(response || {}),
-        fullResponse: response,
+        hasChoices: !!response.choices,
+        choicesLength: response.choices?.length || 0,
+        messageContent: response.choices?.[0]?.message?.content?.substring(0, 50) || 'NONE'
       });
 
       // Se não conseguiu gerar resposta, criar uma resposta padrão baseada na personalidade

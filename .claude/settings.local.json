@@ -22,7 +22,8 @@
       "WebFetch(domain:www.heroui.com)",
       "Bash(npm update)",
       "Bash(npm test)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "WebFetch(domain:platform.openai.com)"
     ],
     "deny": []
   },
