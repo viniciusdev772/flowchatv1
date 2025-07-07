@@ -11,7 +11,7 @@ const createAgentSchema = z.object({
   sessionId: z.string().min(1, 'Session ID é obrigatório'),
   name: z.string().min(1, 'Nome é obrigatório').max(100, 'Nome muito longo'),
   description: z.string().optional(),
-  model: z.enum(['gpt-4', 'gpt-3.5-turbo', 'claude-3', 'gemini-pro']),
+  model: z.enum(['gpt-4.1', 'gpt-4.1', 'claude-3', 'gemini-pro']),
   personality: z.enum([
     'professional',
     'friendly',
@@ -40,17 +40,18 @@ const createAgentSchema = z.object({
 // Web Search Tool using DuckDuckGo
 const webSearchTool = {
   name: 'web_search',
-  description: 'Busca informações atualizadas na internet via DuckDuckGo. Use quando precisar de informações atuais, notícias, preços, eventos, clima, etc.',
+  description:
+    'Busca informações atualizadas na internet via DuckDuckGo. Use quando precisar de informações atuais, notícias, preços, eventos, clima, etc.',
   parameters: {
     type: 'object',
     properties: {
       query: {
         type: 'string',
-        description: 'Termo de busca para procurar na internet'
-      }
+        description: 'Termo de busca para procurar na internet',
+      },
     },
-    required: ['query']
-  }
+    required: ['query'],
+  },
 };
 
 async function executeWebSearch(query) {
@@ -59,17 +60,21 @@ async function executeWebSearch(query) {
     const cheerio = require('cheerio');
 
     console.log(`🔍 AI Agent performing web search for: "${query}"`);
-    
+
     // Use DuckDuckGo search (no API key required)
-    const searchUrl = `https://duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
+    const searchUrl = `https://duckduckgo.com/html/?q=${encodeURIComponent(
+      query
+    )}`;
     const response = await fetch(searchUrl, {
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'User-Agent':
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        Accept:
+          'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
         'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
         'Accept-Encoding': 'gzip, deflate, br',
-        'DNT': '1',
-        'Connection': 'keep-alive',
+        DNT: '1',
+        Connection: 'keep-alive',
         'Upgrade-Insecure-Requests': '1',
       },
     });
@@ -82,17 +87,17 @@ async function executeWebSearch(query) {
     const $ = cheerio.load(html);
 
     const results = [];
-    
+
     // DuckDuckGo result parsing
     $('.result').each((i, elem) => {
       if (i >= 8) return false; // Limit to 8 results
-      
+
       const $elem = $(elem);
       const titleLink = $elem.find('.result__title a');
       const title = titleLink.text().trim();
       const url = titleLink.attr('href');
       const snippet = $elem.find('.result__snippet').text().trim();
-      
+
       if (title && url && snippet) {
         results.push({
           title,
@@ -107,13 +112,13 @@ async function executeWebSearch(query) {
     if (results.length === 0) {
       $('.web-result').each((i, elem) => {
         if (i >= 8) return false;
-        
+
         const $elem = $(elem);
         const titleLink = $elem.find('h2 a, .result__title a');
         const title = titleLink.text().trim();
         const url = titleLink.attr('href');
         const snippet = $elem.find('.result__snippet, .snippet').text().trim();
-        
+
         if (title && url && snippet) {
           results.push({
             title,
@@ -130,11 +135,11 @@ async function executeWebSearch(query) {
       results,
       timestamp: new Date().toISOString(),
       source: 'duckduckgo',
-      total: results.length
+      total: results.length,
     };
 
     console.log(`✅ Found ${results.length} search results for "${query}"`);
-    
+
     return JSON.stringify(searchResults);
   } catch (error) {
     console.error('Web search error:', error);
@@ -144,7 +149,7 @@ async function executeWebSearch(query) {
       error: error.message,
       timestamp: new Date().toISOString(),
       source: 'duckduckgo',
-      total: 0
+      total: 0,
     });
   }
 }
@@ -174,14 +179,14 @@ class AIAgent {
     // conversationHistory removed - now using MongoDB only for persistent history
   }
 
-
   async processMessage(messageData, whatsappClient = null) {
     try {
       this.messageCount++;
       this.updatedAt = new Date().toISOString();
 
       // Extract rich message information
-      const messageText = messageData.content || messageData.text || messageData.body || '';
+      const messageText =
+        messageData.content || messageData.text || messageData.body || '';
       const isGroup = messageData.chat?.isGroup || false;
       const senderInfo = messageData.sender || {};
       const chatInfo = messageData.chat || {};
@@ -192,34 +197,55 @@ class AIAgent {
       }
 
       // Verificação robusta de grupo usando funções oficiais da Baileys
-      const { isJidGroup, isJidBroadcast, isJidStatusBroadcast, isJidNewsletter } = require('@whiskeysockets/baileys');
+      const {
+        isJidGroup,
+        isJidBroadcast,
+        isJidStatusBroadcast,
+        isJidNewsletter,
+      } = require('@whiskeysockets/baileys');
       const chatJid = chatInfo.id;
-      const isRealGroup = isJidGroup(chatJid) && !isJidBroadcast(chatJid) && !isJidStatusBroadcast(chatJid) && !isJidNewsletter(chatJid);
-      
+      const isRealGroup =
+        isJidGroup(chatJid) &&
+        !isJidBroadcast(chatJid) &&
+        !isJidStatusBroadcast(chatJid) &&
+        !isJidNewsletter(chatJid);
+
       // Use verificação mais rigorosa
       const finalIsGroup = isGroup || isRealGroup;
 
       // Skip if agent doesn't want to reply to groups and this is a group message
       if (finalIsGroup && !this.replyToGroups) {
-        console.log(`🚫 Agent ${this.id} SKIPPING group message from ${chatJid} (replyToGroups: false)`);
-        console.log(`Group verification in processMessage: messageData.isGroup=${isGroup}, baileys.isJidGroup=${isRealGroup}, final=${finalIsGroup}`);
+        console.log(
+          `🚫 Agent ${this.id} SKIPPING group message from ${chatJid} (replyToGroups: false)`
+        );
+        console.log(
+          `Group verification in processMessage: messageData.isGroup=${isGroup}, baileys.isJidGroup=${isRealGroup}, final=${finalIsGroup}`
+        );
         return { shouldReply: false };
       } else if (finalIsGroup) {
-        console.log(`✅ Agent ${this.id} PROCESSING group message from ${chatJid} (replyToGroups: true)`);
+        console.log(
+          `✅ Agent ${this.id} PROCESSING group message from ${chatJid} (replyToGroups: true)`
+        );
       }
 
       // Marcar mensagem(ns) como lida se cliente WhatsApp estiver disponível
       if (whatsappClient && this.autoReply) {
         try {
           // Se há múltiplas partes, marcar todas como lidas
-          if (messageData.isMultiPart && messageData.allMessageKeys && messageData.allMessageKeys.length > 1) {
+          if (
+            messageData.isMultiPart &&
+            messageData.allMessageKeys &&
+            messageData.allMessageKeys.length > 1
+          ) {
             await whatsappClient.readMessages(messageData.allMessageKeys);
-            console.log(`${messageData.allMessageKeys.length} messages marked as read (multi-part)`);
+            console.log(
+              `${messageData.allMessageKeys.length} messages marked as read (multi-part)`
+            );
           } else if (messageData.messageId) {
             const key = {
               id: messageData.messageId,
               fromMe: false,
-              remoteJid: chatInfo.id
+              remoteJid: chatInfo.id,
             };
             await whatsappClient.readMessages([key]);
             console.log(`Message marked as read: ${messageData.messageId}`);
@@ -238,13 +264,15 @@ class AIAgent {
         sender: {
           id: senderInfo.id,
           pushName: senderInfo.pushName,
-          isMe: senderInfo.isMe || false
+          isMe: senderInfo.isMe || false,
         },
         chat: {
           id: chatInfo.id,
           type: chatInfo.type || (finalIsGroup ? 'group' : 'private'),
           isGroup: finalIsGroup,
-          name: chatInfo.name || (finalIsGroup ? 'Grupo' : senderInfo.pushName || 'Contato')
+          name:
+            chatInfo.name ||
+            (finalIsGroup ? 'Grupo' : senderInfo.pushName || 'Contato'),
         },
         messageType: messageData.messageType || 'text',
         hasQuotedMessage: !!messageData.quotedMessage,
@@ -254,16 +282,19 @@ class AIAgent {
         contextData: {
           userAgent: 'whatsapp',
           platform: 'baileys',
-          sessionId: this.sessionId
-        }
+          sessionId: this.sessionId,
+        },
       };
 
       // Save to MongoDB instead of memory
       await this.saveConversationEntry(conversationEntry);
 
       // Generate AI response with rich context
-      const response = await this.generateResponse(messageData, conversationEntry);
-      
+      const response = await this.generateResponse(
+        messageData,
+        conversationEntry
+      );
+
       if (!response || response.trim() === '') {
         throw new Error('Empty response generated');
       }
@@ -274,7 +305,7 @@ class AIAgent {
         content: response,
         timestamp: new Date().toISOString(),
         inResponseTo: messageData.messageId,
-        chat: conversationEntry.chat
+        chat: conversationEntry.chat,
       };
 
       // Save AI response to MongoDB
@@ -291,7 +322,7 @@ class AIAgent {
         shouldReply: true,
         chatId: chatInfo.id,
         isGroup: isGroup,
-        senderInfo: senderInfo
+        senderInfo: senderInfo,
       };
     } catch (error) {
       console.error('Error processing message:', error);
@@ -321,11 +352,18 @@ class AIAgent {
   async generateResponse(messageData, conversationEntry) {
     try {
       const { ChatOpenAI } = require('@langchain/openai');
-      const { HumanMessage, SystemMessage, AIMessage, ToolMessage } = require('@langchain/core/messages');
+      const {
+        HumanMessage,
+        SystemMessage,
+        AIMessage,
+        ToolMessage,
+      } = require('@langchain/core/messages');
 
       // Validate API key
       if (!this.openaiApiKey || this.openaiApiKey.trim() === '') {
-        console.error(`❌ Agent ${this.id} missing OpenAI API key - response generation failed`);
+        console.error(
+          `❌ Agent ${this.id} missing OpenAI API key - response generation failed`
+        );
         throw new Error('OpenAI API key is required');
       }
 
@@ -333,9 +371,14 @@ class AIAgent {
         apiKey: this.openaiApiKey,
         model: this.model,
         temperature: this.creativity / 100,
-        maxTokens: 500,
+        maxTokens: 1000,
         timeout: 30000,
-      }).bindTools([webSearchTool]);
+      });
+
+      // Log para debug
+      console.log(
+        `🤖 Agent ${this.id} generating response with model ${this.model}`
+      );
 
       // Build context prompt with rich message information
       const personalityPrompts = {
@@ -348,9 +391,12 @@ class AIAgent {
       };
 
       const specializationPrompts = {
-        general: 'Você é um assistente geral capaz de ajudar com diversas tarefas.',
-        sales: 'Você é especializado em vendas e marketing, focado em conversão.',
-        support: 'Você é especializado em suporte ao cliente e resolução de problemas.',
+        general:
+          'Você é um assistente geral capaz de ajudar com diversas tarefas.',
+        sales:
+          'Você é especializado em vendas e marketing, focado em conversão.',
+        support:
+          'Você é especializado em suporte ao cliente e resolução de problemas.',
         education: 'Você é especializado em educação e ensino.',
         health: 'Você é especializado em saúde e bem-estar.',
         finance: 'Você é especializado em finanças e consultoria.',
@@ -362,15 +408,17 @@ class AIAgent {
       const chatName = conversationEntry.chat.name || '';
       const messageType = conversationEntry.messageType || 'text';
 
-      const multiPartInfo = messageData.isMultiPart 
+      const multiPartInfo = messageData.isMultiPart
         ? `\n\nIMPORTANTE: Esta mensagem foi enviada em ${messageData.partCount} partes separadas e você está recebendo o texto completo combinado.`
         : '';
-        
-      const contextInfo = isGroup 
+
+      const contextInfo = isGroup
         ? `\nContexto: Você está em um grupo "${chatName}". A mensagem foi enviada por ${senderName}.${multiPartInfo}`
         : `\nContexto: Você está em uma conversa privada com ${senderName}.${multiPartInfo}`;
 
-      const systemPrompt = `${personalityPrompts[this.personality]} ${specializationPrompts[this.specialization]}
+      const systemPrompt = `${personalityPrompts[this.personality]} ${
+        specializationPrompts[this.specialization]
+      }
 
 Nome: ${this.name}
 ${this.description ? `Descrição: ${this.description}` : ''}
@@ -395,32 +443,54 @@ Regras importantes:
 2. Seja útil e prestativo  
 3. Mantenha o tom de acordo com sua personalidade
 4. Seja conciso mas informativo
-5. ${isGroup ? 'Quando em grupos, você pode se dirigir às pessoas pelo nome quando relevante' : 'Adapte suas respostas ao contexto da conversa privada'}
-6. ${isGroup ? 'Em grupos, seja respeitoso com todos os participantes' : 'Mantenha uma conversa natural e personalizada'}
+5. ${
+        isGroup
+          ? 'Quando em grupos, você pode se dirigir às pessoas pelo nome quando relevante'
+          : 'Adapte suas respostas ao contexto da conversa privada'
+      }
+6. ${
+        isGroup
+          ? 'Em grupos, seja respeitoso com todos os participantes'
+          : 'Mantenha uma conversa natural e personalizada'
+      }
 7. Use as ferramentas disponíveis quando apropriado para dar respostas mais precisas e atualizadas
-8. ${messageType !== 'text' ? `A mensagem recebida é do tipo: ${messageType}` : ''}
+8. ${
+        messageType !== 'text'
+          ? `A mensagem recebida é do tipo: ${messageType}`
+          : ''
+      }
 9. Sempre que usar web_search, incorpore as informações encontradas de forma natural na resposta`;
 
-      const messageText = messageData.content || messageData.text || messageData.body || '';
-      
+      const messageText =
+        messageData.content || messageData.text || messageData.body || '';
+
       // Validate message content
       if (!messageText || messageText.trim() === '') {
         throw new Error('Empty message content');
       }
-      
+
       // Prepare messages array for ChatOpenAI
       const messages = [new SystemMessage(systemPrompt)];
 
       // Load conversation history from MongoDB for context (last 10 messages)
-      const recentHistory = await this.loadConversationHistory(conversationEntry.chat.id, 10);
-      console.log(`📚 Loaded ${recentHistory.length} previous messages for context from chat ${conversationEntry.chat.id}`);
-      
+      const recentHistory = await this.loadConversationHistory(
+        conversationEntry.chat.id,
+        10
+      );
+      console.log(
+        `📚 Loaded ${recentHistory.length} previous messages for context from chat ${conversationEntry.chat.id}`
+      );
+
       // Add conversation history for context
       recentHistory.forEach((msg) => {
         if (msg.content && msg.content.trim() !== '') {
           if (msg.type === 'user') {
-            const senderInfo = msg.sender?.pushName ? ` (${msg.sender.pushName})` : '';
-            const messageContent = isGroup ? `${msg.content}${senderInfo}` : msg.content;
+            const senderInfo = msg.sender?.pushName
+              ? ` (${msg.sender.pushName})`
+              : '';
+            const messageContent = isGroup
+              ? `${msg.content}${senderInfo}`
+              : msg.content;
             messages.push(new HumanMessage(messageContent));
           } else {
             messages.push(new SystemMessage(`Assistente: ${msg.content}`));
@@ -429,55 +499,151 @@ Regras importantes:
       });
 
       // Add current message with sender context
-      const currentMessageContent = isGroup ? `${messageText} (enviado por ${senderName})` : messageText;
+      const currentMessageContent = isGroup
+        ? `${messageText} (enviado por ${senderName})`
+        : messageText;
       messages.push(new HumanMessage(currentMessageContent.trim()));
 
-      // Invoke with tools and handle tool calls
-      let response = await llm.invoke(messages);
-      
-      // Process tool calls if any
-      while (response.tool_calls && response.tool_calls.length > 0) {
-        // Add the AI message with tool calls to conversation
-        messages.push(response);
-        
-        // Execute tool calls
-        for (const toolCall of response.tool_calls) {
-          let toolResult;
-          
-          if (toolCall.name === 'web_search') {
-            console.log(`🔍 Model requested web search: "${toolCall.args.query}"`);
-            toolResult = await executeWebSearch(toolCall.args.query);
-          } else {
-            toolResult = JSON.stringify({ error: `Unknown tool: ${toolCall.name}` });
+      // First try a regular response to ensure basic functionality works
+      console.log(`📨 Invoking LLM with ${messages.length} messages`);
+      let response;
+
+      // Check if we should attempt tool use (only for specific model versions)
+      const supportsTools =
+        this.model.includes('gpt-4.1') || this.model.includes('gpt-4.1');
+
+      if (supportsTools) {
+        try {
+          // Try with tools
+          console.log(
+            `🔧 Attempting response with tools for model: ${this.model}`
+          );
+          const llmWithTools = llm.bindTools([webSearchTool]);
+          response = await llmWithTools.invoke(messages);
+
+          console.log(
+            `📤 Initial response received. Tool calls: ${
+              response.tool_calls?.length || 0
+            }`
+          );
+
+          // Process tool calls if any
+          while (response.tool_calls && response.tool_calls.length > 0) {
+            console.log(
+              `🔧 Processing ${response.tool_calls.length} tool calls`
+            );
+
+            // Add the AI message with tool calls to conversation
+            messages.push(response);
+
+            // Execute tool calls
+            for (const toolCall of response.tool_calls) {
+              let toolResult;
+
+              console.log(
+                `🛠️ Executing tool: ${toolCall.name} with args:`,
+                toolCall.args
+              );
+
+              if (toolCall.name === 'web_search') {
+                console.log(
+                  `🔍 Model requested web search: "${toolCall.args.query}"`
+                );
+                toolResult = await executeWebSearch(toolCall.args.query);
+                console.log(
+                  `✅ Search completed, result length: ${toolResult.length}`
+                );
+              } else {
+                toolResult = JSON.stringify({
+                  error: `Unknown tool: ${toolCall.name}`,
+                });
+                console.log(`❌ Unknown tool: ${toolCall.name}`);
+              }
+
+              // Add tool result to conversation
+              messages.push(
+                new ToolMessage({
+                  content: toolResult,
+                  tool_call_id: toolCall.id,
+                })
+              );
+            }
+
+            // Get response after tool execution
+            console.log(`🔄 Getting final response after tool execution`);
+            response = await llmWithTools.invoke(messages);
           }
-          
-          // Add tool result to conversation
-          messages.push(new ToolMessage({
-            content: toolResult,
-            tool_call_id: toolCall.id
-          }));
+        } catch (toolError) {
+          console.log(
+            `⚠️ Tool execution failed, falling back to regular response:`,
+            toolError.message
+          );
+          console.log(`Error stack:`, toolError.stack);
+          // Fallback to regular LLM without tools
+          response = await llm.invoke(messages);
         }
-        
-        // Get response after tool execution
+      } else {
+        console.log(
+          `🚫 Model ${this.model} does not support tools, using regular response`
+        );
         response = await llm.invoke(messages);
       }
 
-      // Extract response content properly
-      let responseContent = response.content || '';
+      // Extract response content properly - try multiple formats
+      let responseContent = '';
+
+      if (response) {
+        // Try different possible response formats
+        responseContent =
+          response.content ||
+          response.text ||
+          response.message ||
+          (response.generations && response.generations[0]?.text) ||
+          (typeof response === 'string' ? response : '');
+      }
+
+      console.log(`📝 Response content extracted:`, {
+        hasContent: !!responseContent,
+        contentLength: responseContent?.length || 0,
+        contentPreview: responseContent?.substring(0, 100) || 'EMPTY',
+        responseType: typeof response,
+        responseKeys: Object.keys(response || {}),
+        fullResponse: response,
+      });
 
       // Se não conseguiu gerar resposta, criar uma resposta padrão baseada na personalidade
       if (!responseContent || responseContent.trim() === '') {
-        const fallbackResponses = {
-          professional: 'Entendo sua solicitação. Posso ajudá-lo de outra forma?',
-          friendly: `Oi${isGroup ? ` ${senderName}` : ''}! Entendi sua mensagem. Como posso te ajudar melhor?`,
-          creative: 'Que interessante! Vamos pensar em soluções criativas para isso.',
-          analytical: 'Preciso de mais informações para analisar adequadamente sua solicitação.',
-          casual: `Entendi${isGroup ? ` ${senderName}` : ''}! Como posso te dar uma mão com isso?`,
-          empathetic: 'Compreendo sua situação. Estou aqui para ajudar no que precisar.',
-        };
-        responseContent = fallbackResponses[this.personality] || 'Como posso ajudá-lo?';
-      }
+        console.log(
+          `❌ Empty response detected, using fallback for personality: ${this.personality}`
+        );
 
+        const fallbackResponses = {
+          professional:
+            'Entendo sua solicitação. Posso ajudá-lo de outra forma?',
+          friendly: `Oi${
+            isGroup ? ` ${senderName}` : ''
+          }! Entendi sua mensagem. Como posso te ajudar melhor?`,
+          creative:
+            'Que interessante! Vamos pensar em soluções criativas para isso.',
+          analytical:
+            'Preciso de mais informações para analisar adequadamente sua solicitação.',
+          casual: `Entendi${
+            isGroup ? ` ${senderName}` : ''
+          }! Como posso te dar uma mão com isso?`,
+          empathetic:
+            'Compreendo sua situação. Estou aqui para ajudar no que precisar.',
+        };
+        responseContent =
+          fallbackResponses[this.personality] || 'Como posso ajudá-lo?';
+        console.log(`🔄 Using fallback response: "${responseContent}"`);
+      } else {
+        console.log(
+          `✅ Valid response generated: "${responseContent.substring(
+            0,
+            100
+          )}..."`
+        );
+      }
 
       return responseContent.trim();
     } catch (error) {
@@ -489,7 +655,10 @@ Regras importantes:
       let errorMessage = 'Erro interno do sistema';
       if (error.message.includes('API key')) {
         errorMessage = 'Chave da API OpenAI inválida ou não configurada';
-      } else if (error.message.includes('timeout') || error.message.includes('ECONNRESET')) {
+      } else if (
+        error.message.includes('timeout') ||
+        error.message.includes('ECONNRESET')
+      ) {
         errorMessage = 'Timeout na conexão com OpenAI';
       } else if (error.message.includes('rate limit')) {
         errorMessage = 'Limite de requisições excedido';
@@ -503,12 +672,18 @@ Regras importantes:
 
       // Resposta de fallback baseada na personalidade do agente
       const fallbackResponses = {
-        professional: 'Momentaneamente indisponível. Como posso assistí-lo de outra forma?',
-        friendly: 'Ops! Algo deu errado, mas estou aqui para ajudar. Me conte mais sobre o que precisa!',
-        creative: 'Hmm, vamos tentar uma abordagem diferente! O que você gostaria de explorar?',
-        analytical: 'Sistema temporariamente instável. Pode reformular sua pergunta?',
-        casual: 'Eita! Deu um probleminha aqui. Mas me fala aí, no que posso te ajudar?',
-        empathetic: 'Compreendo que isso pode ser frustrante. Vamos tentar novamente?',
+        professional:
+          'Momentaneamente indisponível. Como posso assistí-lo de outra forma?',
+        friendly:
+          'Ops! Algo deu errado, mas estou aqui para ajudar. Me conte mais sobre o que precisa!',
+        creative:
+          'Hmm, vamos tentar uma abordagem diferente! O que você gostaria de explorar?',
+        analytical:
+          'Sistema temporariamente instável. Pode reformular sua pergunta?',
+        casual:
+          'Eita! Deu um probleminha aqui. Mas me fala aí, no que posso te ajudar?',
+        empathetic:
+          'Compreendo que isso pode ser frustrante. Vamos tentar novamente?',
       };
 
       return fallbackResponses[this.personality] || 'Como posso ajudá-lo hoje?';
@@ -569,7 +744,11 @@ Regras importantes:
         .replaceOne({ _id: this.id }, agentData, { upsert: true });
 
       const hasApiKey = this.openaiApiKey && this.openaiApiKey.trim() !== '';
-      console.log(`✅ AI Agent ${this.id} saved to database - ${hasApiKey ? 'with API key' : 'without API key'}`);
+      console.log(
+        `✅ AI Agent ${this.id} saved to database - ${
+          hasApiKey ? 'with API key' : 'without API key'
+        }`
+      );
     } catch (error) {
       console.error('Error saving AI agent to database:', error);
     }
@@ -601,11 +780,13 @@ Regras importantes:
         agentId: this.id,
         sessionId: this.sessionId,
         createdAt: new Date(),
-        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // 30 days TTL
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days TTL
       };
 
       await db.collection('ai_agent_conversations').insertOne(entryWithAgent);
-      console.log(`💾 Conversation entry saved: ${conversationEntry.type} message for agent ${this.id} in chat ${conversationEntry.chat?.id}`);
+      console.log(
+        `💾 Conversation entry saved: ${conversationEntry.type} message for agent ${this.id} in chat ${conversationEntry.chat?.id}`
+      );
     } catch (error) {
       console.error('Error saving conversation entry:', error);
     }
@@ -615,7 +796,9 @@ Regras importantes:
     try {
       const db = database.getDb();
       if (!db) {
-        console.warn('Database not available, using empty conversation history');
+        console.warn(
+          'Database not available, using empty conversation history'
+        );
         return [];
       }
 
@@ -623,7 +806,7 @@ Regras importantes:
         .collection('ai_agent_conversations')
         .find({
           agentId: this.id,
-          'chat.id': chatId
+          'chat.id': chatId,
         })
         .sort({ createdAt: -1 })
         .limit(limit)
@@ -631,10 +814,14 @@ Regras importantes:
 
       // Log for debugging
       if (conversations.length > 0) {
-        console.log(`📖 Found ${conversations.length} conversation entries for chat ${chatId}`);
+        console.log(
+          `📖 Found ${conversations.length} conversation entries for chat ${chatId}`
+        );
         const oldestMsg = conversations[conversations.length - 1];
         const newestMsg = conversations[0];
-        console.log(`📅 History span: ${oldestMsg.createdAt} to ${newestMsg.createdAt}`);
+        console.log(
+          `📅 History span: ${oldestMsg.createdAt} to ${newestMsg.createdAt}`
+        );
       } else {
         console.log(`📖 No conversation history found for chat ${chatId}`);
       }
@@ -651,7 +838,9 @@ Regras importantes:
     try {
       const db = database.getDb();
       if (!db) {
-        console.warn('Database not available, conversation history not cleared');
+        console.warn(
+          'Database not available, conversation history not cleared'
+        );
         return;
       }
 
@@ -660,8 +849,12 @@ Regras importantes:
         filter['chat.id'] = chatId;
       }
 
-      const result = await db.collection('ai_agent_conversations').deleteMany(filter);
-      console.log(`Cleared ${result.deletedCount} conversation entries for agent ${this.id}`);
+      const result = await db
+        .collection('ai_agent_conversations')
+        .deleteMany(filter);
+      console.log(
+        `Cleared ${result.deletedCount} conversation entries for agent ${this.id}`
+      );
       return result.deletedCount;
     } catch (error) {
       console.error('Error clearing conversation history:', error);
@@ -673,39 +866,59 @@ Regras importantes:
     try {
       const db = database.getDb();
       if (!db) {
-        return { totalMessages: 0, uniqueChats: 0, groupMessages: 0, privateMessages: 0 };
+        return {
+          totalMessages: 0,
+          uniqueChats: 0,
+          groupMessages: 0,
+          privateMessages: 0,
+        };
       }
 
-      const stats = await db.collection('ai_agent_conversations').aggregate([
-        { $match: { agentId: this.id } },
-        {
-          $group: {
-            _id: null,
-            totalMessages: { $sum: 1 },
-            uniqueChats: { $addToSet: '$chat.id' },
-            groupMessages: {
-              $sum: { $cond: [{ $eq: ['$chat.isGroup', true] }, 1, 0] }
+      const stats = await db
+        .collection('ai_agent_conversations')
+        .aggregate([
+          { $match: { agentId: this.id } },
+          {
+            $group: {
+              _id: null,
+              totalMessages: { $sum: 1 },
+              uniqueChats: { $addToSet: '$chat.id' },
+              groupMessages: {
+                $sum: { $cond: [{ $eq: ['$chat.isGroup', true] }, 1, 0] },
+              },
+              privateMessages: {
+                $sum: { $cond: [{ $eq: ['$chat.isGroup', false] }, 1, 0] },
+              },
             },
-            privateMessages: {
-              $sum: { $cond: [{ $eq: ['$chat.isGroup', false] }, 1, 0] }
-            }
-          }
-        },
-        {
-          $project: {
-            _id: 0,
-            totalMessages: 1,
-            uniqueChats: { $size: '$uniqueChats' },
-            groupMessages: 1,
-            privateMessages: 1
-          }
-        }
-      ]).toArray();
+          },
+          {
+            $project: {
+              _id: 0,
+              totalMessages: 1,
+              uniqueChats: { $size: '$uniqueChats' },
+              groupMessages: 1,
+              privateMessages: 1,
+            },
+          },
+        ])
+        .toArray();
 
-      return stats[0] || { totalMessages: 0, uniqueChats: 0, groupMessages: 0, privateMessages: 0 };
+      return (
+        stats[0] || {
+          totalMessages: 0,
+          uniqueChats: 0,
+          groupMessages: 0,
+          privateMessages: 0,
+        }
+      );
     } catch (error) {
       console.error('Error getting conversation stats:', error);
-      return { totalMessages: 0, uniqueChats: 0, groupMessages: 0, privateMessages: 0 };
+      return {
+        totalMessages: 0,
+        uniqueChats: 0,
+        groupMessages: 0,
+        privateMessages: 0,
+      };
     }
   }
 }
@@ -731,24 +944,35 @@ async function loadAgentsFromDatabase() {
         id: agentData._id,
         openaiApiKey: agentData.openaiApiKey || '', // Restaurar API key do banco
       };
-      
+
       const agent = new AIAgent(agentConfig);
       aiAgents.set(agent.id, agent);
-      
-      const hasApiKey = agentData.openaiApiKey && agentData.openaiApiKey.trim() !== '';
-      console.log(`✅ Loaded agent ${agent.id} (${agent.name}) from database - ${hasApiKey ? 'API key restored' : 'API key missing'}`);
-      
+
+      const hasApiKey =
+        agentData.openaiApiKey && agentData.openaiApiKey.trim() !== '';
+      console.log(
+        `✅ Loaded agent ${agent.id} (${agent.name}) from database - ${
+          hasApiKey ? 'API key restored' : 'API key missing'
+        }`
+      );
+
       if (!hasApiKey) {
-        console.warn(`⚠️  Agent ${agent.id} needs API key configuration to function properly`);
+        console.warn(
+          `⚠️  Agent ${agent.id} needs API key configuration to function properly`
+        );
       }
     }
 
-    console.log(`📊 Summary: Loaded ${agentsData.length} AI agents from database`);
-    
+    console.log(
+      `📊 Summary: Loaded ${agentsData.length} AI agents from database`
+    );
+
     // Verificar saúde dos agentes carregados
-    const healthyAgents = agentsData.filter(agent => agent.openaiApiKey && agent.openaiApiKey.trim() !== '').length;
+    const healthyAgents = agentsData.filter(
+      (agent) => agent.openaiApiKey && agent.openaiApiKey.trim() !== ''
+    ).length;
     const unhealthyAgents = agentsData.length - healthyAgents;
-    
+
     console.log(`✅ ${healthyAgents} agents ready (with API keys)`);
     if (unhealthyAgents > 0) {
       console.log(`⚠️  ${unhealthyAgents} agents need API key configuration`);
@@ -763,7 +987,7 @@ function checkAgentHealth(agent) {
   const hasApiKey = agent.openaiApiKey && agent.openaiApiKey.trim() !== '';
   const isActive = agent.isActive;
   const hasAutoReply = agent.autoReply;
-  
+
   return {
     healthy: hasApiKey && isActive && hasAutoReply,
     hasApiKey,
@@ -772,8 +996,8 @@ function checkAgentHealth(agent) {
     issues: [
       !hasApiKey && 'Missing API key',
       !isActive && 'Agent inactive',
-      !hasAutoReply && 'Auto-reply disabled'
-    ].filter(Boolean)
+      !hasAutoReply && 'Auto-reply disabled',
+    ].filter(Boolean),
   };
 }
 
@@ -812,14 +1036,21 @@ async function ensureAgentInMemory(agentId) {
   if (agentData) {
     const agent = new AIAgent(agentData);
     aiAgents.set(agent.id, agent);
-    
-    const hasApiKey = agentData.openaiApiKey && agentData.openaiApiKey.trim() !== '';
-    console.log(`✅ Agent ${agentId} loaded from database to memory - ${hasApiKey ? 'API key restored' : 'API key missing'}`);
-    
+
+    const hasApiKey =
+      agentData.openaiApiKey && agentData.openaiApiKey.trim() !== '';
+    console.log(
+      `✅ Agent ${agentId} loaded from database to memory - ${
+        hasApiKey ? 'API key restored' : 'API key missing'
+      }`
+    );
+
     if (!hasApiKey) {
-      console.warn(`⚠️  Agent ${agentId} needs API key configuration to function properly`);
+      console.warn(
+        `⚠️  Agent ${agentId} needs API key configuration to function properly`
+      );
     }
-    
+
     return agent;
   }
 
@@ -905,7 +1136,7 @@ router.get('/list', (req, res) => {
       const health = checkAgentHealth(agent);
       return {
         ...stats,
-        health: health
+        health: health,
       };
     });
 
@@ -914,10 +1145,10 @@ router.get('/list', (req, res) => {
       agents,
       summary: {
         total: agents.length,
-        healthy: agents.filter(a => a.health.healthy).length,
-        needApiKey: agents.filter(a => !a.health.hasApiKey).length,
-        inactive: agents.filter(a => !a.health.isActive).length,
-      }
+        healthy: agents.filter((a) => a.health.healthy).length,
+        needApiKey: agents.filter((a) => !a.health.hasApiKey).length,
+        inactive: agents.filter((a) => !a.health.isActive).length,
+      },
     });
   } catch (error) {
     console.error('Error listing AI agents:', error);
@@ -1001,15 +1232,15 @@ router.patch('/:agentId/api-key', async (req, res) => {
 router.patch('/:agentId/settings', async (req, res) => {
   try {
     const { agentId } = req.params;
-    const { 
-      replyToGroups, 
-      autoReply, 
-      smartReplies, 
-      name, 
-      description, 
-      personality, 
+    const {
+      replyToGroups,
+      autoReply,
+      smartReplies,
+      name,
+      description,
+      personality,
       specialization,
-      creativity 
+      creativity,
     } = req.body;
 
     // Get agent from memory or database
@@ -1025,7 +1256,9 @@ router.patch('/:agentId/settings', async (req, res) => {
     // Update settings (only update provided values)
     if (replyToGroups !== undefined) {
       agent.replyToGroups = Boolean(replyToGroups);
-      console.log(`Agent ${agentId} replyToGroups updated to: ${agent.replyToGroups}`);
+      console.log(
+        `Agent ${agentId} replyToGroups updated to: ${agent.replyToGroups}`
+      );
     }
     if (autoReply !== undefined) agent.autoReply = Boolean(autoReply);
     if (smartReplies !== undefined) agent.smartReplies = Boolean(smartReplies);
@@ -1171,14 +1404,17 @@ router.get('/:agentId/conversations/:chatId', async (req, res) => {
       });
     }
 
-    const history = await agent.loadConversationHistory(chatId, parseInt(limit));
+    const history = await agent.loadConversationHistory(
+      chatId,
+      parseInt(limit)
+    );
 
     res.json({
       success: true,
       chatId,
       agentId: agent.id,
       conversations: history,
-      total: history.length
+      total: history.length,
     });
   } catch (error) {
     console.error('Error getting conversation history:', error);
@@ -1206,10 +1442,10 @@ router.delete('/:agentId/conversations/:chatId?', async (req, res) => {
 
     res.json({
       success: true,
-      message: chatId 
-        ? `Histórico limpo para o chat ${chatId}` 
+      message: chatId
+        ? `Histórico limpo para o chat ${chatId}`
         : 'Todo histórico de conversas limpo',
-      deletedCount
+      deletedCount,
     });
   } catch (error) {
     console.error('Error clearing conversation history:', error);
@@ -1239,8 +1475,8 @@ router.get('/:agentId/stats', async (req, res) => {
       success: true,
       agent: {
         ...basicStats,
-        conversations: conversationStats
-      }
+        conversations: conversationStats,
+      },
     });
   } catch (error) {
     console.error('Error getting agent stats:', error);
@@ -1255,11 +1491,11 @@ router.get('/:agentId/stats', async (req, res) => {
 router.post('/test-search', async (req, res) => {
   try {
     const { query } = req.body;
-    
+
     if (!query) {
       return res.status(400).json({
         success: false,
-        message: 'Query é obrigatória'
+        message: 'Query é obrigatória',
       });
     }
 
@@ -1270,14 +1506,14 @@ router.post('/test-search', async (req, res) => {
     res.json({
       success: true,
       message: 'Busca realizada com sucesso',
-      data: parsedResult
+      data: parsedResult,
     });
   } catch (error) {
     console.error('Error testing web search:', error);
     res.status(500).json({
       success: false,
       message: 'Erro ao testar busca na internet',
-      error: error.message
+      error: error.message,
     });
   }
 });
@@ -1294,11 +1530,11 @@ async function processWhatsAppMessage(whatsappClient, messageData, sessionId) {
     if (!agent) {
       const db = require('../config/database').getDb();
       if (db) {
-        const agentData = await db.collection('ai_agents').findOne({ 
-          sessionId: sessionId, 
-          isActive: true
+        const agentData = await db.collection('ai_agents').findOne({
+          sessionId: sessionId,
+          isActive: true,
         });
-        
+
         if (agentData) {
           agent = await ensureAgentInMemory(agentData._id);
         }
@@ -1316,21 +1552,40 @@ async function processWhatsAppMessage(whatsappClient, messageData, sessionId) {
     const senderName = messageData.sender?.pushName || 'Usuário';
 
     // Verificação adicional usando funções oficiais da Baileys
-    const { isJidGroup, isJidBroadcast, isJidStatusBroadcast, isJidNewsletter } = require('@whiskeysockets/baileys');
-    const isRealGroup = isJidGroup(chatId) && !isJidBroadcast(chatId) && !isJidStatusBroadcast(chatId) && !isJidNewsletter(chatId);
-    
+    const {
+      isJidGroup,
+      isJidBroadcast,
+      isJidStatusBroadcast,
+      isJidNewsletter,
+    } = require('@whiskeysockets/baileys');
+    const isRealGroup =
+      isJidGroup(chatId) &&
+      !isJidBroadcast(chatId) &&
+      !isJidStatusBroadcast(chatId) &&
+      !isJidNewsletter(chatId);
+
     // Use a verificação mais rigorosa
     const finalIsGroup = isGroup || isRealGroup;
 
-    console.log(`Processing message from ${senderName} in ${finalIsGroup ? 'group' : 'private chat'}: ${chatId}`);
-    console.log(`Group verification: messageData.isGroup=${isGroup}, baileys.isJidGroup=${isRealGroup}, final=${finalIsGroup}`);
+    console.log(
+      `Processing message from ${senderName} in ${
+        finalIsGroup ? 'group' : 'private chat'
+      }: ${chatId}`
+    );
+    console.log(
+      `Group verification: messageData.isGroup=${isGroup}, baileys.isJidGroup=${isRealGroup}, final=${finalIsGroup}`
+    );
 
     // Skip if this is a group message and agent doesn't want to reply to groups
     if (finalIsGroup && !agent.replyToGroups) {
-      console.log(`🚫 Agent ${agent.id} SKIPPING group message from ${chatId} (replyToGroups: false)`);
+      console.log(
+        `🚫 Agent ${agent.id} SKIPPING group message from ${chatId} (replyToGroups: false)`
+      );
       return null;
     } else if (finalIsGroup) {
-      console.log(`✅ Agent ${agent.id} PROCESSING group message from ${chatId} (replyToGroups: true)`);
+      console.log(
+        `✅ Agent ${agent.id} PROCESSING group message from ${chatId} (replyToGroups: true)`
+      );
     }
 
     // Process message with AI agent using rich message data
@@ -1340,36 +1595,46 @@ async function processWhatsAppMessage(whatsappClient, messageData, sessionId) {
       try {
         // Delay aleatório de 5-10 segundos antes da resposta
         const responseDelay = 5000 + Math.random() * 5000; // 5-10 segundos
-        console.log(`AI agent ${agent.id} aguardando ${Math.round(responseDelay/1000)}s antes de responder...`);
-        await new Promise(resolve => setTimeout(resolve, responseDelay));
-        
+        console.log(
+          `AI agent ${agent.id} aguardando ${Math.round(
+            responseDelay / 1000
+          )}s antes de responder...`
+        );
+        await new Promise((resolve) => setTimeout(resolve, responseDelay));
+
         // Show typing indicator
         await whatsappClient.sendPresenceUpdate('composing', chatId);
-        
+
         // Simulate typing time based on response length
-        const typingTime = Math.min(Math.max(result.response.length * 50, 1000), 8000);
-        await new Promise(resolve => setTimeout(resolve, typingTime));
-        
+        const typingTime = Math.min(
+          Math.max(result.response.length * 50, 1000),
+          8000
+        );
+        await new Promise((resolve) => setTimeout(resolve, typingTime));
+
         // Send reply message with proper quoting
         const replyOptions = {};
-        
+
         if (result.replyToMessageId) {
           replyOptions.quoted = {
             key: {
               id: result.replyToMessageId,
               fromMe: false,
               remoteJid: chatId,
-              participant: isGroup ? messageData.sender?.id : undefined
+              participant: isGroup ? messageData.sender?.id : undefined,
             },
             message: {
-              conversation: messageData.content || messageData.text || messageData.body
-            }
+              conversation:
+                messageData.content || messageData.text || messageData.body,
+            },
           };
         }
-        
+
         // Log informativo sobre resposta a múltiplas mensagens
         if (messageData.isMultiPart) {
-          console.log(`Respondendo à sequência de ${messageData.partCount} mensagens de ${senderName}`);
+          console.log(
+            `Respondendo à sequência de ${messageData.partCount} mensagens de ${senderName}`
+          );
         }
 
         await whatsappClient.sendMessage(
@@ -1377,18 +1642,24 @@ async function processWhatsAppMessage(whatsappClient, messageData, sessionId) {
           { text: result.response },
           replyOptions
         );
-        
+
         // Update presence to available
         await whatsappClient.sendPresenceUpdate('available');
 
-        console.log(`AI response sent to ${chatId} (${isGroup ? 'group' : 'private'}): ${result.response.substring(0, 100)}...`);
+        console.log(
+          `AI response sent to ${chatId} (${
+            isGroup ? 'group' : 'private'
+          }): ${result.response.substring(0, 100)}...`
+        );
         return result;
       } catch (sendError) {
         console.error('Error sending WhatsApp message:', sendError);
         return null;
       }
     } else {
-      console.log(`Agent ${agent.id} chose not to reply to message from ${senderName}`);
+      console.log(
+        `Agent ${agent.id} chose not to reply to message from ${senderName}`
+      );
     }
 
     return result;
@@ -1399,13 +1670,13 @@ async function processWhatsAppMessage(whatsappClient, messageData, sessionId) {
 }
 
 // Export the AI Agent class, agents map and helper functions for use in other modules
-module.exports = { 
-  router, 
-  AIAgent, 
-  aiAgents, 
-  processWhatsAppMessage, 
+module.exports = {
+  router,
+  AIAgent,
+  aiAgents,
+  processWhatsAppMessage,
   ensureAgentInMemory,
   loadAgentsFromDatabase,
   getAgentFromDatabase,
-  checkAgentHealth
+  checkAgentHealth,
 };

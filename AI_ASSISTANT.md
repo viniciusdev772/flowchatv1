@@ -41,6 +41,7 @@ npm run dev
 A assistente pode realizar as seguintes operações:
 
 ### 📱 Gerenciamento de Sessões
+
 - ✅ Criar novas sessões WhatsApp
 - ✅ Listar todas as sessões ativas
 - ✅ Deletar sessões específicas
@@ -48,21 +49,25 @@ A assistente pode realizar as seguintes operações:
 - ✅ Obter QR codes para autenticação
 
 ### 💬 Mensagens
+
 - ✅ Enviar mensagens para números específicos
 - ✅ Buscar mensagens (em desenvolvimento)
 - ✅ Verificar histórico de conversas
 
 ### 👥 Grupos
+
 - ✅ Listar grupos da sessão
 - ✅ Criar novos grupos
 - ✅ Gerenciar participantes
 
 ### 🔗 Webhooks
+
 - ✅ Configurar webhooks para eventos
 - ✅ Definir prioridades de webhook
 - ✅ Gerenciar URLs de callback
 
 ### 📊 Sistema
+
 - ✅ Obter informações do sistema
 - ✅ Verificar estatísticas de uso
 - ✅ Monitorar performance
@@ -70,11 +75,13 @@ A assistente pode realizar as seguintes operações:
 ## 💻 Como Usar
 
 ### Acesso Direto
+
 Visite: `http://localhost:3000/ai`
 
 ### Exemplos de Comandos
 
 #### Gerenciamento de Sessões
+
 ```
 "Criar uma nova sessão chamada 'vendas'"
 "Listar todas as sessões ativas"
@@ -84,24 +91,28 @@ Visite: `http://localhost:3000/ai`
 ```
 
 #### Envio de Mensagens
+
 ```
 "Enviar 'Olá!' para o número 5511999999999 usando a sessão 'vendas'"
 "Mandar uma mensagem de boas vindas para +55 11 98888-7777"
 ```
 
 #### Grupos WhatsApp
+
 ```
 "Criar um grupo chamado 'Equipe Vendas' com os números: 5511999999999, 5511888888888"
 "Listar todos os grupos da sessão 'vendas'"
 ```
 
 #### Webhooks
+
 ```
 "Configurar webhook https://meusite.com/webhook para a sessão 'vendas'"
 "Definir webhook com prioridade 1 para receber eventos"
 ```
 
 #### Sistema
+
 ```
 "Como está o sistema?"
 "Quantas sessões estão ativas?"
@@ -111,6 +122,7 @@ Visite: `http://localhost:3000/ai`
 ## 🔧 API Endpoints
 
 ### POST /api/management/ai/chat
+
 Endpoint principal para conversar com a IA
 
 ```javascript
@@ -122,14 +134,17 @@ Endpoint principal para conversar com a IA
 ```
 
 ### GET /api/management/ai/tools
+
 Lista todas as ferramentas disponíveis
 
 ### GET /api/management/ai/health
+
 Verifica saúde da assistente de IA
 
 ## 🎨 Interface
 
 ### Recursos da UI
+
 - **Streaming em Tempo Real**: Texto aparece gradualmente como no ChatGPT
 - **Animações de Pensamento**: Indicadores visuais quando a IA está processando
 - **Execução de Tools**: Visualização em tempo real das ações executadas
@@ -138,6 +153,7 @@ Verifica saúde da assistente de IA
 - **Parar Streaming**: Possibilidade de interromper respostas longas
 
 ### Indicadores Visuais
+
 - 🤖 **Avatar da IA**: Indica mensagens da assistente
 - ⚡ **Indicador de Pensamento**: Quando a IA está processando
 - 🔧 **Execução de Tools**: Mostra ações sendo executadas
@@ -155,6 +171,7 @@ Verifica saúde da assistente de IA
 ## 🔍 Debugging
 
 ### Logs da IA
+
 ```bash
 # Ver logs da assistente
 npm run dev
@@ -167,11 +184,13 @@ npm run dev
 ```
 
 ### Verificar Saúde
+
 ```bash
 curl http://localhost:3000/api/management/ai/health
 ```
 
 ### Testar Tools Manualmente
+
 ```bash
 curl -X GET http://localhost:3000/api/management/ai/tools
 ```
@@ -179,12 +198,14 @@ curl -X GET http://localhost:3000/api/management/ai/tools
 ## 🚨 Resolução de Problemas
 
 ### IA Não Responde
+
 1. Verificar se OPENAI_API_KEY está configurada
 2. Confirmar conexão com internet
 3. Verificar logs do servidor
 4. Testar endpoint de health
 
 ### Erro de Autenticação OpenAI
+
 ```bash
 # Verificar se a chave é válida
 curl -H "Authorization: Bearer $OPENAI_API_KEY" \
@@ -192,6 +213,7 @@ curl -H "Authorization: Bearer $OPENAI_API_KEY" \
 ```
 
 ### Tools Não Funcionam
+
 1. Verificar se as rotas da API Baileys estão funcionando
 2. Testar endpoints manualmente
 3. Verificar logs de erro
@@ -200,6 +222,7 @@ curl -H "Authorization: Bearer $OPENAI_API_KEY" \
 ## 📈 Performance
 
 ### Otimizações Implementadas
+
 - **Streaming**: Respostas em tempo real para melhor UX
 - **Cache de Ferramentas**: Tools são carregadas uma única vez
 - **Validação Eficiente**: Schemas Zod otimizados
@@ -207,6 +230,7 @@ curl -H "Authorization: Bearer $OPENAI_API_KEY" \
 - **Memory Management**: Limpeza automática de recursos
 
 ### Monitoramento
+
 - Tempo de resposta da IA
 - Uso de tokens OpenAI
 - Taxa de sucesso das operações
@@ -215,15 +239,17 @@ curl -H "Authorization: Bearer $OPENAI_API_KEY" \
 ## 🔮 Roadmap
 
 ### Próximas Funcionalidades
+
 - [ ] Busca inteligente em mensagens
 - [ ] Análise de sentimentos
 - [ ] Agendamento de mensagens
 - [ ] Relatórios automáticos
-- [ ] Integração com ChatGPT-4 Vision
+- [ ] Integração com Chatgpt-4.1 Vision
 - [ ] Suporte a múltiplos idiomas
 - [ ] Templates de mensagens IA
 
 ### Melhorias Planejadas
+
 - [ ] Voice-to-text para comandos
 - [ ] Sugestões contextuais
 - [ ] Histórico persistente
