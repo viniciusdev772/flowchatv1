@@ -1,10 +1,13 @@
 const express = require('express');
 const { z } = require('zod');
 const database = require('../config/database');
+const WebSearchEngine = require('../utils/webSearch');
+const WebScraper = require('../utils/webScraper');
+const HtmlAnalyzer = require('../utils/htmlAnalyzer');
+const ZipGenerator = require('../utils/zipGenerator');
 const router = express.Router();
 
-// In-memory storage for AI agents (cache for performance)
-const aiAgents = new Map();
+// Using MongoDB only - no in-memory storage
 
 // Zod validation schemas
 const createAgentSchema = z.object({
@@ -33,14 +36,51 @@ const createAgentSchema = z.object({
   autoReply: z.boolean(),
   smartReplies: z.boolean(),
   openaiApiKey: z.string().min(1, 'Chave da API OpenAI é obrigatória'),
-  tools: z.array(z.string()).default(['web_search', 'web_scrape', 'html_analysis']),
+  tools: z.array(z.string()).default(['web_search', 'web_scrape', 'html_analysis', 'generate_zip']),
   replyToGroups: z.boolean().default(true), // Nova opção para responder grupos
 });
 
 // Web Search Tool - now implemented directly in OpenAI SDK calls
 
-// Enhanced web search with multiple sources
+// Initialize utility instances
+const webSearchEngine = new WebSearchEngine({
+  timeout: 12000,
+  maxRetries: 2,
+  maxResultsPerSource: 6,
+  maxTotalResults: 12
+});
+
+const webScraper = new WebScraper({
+  timeout: 25000,
+  maxRetries: 3
+});
+
+const htmlAnalyzer = new HtmlAnalyzer({
+  timeout: 25000,
+  maxRetries: 3
+});
+
+const zipGenerator = new ZipGenerator({
+  outputDir: require('path').join(process.cwd(), 'downloads', 'exports'),
+  compressionLevel: 6
+});
+
+// Enhanced web search with multiple sources and robust error handling
 async function executeWebSearch(query) {
+  try {
+    console.log(`🔍 Starting enhanced multi-source search for: "${query}"`);
+    const searchResults = await webSearchEngine.search(query);
+    console.log(`✅ Search completed: ${searchResults.total} results from ${searchResults.sources.length} sources`);
+    return JSON.stringify(searchResults);
+  } catch (error) {
+    console.error(`❌ Enhanced search failed: ${error.message}`);
+    // Fallback to basic search
+    return await executeBasicWebSearch(query);
+  }
+}
+
+// Fallback basic web search
+async function executeBasicWebSearch(query) {
   const fetch = require('node-fetch');
   const cheerio = require('cheerio');
   
@@ -56,8 +96,24 @@ async function executeWebSearch(query) {
     'Upgrade-Insecure-Requests': '1',
   };
 
-// Web scraping tool - downloads and analyzes website content
+// Enhanced web scraping with robust error handling and multiple strategies  
 async function executeWebScrape(url) {
+  try {
+    console.log(`🌐 Starting enhanced web scraping for: "${url}"`);
+    const scrapedData = await webScraper.scrapeWithRetry(url, {
+      includeRawHtml: true // Include raw HTML for ZIP generation
+    });
+    console.log(`✅ Scraping completed using strategy: ${scrapedData.strategy}`);
+    return JSON.stringify(scrapedData);
+  } catch (error) {
+    console.error(`❌ Enhanced scraping failed: ${error.message}`);
+    // Fallback to basic scraping
+    return await executeBasicWebScrape(url);
+  }
+}
+
+// Fallback basic web scraping
+async function executeBasicWebScrape(url) {
   const fetch = require('node-fetch');
   const cheerio = require('cheerio');
   
@@ -170,6 +226,7 @@ async function executeWebScrape(url) {
   }
 }
 
+
 // Helper function to extract main content from HTML
 function extractMainContent($) {
   // Try different strategies to find main content
@@ -212,65 +269,45 @@ function extractMainContent($) {
   return mainContent.substring(0, 2000) + (mainContent.length > 2000 ? '...' : '');
 }
 
-// HTML analysis tool - analyzes HTML structure and extracts specific information
+// Enhanced HTML analysis with specialized parsers
 async function executeHtmlAnalysis(url, analysisType = 'general') {
-  const fetch = require('node-fetch');
-  const cheerio = require('cheerio');
-  
-  console.log(`🔍 AI Agent analyzing HTML structure for: "${url}" (type: ${analysisType})`);
-  
-  const headers = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-    'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
-  };
-
   try {
-    const response = await fetch(url, { headers, timeout: 15000 });
-    
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-
-    const html = await response.text();
-    const $ = cheerio.load(html);
-    
-    let analysis = {};
-    
-    switch (analysisType) {
-      case 'news':
-        analysis = analyzeNewsArticle($);
-        break;
-      case 'ecommerce':
-        analysis = analyzeEcommercePage($);
-        break;
-      case 'contact':
-        analysis = analyzeContactInfo($);
-        break;
-      case 'social':
-        analysis = analyzeSocialMedia($);
-        break;
-      case 'forms':
-        analysis = analyzeForms($);
-        break;
-      default:
-        analysis = analyzeGeneralStructure($);
-    }
-    
-    analysis.url = url;
-    analysis.analysisType = analysisType;
-    analysis.timestamp = new Date().toISOString();
-    
+    console.log(`🔍 Starting HTML analysis for: "${url}" (type: ${analysisType})`);
+    const analysisResult = await htmlAnalyzer.analyze(url, analysisType);
     console.log(`✅ HTML analysis completed for ${analysisType} analysis`);
-    
-    return JSON.stringify(analysis);
-    
+    return JSON.stringify(analysisResult);
   } catch (error) {
     console.error(`❌ HTML analysis failed: ${error.message}`);
     return JSON.stringify({
       error: error.message,
       url: url,
       analysisType: analysisType,
+      timestamp: new Date().toISOString()
+    });
+  }
+}
+
+// Generate ZIP file with scraped data or search results
+async function generateZipFile(data, type = 'scraping') {
+  try {
+    console.log(`📦 Generating ZIP file for ${type} data`);
+    let zipResult;
+    
+    if (type === 'scraping' && data.url) {
+      zipResult = await zipGenerator.generateScrapingZip(data);
+    } else if (type === 'search' && data.query) {
+      zipResult = await zipGenerator.generateSearchZip(data);
+    } else {
+      throw new Error('Invalid data type for ZIP generation. Requires scraping data with URL or search data with query.');
+    }
+    
+    console.log(`✅ ZIP file created: ${zipResult.fileName}`);
+    return JSON.stringify(zipResult);
+  } catch (error) {
+    console.error(`❌ ZIP generation failed: ${error.message}`);
+    return JSON.stringify({
+      error: error.message,
+      type: type,
       timestamp: new Date().toISOString()
     });
   }
@@ -1072,6 +1109,10 @@ Ferramentas disponíveis:
   Use quando precisar de: análise especializada (notícias, e-commerce, contatos, redes sociais, formulários)
   Tipos disponíveis: 'news', 'ecommerce', 'contact', 'social', 'forms', 'general'
 
+- generate_zip: Gera arquivo ZIP com dados coletados para download
+  Use quando o usuário solicitar: exportação de dados, arquivo ZIP, download de resultados
+  Tipos disponíveis: 'scraping' (dados de site), 'search' (resultados de pesquisa)
+
 IMPORTANTE: Quando decidir usar uma ferramenta, informe ao usuário que está processando a solicitação antes de executar.
 
 Regras importantes:
@@ -1234,6 +1275,28 @@ Regras importantes:
                       }
                     },
                     required: ["url"]
+                  }
+                }
+              },
+              {
+                type: "function",
+                function: {
+                  name: "generate_zip",
+                  description: "Gera um arquivo ZIP com dados de scraping ou pesquisa para download. Use quando o usuário solicitar um arquivo ZIP, exportação ou download de dados coletados.",
+                  parameters: {
+                    type: "object",
+                    properties: {
+                      data: {
+                        type: "string",
+                        description: "Dados em formato JSON string para incluir no ZIP"
+                      },
+                      type: {
+                        type: "string",
+                        description: "Tipo de dados: 'scraping' para dados de site ou 'search' para resultados de pesquisa",
+                        enum: ["scraping", "search"]
+                      }
+                    },
+                    required: ["data", "type"]
                   }
                 }
               }
@@ -1437,6 +1500,75 @@ Regras importantes:
                   
                   await this.sendToolNotification(
                     `✅ Análise HTML concluída!\n📋 Tipo: ${analysisType}\n${analysisInfo}`,
+                    conversationEntry.chat.id,
+                    whatsappClient
+                  );
+                }
+                
+              } else if (toolCall.function.name === 'generate_zip') {
+                const args = JSON.parse(toolCall.function.arguments);
+                const dataType = args.type || 'scraping';
+                console.log(
+                  `📦 Model requested ZIP generation: type ${dataType}`
+                );
+                
+                // Send notification to user that ZIP generation is starting
+                await this.sendToolNotification(
+                  `📦 Gerando arquivo ZIP para download...\n📋 Tipo: ${dataType}\n⏳ Preparando dados para exportação`,
+                  conversationEntry.chat.id,
+                  whatsappClient
+                );
+                
+                try {
+                  const data = JSON.parse(args.data);
+                  toolResult = await executeZipGeneration(data, dataType);
+                  
+                  // Parse results to get info
+                  const zipData = JSON.parse(toolResult);
+                  
+                  console.log(
+                    `✅ ZIP generation completed: ${zipData.fileName}`
+                  );
+                  
+                  // Save tool call to conversation history for context
+                  const toolCallEntry = {
+                    type: 'tool_call',
+                    toolName: toolCall.function.name,
+                    toolArgs: args,
+                    toolResult: zipData,
+                    timestamp: new Date().toISOString(),
+                    chat: conversationEntry.chat,
+                    agentId: this.id,
+                    sessionId: this.sessionId
+                  };
+                  await this.saveConversationEntry(toolCallEntry);
+                  
+                  // Small delay before completion notification
+                  await new Promise(resolve => setTimeout(resolve, 1000));
+                  
+                  // Send completion notification with download link
+                  if (zipData.success) {
+                    await this.sendToolNotification(
+                      `✅ Arquivo ZIP criado com sucesso!\n📁 Nome: ${zipData.fileName}\n💾 Tamanho: ${Math.round(zipData.size / 1024)} KB\n🔗 Download: ${zipData.downloadUrl}`,
+                      conversationEntry.chat.id,
+                      whatsappClient
+                    );
+                  } else {
+                    await this.sendToolNotification(
+                      `❌ Erro ao gerar ZIP:\n${zipData.error}`,
+                      conversationEntry.chat.id,
+                      whatsappClient
+                    );
+                  }
+                } catch (parseError) {
+                  console.error('Error parsing ZIP data:', parseError);
+                  toolResult = JSON.stringify({
+                    success: false,
+                    error: 'Erro ao processar dados para ZIP'
+                  });
+                  
+                  await this.sendToolNotification(
+                    `❌ Erro ao processar dados para ZIP: ${parseError.message}`,
                     conversationEntry.chat.id,
                     whatsappClient
                   );
@@ -2051,61 +2183,25 @@ Regras importantes:
 }
 
 // Database helper functions
-async function loadAgentsFromDatabase() {
+async function getAllAgentsFromDatabase() {
   try {
     const db = database.getDb();
-    if (!db) {
-      console.log('Database not available, using memory-only agents');
-      return;
-    }
+    if (!db) return [];
 
-    const agentsData = await db
+    const agents = await db
       .collection('ai_agents')
-      .find({ isActive: true })
+      .find({})
+      .sort({ createdAt: -1 })
       .toArray();
 
-    for (const agentData of agentsData) {
-      // Criar agente com API key restaurada do banco de dados
-      const agentConfig = {
-        ...agentData,
-        id: agentData._id,
-        openaiApiKey: agentData.openaiApiKey || '', // Restaurar API key do banco
-      };
-
-      const agent = new AIAgent(agentConfig);
-      aiAgents.set(agent.id, agent);
-
-      const hasApiKey =
-        agentData.openaiApiKey && agentData.openaiApiKey.trim() !== '';
-      console.log(
-        `✅ Loaded agent ${agent.id} (${agent.name}) from database - ${
-          hasApiKey ? 'API key restored' : 'API key missing'
-        }`
-      );
-
-      if (!hasApiKey) {
-        console.warn(
-          `⚠️  Agent ${agent.id} needs API key configuration to function properly`
-        );
-      }
-    }
-
-    console.log(
-      `📊 Summary: Loaded ${agentsData.length} AI agents from database`
-    );
-
-    // Verificar saúde dos agentes carregados
-    const healthyAgents = agentsData.filter(
-      (agent) => agent.openaiApiKey && agent.openaiApiKey.trim() !== ''
-    ).length;
-    const unhealthyAgents = agentsData.length - healthyAgents;
-
-    console.log(`✅ ${healthyAgents} agents ready (with API keys)`);
-    if (unhealthyAgents > 0) {
-      console.log(`⚠️  ${unhealthyAgents} agents need API key configuration`);
-    }
+    return agents.map(agentData => new AIAgent({
+      ...agentData,
+      id: agentData._id,
+      openaiApiKey: agentData.openaiApiKey || '',
+    }));
   } catch (error) {
-    console.error('Error loading agents from database:', error);
+    console.error('Error getting all agents from database:', error);
+    return [];
   }
 }
 
@@ -2152,36 +2248,57 @@ async function getAgentFromDatabase(agentId) {
   }
 }
 
-// Function to ensure agent exists in memory (load from DB if needed)
-async function ensureAgentInMemory(agentId) {
-  if (aiAgents.has(agentId)) {
-    return aiAgents.get(agentId);
+// Function to get agent from database (no memory caching)
+async function getAgentFromDatabase(agentId) {
+  try {
+    const db = database.getDb();
+    if (!db) return null;
+
+    const agentData = await db
+      .collection('ai_agents')
+      .findOne({ _id: agentId });
+
+    if (agentData) {
+      return new AIAgent({
+        ...agentData,
+        id: agentData._id,
+        openaiApiKey: agentData.openaiApiKey || '',
+      });
+    }
+    return null;
+  } catch (error) {
+    console.error('Error getting agent from database:', error);
+    return null;
   }
+}
 
-  // Try to load from database
-  const agentData = await getAgentFromDatabase(agentId);
-  if (agentData) {
-    const agent = new AIAgent(agentData);
-    aiAgents.set(agent.id, agent);
+// Function to find agent by sessionId
+async function findAgentBySessionId(sessionId, activeOnly = true) {
+  try {
+    const db = database.getDb();
+    if (!db) return null;
 
-    const hasApiKey =
-      agentData.openaiApiKey && agentData.openaiApiKey.trim() !== '';
-    console.log(
-      `✅ Agent ${agentId} loaded from database to memory - ${
-        hasApiKey ? 'API key restored' : 'API key missing'
-      }`
-    );
-
-    if (!hasApiKey) {
-      console.warn(
-        `⚠️  Agent ${agentId} needs API key configuration to function properly`
-      );
+    const query = { sessionId: sessionId };
+    if (activeOnly) {
+      query.isActive = true;
     }
 
-    return agent;
-  }
+    const agentData = await db
+      .collection('ai_agents')
+      .findOne(query);
 
-  return null;
+    if (agentData) {
+      return new AIAgent({
+        ...agentData,
+        id: agentData._id,
+        openaiApiKey: agentData.openaiApiKey || '',
+      });
+    }
+    return null;
+  } catch (error) {
+    console.error('Error finding agent by sessionId:', error);
+    return null;
+  }
 }
 
 async function saveAgentToDatabase(agent) {
@@ -2200,8 +2317,7 @@ async function deleteAgentFromDatabase(agentId) {
   }
 }
 
-// Initialize agents from database on startup
-loadAgentsFromDatabase();
+// No initialization needed - agents loaded from database on demand
 
 // Routes
 
@@ -2212,9 +2328,7 @@ router.post('/create', async (req, res) => {
     const validatedData = createAgentSchema.parse(req.body);
 
     // Check if agent already exists for this session
-    const existingAgent = Array.from(aiAgents.values()).find(
-      (agent) => agent.sessionId === validatedData.sessionId && agent.isActive
-    );
+    const existingAgent = await findAgentBySessionId(validatedData.sessionId, true);
 
     if (existingAgent) {
       return res.status(400).json({
@@ -2225,7 +2339,6 @@ router.post('/create', async (req, res) => {
 
     // Create new AI agent
     const agent = new AIAgent(validatedData);
-    aiAgents.set(agent.id, agent);
 
     // Save to database
     await saveAgentToDatabase(agent);
@@ -2256,9 +2369,10 @@ router.post('/create', async (req, res) => {
 });
 
 // List AI Agents
-router.get('/list', (req, res) => {
+router.get('/list', async (req, res) => {
   try {
-    const agents = Array.from(aiAgents.values()).map((agent) => {
+    const agentInstances = await getAllAgentsFromDatabase();
+    const agents = agentInstances.map((agent) => {
       const stats = agent.getStats();
       const health = checkAgentHealth(agent);
       return {
@@ -2289,7 +2403,7 @@ router.get('/list', (req, res) => {
 // Get AI Agent by ID
 router.get('/:agentId', async (req, res) => {
   try {
-    const agent = await ensureAgentInMemory(req.params.agentId);
+    const agent = await getAgentFromDatabase(req.params.agentId);
 
     if (!agent) {
       return res.status(404).json({
@@ -2325,7 +2439,7 @@ router.patch('/:agentId/api-key', async (req, res) => {
     }
 
     // Get agent from memory or database
-    let agent = await ensureAgentInMemory(agentId);
+    let agent = await getAgentFromDatabase(agentId);
 
     if (!agent) {
       return res.status(404).json({
@@ -2371,7 +2485,7 @@ router.patch('/:agentId/settings', async (req, res) => {
     } = req.body;
 
     // Get agent from memory or database
-    let agent = await ensureAgentInMemory(agentId);
+    let agent = await getAgentFromDatabase(agentId);
 
     if (!agent) {
       return res.status(404).json({
@@ -2417,7 +2531,7 @@ router.patch('/:agentId/settings', async (req, res) => {
 // Deactivate AI Agent
 router.patch('/:agentId/deactivate', async (req, res) => {
   try {
-    const agent = await ensureAgentInMemory(req.params.agentId);
+    const agent = await getAgentFromDatabase(req.params.agentId);
 
     if (!agent) {
       return res.status(404).json({
@@ -2445,9 +2559,10 @@ router.patch('/:agentId/deactivate', async (req, res) => {
 router.delete('/:agentId', async (req, res) => {
   try {
     const agentId = req.params.agentId;
-    const deleted = aiAgents.delete(agentId);
-
-    if (!deleted) {
+    
+    // Check if agent exists in database
+    const agent = await getAgentFromDatabase(agentId);
+    if (!agent) {
       return res.status(404).json({
         success: false,
         message: 'Agente não encontrado',
@@ -2483,9 +2598,7 @@ router.post('/process-message', async (req, res) => {
     }
 
     // Find active agent for this session
-    const agent = Array.from(aiAgents.values()).find(
-      (agent) => agent.sessionId === sessionId && agent.isActive
-    );
+    const agent = await findAgentBySessionId(sessionId, true);
 
     if (!agent) {
       return res.status(404).json({
@@ -2520,7 +2633,7 @@ router.post('/process-message', async (req, res) => {
 // Get agent conversation history
 router.get('/:agentId/conversations/:chatId', async (req, res) => {
   try {
-    const agent = await ensureAgentInMemory(req.params.agentId);
+    const agent = await getAgentFromDatabase(req.params.agentId);
     const { chatId } = req.params;
     const { limit = 50 } = req.query;
 
@@ -2555,7 +2668,7 @@ router.get('/:agentId/conversations/:chatId', async (req, res) => {
 // Clear agent conversation history
 router.delete('/:agentId/conversations/:chatId?', async (req, res) => {
   try {
-    const agent = await ensureAgentInMemory(req.params.agentId);
+    const agent = await getAgentFromDatabase(req.params.agentId);
     const { chatId } = req.params;
 
     if (!agent) {
@@ -2586,7 +2699,7 @@ router.delete('/:agentId/conversations/:chatId?', async (req, res) => {
 // Get agent conversation statistics
 router.get('/:agentId/stats', async (req, res) => {
   try {
-    const agent = await ensureAgentInMemory(req.params.agentId);
+    const agent = await getAgentFromDatabase(req.params.agentId);
 
     if (!agent) {
       return res.status(404).json({
@@ -2649,24 +2762,7 @@ router.post('/test-search', async (req, res) => {
 async function processWhatsAppMessage(whatsappClient, messageData, sessionId) {
   try {
     // Find active agent for this session
-    let agent = Array.from(aiAgents.values()).find(
-      (agent) => agent.sessionId === sessionId && agent.isActive
-    );
-
-    // If no agent in memory, try to load from database
-    if (!agent) {
-      const db = require('../config/database').getDb();
-      if (db) {
-        const agentData = await db.collection('ai_agents').findOne({
-          sessionId: sessionId,
-          isActive: true,
-        });
-
-        if (agentData) {
-          agent = await ensureAgentInMemory(agentData._id);
-        }
-      }
-    }
+    let agent = await findAgentBySessionId(sessionId, true);
 
     if (!agent) {
       console.log(`No active agent found for session: ${sessionId}`);
@@ -2796,14 +2892,73 @@ async function processWhatsAppMessage(whatsappClient, messageData, sessionId) {
   }
 }
 
-// Export the AI Agent class, agents map and helper functions for use in other modules
+// Download ZIP files endpoint
+router.get('/download/:fileName', async (req, res) => {
+  try {
+    const { fileName } = req.params;
+    const path = require('path');
+    const fs = require('fs').promises;
+    
+    // Validate file name for security
+    if (!fileName.match(/^[a-zA-Z0-9_-]+\.zip$/)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Nome de arquivo inválido'
+      });
+    }
+    
+    const filePath = path.join(process.cwd(), 'downloads', 'exports', fileName);
+    
+    // Check if file exists
+    try {
+      await fs.access(filePath);
+    } catch (error) {
+      return res.status(404).json({
+        success: false,
+        message: 'Arquivo não encontrado'
+      });
+    }
+    
+    // Get file stats
+    const stats = await fs.stat(filePath);
+    
+    // Set headers for download
+    res.setHeader('Content-Type', 'application/zip');
+    res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+    res.setHeader('Content-Length', stats.size);
+    res.setHeader('Cache-Control', 'public, max-age=3600'); // 1 hour cache
+    
+    // Stream file
+    const fileStream = require('fs').createReadStream(filePath);
+    fileStream.pipe(res);
+    
+    console.log(`📦 File downloaded: ${fileName} (${stats.size} bytes)`);
+    
+  } catch (error) {
+    console.error('Error serving download:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao baixar arquivo'
+    });
+  }
+});
+
+// Cleanup old ZIP files (run periodically)
+setInterval(async () => {
+  try {
+    await zipGenerator.cleanupOldFiles();
+  } catch (error) {
+    console.error('Error during ZIP cleanup:', error);
+  }
+}, 24 * 60 * 60 * 1000); // Run daily
+
+// Export the AI Agent class and helper functions for use in other modules
 module.exports = {
   router,
   AIAgent,
-  aiAgents,
   processWhatsAppMessage,
-  ensureAgentInMemory,
-  loadAgentsFromDatabase,
   getAgentFromDatabase,
+  findAgentBySessionId,
+  getAllAgentsFromDatabase,
   checkAgentHealth,
 };

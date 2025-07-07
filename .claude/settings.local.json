@@ -23,7 +23,9 @@
       "Bash(npm update)",
       "Bash(npm test)",
       "Bash(find:*)",
-      "WebFetch(domain:platform.openai.com)"
+      "WebFetch(domain:platform.openai.com)",
+      "Bash(mkdir:*)",
+      "Bash(timeout:*)"
     ],
     "deny": []
   },
