@@ -37,101 +37,115 @@ const createAgentSchema = z.object({
   replyToGroups: z.boolean().default(true), // Nova opção para responder grupos
 });
 
-// AI Tools implementation
-class AITools {
-  constructor() {
-    this.tools = {
-      web_search: this.webSearch.bind(this),
-    };
-  }
-
-  async webSearch(query, options = {}) {
-    try {
-      const fetch = require('node-fetch');
-      const cheerio = require('cheerio');
-
-      // Use SerpAPI if available, otherwise fallback to basic search
-      if (process.env.SERPAPI_KEY) {
-        const serpApiUrl = `https://serpapi.com/search.json?q=${encodeURIComponent(
-          query
-        )}&api_key=${process.env.SERPAPI_KEY}&num=5`;
-        const response = await fetch(serpApiUrl);
-        const data = await response.json();
-
-        return {
-          query,
-          results:
-            data.organic_results?.map((result) => ({
-              title: result.title,
-              snippet: result.snippet,
-              url: result.link,
-              source: 'serpapi',
-            })) || [],
-          timestamp: new Date().toISOString(),
-        };
-      } else {
-        // Fallback: basic web scraping (limited)
-        const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(
-          query
-        )}`;
-        const response = await fetch(searchUrl, {
-          headers: {
-            'User-Agent':
-              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-          },
-        });
-
-        const html = await response.text();
-        const $ = cheerio.load(html);
-
-        const results = [];
-        $('.g').each((i, elem) => {
-          if (i >= 5) return false; // Limit to 5 results
-
-          const title = $(elem).find('h3').text();
-          const snippet =
-            $(elem).find('.VwiC3b').text() || $(elem).find('.s3v9rd').text();
-          const url = $(elem).find('a').attr('href');
-
-          if (title && snippet && url) {
-            results.push({
-              title,
-              snippet,
-              url: url.startsWith('/url?q=')
-                ? decodeURIComponent(url.split('/url?q=')[1].split('&')[0])
-                : url,
-              source: 'fallback',
-            });
-          }
-        });
-
-        return {
-          query,
-          results,
-          timestamp: new Date().toISOString(),
-        };
+// Web Search Tool using DuckDuckGo
+const webSearchTool = {
+  name: 'web_search',
+  description: 'Busca informações atualizadas na internet via DuckDuckGo. Use quando precisar de informações atuais, notícias, preços, eventos, clima, etc.',
+  parameters: {
+    type: 'object',
+    properties: {
+      query: {
+        type: 'string',
+        description: 'Termo de busca para procurar na internet'
       }
-    } catch (error) {
-      console.error('Web search error:', error);
-      return {
-        query,
-        results: [],
-        error: error.message,
-        timestamp: new Date().toISOString(),
-      };
-    }
+    },
+    required: ['query']
   }
+};
 
-  async executeTool(toolName, params) {
-    if (!this.tools[toolName]) {
-      throw new Error(`Tool '${toolName}' not found`);
+async function executeWebSearch(query) {
+  try {
+    const fetch = require('node-fetch');
+    const cheerio = require('cheerio');
+
+    console.log(`🔍 AI Agent performing web search for: "${query}"`);
+    
+    // Use DuckDuckGo search (no API key required)
+    const searchUrl = `https://duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
+    const response = await fetch(searchUrl, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+        'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
+        'Accept-Encoding': 'gzip, deflate, br',
+        'DNT': '1',
+        'Connection': 'keep-alive',
+        'Upgrade-Insecure-Requests': '1',
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
     }
 
-    return await this.tools[toolName](params);
-  }
+    const html = await response.text();
+    const $ = cheerio.load(html);
 
-  getAvailableTools() {
-    return Object.keys(this.tools);
+    const results = [];
+    
+    // DuckDuckGo result parsing
+    $('.result').each((i, elem) => {
+      if (i >= 8) return false; // Limit to 8 results
+      
+      const $elem = $(elem);
+      const titleLink = $elem.find('.result__title a');
+      const title = titleLink.text().trim();
+      const url = titleLink.attr('href');
+      const snippet = $elem.find('.result__snippet').text().trim();
+      
+      if (title && url && snippet) {
+        results.push({
+          title,
+          snippet,
+          url: url.startsWith('//') ? `https:${url}` : url,
+          source: 'duckduckgo',
+        });
+      }
+    });
+
+    // If no results found with .result, try alternative selectors
+    if (results.length === 0) {
+      $('.web-result').each((i, elem) => {
+        if (i >= 8) return false;
+        
+        const $elem = $(elem);
+        const titleLink = $elem.find('h2 a, .result__title a');
+        const title = titleLink.text().trim();
+        const url = titleLink.attr('href');
+        const snippet = $elem.find('.result__snippet, .snippet').text().trim();
+        
+        if (title && url && snippet) {
+          results.push({
+            title,
+            snippet,
+            url: url.startsWith('//') ? `https:${url}` : url,
+            source: 'duckduckgo',
+          });
+        }
+      });
+    }
+
+    const searchResults = {
+      query,
+      results,
+      timestamp: new Date().toISOString(),
+      source: 'duckduckgo',
+      total: results.length
+    };
+
+    console.log(`✅ Found ${results.length} search results for "${query}"`);
+    
+    return JSON.stringify(searchResults);
+  } catch (error) {
+    console.error('Web search error:', error);
+    return JSON.stringify({
+      query,
+      results: [],
+      error: error.message,
+      timestamp: new Date().toISOString(),
+      source: 'duckduckgo',
+      total: 0
+    });
   }
 }
 
@@ -152,7 +166,6 @@ class AIAgent {
     this.replyToGroups =
       config.replyToGroups !== undefined ? config.replyToGroups : true;
     this.openaiApiKey = config.openaiApiKey;
-    this.tools = new AITools();
     this.enabledTools = config.tools || ['web_search'];
     this.isActive = config.isActive !== undefined ? config.isActive : true;
     this.createdAt = config.createdAt || new Date().toISOString();
@@ -160,6 +173,7 @@ class AIAgent {
     this.messageCount = config.messageCount || 0;
     // conversationHistory removed - now using MongoDB only for persistent history
   }
+
 
   async processMessage(messageData, whatsappClient = null) {
     try {
@@ -307,7 +321,7 @@ class AIAgent {
   async generateResponse(messageData, conversationEntry) {
     try {
       const { ChatOpenAI } = require('@langchain/openai');
-      const { HumanMessage, SystemMessage } = require('@langchain/core/messages');
+      const { HumanMessage, SystemMessage, AIMessage, ToolMessage } = require('@langchain/core/messages');
 
       // Validate API key
       if (!this.openaiApiKey || this.openaiApiKey.trim() === '') {
@@ -321,7 +335,7 @@ class AIAgent {
         temperature: this.creativity / 100,
         maxTokens: 500,
         timeout: 30000,
-      });
+      }).bindTools([webSearchTool]);
 
       // Build context prompt with rich message information
       const personalityPrompts = {
@@ -362,15 +376,30 @@ Nome: ${this.name}
 ${this.description ? `Descrição: ${this.description}` : ''}
 ${contextInfo}
 
+FERRAMENTAS DISPONÍVEIS:
+Você tem acesso às seguintes ferramentas que pode usar quando necessário:
+
+1. web_search(query) - Busca informações atualizadas na internet via DuckDuckGo
+   - Use quando precisar de informações atuais, notícias, preços, eventos, clima, etc.
+   - Sempre que não tiver certeza sobre dados que podem estar desatualizados
+   - Para verificar informações recentes ou em tempo real
+
+COMO USAR AS FERRAMENTAS:
+- Quando identificar que precisa de informações atualizadas, use web_search
+- Analise a pergunta do usuário e determine se precisa de dados da internet
+- Após usar web_search, incorpore as informações encontradas na sua resposta
+- Seja inteligente sobre quando usar: perguntas sobre fatos atuais, preços, clima, notícias, etc.
+
 Regras importantes:
 1. Sempre responda em português brasileiro
-2. Seja útil e prestativo
+2. Seja útil e prestativo  
 3. Mantenha o tom de acordo com sua personalidade
 4. Seja conciso mas informativo
 5. ${isGroup ? 'Quando em grupos, você pode se dirigir às pessoas pelo nome quando relevante' : 'Adapte suas respostas ao contexto da conversa privada'}
 6. ${isGroup ? 'Em grupos, seja respeitoso com todos os participantes' : 'Mantenha uma conversa natural e personalizada'}
-7. Responda sempre, mesmo se não tiver certeza sobre algo
-8. ${messageType !== 'text' ? `A mensagem recebida é do tipo: ${messageType}` : ''}`;
+7. Use as ferramentas disponíveis quando apropriado para dar respostas mais precisas e atualizadas
+8. ${messageType !== 'text' ? `A mensagem recebida é do tipo: ${messageType}` : ''}
+9. Sempre que usar web_search, incorpore as informações encontradas de forma natural na resposta`;
 
       const messageText = messageData.content || messageData.text || messageData.body || '';
       
@@ -403,7 +432,35 @@ Regras importantes:
       const currentMessageContent = isGroup ? `${messageText} (enviado por ${senderName})` : messageText;
       messages.push(new HumanMessage(currentMessageContent.trim()));
 
-      const response = await llm.invoke(messages);
+      // Invoke with tools and handle tool calls
+      let response = await llm.invoke(messages);
+      
+      // Process tool calls if any
+      while (response.tool_calls && response.tool_calls.length > 0) {
+        // Add the AI message with tool calls to conversation
+        messages.push(response);
+        
+        // Execute tool calls
+        for (const toolCall of response.tool_calls) {
+          let toolResult;
+          
+          if (toolCall.name === 'web_search') {
+            console.log(`🔍 Model requested web search: "${toolCall.args.query}"`);
+            toolResult = await executeWebSearch(toolCall.args.query);
+          } else {
+            toolResult = JSON.stringify({ error: `Unknown tool: ${toolCall.name}` });
+          }
+          
+          // Add tool result to conversation
+          messages.push(new ToolMessage({
+            content: toolResult,
+            tool_call_id: toolCall.id
+          }));
+        }
+        
+        // Get response after tool execution
+        response = await llm.invoke(messages);
+      }
 
       // Extract response content properly
       let responseContent = response.content || '';
@@ -420,6 +477,7 @@ Regras importantes:
         };
         responseContent = fallbackResponses[this.personality] || 'Como posso ajudá-lo?';
       }
+
 
       return responseContent.trim();
     } catch (error) {
@@ -1189,6 +1247,37 @@ router.get('/:agentId/stats', async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Erro ao obter estatísticas do agente',
+    });
+  }
+});
+
+// Test web search endpoint
+router.post('/test-search', async (req, res) => {
+  try {
+    const { query } = req.body;
+    
+    if (!query) {
+      return res.status(400).json({
+        success: false,
+        message: 'Query é obrigatória'
+      });
+    }
+
+    console.log(`🧪 Testing web search for: "${query}"`);
+    const result = await executeWebSearch(query);
+    const parsedResult = JSON.parse(result);
+
+    res.json({
+      success: true,
+      message: 'Busca realizada com sucesso',
+      data: parsedResult
+    });
+  } catch (error) {
+    console.error('Error testing web search:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao testar busca na internet',
+      error: error.message
     });
   }
 });
