@@ -36,7 +36,9 @@ const createAgentSchema = z.object({
   autoReply: z.boolean(),
   smartReplies: z.boolean(),
   openaiApiKey: z.string().min(1, 'Chave da API OpenAI é obrigatória'),
-  tools: z.array(z.string()).default(['web_search', 'web_scrape', 'html_analysis', 'generate_zip']),
+  tools: z
+    .array(z.string())
+    .default(['web_search', 'web_scrape', 'html_analysis', 'generate_zip']),
   replyToGroups: z.boolean().default(true), // Nova opção para responder grupos
 });
 
@@ -47,22 +49,22 @@ const webSearchEngine = new WebSearchEngine({
   timeout: 12000,
   maxRetries: 2,
   maxResultsPerSource: 6,
-  maxTotalResults: 12
+  maxTotalResults: 12,
 });
 
 const webScraper = new WebScraper({
   timeout: 25000,
-  maxRetries: 3
+  maxRetries: 3,
 });
 
 const htmlAnalyzer = new HtmlAnalyzer({
   timeout: 25000,
-  maxRetries: 3
+  maxRetries: 3,
 });
 
 const zipGenerator = new ZipGenerator({
   outputDir: require('path').join(process.cwd(), 'downloads', 'exports'),
-  compressionLevel: 6
+  compressionLevel: 6,
 });
 
 // Enhanced web search with multiple sources and robust error handling
@@ -70,7 +72,9 @@ async function executeWebSearch(query) {
   try {
     console.log(`🔍 Starting enhanced multi-source search for: "${query}"`);
     const searchResults = await webSearchEngine.search(query);
-    console.log(`✅ Search completed: ${searchResults.total} results from ${searchResults.sources.length} sources`);
+    console.log(
+      `✅ Search completed: ${searchResults.total} results from ${searchResults.sources.length} sources`
+    );
     return JSON.stringify(searchResults);
   } catch (error) {
     console.error(`❌ Enhanced search failed: ${error.message}`);
@@ -94,8 +98,8 @@ async function executeWebSearch(query) {
           'Tente novamente em alguns minutos',
           'Use termos mais simples',
           'Divida a busca em partes menores',
-          'Verifique sua conexão com a internet'
-        ]
+          'Verifique sua conexão com a internet',
+        ],
       });
     }
   }
@@ -105,471 +109,574 @@ async function executeWebSearch(query) {
 async function executeBasicWebSearch(query) {
   const fetch = require('node-fetch');
   const cheerio = require('cheerio');
-  
+
   console.log(`🔍 AI Agent performing multi-source web search for: "${query}"`);
-  
+
   const headers = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+    'User-Agent':
+      'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+    Accept:
+      'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
     'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
     'Accept-Encoding': 'gzip, deflate, br',
-    'DNT': '1',
-    'Connection': 'keep-alive',
+    DNT: '1',
+    Connection: 'keep-alive',
     'Upgrade-Insecure-Requests': '1',
   };
 
-// Enhanced web scraping with robust error handling and multiple strategies  
-async function executeWebScrape(url) {
-  try {
-    console.log(`🌐 Starting enhanced web scraping for: "${url}"`);
-    const scrapedData = await webScraper.scrapeWithRetry(url, {
-      includeRawHtml: true // Include raw HTML for ZIP generation
-    });
-    console.log(`✅ Scraping completed using strategy: ${scrapedData.strategy}`);
-    return JSON.stringify(scrapedData);
-  } catch (error) {
-    console.error(`❌ Enhanced scraping failed: ${error.message}`);
-    // Fallback to basic scraping
+  // Enhanced web scraping with robust error handling and multiple strategies
+  async function executeWebScrape(url) {
     try {
-      return await executeBasicWebScrape(url);
-    } catch (fallbackError) {
-      console.error(`❌ Basic scraping also failed: ${fallbackError.message}`);
-      // Ultimate fallback - return helpful error message
-      return JSON.stringify({
-        url: url,
-        error: `Não foi possível acessar o site: ${fallbackError.message}`,
-        timestamp: new Date().toISOString(),
-        message: `Site "${url}" temporariamente inacessível`,
-        suggestions: [
-          'Verifique se a URL está correta',
-          'Tente novamente em alguns minutos',
-          'Verifique se o site está online',
-          'Confirme que a URL é completa (inclui http:// ou https://)'
-        ],
-        possibleCauses: [
-          'Site pode estar temporariamente fora do ar',
-          'URL pode estar incorreta',
-          'Site pode ter bloqueado o acesso',
-          'Problema de conectividade'
-        ]
+      console.log(`🌐 Starting enhanced web scraping for: "${url}"`);
+      const scrapedData = await webScraper.scrapeWithRetry(url, {
+        includeRawHtml: true, // Include raw HTML for ZIP generation
       });
-    }
-  }
-}
-
-// Fallback basic web scraping
-async function executeBasicWebScrape(url) {
-  const fetch = require('node-fetch');
-  const cheerio = require('cheerio');
-  
-  console.log(`🌐 AI Agent downloading website: "${url}"`);
-  
-  const headers = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-    'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
-    'Accept-Encoding': 'gzip, deflate, br',
-    'DNT': '1',
-    'Connection': 'keep-alive',
-    'Upgrade-Insecure-Requests': '1',
-  };
-
-  try {
-    // Validate URL
-    const urlObj = new URL(url);
-    if (!['http:', 'https:'].includes(urlObj.protocol)) {
-      throw new Error('Only HTTP and HTTPS URLs are supported');
-    }
-
-    const response = await fetch(url, { 
-      headers, 
-      timeout: 15000,
-      follow: 5, // Follow up to 5 redirects
-      compress: true
-    });
-    
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-    }
-
-    const contentType = response.headers.get('content-type') || '';
-    if (!contentType.includes('text/html')) {
-      throw new Error(`Content type not supported: ${contentType}`);
-    }
-
-    const html = await response.text();
-    const $ = cheerio.load(html);
-    
-    // Extract comprehensive information
-    const pageData = {
-      url: url,
-      title: $('title').text().trim() || 'No title',
-      description: $('meta[name="description"]').attr('content') || $('meta[property="og:description"]').attr('content') || '',
-      
-      // Text content
-      headings: {
-        h1: $('h1').map((i, el) => $(el).text().trim()).get().slice(0, 5),
-        h2: $('h2').map((i, el) => $(el).text().trim()).get().slice(0, 8),
-        h3: $('h3').map((i, el) => $(el).text().trim()).get().slice(0, 10)
-      },
-      
-      // Main content - try to find article content
-      content: extractMainContent($),
-      
-      // Links
-      links: $('a[href]').map((i, el) => {
-        const href = $(el).attr('href');
-        const text = $(el).text().trim();
-        if (href && text && href.startsWith('http')) {
-          return { text, url: href };
-        }
-      }).get().slice(0, 10),
-      
-      // Images
-      images: $('img[src]').map((i, el) => {
-        const src = $(el).attr('src');
-        const alt = $(el).attr('alt') || '';
-        if (src) {
-          return { src: src.startsWith('http') ? src : new URL(src, url).href, alt };
-        }
-      }).get().slice(0, 8),
-      
-      // Meta information
-      meta: {
-        author: $('meta[name="author"]').attr('content') || $('meta[property="article:author"]').attr('content') || '',
-        publishDate: $('meta[property="article:published_time"]').attr('content') || $('meta[name="date"]').attr('content') || '',
-        keywords: $('meta[name="keywords"]').attr('content') || '',
-        language: $('html').attr('lang') || $('meta[http-equiv="content-language"]').attr('content') || ''
-      },
-      
-      // Structure info
-      structure: {
-        totalLinks: $('a[href]').length,
-        totalImages: $('img[src]').length,
-        totalHeadings: $('h1, h2, h3, h4, h5, h6').length,
-        hasNavigation: $('nav').length > 0,
-        hasFooter: $('footer').length > 0,
-        hasAside: $('aside').length > 0
-      },
-      
-      timestamp: new Date().toISOString(),
-      contentLength: html.length,
-      textLength: $.text().length
-    };
-
-    console.log(`✅ Website downloaded successfully. Content: ${pageData.textLength} chars, ${pageData.structure.totalLinks} links, ${pageData.structure.totalImages} images`);
-    
-    return JSON.stringify(pageData);
-    
-  } catch (error) {
-    console.error(`❌ Website download failed: ${error.message}`);
-    
-    // Try alternative approach with more lenient parsing
-    try {
-      console.log(`🔄 Attempting alternative scraping approach for: ${url}`);
-      
-      const alternativeResponse = await fetch(url, { 
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (compatible; AIBot/1.0)',
-          'Accept': 'text/html,application/xhtml+xml,*/*;q=0.9',
-        },
-        timeout: 10000,
-        follow: 3
-      });
-      
-      if (alternativeResponse.ok) {
-        const alternativeHtml = await alternativeResponse.text();
-        const basicTitle = alternativeHtml.match(/<title[^>]*>([^<]+)<\/title>/i);
-        const basicContent = alternativeHtml.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
-        
+      console.log(
+        `✅ Scraping completed using strategy: ${scrapedData.strategy}`
+      );
+      return JSON.stringify(scrapedData);
+    } catch (error) {
+      console.error(`❌ Enhanced scraping failed: ${error.message}`);
+      // Fallback to basic scraping
+      try {
+        return await executeBasicWebScrape(url);
+      } catch (fallbackError) {
+        console.error(
+          `❌ Basic scraping also failed: ${fallbackError.message}`
+        );
+        // Ultimate fallback - return helpful error message
         return JSON.stringify({
           url: url,
-          title: basicTitle ? basicTitle[1].trim() : 'Página analisada',
-          content: basicContent.substring(0, 1000) + '...',
-          description: 'Conteúdo extraído com análise básica',
+          error: `Não foi possível acessar o site: ${fallbackError.message}`,
           timestamp: new Date().toISOString(),
-          method: 'alternative_scraping',
-          textLength: basicContent.length
+          message: `Site "${url}" temporariamente inacessível`,
+          suggestions: [
+            'Verifique se a URL está correta',
+            'Tente novamente em alguns minutos',
+            'Verifique se o site está online',
+            'Confirme que a URL é completa (inclui http:// ou https://)',
+          ],
+          possibleCauses: [
+            'Site pode estar temporariamente fora do ar',
+            'URL pode estar incorreta',
+            'Site pode ter bloqueado o acesso',
+            'Problema de conectividade',
+          ],
         });
       }
-    } catch (alternativeError) {
-      console.error(`❌ Alternative scraping also failed: ${alternativeError.message}`);
     }
-    
-    // Ultimate fallback - return useful error information
-    return JSON.stringify({
-      error: `Não foi possível acessar o site: ${error.message}`,
-      url: url,
-      timestamp: new Date().toISOString(),
-      suggestion: 'Verifique se a URL está correta e se o site está acessível',
-      fallbackContent: `Site solicitado: ${url}. Erro: ${error.message}. Posso ajudá-lo de outra forma?`
-    });
   }
-}
 
+  // Fallback basic web scraping
+  async function executeBasicWebScrape(url) {
+    const fetch = require('node-fetch');
+    const cheerio = require('cheerio');
 
-// Helper function to extract main content from HTML
-function extractMainContent($) {
-  // Try different strategies to find main content
-  const contentSelectors = [
-    'article',
-    'main',
-    '[role="main"]',
-    '.content',
-    '.main-content',
-    '.article-content',
-    '.post-content',
-    '.entry-content',
-    '#content',
-    '#main-content'
-  ];
-  
-  let mainContent = '';
-  
-  for (const selector of contentSelectors) {
-    const element = $(selector).first();
-    if (element.length > 0) {
-      mainContent = element.text().trim();
-      if (mainContent.length > 100) { // If we found substantial content
-        break;
+    console.log(`🌐 AI Agent downloading website: "${url}"`);
+
+    const headers = {
+      'User-Agent':
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+      Accept:
+        'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+      'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
+      'Accept-Encoding': 'gzip, deflate, br',
+      DNT: '1',
+      Connection: 'keep-alive',
+      'Upgrade-Insecure-Requests': '1',
+    };
+
+    try {
+      // Validate URL
+      const urlObj = new URL(url);
+      if (!['http:', 'https:'].includes(urlObj.protocol)) {
+        throw new Error('Only HTTP and HTTPS URLs are supported');
       }
-    }
-  }
-  
-  // Fallback: get text from body, but clean it up
-  if (!mainContent || mainContent.length < 100) {
-    // Remove script, style, nav, footer, aside content
-    $('script, style, nav, footer, aside, .sidebar, .menu, .navigation, .ads, .advertisement').remove();
-    mainContent = $('body').text().trim();
-  }
-  
-  // Clean up whitespace and limit length
-  mainContent = mainContent.replace(/\s+/g, ' ').trim();
-  
-  // Return first 2000 characters to avoid overwhelming the AI
-  return mainContent.substring(0, 2000) + (mainContent.length > 2000 ? '...' : '');
-}
 
-// Enhanced HTML analysis with specialized parsers
-async function executeHtmlAnalysis(url, analysisType = 'general') {
-  try {
-    console.log(`🔍 Starting HTML analysis for: "${url}" (type: ${analysisType})`);
-    const analysisResult = await htmlAnalyzer.analyze(url, analysisType);
-    console.log(`✅ HTML analysis completed for ${analysisType} analysis`);
-    return JSON.stringify(analysisResult);
-  } catch (error) {
-    console.error(`❌ HTML analysis failed: ${error.message}`);
-    return JSON.stringify({
-      error: error.message,
-      url: url,
-      analysisType: analysisType,
-      timestamp: new Date().toISOString()
-    });
-  }
-}
+      const response = await fetch(url, {
+        headers,
+        timeout: 15000,
+        follow: 5, // Follow up to 5 redirects
+        compress: true,
+      });
 
-// Generate ZIP file with scraped data or search results
-async function generateZipFile(data, type = 'scraping') {
-  try {
-    console.log(`📦 Generating ZIP file for ${type} data`);
-    let zipResult;
-    
-    if (type === 'scraping' && data.url) {
-      zipResult = await zipGenerator.generateScrapingZip(data);
-    } else if (type === 'search' && data.query) {
-      zipResult = await zipGenerator.generateSearchZip(data);
-    } else {
-      throw new Error('Invalid data type for ZIP generation. Requires scraping data with URL or search data with query.');
-    }
-    
-    console.log(`✅ ZIP file created: ${zipResult.fileName}`);
-    return JSON.stringify(zipResult);
-  } catch (error) {
-    console.error(`❌ ZIP generation failed: ${error.message}`);
-    return JSON.stringify({
-      error: error.message,
-      type: type,
-      timestamp: new Date().toISOString()
-    });
-  }
-}
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
 
-// Specific analysis functions
-function analyzeNewsArticle($) {
-  return {
-    headline: $('h1').first().text().trim(),
-    subheadline: $('h2').first().text().trim(),
-    author: $('meta[name="author"]').attr('content') || $('.author').text().trim(),
-    publishDate: $('meta[property="article:published_time"]').attr('content') || $('time').attr('datetime'),
-    category: $('meta[property="article:section"]').attr('content') || $('.category').text().trim(),
-    tags: $('meta[name="keywords"]').attr('content') || $('.tags').text().trim(),
-    wordCount: $('article, .article-content, .post-content').text().trim().split(/\s+/).length,
-    imageCount: $('article img, .article-content img').length,
-    videoCount: $('video, iframe[src*="youtube"], iframe[src*="vimeo"]').length,
-    hasComments: $('.comments, #comments, .comment-section').length > 0,
-    socialSharing: $('[href*="facebook.com"], [href*="twitter.com"], [href*="whatsapp.com"]').length > 0
-  };
-}
+      const contentType = response.headers.get('content-type') || '';
+      if (!contentType.includes('text/html')) {
+        throw new Error(`Content type not supported: ${contentType}`);
+      }
 
-function analyzeEcommercePage($) {
-  return {
-    productName: $('h1, .product-title, .product-name').first().text().trim(),
-    price: $('.price, .product-price, [class*="price"]').first().text().trim(),
-    description: $('.product-description, .product-summary').first().text().trim().substring(0, 500),
-    images: $('img').length,
-    reviews: $('.review, .rating, [class*="review"]').length,
-    inStock: $('[class*="stock"], [class*="availability"]').text().toLowerCase().includes('stock'),
-    addToCartButton: $('[class*="add-to-cart"], [class*="buy"], button[type="submit"]').length > 0,
-    breadcrumbs: $('.breadcrumb, .breadcrumbs').text().trim(),
-    category: $('.category, .product-category').text().trim(),
-    brand: $('.brand, .product-brand').text().trim()
-  };
-}
+      const html = await response.text();
+      const $ = cheerio.load(html);
 
-function analyzeContactInfo($) {
-  const text = $('body').text();
-  return {
-    emails: extractEmails(text),
-    phones: extractPhones(text),
-    addresses: extractAddresses($),
-    socialMedia: extractSocialLinks($),
-    contactForm: $('form[class*="contact"], form[id*="contact"]').length > 0,
-    contactPage: $('a[href*="contact"]').length > 0,
-    businessHours: extractBusinessHours(text),
-    location: $('.address, .location, [class*="address"]').text().trim()
-  };
-}
+      // Extract comprehensive information
+      const pageData = {
+        url: url,
+        title: $('title').text().trim() || 'No title',
+        description:
+          $('meta[name="description"]').attr('content') ||
+          $('meta[property="og:description"]').attr('content') ||
+          '',
 
-function analyzeSocialMedia($) {
-  return {
-    platforms: {
-      facebook: $('[href*="facebook.com"]').length,
-      twitter: $('[href*="twitter.com"]').length,
-      instagram: $('[href*="instagram.com"]').length,
-      linkedin: $('[href*="linkedin.com"]').length,
-      youtube: $('[href*="youtube.com"]').length,
-      tiktok: $('[href*="tiktok.com"]').length,
-      whatsapp: $('[href*="whatsapp.com"]').length
-    },
-    shareButtons: $('.share, [class*="share"]').length,
-    socialLogin: $('[class*="social-login"], [class*="oauth"]').length > 0,
-    embedPosts: $('blockquote[class*="twitter"], iframe[src*="facebook"], iframe[src*="instagram"]').length
-  };
-}
+        // Text content
+        headings: {
+          h1: $('h1')
+            .map((i, el) => $(el).text().trim())
+            .get()
+            .slice(0, 5),
+          h2: $('h2')
+            .map((i, el) => $(el).text().trim())
+            .get()
+            .slice(0, 8),
+          h3: $('h3')
+            .map((i, el) => $(el).text().trim())
+            .get()
+            .slice(0, 10),
+        },
 
-function analyzeForms($) {
-  const forms = $('form');
-  return {
-    totalForms: forms.length,
-    formTypes: forms.map((i, form) => {
-      const $form = $(form);
-      const action = $form.attr('action') || '';
-      const method = $form.attr('method') || 'GET';
-      const inputs = $form.find('input').length;
-      const textareas = $form.find('textarea').length;
-      const selects = $form.find('select').length;
-      return {
-        action,
-        method,
-        inputs,
-        textareas,
-        selects,
-        hasSubmit: $form.find('input[type="submit"], button[type="submit"]').length > 0
+        // Main content - try to find article content
+        content: extractMainContent($),
+
+        // Links
+        links: $('a[href]')
+          .map((i, el) => {
+            const href = $(el).attr('href');
+            const text = $(el).text().trim();
+            if (href && text && href.startsWith('http')) {
+              return { text, url: href };
+            }
+          })
+          .get()
+          .slice(0, 10),
+
+        // Images
+        images: $('img[src]')
+          .map((i, el) => {
+            const src = $(el).attr('src');
+            const alt = $(el).attr('alt') || '';
+            if (src) {
+              return {
+                src: src.startsWith('http') ? src : new URL(src, url).href,
+                alt,
+              };
+            }
+          })
+          .get()
+          .slice(0, 8),
+
+        // Meta information
+        meta: {
+          author:
+            $('meta[name="author"]').attr('content') ||
+            $('meta[property="article:author"]').attr('content') ||
+            '',
+          publishDate:
+            $('meta[property="article:published_time"]').attr('content') ||
+            $('meta[name="date"]').attr('content') ||
+            '',
+          keywords: $('meta[name="keywords"]').attr('content') || '',
+          language:
+            $('html').attr('lang') ||
+            $('meta[http-equiv="content-language"]').attr('content') ||
+            '',
+        },
+
+        // Structure info
+        structure: {
+          totalLinks: $('a[href]').length,
+          totalImages: $('img[src]').length,
+          totalHeadings: $('h1, h2, h3, h4, h5, h6').length,
+          hasNavigation: $('nav').length > 0,
+          hasFooter: $('footer').length > 0,
+          hasAside: $('aside').length > 0,
+        },
+
+        timestamp: new Date().toISOString(),
+        contentLength: html.length,
+        textLength: $.text().length,
       };
-    }).get(),
-    hasContactForm: $('form[class*="contact"], form[id*="contact"]').length > 0,
-    hasSearchForm: $('form[class*="search"], form[id*="search"]').length > 0,
-    hasLoginForm: $('form[class*="login"], form[id*="login"]').length > 0,
-    hasRegistrationForm: $('form[class*="register"], form[id*="register"]').length > 0
-  };
-}
 
-function analyzeGeneralStructure($) {
-  return {
-    title: $('title').text().trim(),
-    headings: {
-      h1: $('h1').length,
-      h2: $('h2').length,
-      h3: $('h3').length,
-      h4: $('h4').length,
-      h5: $('h5').length,
-      h6: $('h6').length
-    },
-    content: {
-      paragraphs: $('p').length,
-      lists: $('ul, ol').length,
-      tables: $('table').length,
+      console.log(
+        `✅ Website downloaded successfully. Content: ${pageData.textLength} chars, ${pageData.structure.totalLinks} links, ${pageData.structure.totalImages} images`
+      );
+
+      return JSON.stringify(pageData);
+    } catch (error) {
+      console.error(`❌ Website download failed: ${error.message}`);
+
+      // Try alternative approach with more lenient parsing
+      try {
+        console.log(`🔄 Attempting alternative scraping approach for: ${url}`);
+
+        const alternativeResponse = await fetch(url, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (compatible; AIBot/1.0)',
+            Accept: 'text/html,application/xhtml+xml,*/*;q=0.9',
+          },
+          timeout: 10000,
+          follow: 3,
+        });
+
+        if (alternativeResponse.ok) {
+          const alternativeHtml = await alternativeResponse.text();
+          const basicTitle = alternativeHtml.match(
+            /<title[^>]*>([^<]+)<\/title>/i
+          );
+          const basicContent = alternativeHtml
+            .replace(/<[^>]*>/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+          return JSON.stringify({
+            url: url,
+            title: basicTitle ? basicTitle[1].trim() : 'Página analisada',
+            content: basicContent.substring(0, 1000) + '...',
+            description: 'Conteúdo extraído com análise básica',
+            timestamp: new Date().toISOString(),
+            method: 'alternative_scraping',
+            textLength: basicContent.length,
+          });
+        }
+      } catch (alternativeError) {
+        console.error(
+          `❌ Alternative scraping also failed: ${alternativeError.message}`
+        );
+      }
+
+      // Ultimate fallback - return useful error information
+      return JSON.stringify({
+        error: `Não foi possível acessar o site: ${error.message}`,
+        url: url,
+        timestamp: new Date().toISOString(),
+        suggestion:
+          'Verifique se a URL está correta e se o site está acessível',
+        fallbackContent: `Site solicitado: ${url}. Erro: ${error.message}. Posso ajudá-lo de outra forma?`,
+      });
+    }
+  }
+
+  // Helper function to extract main content from HTML
+  function extractMainContent($) {
+    // Try different strategies to find main content
+    const contentSelectors = [
+      'article',
+      'main',
+      '[role="main"]',
+      '.content',
+      '.main-content',
+      '.article-content',
+      '.post-content',
+      '.entry-content',
+      '#content',
+      '#main-content',
+    ];
+
+    let mainContent = '';
+
+    for (const selector of contentSelectors) {
+      const element = $(selector).first();
+      if (element.length > 0) {
+        mainContent = element.text().trim();
+        if (mainContent.length > 100) {
+          // If we found substantial content
+          break;
+        }
+      }
+    }
+
+    // Fallback: get text from body, but clean it up
+    if (!mainContent || mainContent.length < 100) {
+      // Remove script, style, nav, footer, aside content
+      $(
+        'script, style, nav, footer, aside, .sidebar, .menu, .navigation, .ads, .advertisement'
+      ).remove();
+      mainContent = $('body').text().trim();
+    }
+
+    // Clean up whitespace and limit length
+    mainContent = mainContent.replace(/\s+/g, ' ').trim();
+
+    // Return first 2000 characters to avoid overwhelming the AI
+    return (
+      mainContent.substring(0, 2000) + (mainContent.length > 2000 ? '...' : '')
+    );
+  }
+
+  // Enhanced HTML analysis with specialized parsers
+  async function executeHtmlAnalysis(url, analysisType = 'general') {
+    try {
+      console.log(
+        `🔍 Starting HTML analysis for: "${url}" (type: ${analysisType})`
+      );
+      const analysisResult = await htmlAnalyzer.analyze(url, analysisType);
+      console.log(`✅ HTML analysis completed for ${analysisType} analysis`);
+      return JSON.stringify(analysisResult);
+    } catch (error) {
+      console.error(`❌ HTML analysis failed: ${error.message}`);
+      return JSON.stringify({
+        error: error.message,
+        url: url,
+        analysisType: analysisType,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+
+  // Generate ZIP file with scraped data or search results
+  async function generateZipFile(data, type = 'scraping') {
+    try {
+      console.log(`📦 Generating ZIP file for ${type} data`);
+      let zipResult;
+
+      if (type === 'scraping' && data.url) {
+        zipResult = await zipGenerator.generateScrapingZip(data);
+      } else if (type === 'search' && data.query) {
+        zipResult = await zipGenerator.generateSearchZip(data);
+      } else {
+        throw new Error(
+          'Invalid data type for ZIP generation. Requires scraping data with URL or search data with query.'
+        );
+      }
+
+      console.log(`✅ ZIP file created: ${zipResult.fileName}`);
+      return JSON.stringify(zipResult);
+    } catch (error) {
+      console.error(`❌ ZIP generation failed: ${error.message}`);
+      return JSON.stringify({
+        error: error.message,
+        type: type,
+        timestamp: new Date().toISOString(),
+      });
+    }
+  }
+
+  // Specific analysis functions
+  function analyzeNewsArticle($) {
+    return {
+      headline: $('h1').first().text().trim(),
+      subheadline: $('h2').first().text().trim(),
+      author:
+        $('meta[name="author"]').attr('content') || $('.author').text().trim(),
+      publishDate:
+        $('meta[property="article:published_time"]').attr('content') ||
+        $('time').attr('datetime'),
+      category:
+        $('meta[property="article:section"]').attr('content') ||
+        $('.category').text().trim(),
+      tags:
+        $('meta[name="keywords"]').attr('content') || $('.tags').text().trim(),
+      wordCount: $('article, .article-content, .post-content')
+        .text()
+        .trim()
+        .split(/\s+/).length,
+      imageCount: $('article img, .article-content img').length,
+      videoCount: $('video, iframe[src*="youtube"], iframe[src*="vimeo"]')
+        .length,
+      hasComments: $('.comments, #comments, .comment-section').length > 0,
+      socialSharing:
+        $(
+          '[href*="facebook.com"], [href*="twitter.com"], [href*="whatsapp.com"]'
+        ).length > 0,
+    };
+  }
+
+  function analyzeEcommercePage($) {
+    return {
+      productName: $('h1, .product-title, .product-name').first().text().trim(),
+      price: $('.price, .product-price, [class*="price"]')
+        .first()
+        .text()
+        .trim(),
+      description: $('.product-description, .product-summary')
+        .first()
+        .text()
+        .trim()
+        .substring(0, 500),
       images: $('img').length,
-      videos: $('video').length,
-      iframes: $('iframe').length
-    },
-    navigation: {
-      hasNav: $('nav').length > 0,
-      menuItems: $('nav a, .menu a, .navigation a').length,
-      hasBreadcrumbs: $('.breadcrumb, .breadcrumbs').length > 0
-    },
-    structure: {
-      hasHeader: $('header').length > 0,
-      hasFooter: $('footer').length > 0,
-      hasAside: $('aside').length > 0,
-      hasMain: $('main').length > 0,
-      hasArticle: $('article').length > 0,
-      hasSection: $('section').length > 0
-    },
-    forms: $('form').length,
-    links: $('a[href]').length,
-    externalLinks: $('a[href^="http"]').length,
-    hasJavaScript: $('script').length,
-    hasCSS: $('style, link[rel="stylesheet"]').length,
-    language: $('html').attr('lang') || 'unknown'
-  };
-}
+      reviews: $('.review, .rating, [class*="review"]').length,
+      inStock: $('[class*="stock"], [class*="availability"]')
+        .text()
+        .toLowerCase()
+        .includes('stock'),
+      addToCartButton:
+        $('[class*="add-to-cart"], [class*="buy"], button[type="submit"]')
+          .length > 0,
+      breadcrumbs: $('.breadcrumb, .breadcrumbs').text().trim(),
+      category: $('.category, .product-category').text().trim(),
+      brand: $('.brand, .product-brand').text().trim(),
+    };
+  }
 
-// Helper functions for contact analysis
-function extractEmails(text) {
-  const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
-  return text.match(emailRegex) || [];
-}
+  function analyzeContactInfo($) {
+    const text = $('body').text();
+    return {
+      emails: extractEmails(text),
+      phones: extractPhones(text),
+      addresses: extractAddresses($),
+      socialMedia: extractSocialLinks($),
+      contactForm: $('form[class*="contact"], form[id*="contact"]').length > 0,
+      contactPage: $('a[href*="contact"]').length > 0,
+      businessHours: extractBusinessHours(text),
+      location: $('.address, .location, [class*="address"]').text().trim(),
+    };
+  }
 
-function extractPhones(text) {
-  const phoneRegex = /(?:\+?55\s?)?(?:\(?[0-9]{2}\)?\s?)?(?:[0-9]{4,5}[-.\s]?[0-9]{4})/g;
-  return text.match(phoneRegex) || [];
-}
+  function analyzeSocialMedia($) {
+    return {
+      platforms: {
+        facebook: $('[href*="facebook.com"]').length,
+        twitter: $('[href*="twitter.com"]').length,
+        instagram: $('[href*="instagram.com"]').length,
+        linkedin: $('[href*="linkedin.com"]').length,
+        youtube: $('[href*="youtube.com"]').length,
+        tiktok: $('[href*="tiktok.com"]').length,
+        whatsapp: $('[href*="whatsapp.com"]').length,
+      },
+      shareButtons: $('.share, [class*="share"]').length,
+      socialLogin: $('[class*="social-login"], [class*="oauth"]').length > 0,
+      embedPosts: $(
+        'blockquote[class*="twitter"], iframe[src*="facebook"], iframe[src*="instagram"]'
+      ).length,
+    };
+  }
 
-function extractAddresses($) {
-  const addressSelectors = ['.address', '.location', '[class*="address"]', '[class*="location"]'];
-  const addresses = [];
-  
-  addressSelectors.forEach(selector => {
-    $(selector).each((i, elem) => {
-      const text = $(elem).text().trim();
-      if (text.length > 10) {
-        addresses.push(text);
+  function analyzeForms($) {
+    const forms = $('form');
+    return {
+      totalForms: forms.length,
+      formTypes: forms
+        .map((i, form) => {
+          const $form = $(form);
+          const action = $form.attr('action') || '';
+          const method = $form.attr('method') || 'GET';
+          const inputs = $form.find('input').length;
+          const textareas = $form.find('textarea').length;
+          const selects = $form.find('select').length;
+          return {
+            action,
+            method,
+            inputs,
+            textareas,
+            selects,
+            hasSubmit:
+              $form.find('input[type="submit"], button[type="submit"]').length >
+              0,
+          };
+        })
+        .get(),
+      hasContactForm:
+        $('form[class*="contact"], form[id*="contact"]').length > 0,
+      hasSearchForm: $('form[class*="search"], form[id*="search"]').length > 0,
+      hasLoginForm: $('form[class*="login"], form[id*="login"]').length > 0,
+      hasRegistrationForm:
+        $('form[class*="register"], form[id*="register"]').length > 0,
+    };
+  }
+
+  function analyzeGeneralStructure($) {
+    return {
+      title: $('title').text().trim(),
+      headings: {
+        h1: $('h1').length,
+        h2: $('h2').length,
+        h3: $('h3').length,
+        h4: $('h4').length,
+        h5: $('h5').length,
+        h6: $('h6').length,
+      },
+      content: {
+        paragraphs: $('p').length,
+        lists: $('ul, ol').length,
+        tables: $('table').length,
+        images: $('img').length,
+        videos: $('video').length,
+        iframes: $('iframe').length,
+      },
+      navigation: {
+        hasNav: $('nav').length > 0,
+        menuItems: $('nav a, .menu a, .navigation a').length,
+        hasBreadcrumbs: $('.breadcrumb, .breadcrumbs').length > 0,
+      },
+      structure: {
+        hasHeader: $('header').length > 0,
+        hasFooter: $('footer').length > 0,
+        hasAside: $('aside').length > 0,
+        hasMain: $('main').length > 0,
+        hasArticle: $('article').length > 0,
+        hasSection: $('section').length > 0,
+      },
+      forms: $('form').length,
+      links: $('a[href]').length,
+      externalLinks: $('a[href^="http"]').length,
+      hasJavaScript: $('script').length,
+      hasCSS: $('style, link[rel="stylesheet"]').length,
+      language: $('html').attr('lang') || 'unknown',
+    };
+  }
+
+  // Helper functions for contact analysis
+  function extractEmails(text) {
+    const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
+    return text.match(emailRegex) || [];
+  }
+
+  function extractPhones(text) {
+    const phoneRegex =
+      /(?:\+?55\s?)?(?:\(?[0-9]{2}\)?\s?)?(?:[0-9]{4,5}[-.\s]?[0-9]{4})/g;
+    return text.match(phoneRegex) || [];
+  }
+
+  function extractAddresses($) {
+    const addressSelectors = [
+      '.address',
+      '.location',
+      '[class*="address"]',
+      '[class*="location"]',
+    ];
+    const addresses = [];
+
+    addressSelectors.forEach((selector) => {
+      $(selector).each((i, elem) => {
+        const text = $(elem).text().trim();
+        if (text.length > 10) {
+          addresses.push(text);
+        }
+      });
+    });
+
+    return addresses;
+  }
+
+  function extractSocialLinks($) {
+    const socialPlatforms = [
+      'facebook',
+      'twitter',
+      'instagram',
+      'linkedin',
+      'youtube',
+      'tiktok',
+      'whatsapp',
+    ];
+    const links = {};
+
+    socialPlatforms.forEach((platform) => {
+      const link = $(`a[href*="${platform}.com"]`).first().attr('href');
+      if (link) {
+        links[platform] = link;
       }
     });
-  });
-  
-  return addresses;
-}
 
-function extractSocialLinks($) {
-  const socialPlatforms = ['facebook', 'twitter', 'instagram', 'linkedin', 'youtube', 'tiktok', 'whatsapp'];
-  const links = {};
-  
-  socialPlatforms.forEach(platform => {
-    const link = $(`a[href*="${platform}.com"]`).first().attr('href');
-    if (link) {
-      links[platform] = link;
-    }
-  });
-  
-  return links;
-}
+    return links;
+  }
 
-function extractBusinessHours(text) {
-  const hoursRegex = /(?:segunda|terça|quarta|quinta|sexta|sábado|domingo|seg|ter|qua|qui|sex|sab|dom).*?(?:[0-9]{1,2}:[0-9]{2}|[0-9]{1,2}h)/gi;
-  return text.match(hoursRegex) || [];
-}
+  function extractBusinessHours(text) {
+    const hoursRegex =
+      /(?:segunda|terça|quarta|quinta|sexta|sábado|domingo|seg|ter|qua|qui|sex|sab|dom).*?(?:[0-9]{1,2}:[0-9]{2}|[0-9]{1,2}h)/gi;
+    return text.match(hoursRegex) || [];
+  }
 
   const allResults = [];
   const searchSources = [];
@@ -578,48 +685,78 @@ function extractBusinessHours(text) {
   // Perform all searches in parallel for better performance
   searchPromises.push(
     searchDuckDuckGo(query, fetch, cheerio, headers)
-      .then(results => ({ source: 'duckduckgo', results, emoji: '🦆' }))
-      .catch(error => ({ source: 'duckduckgo', results: [], error: error.message, emoji: '🦆' }))
+      .then((results) => ({ source: 'duckduckgo', results, emoji: '🦆' }))
+      .catch((error) => ({
+        source: 'duckduckgo',
+        results: [],
+        error: error.message,
+        emoji: '🦆',
+      }))
   );
 
   searchPromises.push(
     searchBing(query, fetch, cheerio, headers)
-      .then(results => ({ source: 'bing', results, emoji: '🔍' }))
-      .catch(error => ({ source: 'bing', results: [], error: error.message, emoji: '🔍' }))
+      .then((results) => ({ source: 'bing', results, emoji: '🔍' }))
+      .catch((error) => ({
+        source: 'bing',
+        results: [],
+        error: error.message,
+        emoji: '🔍',
+      }))
   );
 
   searchPromises.push(
     searchYahoo(query, fetch, cheerio, headers)
-      .then(results => ({ source: 'yahoo', results, emoji: '🟣' }))
-      .catch(error => ({ source: 'yahoo', results: [], error: error.message, emoji: '🟣' }))
+      .then((results) => ({ source: 'yahoo', results, emoji: '🟣' }))
+      .catch((error) => ({
+        source: 'yahoo',
+        results: [],
+        error: error.message,
+        emoji: '🟣',
+      }))
   );
 
   searchPromises.push(
     searchSearx(query, fetch, cheerio, headers)
-      .then(results => ({ source: 'searx', results, emoji: '🌐' }))
-      .catch(error => ({ source: 'searx', results: [], error: error.message, emoji: '🌐' }))
+      .then((results) => ({ source: 'searx', results, emoji: '🌐' }))
+      .catch((error) => ({
+        source: 'searx',
+        results: [],
+        error: error.message,
+        emoji: '🌐',
+      }))
   );
 
   searchPromises.push(
     searchBrave(query, fetch, cheerio, headers)
-      .then(results => ({ source: 'brave', results, emoji: '🦁' }))
-      .catch(error => ({ source: 'brave', results: [], error: error.message, emoji: '🦁' }))
+      .then((results) => ({ source: 'brave', results, emoji: '🦁' }))
+      .catch((error) => ({
+        source: 'brave',
+        results: [],
+        error: error.message,
+        emoji: '🦁',
+      }))
   );
 
   searchPromises.push(
     searchYandex(query, fetch, cheerio, headers)
-      .then(results => ({ source: 'yandex', results, emoji: '🐻' }))
-      .catch(error => ({ source: 'yandex', results: [], error: error.message, emoji: '🐻' }))
+      .then((results) => ({ source: 'yandex', results, emoji: '🐻' }))
+      .catch((error) => ({
+        source: 'yandex',
+        results: [],
+        error: error.message,
+        emoji: '🐻',
+      }))
   );
 
   // Wait for all searches to complete (with timeout)
   const searchResponses = await Promise.allSettled(
-    searchPromises.map(promise => 
+    searchPromises.map((promise) =>
       Promise.race([
         promise,
-        new Promise((_, reject) => 
+        new Promise((_, reject) =>
           setTimeout(() => reject(new Error('Timeout')), 10000)
-        )
+        ),
       ])
     )
   );
@@ -638,7 +775,6 @@ function extractBusinessHours(text) {
     }
   }
 
-
   // Remove duplicates and limit results
   const uniqueResults = removeDuplicateResults(allResults);
   const finalResults = uniqueResults.slice(0, 12); // Max 12 results total
@@ -650,11 +786,13 @@ function extractBusinessHours(text) {
     sources: searchSources,
     total: finalResults.length,
     totalFound: allResults.length,
-    duplicatesRemoved: allResults.length - uniqueResults.length
+    duplicatesRemoved: allResults.length - uniqueResults.length,
   };
 
-  console.log(`✅ Multi-source search completed: ${finalResults.length} unique results from ${searchSources.length} sources`);
-  
+  console.log(
+    `✅ Multi-source search completed: ${finalResults.length} unique results from ${searchSources.length} sources`
+  );
+
   // If no results were found, provide a helpful response
   if (finalResults.length === 0) {
     const fallbackResults = {
@@ -670,21 +808,23 @@ function extractBusinessHours(text) {
         'Verifique a ortografia dos termos de busca',
         'Use palavras-chave mais específicas',
         'Tente sinônimos ou termos relacionados',
-        'Use aspas para buscar frases exatas'
-      ]
+        'Use aspas para buscar frases exatas',
+      ],
     };
-    
+
     return JSON.stringify(fallbackResults);
   }
-  
+
   return JSON.stringify(searchResults);
 }
 
 // DuckDuckGo search function
 async function searchDuckDuckGo(query, fetch, cheerio, headers) {
-  const searchUrl = `https://duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
+  const searchUrl = `https://duckduckgo.com/html/?q=${encodeURIComponent(
+    query
+  )}`;
   const response = await fetch(searchUrl, { headers, timeout: 8000 });
-  
+
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
   }
@@ -695,13 +835,13 @@ async function searchDuckDuckGo(query, fetch, cheerio, headers) {
 
   $('.result').each((i, elem) => {
     if (i >= 6) return false;
-    
+
     const $elem = $(elem);
     const titleLink = $elem.find('.result__title a');
     const title = titleLink.text().trim();
     const url = titleLink.attr('href');
     const snippet = $elem.find('.result__snippet').text().trim();
-    
+
     if (title && url && snippet) {
       results.push({
         title,
@@ -715,11 +855,13 @@ async function searchDuckDuckGo(query, fetch, cheerio, headers) {
   return results;
 }
 
-// Bing search function  
+// Bing search function
 async function searchBing(query, fetch, cheerio, headers) {
-  const searchUrl = `https://www.bing.com/search?q=${encodeURIComponent(query)}&setlang=pt-BR`;
+  const searchUrl = `https://www.bing.com/search?q=${encodeURIComponent(
+    query
+  )}&setlang=pt-BR`;
   const response = await fetch(searchUrl, { headers, timeout: 8000 });
-  
+
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
   }
@@ -730,13 +872,17 @@ async function searchBing(query, fetch, cheerio, headers) {
 
   $('.b_algo').each((i, elem) => {
     if (i >= 6) return false;
-    
+
     const $elem = $(elem);
     const titleLink = $elem.find('h2 a');
     const title = titleLink.text().trim();
     const url = titleLink.attr('href');
-    const snippet = $elem.find('.b_caption p, .b_snippet').first().text().trim();
-    
+    const snippet = $elem
+      .find('.b_caption p, .b_snippet')
+      .first()
+      .text()
+      .trim();
+
     if (title && url && snippet) {
       results.push({
         title,
@@ -752,9 +898,11 @@ async function searchBing(query, fetch, cheerio, headers) {
 
 // Yahoo search function
 async function searchYahoo(query, fetch, cheerio, headers) {
-  const searchUrl = `https://search.yahoo.com/search?p=${encodeURIComponent(query)}&ei=UTF-8&lang=pt-BR`;
+  const searchUrl = `https://search.yahoo.com/search?p=${encodeURIComponent(
+    query
+  )}&ei=UTF-8&lang=pt-BR`;
   const response = await fetch(searchUrl, { headers, timeout: 8000 });
-  
+
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
   }
@@ -765,13 +913,13 @@ async function searchYahoo(query, fetch, cheerio, headers) {
 
   $('.algo').each((i, elem) => {
     if (i >= 5) return false;
-    
+
     const $elem = $(elem);
     const titleLink = $elem.find('h3 a');
     const title = titleLink.text().trim();
     const url = titleLink.attr('href');
     const snippet = $elem.find('.compText').text().trim();
-    
+
     if (title && url && snippet) {
       results.push({
         title,
@@ -787,9 +935,11 @@ async function searchYahoo(query, fetch, cheerio, headers) {
 
 // Searx search function (open source metasearch engine)
 async function searchSearx(query, fetch, cheerio, headers) {
-  const searchUrl = `https://searx.be/search?q=${encodeURIComponent(query)}&language=pt-BR&format=html`;
+  const searchUrl = `https://searx.be/search?q=${encodeURIComponent(
+    query
+  )}&language=pt-BR&format=html`;
   const response = await fetch(searchUrl, { headers, timeout: 8000 });
-  
+
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
   }
@@ -800,13 +950,13 @@ async function searchSearx(query, fetch, cheerio, headers) {
 
   $('.result').each((i, elem) => {
     if (i >= 5) return false;
-    
+
     const $elem = $(elem);
     const titleLink = $elem.find('h3 a');
     const title = titleLink.text().trim();
     const url = titleLink.attr('href');
     const snippet = $elem.find('.content').text().trim();
-    
+
     if (title && url && snippet) {
       results.push({
         title,
@@ -822,9 +972,11 @@ async function searchSearx(query, fetch, cheerio, headers) {
 
 // Brave search function
 async function searchBrave(query, fetch, cheerio, headers) {
-  const searchUrl = `https://search.brave.com/search?q=${encodeURIComponent(query)}&source=web`;
+  const searchUrl = `https://search.brave.com/search?q=${encodeURIComponent(
+    query
+  )}&source=web`;
   const response = await fetch(searchUrl, { headers, timeout: 8000 });
-  
+
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
   }
@@ -835,13 +987,13 @@ async function searchBrave(query, fetch, cheerio, headers) {
 
   $('[data-type="web"] .snippet').each((i, elem) => {
     if (i >= 5) return false;
-    
+
     const $elem = $(elem);
     const titleLink = $elem.find('.snippet-title');
     const title = titleLink.text().trim();
     const url = titleLink.find('a').attr('href');
     const snippet = $elem.find('.snippet-description').text().trim();
-    
+
     if (title && url && snippet) {
       results.push({
         title,
@@ -857,9 +1009,11 @@ async function searchBrave(query, fetch, cheerio, headers) {
 
 // Yandex search function
 async function searchYandex(query, fetch, cheerio, headers) {
-  const searchUrl = `https://yandex.com/search/?text=${encodeURIComponent(query)}&lr=21601`; // lr=21601 for Brazil
+  const searchUrl = `https://yandex.com/search/?text=${encodeURIComponent(
+    query
+  )}&lr=21601`; // lr=21601 for Brazil
   const response = await fetch(searchUrl, { headers, timeout: 8000 });
-  
+
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
   }
@@ -870,13 +1024,13 @@ async function searchYandex(query, fetch, cheerio, headers) {
 
   $('.organic').each((i, elem) => {
     if (i >= 5) return false;
-    
+
     const $elem = $(elem);
     const titleLink = $elem.find('.organic__url');
     const title = $elem.find('.organic__title-wrapper').text().trim();
     const url = titleLink.attr('href');
     const snippet = $elem.find('.organic__text').text().trim();
-    
+
     if (title && url && snippet) {
       results.push({
         title,
@@ -894,19 +1048,19 @@ async function searchYandex(query, fetch, cheerio, headers) {
 function removeDuplicateResults(results) {
   const seen = new Set();
   const unique = [];
-  
+
   for (const result of results) {
     // Create a key based on normalized URL and title
     const urlKey = result.url.replace(/^https?:\/\/(www\.)?/, '').toLowerCase();
     const titleKey = result.title.toLowerCase().substring(0, 50);
     const key = `${urlKey}|${titleKey}`;
-    
+
     if (!seen.has(key)) {
       seen.add(key);
       unique.push(result);
     }
   }
-  
+
   return unique;
 }
 
@@ -941,20 +1095,20 @@ class AIAgent {
       console.log(`📱 Tool notification (no WhatsApp client): ${message}`);
       return;
     }
-    
+
     try {
       // Send typing indicator
       await whatsappClient.sendPresenceUpdate('composing', chatId);
-      
+
       // Small delay for natural feeling
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
       // Send notification message
       await whatsappClient.sendMessage(chatId, { text: message });
-      
+
       // Return to available presence
       await whatsappClient.sendPresenceUpdate('available');
-      
+
       console.log(`📱 Tool notification sent: ${message}`);
     } catch (error) {
       console.error('Error sending tool notification:', error);
@@ -1132,7 +1286,11 @@ class AIAgent {
     }
   }
 
-  async generateResponse(messageData, conversationEntry, whatsappClient = null) {
+  async generateResponse(
+    messageData,
+    conversationEntry,
+    whatsappClient = null
+  ) {
     // Variable to store executed tool results - moved outside try-catch for proper scope
     const executedToolResults = [];
 
@@ -1271,11 +1429,12 @@ Regras importantes:
         // Estimate tokens (roughly 4 chars per token) and limit total context
         const contentLength = msg.content?.length || 0;
         const estimatedTokens = Math.ceil(contentLength / 4);
-        
-        if (totalTokensEstimate + estimatedTokens > 1500) { // Limit context to ~1500 tokens
+
+        if (totalTokensEstimate + estimatedTokens > 1500) {
+          // Limit context to ~1500 tokens
           return; // Skip this message to stay within token limits
         }
-        
+
         if (msg.type === 'user' && msg.content && msg.content.trim() !== '') {
           const senderInfo = msg.sender?.pushName
             ? ` (${msg.sender.pushName})`
@@ -1285,19 +1444,26 @@ Regras importantes:
             : msg.content;
           messages.push({ role: 'user', content: messageContent });
           totalTokensEstimate += estimatedTokens;
-        } else if (msg.type === 'assistant' && msg.content && msg.content.trim() !== '') {
+        } else if (
+          msg.type === 'assistant' &&
+          msg.content &&
+          msg.content.trim() !== ''
+        ) {
           messages.push({ role: 'assistant', content: msg.content });
           totalTokensEstimate += estimatedTokens;
         } else if (msg.type === 'tool_call' && msg.toolResult) {
           // Add simplified tool call context
-          const toolContext = msg.toolResult.summary || `[${msg.toolName}: ${msg.toolArgs?.query || 'executado'}]`;
-          if (toolContext.length < 100) { // Only add if short
+          const toolContext =
+            msg.toolResult.summary ||
+            `[${msg.toolName}: ${msg.toolArgs?.query || 'executado'}]`;
+          if (toolContext.length < 100) {
+            // Only add if short
             messages.push({ role: 'system', content: toolContext });
             totalTokensEstimate += Math.ceil(toolContext.length / 4);
           }
         }
       });
-      
+
       console.log(`🎯 Estimated context tokens: ~${totalTokensEstimate}`);
 
       // Add current message with sender context
@@ -1307,20 +1473,22 @@ Regras importantes:
       messages.push({ role: 'user', content: currentMessageContent.trim() });
 
       // Create chat completion with tools
-      console.log(`📨 Creating chat completion with ${messages.length} messages`);
-      
+      console.log(
+        `📨 Creating chat completion with ${messages.length} messages`
+      );
+
       // Check if we should attempt tool use (only for specific model versions)
       const supportsTools =
         this.model.includes('gpt-4') || this.model.includes('gpt-3.5-turbo');
 
       let response;
-      
+
       if (supportsTools) {
         try {
           console.log(
             `🔧 Attempting response with tools for model: ${this.model}`
           );
-          
+
           // Create chat completion with tools (optimized for quota management)
           response = await openai.chat.completions.create({
             model: this.model,
@@ -1329,85 +1497,100 @@ Regras importantes:
             max_tokens: 800, // Reduced from 1000 to save quota
             tools: [
               {
-                type: "function",
+                type: 'function',
                 function: {
-                  name: "web_search",
-                  description: "Busca informações atualizadas na internet via DuckDuckGo, Bing, Yahoo e outros buscadores. Use quando precisar de informações atuais, notícias, preços, eventos, clima, etc.",
+                  name: 'web_search',
+                  description:
+                    'Busca informações atualizadas na internet via DuckDuckGo, Bing, Yahoo e outros buscadores. Use quando precisar de informações atuais, notícias, preços, eventos, clima, etc.',
                   parameters: {
-                    type: "object",
+                    type: 'object',
                     properties: {
                       query: {
-                        type: "string",
-                        description: "Termo de busca para procurar na internet"
-                      }
+                        type: 'string',
+                        description: 'Termo de busca para procurar na internet',
+                      },
                     },
-                    required: ["query"]
-                  }
-                }
+                    required: ['query'],
+                  },
+                },
               },
               {
-                type: "function",
+                type: 'function',
                 function: {
-                  name: "web_scrape",
-                  description: "Baixa e analisa o conteúdo completo de um site específico. Extrai título, descrição, conteúdo principal, links, imagens e estrutura HTML. Use quando precisar analisar uma página específica.",
+                  name: 'web_scrape',
+                  description:
+                    'Baixa e analisa o conteúdo completo de um site específico. Extrai título, descrição, conteúdo principal, links, imagens e estrutura HTML. Use quando precisar analisar uma página específica.',
                   parameters: {
-                    type: "object",
+                    type: 'object',
                     properties: {
                       url: {
-                        type: "string",
-                        description: "URL completa do site a ser analisado (deve começar com http:// ou https://)"
-                      }
+                        type: 'string',
+                        description:
+                          'URL completa do site a ser analisado (deve começar com http:// ou https://)',
+                      },
                     },
-                    required: ["url"]
-                  }
-                }
+                    required: ['url'],
+                  },
+                },
               },
               {
-                type: "function",
+                type: 'function',
                 function: {
-                  name: "html_analysis",
-                  description: "Analisa a estrutura HTML e extrai informações específicas de um site. Tipos disponíveis: 'news' (notícias), 'ecommerce' (loja), 'contact' (contato), 'social' (redes sociais), 'forms' (formulários), 'general' (geral).",
+                  name: 'html_analysis',
+                  description:
+                    "Analisa a estrutura HTML e extrai informações específicas de um site. Tipos disponíveis: 'news' (notícias), 'ecommerce' (loja), 'contact' (contato), 'social' (redes sociais), 'forms' (formulários), 'general' (geral).",
                   parameters: {
-                    type: "object",
+                    type: 'object',
                     properties: {
                       url: {
-                        type: "string",
-                        description: "URL completa do site a ser analisado"
+                        type: 'string',
+                        description: 'URL completa do site a ser analisado',
                       },
                       analysisType: {
-                        type: "string",
-                        description: "Tipo de análise: 'news', 'ecommerce', 'contact', 'social', 'forms', 'general'",
-                        enum: ["news", "ecommerce", "contact", "social", "forms", "general"]
-                      }
+                        type: 'string',
+                        description:
+                          "Tipo de análise: 'news', 'ecommerce', 'contact', 'social', 'forms', 'general'",
+                        enum: [
+                          'news',
+                          'ecommerce',
+                          'contact',
+                          'social',
+                          'forms',
+                          'general',
+                        ],
+                      },
                     },
-                    required: ["url"]
-                  }
-                }
+                    required: ['url'],
+                  },
+                },
               },
               {
-                type: "function",
+                type: 'function',
                 function: {
-                  name: "generate_zip",
-                  description: "Gera um arquivo ZIP com dados de scraping ou pesquisa para download. Use quando o usuário solicitar um arquivo ZIP, exportação ou download de dados coletados.",
+                  name: 'generate_zip',
+                  description:
+                    'Gera um arquivo ZIP com dados de scraping ou pesquisa para download. Use quando o usuário solicitar um arquivo ZIP, exportação ou download de dados coletados.',
                   parameters: {
-                    type: "object",
+                    type: 'object',
                     properties: {
                       data: {
-                        type: "string",
-                        description: "Dados em formato JSON string para incluir no ZIP"
+                        type: 'string',
+                        description:
+                          'Dados em formato JSON string para incluir no ZIP',
                       },
                       type: {
-                        type: "string",
-                        description: "Tipo de dados: 'scraping' para dados de site ou 'search' para resultados de pesquisa",
-                        enum: ["scraping", "search"]
-                      }
+                        type: 'string',
+                        description:
+                          "Tipo de dados: 'scraping' para dados de site ou 'search' para resultados de pesquisa",
+                        enum: ['scraping', 'search'],
+                      },
                     },
-                    required: ["data", "type"]
-                  }
-                }
-              }
+                    required: ['data', 'type'],
+                  },
+                },
+              },
             ],
-            tool_choice: "auto"
+            tool_choice: 'auto',
           });
 
           console.log(
@@ -1418,23 +1601,21 @@ Regras importantes:
 
           // Process tool calls if any
           let toolCalls = response.choices[0]?.message?.tool_calls;
-          
+
           while (toolCalls && toolCalls.length > 0) {
-            console.log(
-              `🔧 Processing ${toolCalls.length} tool calls`
-            );
+            console.log(`🔧 Processing ${toolCalls.length} tool calls`);
 
             // Add the AI message with tool calls to conversation
             messages.push({
-              role: "assistant",
+              role: 'assistant',
               content: response.choices[0].message.content,
-              tool_calls: toolCalls
+              tool_calls: toolCalls,
             });
 
             // Execute tool calls
             for (const toolCall of toolCalls) {
               let toolResult = '';
-              
+
               try {
                 console.log(
                   `🛠️ Executing tool: ${toolCall.function.name} with args:`,
@@ -1443,35 +1624,33 @@ Regras importantes:
 
                 if (toolCall.function.name === 'web_search') {
                   const args = JSON.parse(toolCall.function.arguments);
-                  console.log(
-                    `🔍 Model requested web search: "${args.query}"`
-                  );
-                  
+                  console.log(`🔍 Model requested web search: "${args.query}"`);
+
                   // Send notification to user that search is starting
                   await this.sendToolNotification(
                     `🔍 Buscando em múltiplas fontes: "${args.query}"...\n🌐 Consultando: DuckDuckGo, Bing, Yahoo, Searx, Brave, Yandex`,
                     conversationEntry.chat.id,
                     whatsappClient
                   );
-                  
+
                   toolResult = await executeWebSearch(args.query);
-                  
+
                   // Parse results to get count
                   const searchData = JSON.parse(toolResult);
                   const resultCount = searchData.results?.length || 0;
-                  
+
                   console.log(
                     `✅ Search completed, result length: ${toolResult.length}`
                   );
-                  
+
                   // Store successful tool result
                   executedToolResults.push({
                     toolName: 'web_search',
                     args: args,
                     result: searchData,
-                    success: !searchData.error
+                    success: !searchData.error,
                   });
-                  
+
                   // Save tool call to conversation history for context
                   const toolCallEntry = {
                     type: 'tool_call',
@@ -1481,53 +1660,53 @@ Regras importantes:
                     timestamp: new Date().toISOString(),
                     chat: conversationEntry.chat,
                     agentId: this.id,
-                    sessionId: this.sessionId
+                    sessionId: this.sessionId,
                   };
                   await this.saveConversationEntry(toolCallEntry);
-                  
+
                   // Small delay before completion notification
-                  await new Promise(resolve => setTimeout(resolve, 1000));
-                  
+                  await new Promise((resolve) => setTimeout(resolve, 1000));
+
                   // Send completion notification with detailed info
                   const sourcesUsed = searchData.sources?.join(', ') || 'N/A';
-                  const duplicatesInfo = searchData.duplicatesRemoved > 0 ? ` (${searchData.duplicatesRemoved} duplicatas removidas)` : '';
-                  
+                  const duplicatesInfo =
+                    searchData.duplicatesRemoved > 0
+                      ? ` (${searchData.duplicatesRemoved} duplicatas removidas)`
+                      : '';
+
                   await this.sendToolNotification(
-                    `✅ Busca concluída!\n📊 ${resultCount} resultados únicos de ${searchData.sources?.length || 0} fontes\n🌐 Fontes: ${sourcesUsed}${duplicatesInfo}`,
+                    `✅ Busca concluída!\n📊 ${resultCount} resultados únicos de ${
+                      searchData.sources?.length || 0
+                    } fontes\n🌐 Fontes: ${sourcesUsed}${duplicatesInfo}`,
                     conversationEntry.chat.id,
                     whatsappClient
                   );
-                  
                 } else if (toolCall.function.name === 'web_scrape') {
                   const args = JSON.parse(toolCall.function.arguments);
-                  console.log(
-                    `🌐 Model requested web scraping: "${args.url}"`
-                  );
-                  
+                  console.log(`🌐 Model requested web scraping: "${args.url}"`);
+
                   // Send notification to user that scraping is starting
                   await this.sendToolNotification(
                     `🌐 Baixando e analisando site: "${args.url}"...\n📊 Extraindo conteúdo, links, imagens e estrutura`,
                     conversationEntry.chat.id,
                     whatsappClient
                   );
-                  
-                  toolResult = await executeWebScrape(args.url);
-                  
+
+                  toolResult = await executeBasicWebScrape(args.url);
+
                   // Parse results to get info
                   const scrapeData = JSON.parse(toolResult);
-                  
-                  console.log(
-                    `✅ Web scraping completed for: ${args.url}`
-                  );
-                  
+
+                  console.log(`✅ Web scraping completed for: ${args.url}`);
+
                   // Store successful tool result
                   executedToolResults.push({
                     toolName: 'web_scrape',
                     args: args,
                     result: scrapeData,
-                    success: !scrapeData.error
+                    success: !scrapeData.error,
                   });
-                  
+
                   // Save tool call to conversation history for context
                   const toolCallEntry = {
                     type: 'tool_call',
@@ -1537,13 +1716,13 @@ Regras importantes:
                     timestamp: new Date().toISOString(),
                     chat: conversationEntry.chat,
                     agentId: this.id,
-                    sessionId: this.sessionId
+                    sessionId: this.sessionId,
                   };
                   await this.saveConversationEntry(toolCallEntry);
-                  
+
                   // Small delay before completion notification
-                  await new Promise(resolve => setTimeout(resolve, 1000));
-                  
+                  await new Promise((resolve) => setTimeout(resolve, 1000));
+
                   // Send completion notification with detailed info
                   if (scrapeData.error) {
                     await this.sendToolNotification(
@@ -1553,43 +1732,51 @@ Regras importantes:
                     );
                   } else {
                     await this.sendToolNotification(
-                      `✅ Site analisado com sucesso!\n📄 ${scrapeData.textLength || 0} caracteres de texto\n🔗 ${scrapeData.structure?.totalLinks || 0} links encontrados\n🖼️ ${scrapeData.structure?.totalImages || 0} imagens encontradas`,
+                      `✅ Site analisado com sucesso!\n📄 ${
+                        scrapeData.textLength || 0
+                      } caracteres de texto\n🔗 ${
+                        scrapeData.structure?.totalLinks || 0
+                      } links encontrados\n🖼️ ${
+                        scrapeData.structure?.totalImages || 0
+                      } imagens encontradas`,
                       conversationEntry.chat.id,
                       whatsappClient
                     );
                   }
-                  
                 } else if (toolCall.function.name === 'html_analysis') {
                   const args = JSON.parse(toolCall.function.arguments);
                   const analysisType = args.analysisType || 'general';
                   console.log(
                     `🔍 Model requested HTML analysis: "${args.url}" (type: ${analysisType})`
                   );
-                  
+
                   // Send notification to user that analysis is starting
                   await this.sendToolNotification(
                     `🔍 Analisando estrutura HTML: "${args.url}"...\n📋 Tipo de análise: ${analysisType}\n🔬 Extraindo informações específicas`,
                     conversationEntry.chat.id,
                     whatsappClient
                   );
-                  
-                  toolResult = await executeHtmlAnalysis(args.url, analysisType);
-                  
+
+                  toolResult = await executeHtmlAnalysis(
+                    args.url,
+                    analysisType
+                  );
+
                   // Parse results to get info
                   const analysisData = JSON.parse(toolResult);
-                  
+
                   console.log(
                     `✅ HTML analysis completed for: ${args.url} (${analysisType})`
                   );
-                  
+
                   // Store successful tool result
                   executedToolResults.push({
                     toolName: 'html_analysis',
                     args: args,
                     result: analysisData,
-                    success: !analysisData.error
+                    success: !analysisData.error,
                   });
-                  
+
                   // Save tool call to conversation history for context
                   const toolCallEntry = {
                     type: 'tool_call',
@@ -1599,13 +1786,13 @@ Regras importantes:
                     timestamp: new Date().toISOString(),
                     chat: conversationEntry.chat,
                     agentId: this.id,
-                    sessionId: this.sessionId
+                    sessionId: this.sessionId,
                   };
                   await this.saveConversationEntry(toolCallEntry);
-                  
+
                   // Small delay before completion notification
-                  await new Promise(resolve => setTimeout(resolve, 1000));
-                  
+                  await new Promise((resolve) => setTimeout(resolve, 1000));
+
                   // Send completion notification with detailed info
                   if (analysisData.error) {
                     await this.sendToolNotification(
@@ -1617,50 +1804,69 @@ Regras importantes:
                     let analysisInfo = '';
                     switch (analysisType) {
                       case 'news':
-                        analysisInfo = `📰 Título: ${analysisData.headline || 'N/A'}\n👤 Autor: ${analysisData.author || 'N/A'}\n📅 Data: ${analysisData.publishDate || 'N/A'}`;
+                        analysisInfo = `📰 Título: ${
+                          analysisData.headline || 'N/A'
+                        }\n👤 Autor: ${
+                          analysisData.author || 'N/A'
+                        }\n📅 Data: ${analysisData.publishDate || 'N/A'}`;
                         break;
                       case 'ecommerce':
-                        analysisInfo = `🛍️ Produto: ${analysisData.productName || 'N/A'}\n💰 Preço: ${analysisData.price || 'N/A'}\n📦 Em estoque: ${analysisData.inStock ? 'Sim' : 'Não'}`;
+                        analysisInfo = `🛍️ Produto: ${
+                          analysisData.productName || 'N/A'
+                        }\n💰 Preço: ${
+                          analysisData.price || 'N/A'
+                        }\n📦 Em estoque: ${
+                          analysisData.inStock ? 'Sim' : 'Não'
+                        }`;
                         break;
                       case 'contact':
-                        analysisInfo = `📧 E-mails: ${analysisData.emails?.length || 0}\n📞 Telefones: ${analysisData.phones?.length || 0}\n🌐 Redes sociais: ${Object.keys(analysisData.socialMedia || {}).length}`;
+                        analysisInfo = `📧 E-mails: ${
+                          analysisData.emails?.length || 0
+                        }\n📞 Telefones: ${
+                          analysisData.phones?.length || 0
+                        }\n🌐 Redes sociais: ${
+                          Object.keys(analysisData.socialMedia || {}).length
+                        }`;
                         break;
                       default:
-                        analysisInfo = `📄 Título: ${analysisData.title || 'N/A'}\n🔗 Links: ${analysisData.links || 0}\n🖼️ Imagens: ${analysisData.content?.images || 0}`;
+                        analysisInfo = `📄 Título: ${
+                          analysisData.title || 'N/A'
+                        }\n🔗 Links: ${analysisData.links || 0}\n🖼️ Imagens: ${
+                          analysisData.content?.images || 0
+                        }`;
                     }
-                    
+
                     await this.sendToolNotification(
                       `✅ Análise HTML concluída!\n📋 Tipo: ${analysisType}\n${analysisInfo}`,
                       conversationEntry.chat.id,
                       whatsappClient
                     );
                   }
-                  
                 } else if (toolCall.function.name === 'generate_zip') {
                   const args = JSON.parse(toolCall.function.arguments);
                   const dataType = args.type || 'scraping';
                   console.log(
                     `📦 Model requested ZIP generation: type ${dataType}`
                   );
-                  
+
                   // Send notification to user that ZIP generation is starting
                   await this.sendToolNotification(
                     `📦 Gerando arquivo ZIP para download...\n📋 Tipo: ${dataType}\n⏳ Preparando dados para exportação`,
                     conversationEntry.chat.id,
                     whatsappClient
                   );
-                  
+
                   try {
                     const data = JSON.parse(args.data);
                     toolResult = await generateZipFile(data, dataType);
-                    
+
                     // Parse results to get info
                     const zipData = JSON.parse(toolResult);
-                    
+
                     console.log(
                       `✅ ZIP generation completed: ${zipData.fileName}`
                     );
-                    
+
                     // Save tool call to conversation history for context
                     const toolCallEntry = {
                       type: 'tool_call',
@@ -1670,17 +1876,21 @@ Regras importantes:
                       timestamp: new Date().toISOString(),
                       chat: conversationEntry.chat,
                       agentId: this.id,
-                      sessionId: this.sessionId
+                      sessionId: this.sessionId,
                     };
                     await this.saveConversationEntry(toolCallEntry);
-                    
+
                     // Small delay before completion notification
-                    await new Promise(resolve => setTimeout(resolve, 1000));
-                    
+                    await new Promise((resolve) => setTimeout(resolve, 1000));
+
                     // Send completion notification with download link
                     if (zipData.success) {
                       await this.sendToolNotification(
-                        `✅ Arquivo ZIP criado com sucesso!\n📁 Nome: ${zipData.fileName}\n💾 Tamanho: ${Math.round(zipData.size / 1024)} KB\n🔗 Download: ${zipData.downloadUrl}`,
+                        `✅ Arquivo ZIP criado com sucesso!\n📁 Nome: ${
+                          zipData.fileName
+                        }\n💾 Tamanho: ${Math.round(
+                          zipData.size / 1024
+                        )} KB\n🔗 Download: ${zipData.downloadUrl}`,
                         conversationEntry.chat.id,
                         whatsappClient
                       );
@@ -1695,22 +1905,21 @@ Regras importantes:
                     console.error('Error parsing ZIP data:', parseError);
                     toolResult = JSON.stringify({
                       success: false,
-                      error: 'Erro ao processar dados para ZIP'
+                      error: 'Erro ao processar dados para ZIP',
                     });
-                    
+
                     await this.sendToolNotification(
                       `❌ Erro ao processar dados para ZIP: ${parseError.message}`,
                       conversationEntry.chat.id,
                       whatsappClient
                     );
                   }
-                  
                 } else {
                   toolResult = JSON.stringify({
                     error: `Unknown tool: ${toolCall.function.name}`,
                   });
                   console.log(`❌ Unknown tool: ${toolCall.function.name}`);
-                  
+
                   // Send error notification
                   await this.sendToolNotification(
                     `❌ Ferramenta desconhecida: ${toolCall.function.name}`,
@@ -1719,12 +1928,15 @@ Regras importantes:
                   );
                 }
               } catch (toolExecutionError) {
-                console.error(`❌ Tool execution error for ${toolCall.function.name}:`, toolExecutionError);
+                console.error(
+                  `❌ Tool execution error for ${toolCall.function.name}:`,
+                  toolExecutionError
+                );
                 toolResult = JSON.stringify({
                   error: `Tool execution failed: ${toolExecutionError.message}`,
-                  toolName: toolCall.function.name
+                  toolName: toolCall.function.name,
                 });
-                
+
                 // Send error notification
                 await this.sendToolNotification(
                   `❌ Erro na execução da ferramenta ${toolCall.function.name}:\n${toolExecutionError.message}`,
@@ -1735,12 +1947,14 @@ Regras importantes:
 
               // Add tool result to conversation - This is critical for OpenAI API
               messages.push({
-                role: "tool",
+                role: 'tool',
                 content: toolResult,
-                tool_call_id: toolCall.id
+                tool_call_id: toolCall.id,
               });
-              
-              console.log(`✅ Tool result added to conversation for tool_call_id: ${toolCall.id}`);
+
+              console.log(
+                `✅ Tool result added to conversation for tool_call_id: ${toolCall.id}`
+              );
             }
 
             // Get response after tool execution
@@ -1752,20 +1966,25 @@ Regras importantes:
                 temperature: this.creativity / 100,
                 max_tokens: 600, // Reduced for final response to save quota
               });
-              
+
               // Check again for more tool calls
               toolCalls = response.choices[0]?.message?.tool_calls;
             } catch (finalResponseError) {
-              console.error('Error getting final response after tool execution:', finalResponseError);
+              console.error(
+                'Error getting final response after tool execution:',
+                finalResponseError
+              );
               // Break the loop to prevent infinite attempts
               toolCalls = null;
-              
+
               // If we have tool results, use them for response
               if (executedToolResults.length > 0) {
-                console.log(`🔧 Using tool results for response due to final response error`);
+                console.log(
+                  `🔧 Using tool results for response due to final response error`
+                );
                 break;
               }
-              
+
               throw finalResponseError;
             }
           }
@@ -1775,14 +1994,16 @@ Regras importantes:
             toolError.message
           );
           console.log(`Error stack:`, toolError.stack);
-          
+
           // If we have successful tool results, don't fallback completely
           if (executedToolResults.length > 0) {
-            console.log(`🔧 Found ${executedToolResults.length} successful tool results, using them instead of fallback`);
+            console.log(
+              `🔧 Found ${executedToolResults.length} successful tool results, using them instead of fallback`
+            );
             // We'll handle this in the error handler below
             throw toolError;
           }
-          
+
           // Fallback to regular completion without tools
           response = await openai.chat.completions.create({
             model: this.model,
@@ -1817,7 +2038,8 @@ Regras importantes:
         responseType: typeof response,
         hasChoices: !!response.choices,
         choicesLength: response.choices?.length || 0,
-        messageContent: response.choices?.[0]?.message?.content?.substring(0, 50) || 'NONE'
+        messageContent:
+          response.choices?.[0]?.message?.content?.substring(0, 50) || 'NONE',
       });
 
       // Se não conseguiu gerar resposta, criar uma resposta padrão baseada na personalidade
@@ -1862,118 +2084,183 @@ Regras importantes:
 
       // First, check if we have any successful tool executions
       if (executedToolResults.length > 0) {
-        console.log(`🔧 Found ${executedToolResults.length} executed tools, generating response from results`);
-        
+        console.log(
+          `🔧 Found ${executedToolResults.length} executed tools, generating response from results`
+        );
+
         try {
           let responseFromTools = '';
-          
+
           for (const toolResult of executedToolResults) {
             if (toolResult.success && toolResult.result) {
               if (toolResult.toolName === 'web_scrape') {
                 const data = toolResult.result;
                 responseFromTools += `Analisei o site ${toolResult.args.url} e encontrei:\n\n`;
                 responseFromTools += `📄 **Título**: ${data.title || 'N/A'}\n`;
-                responseFromTools += `📝 **Descrição**: ${data.description || 'N/A'}\n`;
-                responseFromTools += `📊 **Conteúdo**: ${data.content ? data.content.substring(0, 500) + '...' : 'N/A'}\n`;
-                responseFromTools += `🔗 **Links encontrados**: ${data.structure?.totalLinks || data.links?.length || 0}\n`;
-                responseFromTools += `🖼️ **Imagens**: ${data.structure?.totalImages || data.images?.length || 0}\n`;
-                
+                responseFromTools += `📝 **Descrição**: ${
+                  data.description || 'N/A'
+                }\n`;
+                responseFromTools += `📊 **Conteúdo**: ${
+                  data.content ? data.content.substring(0, 500) + '...' : 'N/A'
+                }\n`;
+                responseFromTools += `🔗 **Links encontrados**: ${
+                  data.structure?.totalLinks || data.links?.length || 0
+                }\n`;
+                responseFromTools += `🖼️ **Imagens**: ${
+                  data.structure?.totalImages || data.images?.length || 0
+                }\n`;
+
                 if (data.headings) {
                   responseFromTools += `\n📌 **Principais tópicos**:\n`;
                   if (data.headings.h1?.length > 0) {
-                    responseFromTools += data.headings.h1.slice(0, 3).map(h => `• ${h}`).join('\n') + '\n';
+                    responseFromTools +=
+                      data.headings.h1
+                        .slice(0, 3)
+                        .map((h) => `• ${h}`)
+                        .join('\n') + '\n';
                   }
                 }
               } else if (toolResult.toolName === 'web_search') {
                 const data = toolResult.result;
-                responseFromTools += `Encontrei ${data.results?.length || 0} resultados para "${toolResult.args.query}":\n\n`;
-                
+                responseFromTools += `Encontrei ${
+                  data.results?.length || 0
+                } resultados para "${toolResult.args.query}":\n\n`;
+
                 if (data.results && data.results.length > 0) {
                   data.results.slice(0, 5).forEach((result, index) => {
                     responseFromTools += `${index + 1}. **${result.title}**\n`;
                     responseFromTools += `   ${result.snippet}\n`;
                     responseFromTools += `   🔗 ${result.url}\n\n`;
                   });
-                  
+
                   if (data.sources?.length > 0) {
-                    responseFromTools += `\n📍 Fontes consultadas: ${data.sources.join(', ')}\n`;
+                    responseFromTools += `\n📍 Fontes consultadas: ${data.sources.join(
+                      ', '
+                    )}\n`;
                   }
                 }
               } else if (toolResult.toolName === 'html_analysis') {
                 const data = toolResult.result;
                 const analysisType = toolResult.args.analysisType || 'general';
                 responseFromTools += `Análise ${analysisType} do site ${toolResult.args.url}:\n\n`;
-                
+
                 if (analysisType === 'news' && data.headline) {
                   responseFromTools += `📰 **Título**: ${data.headline}\n`;
-                  responseFromTools += `👤 **Autor**: ${data.author || 'N/A'}\n`;
-                  responseFromTools += `📅 **Data**: ${data.publishDate || 'N/A'}\n`;
-                  responseFromTools += `🏷️ **Categoria**: ${data.category || 'N/A'}\n`;
+                  responseFromTools += `👤 **Autor**: ${
+                    data.author || 'N/A'
+                  }\n`;
+                  responseFromTools += `📅 **Data**: ${
+                    data.publishDate || 'N/A'
+                  }\n`;
+                  responseFromTools += `🏷️ **Categoria**: ${
+                    data.category || 'N/A'
+                  }\n`;
                 } else if (analysisType === 'ecommerce' && data.productName) {
                   responseFromTools += `🛍️ **Produto**: ${data.productName}\n`;
                   responseFromTools += `💰 **Preço**: ${data.price || 'N/A'}\n`;
-                  responseFromTools += `📦 **Disponibilidade**: ${data.inStock ? 'Em estoque' : 'Indisponível'}\n`;
+                  responseFromTools += `📦 **Disponibilidade**: ${
+                    data.inStock ? 'Em estoque' : 'Indisponível'
+                  }\n`;
                   responseFromTools += `🏪 **Marca**: ${data.brand || 'N/A'}\n`;
                 } else if (analysisType === 'contact') {
-                  responseFromTools += `📧 **E-mails encontrados**: ${data.emails?.length || 0}\n`;
-                  responseFromTools += `📞 **Telefones**: ${data.phones?.length || 0}\n`;
-                  responseFromTools += `🌐 **Redes sociais**: ${Object.keys(data.socialMedia || {}).length}\n`;
-                  responseFromTools += `📝 **Formulário de contato**: ${data.contactForm ? 'Sim' : 'Não'}\n`;
+                  responseFromTools += `📧 **E-mails encontrados**: ${
+                    data.emails?.length || 0
+                  }\n`;
+                  responseFromTools += `📞 **Telefones**: ${
+                    data.phones?.length || 0
+                  }\n`;
+                  responseFromTools += `🌐 **Redes sociais**: ${
+                    Object.keys(data.socialMedia || {}).length
+                  }\n`;
+                  responseFromTools += `📝 **Formulário de contato**: ${
+                    data.contactForm ? 'Sim' : 'Não'
+                  }\n`;
                 } else {
-                  responseFromTools += `📄 **Título**: ${data.title || 'N/A'}\n`;
-                  responseFromTools += `🔗 **Total de links**: ${data.links || 0}\n`;
-                  responseFromTools += `🖼️ **Total de imagens**: ${data.content?.images || 0}\n`;
-                  responseFromTools += `📊 **Estrutura**: ${data.structure ? JSON.stringify(data.structure) : 'N/A'}\n`;
+                  responseFromTools += `📄 **Título**: ${
+                    data.title || 'N/A'
+                  }\n`;
+                  responseFromTools += `🔗 **Total de links**: ${
+                    data.links || 0
+                  }\n`;
+                  responseFromTools += `🖼️ **Total de imagens**: ${
+                    data.content?.images || 0
+                  }\n`;
+                  responseFromTools += `📊 **Estrutura**: ${
+                    data.structure ? JSON.stringify(data.structure) : 'N/A'
+                  }\n`;
                 }
               }
             }
           }
-          
+
           if (responseFromTools) {
             console.log(`✅ Generated response from tool results`);
             return responseFromTools.trim();
           }
         } catch (toolResponseError) {
-          console.error('Error generating response from tools:', toolResponseError);
+          console.error(
+            'Error generating response from tools:',
+            toolResponseError
+          );
         }
       }
 
       // Try to handle the user's request manually if OpenAI fails
-      const messageText = messageData.content || messageData.text || messageData.body || '';
+      const messageText =
+        messageData.content || messageData.text || messageData.body || '';
       const lowerMessage = messageText.toLowerCase();
-      
+
       // Check if user is asking for web scraping or search
-      if (lowerMessage.includes('http') || lowerMessage.includes('www.') || lowerMessage.includes('site') || lowerMessage.includes('página')) {
+      if (
+        lowerMessage.includes('http') ||
+        lowerMessage.includes('www.') ||
+        lowerMessage.includes('site') ||
+        lowerMessage.includes('página')
+      ) {
         // Try to extract URL and perform scraping
         const urlMatch = messageText.match(/https?:\/\/[^\s]+/);
         if (urlMatch) {
           try {
             console.log(`🔄 Manual web scraping attempt for: ${urlMatch[0]}`);
             // Fixed: Use the globally available function instead of undefined one
-            const scrapingResult = await this.executeBasicWebScrapeHelper(urlMatch[0]);
+            const scrapingResult = await this.executeBasicWebScrapeHelper(
+              urlMatch[0]
+            );
             const scrapedData = JSON.parse(scrapingResult);
-            
+
             if (!scrapedData.error) {
-              return `Analisei o site ${urlMatch[0]} e encontrei:\n\n` +
-                     `📄 **Título**: ${scrapedData.title || 'N/A'}\n` +
-                     `📝 **Descrição**: ${scrapedData.description || 'N/A'}\n` +
-                     `📊 **Conteúdo**: ${scrapedData.content ? scrapedData.content.substring(0, 500) + '...' : 'N/A'}\n` +
-                     `🔗 **Links encontrados**: ${scrapedData.structure?.totalLinks || 0}\n` +
-                     `🖼️ **Imagens**: ${scrapedData.structure?.totalImages || 0}`;
+              return (
+                `Analisei o site ${urlMatch[0]} e encontrei:\n\n` +
+                `📄 **Título**: ${scrapedData.title || 'N/A'}\n` +
+                `📝 **Descrição**: ${scrapedData.description || 'N/A'}\n` +
+                `📊 **Conteúdo**: ${
+                  scrapedData.content
+                    ? scrapedData.content.substring(0, 500) + '...'
+                    : 'N/A'
+                }\n` +
+                `🔗 **Links encontrados**: ${
+                  scrapedData.structure?.totalLinks || 0
+                }\n` +
+                `🖼️ **Imagens**: ${scrapedData.structure?.totalImages || 0}`
+              );
             }
           } catch (scrapingError) {
             console.error('Manual scraping failed:', scrapingError);
           }
         }
       }
-      
+
       // Check if user is asking for search
-      if (lowerMessage.includes('buscar') || lowerMessage.includes('pesquisar') || lowerMessage.includes('procurar')) {
+      if (
+        lowerMessage.includes('buscar') ||
+        lowerMessage.includes('pesquisar') ||
+        lowerMessage.includes('procurar')
+      ) {
         try {
           console.log(`🔄 Manual search attempt for: ${messageText}`);
           const searchResult = await executeBasicWebSearch(messageText);
           const searchData = JSON.parse(searchResult);
-          
+
           if (searchData.results && searchData.results.length > 0) {
             let response = `Encontrei ${searchData.results.length} resultados para sua pesquisa:\n\n`;
             searchData.results.slice(0, 3).forEach((result, index) => {
@@ -1991,13 +2278,19 @@ Regras importantes:
       // Specific error handling with quota management
       let errorMessage = 'Erro interno do sistema';
       let useExtendedFallback = false;
-      
+
       if (error.message.includes('API key')) {
         errorMessage = 'Chave da API OpenAI inválida ou não configurada';
-      } else if (error.message.includes('429') || error.message.includes('quota') || error.message.includes('exceeded')) {
+      } else if (
+        error.message.includes('429') ||
+        error.message.includes('quota') ||
+        error.message.includes('exceeded')
+      ) {
         errorMessage = 'Quota da API OpenAI excedida - usando modo econômico';
         useExtendedFallback = true;
-        console.warn(`⚠️ OpenAI quota exceeded for agent ${this.id}. Switching to fallback mode.`);
+        console.warn(
+          `⚠️ OpenAI quota exceeded for agent ${this.id}. Switching to fallback mode.`
+        );
       } else if (
         error.message.includes('timeout') ||
         error.message.includes('ECONNRESET')
@@ -2052,13 +2345,16 @@ Regras importantes:
           'Entendo que você precisa de ajuda. Estou em modo econômico, mas ainda posso pesquisar informações e analisar sites para você. Como posso ajudar?',
       };
 
-      const responseText = useExtendedFallback 
-        ? quotaFallbackResponses[this.personality] || 'Sistema em modo econômico. Como posso ajudá-lo de forma simples?'
+      const responseText = useExtendedFallback
+        ? quotaFallbackResponses[this.personality] ||
+          'Sistema em modo econômico. Como posso ajudá-lo de forma simples?'
         : fallbackResponses[this.personality] || 'Como posso ajudá-lo hoje?';
 
       // Log quota issues for monitoring
       if (useExtendedFallback) {
-        console.warn(`💰 Agent ${this.id} using quota fallback response. Consider upgrading OpenAI plan.`);
+        console.warn(
+          `💰 Agent ${this.id} using quota fallback response. Consider upgrading OpenAI plan.`
+        );
       }
 
       return responseText;
@@ -2157,20 +2453,31 @@ Regras importantes:
 
       // Create a copy to avoid mutating the original
       let entryToSave = { ...conversationEntry };
-      
+
       // Summarize content if it's too long to save tokens
       if (entryToSave.content && entryToSave.content.length > 500) {
         entryToSave.originalLength = entryToSave.content.length;
-        entryToSave.content = await this.summarizeContent(entryToSave.content, entryToSave.type);
+        entryToSave.content = await this.summarizeContent(
+          entryToSave.content,
+          entryToSave.type
+        );
         entryToSave.wasSummarized = true;
-        console.log(`📝 Content summarized: ${entryToSave.originalLength} → ${entryToSave.content.length} chars`);
+        console.log(
+          `📝 Content summarized: ${entryToSave.originalLength} → ${entryToSave.content.length} chars`
+        );
       }
 
       // Summarize tool results if they're too large
-      if (entryToSave.toolResult && typeof entryToSave.toolResult === 'object') {
+      if (
+        entryToSave.toolResult &&
+        typeof entryToSave.toolResult === 'object'
+      ) {
         const toolResultStr = JSON.stringify(entryToSave.toolResult);
         if (toolResultStr.length > 1000) {
-          entryToSave.toolResult = await this.summarizeToolResult(entryToSave.toolResult, entryToSave.toolName);
+          entryToSave.toolResult = await this.summarizeToolResult(
+            entryToSave.toolResult,
+            entryToSave.toolName
+          );
           entryToSave.toolResultWasSummarized = true;
           console.log(`🔧 Tool result summarized for ${entryToSave.toolName}`);
         }
@@ -2188,12 +2495,20 @@ Regras importantes:
       console.log(
         `💾 Conversation entry saved: ${conversationEntry.type} message for agent ${this.id} in chat ${conversationEntry.chat?.id}`
       );
-      
+
       // Log additional details for debugging
       if (conversationEntry.type === 'tool_call') {
-        console.log(`🔧 Tool call saved: ${conversationEntry.toolName} with ${conversationEntry.toolResult?.results?.length || 0} results`);
+        console.log(
+          `🔧 Tool call saved: ${conversationEntry.toolName} with ${
+            conversationEntry.toolResult?.results?.length || 0
+          } results`
+        );
       } else {
-        console.log(`💬 Content preview: "${entryToSave.content?.substring(0, 50) || 'N/A'}..."`);
+        console.log(
+          `💬 Content preview: "${
+            entryToSave.content?.substring(0, 50) || 'N/A'
+          }..."`
+        );
       }
     } catch (error) {
       console.error('Error saving conversation entry:', error);
@@ -2215,19 +2530,24 @@ Regras importantes:
 
       // Use a lightweight summarization approach to avoid API calls
       // Extract key sentences based on punctuation and length
-      const sentences = content.split(/[.!?]+/).filter(s => s.trim().length > 10);
-      
+      const sentences = content
+        .split(/[.!?]+/)
+        .filter((s) => s.trim().length > 10);
+
       if (sentences.length <= 3) {
         // If few sentences, just truncate
         return content.substring(0, 400) + '... [conteúdo resumido]';
       }
 
       // Take first sentence, middle sentence, and last sentence
-      const summary = [
-        sentences[0]?.trim(),
-        sentences[Math.floor(sentences.length / 2)]?.trim(),
-        sentences[sentences.length - 1]?.trim()
-      ].filter(Boolean).join('. ') + '.';
+      const summary =
+        [
+          sentences[0]?.trim(),
+          sentences[Math.floor(sentences.length / 2)]?.trim(),
+          sentences[sentences.length - 1]?.trim(),
+        ]
+          .filter(Boolean)
+          .join('. ') + '.';
 
       // If summary is still too long, truncate
       if (summary.length > 400) {
@@ -2235,7 +2555,6 @@ Regras importantes:
       }
 
       return summary + ' [resumo automático]';
-      
     } catch (error) {
       console.error('Error summarizing content:', error);
       // Fallback to simple truncation
@@ -2256,15 +2575,17 @@ Regras importantes:
             query: toolResult.query,
             total: toolResult.total || 0,
             sources: toolResult.sources || [],
-            summary: `Encontrados ${toolResult.total || 0} resultados de ${toolResult.sources?.length || 0} fontes`,
+            summary: `Encontrados ${toolResult.total || 0} resultados de ${
+              toolResult.sources?.length || 0
+            } fontes`,
             // Keep only first 3 results with limited content
-            results: (toolResult.results || []).slice(0, 3).map(r => ({
+            results: (toolResult.results || []).slice(0, 3).map((r) => ({
               title: r.title?.substring(0, 100) || '',
               snippet: r.snippet?.substring(0, 150) || '',
               url: r.url,
-              source: r.source
+              source: r.source,
             })),
-            wasSummarized: true
+            wasSummarized: true,
           };
 
         case 'web_scrape':
@@ -2274,10 +2595,12 @@ Regras importantes:
             description: toolResult.description?.substring(0, 200) || '',
             textLength: toolResult.textLength || 0,
             structure: toolResult.structure || {},
-            summary: `Site analisado: ${toolResult.textLength || 0} chars, ${toolResult.structure?.totalLinks || 0} links`,
+            summary: `Site analisado: ${toolResult.textLength || 0} chars, ${
+              toolResult.structure?.totalLinks || 0
+            } links`,
             // Summarize content
             content: toolResult.content?.substring(0, 300) + '...' || '',
-            wasSummarized: true
+            wasSummarized: true,
           };
 
         case 'html_analysis':
@@ -2287,26 +2610,34 @@ Regras importantes:
             title: toolResult.title?.substring(0, 100) || '',
             summary: `Análise ${toolResult.analysisType} concluída para ${toolResult.url}`,
             // Keep key fields but limit content
-            keyFindings: this.extractKeyFindings(toolResult, toolResult.analysisType),
-            wasSummarized: true
+            keyFindings: this.extractKeyFindings(
+              toolResult,
+              toolResult.analysisType
+            ),
+            wasSummarized: true,
           };
 
         default:
           // Generic summarization for unknown tool results
           const summary = {
             summary: `Resultado da ferramenta ${toolName}`,
-            wasSummarized: true
+            wasSummarized: true,
           };
-          
+
           // Keep only essential fields
-          Object.keys(toolResult).slice(0, 5).forEach(key => {
-            if (typeof toolResult[key] === 'string' && toolResult[key].length > 200) {
-              summary[key] = toolResult[key].substring(0, 200) + '...';
-            } else if (typeof toolResult[key] !== 'object') {
-              summary[key] = toolResult[key];
-            }
-          });
-          
+          Object.keys(toolResult)
+            .slice(0, 5)
+            .forEach((key) => {
+              if (
+                typeof toolResult[key] === 'string' &&
+                toolResult[key].length > 200
+              ) {
+                summary[key] = toolResult[key].substring(0, 200) + '...';
+              } else if (typeof toolResult[key] !== 'object') {
+                summary[key] = toolResult[key];
+              }
+            });
+
           return summary;
       }
     } catch (error) {
@@ -2314,7 +2645,7 @@ Regras importantes:
       return {
         summary: `Erro ao resumir resultado de ${toolName}`,
         wasSummarized: true,
-        error: error.message
+        error: error.message,
       };
     }
   }
@@ -2327,27 +2658,27 @@ Regras importantes:
           headline: analysisData.headline?.substring(0, 100),
           author: analysisData.author,
           publishDate: analysisData.publishDate,
-          category: analysisData.category
+          category: analysisData.category,
         };
       case 'ecommerce':
         return {
           productName: analysisData.productName?.substring(0, 100),
           price: analysisData.price,
           inStock: analysisData.inStock,
-          brand: analysisData.brand
+          brand: analysisData.brand,
         };
       case 'contact':
         return {
           emailCount: analysisData.emails?.length || 0,
           phoneCount: analysisData.phones?.length || 0,
           socialCount: Object.keys(analysisData.socialMedia || {}).length,
-          hasContactForm: analysisData.contactForm
+          hasContactForm: analysisData.contactForm,
         };
       default:
         return {
           title: analysisData.title?.substring(0, 100),
           linksCount: analysisData.links || 0,
-          imagesCount: analysisData.content?.images || 0
+          imagesCount: analysisData.content?.images || 0,
         };
     }
   }
@@ -2382,7 +2713,7 @@ Regras importantes:
         console.log(
           `📅 History span: ${oldestMsg.createdAt} to ${newestMsg.createdAt}`
         );
-        
+
         // Log types of messages for debugging
         const messageTypes = conversations.reduce((acc, msg) => {
           acc[msg.type] = (acc[msg.type] || 0) + 1;
@@ -2502,11 +2833,14 @@ async function getAllAgentsFromDatabase() {
       .sort({ createdAt: -1 })
       .toArray();
 
-    return agents.map(agentData => new AIAgent({
-      ...agentData,
-      id: agentData._id,
-      openaiApiKey: agentData.openaiApiKey || '',
-    }));
+    return agents.map(
+      (agentData) =>
+        new AIAgent({
+          ...agentData,
+          id: agentData._id,
+          openaiApiKey: agentData.openaiApiKey || '',
+        })
+    );
   } catch (error) {
     console.error('Error getting all agents from database:', error);
     return [];
@@ -2569,9 +2903,7 @@ async function findAgentBySessionId(sessionId, activeOnly = true) {
       query.isActive = true;
     }
 
-    const agentData = await db
-      .collection('ai_agents')
-      .findOne(query);
+    const agentData = await db.collection('ai_agents').findOne(query);
 
     if (agentData) {
       return new AIAgent({
@@ -2614,7 +2946,10 @@ router.post('/create', async (req, res) => {
     const validatedData = createAgentSchema.parse(req.body);
 
     // Check if agent already exists for this session
-    const existingAgent = await findAgentBySessionId(validatedData.sessionId, true);
+    const existingAgent = await findAgentBySessionId(
+      validatedData.sessionId,
+      true
+    );
 
     if (existingAgent) {
       return res.status(400).json({
@@ -2872,7 +3207,7 @@ router.patch('/:agentId/deactivate', async (req, res) => {
 router.delete('/:agentId', async (req, res) => {
   try {
     const agentId = req.params.agentId;
-    
+
     // Check if agent exists in database
     const agent = await getAgentFromDatabase(agentId);
     if (!agent) {
@@ -3211,47 +3546,46 @@ router.get('/download/:fileName', async (req, res) => {
     const { fileName } = req.params;
     const path = require('path');
     const fs = require('fs').promises;
-    
+
     // Validate file name for security
     if (!fileName.match(/^[a-zA-Z0-9_-]+\.zip$/)) {
       return res.status(400).json({
         success: false,
-        message: 'Nome de arquivo inválido'
+        message: 'Nome de arquivo inválido',
       });
     }
-    
+
     const filePath = path.join(process.cwd(), 'downloads', 'exports', fileName);
-    
+
     // Check if file exists
     try {
       await fs.access(filePath);
     } catch (error) {
       return res.status(404).json({
         success: false,
-        message: 'Arquivo não encontrado'
+        message: 'Arquivo não encontrado',
       });
     }
-    
+
     // Get file stats
     const stats = await fs.stat(filePath);
-    
+
     // Set headers for download
     res.setHeader('Content-Type', 'application/zip');
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
     res.setHeader('Content-Length', stats.size);
     res.setHeader('Cache-Control', 'public, max-age=3600'); // 1 hour cache
-    
+
     // Stream file
     const fileStream = require('fs').createReadStream(filePath);
     fileStream.pipe(res);
-    
+
     console.log(`📦 File downloaded: ${fileName} (${stats.size} bytes)`);
-    
   } catch (error) {
     console.error('Error serving download:', error);
     res.status(500).json({
       success: false,
-      message: 'Erro ao baixar arquivo'
+      message: 'Erro ao baixar arquivo',
     });
   }
 });
