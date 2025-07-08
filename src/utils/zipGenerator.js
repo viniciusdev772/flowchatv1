@@ -11,6 +11,21 @@ class ZipGenerator {
     this.outputDir = options.outputDir || path.join(process.cwd(), 'downloads', 'exports');
     this.compressionLevel = options.compressionLevel || 6;
     this.maxFileSize = options.maxFileSize || 50 * 1024 * 1024; // 50MB
+    this.baseUrl = process.env.BASE_URL || 'http://localhost:3000';
+  }
+
+  /**
+   * Generate complete download URL
+   */
+  generateDownloadUrl(fileName) {
+    const relativePath = `/downloads/exports/${fileName}`;
+    const fullUrl = `${this.baseUrl}${relativePath}`;
+    
+    console.log(`📎 Generated download URL: ${fullUrl}`);
+    return {
+      url: relativePath,
+      downloadUrl: fullUrl
+    };
   }
 
   /**
@@ -44,11 +59,13 @@ class ZipGenerator {
     return new Promise((resolve, reject) => {
       output.on('close', () => {
         console.log(`✅ ZIP file created: ${fileName} (${archive.pointer()} bytes)`);
+        const urlInfo = this.generateDownloadUrl(fileName);
         resolve({
+          success: true,
           fileName: fileName,
           filePath: filePath,
           size: archive.pointer(),
-          url: `/downloads/exports/${fileName}`
+          ...urlInfo
         });
       });
 
@@ -132,11 +149,13 @@ class ZipGenerator {
     return new Promise((resolve, reject) => {
       output.on('close', () => {
         console.log(`✅ Search ZIP file created: ${fileName} (${archive.pointer()} bytes)`);
+        const urlInfo = this.generateDownloadUrl(fileName);
         resolve({
+          success: true,
           fileName: fileName,
           filePath: filePath,
           size: archive.pointer(),
-          url: `/downloads/exports/${fileName}`
+          ...urlInfo
         });
       });
 

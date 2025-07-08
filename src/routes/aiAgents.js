@@ -182,7 +182,8 @@ async function generateZipFile(data, type = 'scraping') {
   } catch (error) {
     console.error(`❌ ZIP generation failed: ${error.message}`);
     return JSON.stringify({
-      error: error.message,
+      success: false,
+      error: error.message || 'Erro desconhecido na geração do ZIP',
       type: type,
       timestamp: new Date().toISOString(),
     });
@@ -1641,17 +1642,17 @@ Regras importantes:
                     // Send completion notification with download link
                     if (zipData.success) {
                       await this.sendToolNotification(
-                        `✅ Arquivo ZIP criado com sucesso!\n📁 Nome: ${
+                        `✅ Arquivo ZIP criado com sucesso!\n\n📁 Nome: ${
                           zipData.fileName
                         }\n💾 Tamanho: ${Math.round(
                           zipData.size / 1024
-                        )} KB\n🔗 Download: ${zipData.downloadUrl}`,
+                        )} KB\n\n🔗 Link de download:\n${zipData.downloadUrl}\n\nO arquivo estará disponível para download por 7 dias.`,
                         conversationEntry.chat.id,
                         whatsappClient
                       );
                     } else {
                       await this.sendToolNotification(
-                        `❌ Erro ao gerar ZIP:\n${zipData.error}`,
+                        `❌ Erro ao gerar ZIP:\n${zipData.error || 'Erro desconhecido'}`,
                         conversationEntry.chat.id,
                         whatsappClient
                       );

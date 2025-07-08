@@ -52,6 +52,9 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Servir arquivos de download estaticamente
+app.use('/downloads', express.static(path.join(process.cwd(), 'downloads')));
+
 // Apply API token authentication to all /api/baileys routes EXCEPT download routes
 app.use('/api/baileys', (req, res, next) => {
   // Permitir download direto sem autenticação
