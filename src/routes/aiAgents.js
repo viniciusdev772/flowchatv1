@@ -1133,6 +1133,9 @@ class AIAgent {
   }
 
   async generateResponse(messageData, conversationEntry, whatsappClient = null) {
+    // Variable to store executed tool results - moved outside try-catch for proper scope
+    const executedToolResults = [];
+
     try {
       const OpenAI = require('openai');
 
@@ -1153,9 +1156,6 @@ class AIAgent {
       console.log(
         `🤖 Agent ${this.id} generating response with model ${this.model}`
       );
-
-      // Variable to store executed tool results
-      const executedToolResults = [];
 
       // Build context prompt with rich message information
       const personalityPrompts = {
