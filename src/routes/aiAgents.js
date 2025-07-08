@@ -75,6 +75,13 @@ async function executeWebSearch(query) {
     console.log(
       `✅ Search completed: ${searchResults.total} results from ${searchResults.sources.length} sources`
     );
+    
+    // Enhance results with deep search suggestions
+    if (searchResults.results && searchResults.results.length > 0) {
+      searchResults.deepSearchSuggestions = generateDeepSearchSuggestions(query, searchResults.results);
+      searchResults.relatedQueries = generateRelatedQueries(query, searchResults.results);
+    }
+    
     return JSON.stringify(searchResults);
   } catch (error) {
     console.error(`❌ Enhanced search failed: ${error.message}`);
@@ -103,6 +110,129 @@ async function executeWebSearch(query) {
       });
     }
   }
+}
+
+// Generate deep search suggestions based on results
+function generateDeepSearchSuggestions(query, results) {
+  const suggestions = [];
+  
+  // Suggest specific site analysis for top results
+  if (results.length > 0) {
+    suggestions.push(`Analisar detalhadamente: ${results[0].url}`);
+  }
+  
+  // Suggest related searches based on content
+  const commonTerms = extractCommonTerms(results);
+  if (commonTerms.length > 0) {
+    suggestions.push(`Buscar mais sobre: ${commonTerms.slice(0, 3).join(', ')}`);
+  }
+  
+  // Suggest time-specific searches
+  if (query.includes('hoje') || query.includes('atual') || query.includes('recente')) {
+    suggestions.push(`Buscar histórico: ${query.replace(/hoje|atual|recente/g, '').trim()}`);
+  }
+  
+  return suggestions;
+}
+
+// Generate related queries for deeper search
+function generateRelatedQueries(query, results) {
+  const relatedQueries = [];
+  
+  // Extract key terms from titles and descriptions
+  const keyTerms = new Set();
+  results.forEach(result => {
+    const words = (result.title + ' ' + result.description).toLowerCase()
+      .split(/\s+/)
+      .filter(word => word.length > 4 && !['sobre', 'para', 'com', 'sem', 'mais', 'menos', 'como', 'quando', 'onde', 'porque'].includes(word));
+    
+    words.forEach(word => keyTerms.add(word));
+  });
+  
+  // Generate variations
+  const terms = Array.from(keyTerms).slice(0, 5);
+  terms.forEach(term => {
+    if (!query.toLowerCase().includes(term)) {
+      relatedQueries.push(`${query} ${term}`);
+    }
+  });
+  
+  return relatedQueries.slice(0, 3);
+}
+
+// Extract common terms from search results
+function extractCommonTerms(results) {
+  const termCount = {};
+  
+  results.forEach(result => {
+    const text = (result.title + ' ' + result.description).toLowerCase();
+    const words = text.split(/\s+/).filter(word => word.length > 4);
+    
+    words.forEach(word => {
+      termCount[word] = (termCount[word] || 0) + 1;
+    });
+  });
+  
+  return Object.entries(termCount)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([term]) => term);
+}
+
+// Enhanced message processing for better tool detection
+async function enhanceMessageWithSearchContext(message) {
+  const lowerMessage = message.toLowerCase();
+  
+  // Search trigger words that should immediately trigger web_search
+  const searchTriggers = [
+    'preço', 'valor', 'custo', 'hoje', 'atual', 'agora', 'recente',
+    'último', 'nova', 'notícia', 'informação', 'dados', 'estatística',
+    'clima', 'temperatura', 'tempo', 'horário', 'quando', 'onde',
+    'quem', 'como', 'porque', 'quantos', 'qual', 'compare', 'diferença',
+    'versus', 'melhor', 'pior', 'ranking', 'lista', 'top', 'review',
+    'análise', 'avaliação', 'opinião', 'recomendação', 'dica'
+  ];
+  
+  // URL detection for web_scrape
+  const urlPattern = /https?:\/\/[^\s]+/g;
+  const urls = message.match(urlPattern);
+  
+  // Site mention detection
+  const siteMentions = [
+    'site', 'página', 'website', 'portal', 'blog', 'artigo',
+    'post', 'conteúdo', 'link', 'url', 'endereço'
+  ];
+  
+  let enhancement = '';
+  
+  // Check for search triggers
+  const hasSearchTriggers = searchTriggers.some(trigger => lowerMessage.includes(trigger));
+  if (hasSearchTriggers) {
+    enhancement += '\n[CONTEXTO DE BUSCA: Esta mensagem contém termos que indicam necessidade de busca na internet. Use web_search AUTOMATICAMENTE para obter informações atualizadas.]';
+  }
+  
+  // Check for URLs
+  if (urls && urls.length > 0) {
+    enhancement += '\n[CONTEXTO DE SCRAPING: Esta mensagem contém URLs. Use web_scrape AUTOMATICAMENTE para analisar os sites mencionados.]';
+  }
+  
+  // Check for site mentions
+  const hasSiteMentions = siteMentions.some(mention => lowerMessage.includes(mention));
+  if (hasSiteMentions && !urls) {
+    enhancement += '\n[CONTEXTO DE SITE: Esta mensagem menciona sites/páginas. Use web_search para encontrar URLs relevantes, depois web_scrape para análise detalhada.]';
+  }
+  
+  // Check for comparison requests
+  if (lowerMessage.includes('compare') || lowerMessage.includes('diferença') || lowerMessage.includes('versus')) {
+    enhancement += '\n[CONTEXTO DE COMPARAÇÃO: Esta mensagem solicita comparação. Use múltiplas buscas (web_search) para obter informações abrangentes.]';
+  }
+  
+  // Check for analysis requests
+  if (lowerMessage.includes('analise') || lowerMessage.includes('estude') || lowerMessage.includes('investigue')) {
+    enhancement += '\n[CONTEXTO DE ANÁLISE: Esta mensagem solicita análise profunda. Use web_search + web_scrape + html_analysis em sequência.]';
+  }
+  
+  return message + enhancement;
 }
 
 // Enhanced web scraping with robust error handling and multiple strategies
@@ -1116,22 +1246,45 @@ ${this.description ? `Descrição: ${this.description}` : ''}
 ${contextInfo}
 
 FERRAMENTAS DISPONÍVEIS:
-Você tem acesso a ferramentas que são executadas automaticamente pelo sistema quando você as solicita.
+Você tem acesso a ferramentas poderosas que são executadas automaticamente. Seja PROATIVO e use-as sempre que necessário sem pedir permissão.
+
+🔍 BUSCA PROFUNDA E AUTÔNOMA:
+Você deve usar ferramentas automaticamente quando detectar:
+- Perguntas sobre informações atuais/recentes
+- Solicitações de dados específicos de sites
+- Pedidos de análise ou comparação
+- Necessidade de informações detalhadas
+- Qualquer consulta que se beneficie de dados atualizados
 
 Ferramentas disponíveis:
 - web_search: Busca informações atualizadas na internet via múltiplos buscadores
-  Use quando precisar de: notícias atuais, preços, clima, eventos recentes, informações que podem estar desatualizadas
+  🚀 USE AUTOMATICAMENTE para: notícias, preços, clima, eventos, dados atuais, estatísticas
+  💡 DICA: Faça múltiplas buscas se necessário para obter informações completas
 
 - web_scrape: Baixa e analisa o conteúdo completo de um site específico
-  Use quando precisar de: conteúdo detalhado de uma página, estrutura de um site, análise completa de uma URL
+  🚀 USE AUTOMATICAMENTE para: análise detalhada de páginas, extração de dados específicos
+  💡 DICA: Combine com web_search para encontrar sites relevantes primeiro
+  📦 BONUS: Gera ZIP automaticamente com todos os dados
 
-- html_analysis: Analisa a estrutura HTML e extrai informações específicas de um site
-  Use quando precisar de: análise especializada (notícias, e-commerce, contatos, redes sociais, formulários)
-  Tipos disponíveis: 'news', 'ecommerce', 'contact', 'social', 'forms', 'general'
+- html_analysis: Analisa estrutura HTML e extrai informações específicas
+  🚀 USE AUTOMATICAMENTE para: análise especializada (notícias, e-commerce, contatos, etc.)
+  💡 DICA: Use após web_scrape para análises mais profundas
 
-NOTA: Quando você usa web_scrape, um arquivo ZIP é automaticamente gerado com todos os dados do site.
+🎯 ESTRATÉGIAS DE BUSCA PROFUNDA:
+1. Para pesquisas complexas: Use web_search → web_scrape → html_analysis em sequência
+2. Para comparações: Faça múltiplas buscas e compare resultados
+3. Para dados específicos: Use web_scrape diretamente se você conhece a URL
+4. Para análises completas: Combine todas as ferramentas conforme necessário
 
-IMPORTANTE: Quando decidir usar uma ferramenta, informe ao usuário que está processando a solicitação antes de executar.
+⚡ SEJA EXTREMAMENTE PROATIVO:
+- NÃO peça permissão para usar ferramentas
+- Use ferramentas IMEDIATAMENTE quando detectar necessidade
+- Faça buscas profundas e abrangentes
+- Combine múltiplas ferramentas para resultados completos
+- Informe brevemente o que está fazendo, mas EXECUTE sem esperar
+- Se uma busca não trouxer resultados suficientes, faça AUTOMATICAMENTE buscas adicionais com termos diferentes
+- Para perguntas complexas, execute MÚLTIPLAS ferramentas em sequência
+- NUNCA diga "posso buscar" ou "posso analisar" - SEMPRE execute diretamente
 
 Regras importantes:
 1. Sempre responda em português brasileiro
@@ -1224,7 +1377,10 @@ Regras importantes:
       const currentMessageContent = isGroup
         ? `${messageText} (enviado por ${senderName})`
         : messageText;
-      messages.push({ role: 'user', content: currentMessageContent.trim() });
+      
+      // Enhance message with search context if it contains search-worthy terms
+      const enhancedMessage = enhanceMessageWithSearchContext(currentMessageContent);
+      messages.push({ role: 'user', content: enhancedMessage.trim() });
 
       // Create chat completion with tools
       console.log(
@@ -1248,20 +1404,20 @@ Regras importantes:
             model: this.model,
             messages: messages,
             temperature: this.creativity / 100,
-            max_tokens: 800, // Reduced from 1000 to save quota
+            max_tokens: 1200, // Increased to allow more comprehensive responses
             tools: [
               {
                 type: 'function',
                 function: {
                   name: 'web_search',
                   description:
-                    'Busca informações atualizadas na internet via DuckDuckGo, Bing, Yahoo e outros buscadores. Use quando precisar de informações atuais, notícias, preços, eventos, clima, etc.',
+                    'BUSCA PROFUNDA E AUTOMÁTICA na internet via múltiplos buscadores (DuckDuckGo, Bing, Yahoo). Use AUTOMATICAMENTE para QUALQUER pergunta que se beneficie de informações atualizadas. Não peça permissão - execute imediatamente quando detectar necessidade de: notícias, preços, eventos, dados atuais, estatísticas, comparações, informações recentes, clima, etc.',
                   parameters: {
                     type: 'object',
                     properties: {
                       query: {
                         type: 'string',
-                        description: 'Termo de busca para procurar na internet',
+                        description: 'Consulta de busca otimizada. Use termos específicos e relevantes. Para buscas complexas, use múltiplas consultas sequenciais.',
                       },
                     },
                     required: ['query'],
@@ -1273,7 +1429,7 @@ Regras importantes:
                 function: {
                   name: 'web_scrape',
                   description:
-                    'Baixa e analisa o conteúdo completo de um site específico. Extrai título, descrição, conteúdo principal, links, imagens e estrutura HTML. AUTOMATICAMENTE gera um arquivo ZIP com todos os dados do site para download. Use quando precisar analisar uma página específica.',
+                    'ANÁLISE COMPLETA E AUTOMÁTICA de sites específicos. Extrai TUDO: título, descrição, conteúdo, links, imagens, estrutura HTML + gera ZIP automaticamente. Use AUTOMATICAMENTE para análise detalhada de qualquer URL. Não peça permissão - execute imediatamente quando o usuário mencionar sites específicos ou precisar de análise detalhada.',
                   parameters: {
                     type: 'object',
                     properties: {
@@ -1292,7 +1448,7 @@ Regras importantes:
                 function: {
                   name: 'html_analysis',
                   description:
-                    "Analisa a estrutura HTML e extrai informações específicas de um site. Tipos disponíveis: 'news' (notícias), 'ecommerce' (loja), 'contact' (contato), 'social' (redes sociais), 'forms' (formulários), 'general' (geral).",
+                    "ANÁLISE ESPECIALIZADA E AUTOMÁTICA de estruturas HTML. Extrai informações específicas com foco em: 'news' (notícias), 'ecommerce' (e-commerce), 'contact' (contatos), 'social' (redes sociais), 'forms' (formulários), 'general' (geral). Use AUTOMATICAMENTE após web_scrape para análises mais profundas. Não peça permissão - execute quando precisar de análise especializada.",
                   parameters: {
                     type: 'object',
                     properties: {
@@ -1320,6 +1476,9 @@ Regras importantes:
               },
             ],
             tool_choice: 'auto',
+            // Configurações para tornar o modelo mais proativo
+            presence_penalty: 0.1,
+            frequency_penalty: 0.1,
           });
 
           console.log(
@@ -1830,6 +1989,24 @@ Regras importantes:
                       ', '
                     )}\n`;
                   }
+                  
+                  // Add deep search suggestions if available
+                  if (data.deepSearchSuggestions && data.deepSearchSuggestions.length > 0) {
+                    responseFromTools += `\n🎯 **Sugestões para busca profunda:**\n`;
+                    data.deepSearchSuggestions.forEach((suggestion, index) => {
+                      responseFromTools += `${index + 1}. ${suggestion}\n`;
+                    });
+                  }
+                  
+                  // Add related queries if available
+                  if (data.relatedQueries && data.relatedQueries.length > 0) {
+                    responseFromTools += `\n🔗 **Buscas relacionadas:**\n`;
+                    data.relatedQueries.forEach((query, index) => {
+                      responseFromTools += `${index + 1}. ${query}\n`;
+                    });
+                  }
+                  
+                  responseFromTools += `\n`;
                 }
               } else if (toolResult.toolName === 'html_analysis') {
                 const data = toolResult.result;
