@@ -127,226 +127,29 @@ async function executeBasicWebSearch(query) {
   // Enhanced web scraping with robust error handling and multiple strategies
   async function executeWebScrape(url) {
     try {
-      console.log(`🌐 Starting enhanced web scraping for: "${url}"`);
-      const scrapedData = await webScraper.scrapeWithRetry(url, {
-        includeRawHtml: true, // Include raw HTML for ZIP generation
-      });
-      console.log(
-        `✅ Scraping completed using strategy: ${scrapedData.strategy}`
-      );
-      return JSON.stringify(scrapedData);
-    } catch (error) {
-      console.error(`❌ Enhanced scraping failed: ${error.message}`);
-      // Fallback to basic scraping
-      try {
-        return await executeBasicWebScrape(url);
-      } catch (fallbackError) {
-        console.error(
-          `❌ Basic scraping also failed: ${fallbackError.message}`
-        );
-        // Ultimate fallback - return helpful error message
-        return JSON.stringify({
-          url: url,
-          error: `Não foi possível acessar o site: ${fallbackError.message}`,
-          timestamp: new Date().toISOString(),
-          message: `Site "${url}" temporariamente inacessível`,
-          suggestions: [
-            'Verifique se a URL está correta',
-            'Tente novamente em alguns minutos',
-            'Verifique se o site está online',
-            'Confirme que a URL é completa (inclui http:// ou https://)',
-          ],
-          possibleCauses: [
-            'Site pode estar temporariamente fora do ar',
-            'URL pode estar incorreta',
-            'Site pode ter bloqueado o acesso',
-            'Problema de conectividade',
-          ],
-        });
-      }
-    }
-  }
+      console.log(`🌐 AI Agent downloading website: "${url}"`);
 
-  // Fallback basic web scraping
-  async function executeBasicWebScrape(url) {
-    const fetch = require('node-fetch');
-    const cheerio = require('cheerio');
-
-    console.log(`🌐 AI Agent downloading website: "${url}"`);
-
-    const headers = {
-      'User-Agent':
-        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-      Accept:
-        'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-      'Accept-Language': 'pt-BR,pt;q=0.9,en;q=0.8',
-      'Accept-Encoding': 'gzip, deflate, br',
-      DNT: '1',
-      Connection: 'keep-alive',
-      'Upgrade-Insecure-Requests': '1',
-    };
-
-    try {
       // Validate URL
       const urlObj = new URL(url);
       if (!['http:', 'https:'].includes(urlObj.protocol)) {
         throw new Error('Only HTTP and HTTPS URLs are supported');
       }
 
-      const response = await fetch(url, {
-        headers,
-        timeout: 15000,
-        follow: 5, // Follow up to 5 redirects
-        compress: true,
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const contentType = response.headers.get('content-type') || '';
-      if (!contentType.includes('text/html')) {
-        throw new Error(`Content type not supported: ${contentType}`);
-      }
-
-      const html = await response.text();
-      const $ = cheerio.load(html);
-
-      // Extract comprehensive information
-      const pageData = {
-        url: url,
-        title: $('title').text().trim() || 'No title',
-        description:
-          $('meta[name="description"]').attr('content') ||
-          $('meta[property="og:description"]').attr('content') ||
-          '',
-
-        // Text content
-        headings: {
-          h1: $('h1')
-            .map((i, el) => $(el).text().trim())
-            .get()
-            .slice(0, 5),
-          h2: $('h2')
-            .map((i, el) => $(el).text().trim())
-            .get()
-            .slice(0, 8),
-          h3: $('h3')
-            .map((i, el) => $(el).text().trim())
-            .get()
-            .slice(0, 10),
-        },
-
-        // Main content - try to find article content
-        content: extractMainContent($),
-
-        // Links
-        links: $('a[href]')
-          .map((i, el) => {
-            const href = $(el).attr('href');
-            const text = $(el).text().trim();
-            if (href && text && href.startsWith('http')) {
-              return { text, url: href };
-            }
-          })
-          .get()
-          .slice(0, 10),
-
-        // Images
-        images: $('img[src]')
-          .map((i, el) => {
-            const src = $(el).attr('src');
-            const alt = $(el).attr('alt') || '';
-            if (src) {
-              return {
-                src: src.startsWith('http') ? src : new URL(src, url).href,
-                alt,
-              };
-            }
-          })
-          .get()
-          .slice(0, 8),
-
-        // Meta information
-        meta: {
-          author:
-            $('meta[name="author"]').attr('content') ||
-            $('meta[property="article:author"]').attr('content') ||
-            '',
-          publishDate:
-            $('meta[property="article:published_time"]').attr('content') ||
-            $('meta[name="date"]').attr('content') ||
-            '',
-          keywords: $('meta[name="keywords"]').attr('content') || '',
-          language:
-            $('html').attr('lang') ||
-            $('meta[http-equiv="content-language"]').attr('content') ||
-            '',
-        },
-
-        // Structure info
-        structure: {
-          totalLinks: $('a[href]').length,
-          totalImages: $('img[src]').length,
-          totalHeadings: $('h1, h2, h3, h4, h5, h6').length,
-          hasNavigation: $('nav').length > 0,
-          hasFooter: $('footer').length > 0,
-          hasAside: $('aside').length > 0,
-        },
-
-        timestamp: new Date().toISOString(),
-        contentLength: html.length,
-        textLength: $.text().length,
-      };
+      const scrapingResult = await webScraper.scrapeWithRetry(url);
 
       console.log(
-        `✅ Website downloaded successfully. Content: ${pageData.textLength} chars, ${pageData.structure.totalLinks} links, ${pageData.structure.totalImages} images`
+        `✅ Website scraped successfully using ${
+          scrapingResult.strategy
+        }. Content: ${scrapingResult.stats?.contentLength || 0} chars, ${
+          scrapingResult.stats?.totalLinks || 0
+        } links, ${scrapingResult.stats?.totalImages || 0} images`
       );
 
-      return JSON.stringify(pageData);
+      return JSON.stringify(scrapingResult);
     } catch (error) {
-      console.error(`❌ Website download failed: ${error.message}`);
+      console.error(`❌ Enhanced web scraping failed: ${error.message}`);
 
-      // Try alternative approach with more lenient parsing
-      try {
-        console.log(`🔄 Attempting alternative scraping approach for: ${url}`);
-
-        const alternativeResponse = await fetch(url, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (compatible; AIBot/1.0)',
-            Accept: 'text/html,application/xhtml+xml,*/*;q=0.9',
-          },
-          timeout: 10000,
-          follow: 3,
-        });
-
-        if (alternativeResponse.ok) {
-          const alternativeHtml = await alternativeResponse.text();
-          const basicTitle = alternativeHtml.match(
-            /<title[^>]*>([^<]+)<\/title>/i
-          );
-          const basicContent = alternativeHtml
-            .replace(/<[^>]*>/g, ' ')
-            .replace(/\s+/g, ' ')
-            .trim();
-
-          return JSON.stringify({
-            url: url,
-            title: basicTitle ? basicTitle[1].trim() : 'Página analisada',
-            content: basicContent.substring(0, 1000) + '...',
-            description: 'Conteúdo extraído com análise básica',
-            timestamp: new Date().toISOString(),
-            method: 'alternative_scraping',
-            textLength: basicContent.length,
-          });
-        }
-      } catch (alternativeError) {
-        console.error(
-          `❌ Alternative scraping also failed: ${alternativeError.message}`
-        );
-      }
-
-      // Ultimate fallback - return useful error information
+      // Return useful error information
       return JSON.stringify({
         error: `Não foi possível acessar o site: ${error.message}`,
         url: url,
@@ -356,53 +159,6 @@ async function executeBasicWebSearch(query) {
         fallbackContent: `Site solicitado: ${url}. Erro: ${error.message}. Posso ajudá-lo de outra forma?`,
       });
     }
-  }
-
-  // Helper function to extract main content from HTML
-  function extractMainContent($) {
-    // Try different strategies to find main content
-    const contentSelectors = [
-      'article',
-      'main',
-      '[role="main"]',
-      '.content',
-      '.main-content',
-      '.article-content',
-      '.post-content',
-      '.entry-content',
-      '#content',
-      '#main-content',
-    ];
-
-    let mainContent = '';
-
-    for (const selector of contentSelectors) {
-      const element = $(selector).first();
-      if (element.length > 0) {
-        mainContent = element.text().trim();
-        if (mainContent.length > 100) {
-          // If we found substantial content
-          break;
-        }
-      }
-    }
-
-    // Fallback: get text from body, but clean it up
-    if (!mainContent || mainContent.length < 100) {
-      // Remove script, style, nav, footer, aside content
-      $(
-        'script, style, nav, footer, aside, .sidebar, .menu, .navigation, .ads, .advertisement'
-      ).remove();
-      mainContent = $('body').text().trim();
-    }
-
-    // Clean up whitespace and limit length
-    mainContent = mainContent.replace(/\s+/g, ' ').trim();
-
-    // Return first 2000 characters to avoid overwhelming the AI
-    return (
-      mainContent.substring(0, 2000) + (mainContent.length > 2000 ? '...' : '')
-    );
   }
 
   // Enhanced HTML analysis with specialized parsers
@@ -1692,7 +1448,7 @@ Regras importantes:
                     whatsappClient
                   );
 
-                  toolResult = await executeBasicWebScrape(args.url);
+                  toolResult = await executeWebScrape(args.url);
 
                   // Parse results to get info
                   const scrapeData = JSON.parse(toolResult);
@@ -2223,7 +1979,7 @@ Regras importantes:
           try {
             console.log(`🔄 Manual web scraping attempt for: ${urlMatch[0]}`);
             // Fixed: Use the globally available function instead of undefined one
-            const scrapingResult = await this.executeBasicWebScrapeHelper(
+            const scrapingResult = await this.executeWebScrapeHelper(
               urlMatch[0]
             );
             const scrapedData = JSON.parse(scrapingResult);
@@ -2361,9 +2117,9 @@ Regras importantes:
     }
   }
 
-  // Helper method to make executeBasicWebScrape available in the class scope
-  async executeBasicWebScrapeHelper(url) {
-    return await executeBasicWebScrape(url);
+  // Helper method to make executeWebScrape available in the class scope
+  async executeWebScrapeHelper(url) {
+    return await executeWebScrape(url);
   }
 
   getStats() {
