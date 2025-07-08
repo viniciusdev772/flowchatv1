@@ -39,6 +39,7 @@ services:
       SESSION_SECRET: baileys-default-session-secret-change-in-production
       COOKIE_SECRET: baileys-default-cookie-secret-change-in-production
       CORS_ORIGIN: http://localhost:3000
+      BASE_URL: http://localhost:3000
     ports:
       - '127.0.0.1:3000:3000/tcp'
     volumes:
