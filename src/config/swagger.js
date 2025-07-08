@@ -1986,6 +1986,171 @@ const swaggerUiOptions = {
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/ApiResponse'
+ *   patch:
+ *     tags:
+ *       - Webhooks
+ *     summary: "Atualizar webhook parcialmente"
+ *     description: |
+ *       Atualiza parcialmente as configurações de um webhook específico.
+ *       Permite atualizar apenas campos específicos sem afetar outros.
+ *
+ *       **Armazenamento:** Atualiza webhook no banco de dados MongoDB.
+ *     security:
+ *       - ApiKeyAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID da sessão
+ *         example: "minha-sessao-1"
+ *       - in: path
+ *         name: webhookId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID do webhook
+ *         example: "webhook-123-456"
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 description: Nome do webhook
+ *                 example: "Webhook Atualizado"
+ *               url:
+ *                 type: string
+ *                 format: uri
+ *                 description: URL do webhook
+ *                 example: "https://meusite.com/webhook-novo"
+ *               active:
+ *                 type: boolean
+ *                 description: Se o webhook está ativo
+ *                 example: true
+ *               priority:
+ *                 type: integer
+ *                 description: Prioridade de envio (1-3)
+ *                 minimum: 1
+ *                 maximum: 3
+ *                 example: 2
+ *               events:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: Eventos para escutar
+ *                 example: ["messages.upsert", "connection.update"]
+ *     responses:
+ *       200:
+ *         description: Webhook atualizado parcialmente com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Webhook atualizado parcialmente com sucesso"
+ *                 webhook:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                       example: "webhook-123-456"
+ *                     name:
+ *                       type: string
+ *                       example: "Webhook Atualizado"
+ *                     url:
+ *                       type: string
+ *                       example: "https://meusite.com/webhook-novo"
+ *                     active:
+ *                       type: boolean
+ *                       example: true
+ *                     priority:
+ *                       type: integer
+ *                       example: 2
+ *                     events:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                       example: ["messages.upsert", "connection.update"]
+ *                     updatedAt:
+ *                       type: string
+ *                       format: date-time
+ *                       example: "2023-12-01T10:30:00Z"
+ *                 sessionId:
+ *                   type: string
+ *                   example: "minha-sessao-1"
+ *       400:
+ *         description: Dados inválidos ou erro na validação
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ *       404:
+ *         description: Sessão ou webhook não encontrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ *   delete:
+ *     tags:
+ *       - Webhooks
+ *     summary: "Deletar webhook"
+ *     description: |
+ *       Remove um webhook específico da sessão.
+ *
+ *       **Armazenamento:** Remove webhook do banco de dados MongoDB.
+ *     security:
+ *       - ApiKeyAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID da sessão
+ *         example: "minha-sessao-1"
+ *       - in: path
+ *         name: webhookId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID do webhook
+ *         example: "webhook-123-456"
+ *     responses:
+ *       200:
+ *         description: Webhook deletado com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Webhook deletado com sucesso"
+ *                 webhookId:
+ *                   type: string
+ *                   example: "webhook-123-456"
+ *                 sessionId:
+ *                   type: string
+ *                   example: "minha-sessao-1"
+ *       404:
+ *         description: Sessão ou webhook não encontrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
  */
 
 /**
@@ -2210,6 +2375,470 @@ const swaggerUiOptions = {
  *     responses:
  *       302:
  *         description: Redirecionamento para /api-docs
+ */
+
+// ========================================
+// DOCUMENTAÇÃO DAS ROTAS DE AI AGENTS
+// ========================================
+
+/**
+ * @swagger
+ * /api/baileys/agents/create:
+ *   post:
+ *     tags:
+ *       - AI Assistant
+ *     summary: Criar novo agente de IA
+ *     description: Cria um novo agente de IA para resposta automática
+ *     security:
+ *       - ApiKeyAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *               - apiKey
+ *               - model
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 description: Nome do agente
+ *                 example: "Assistente de Vendas"
+ *               apiKey:
+ *                 type: string
+ *                 description: Chave API do OpenAI
+ *                 example: "sk-xxx"
+ *               model:
+ *                 type: string
+ *                 description: Modelo do OpenAI
+ *                 example: "gpt-4"
+ *               systemPrompt:
+ *                 type: string
+ *                 description: Prompt do sistema
+ *                 example: "Você é um assistente de vendas"
+ *     responses:
+ *       201:
+ *         description: Agente criado com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ */
+
+/**
+ * @swagger
+ * /api/baileys/agents/list:
+ *   get:
+ *     tags:
+ *       - AI Assistant
+ *     summary: Listar agentes de IA
+ *     description: Lista todos os agentes de IA
+ *     security:
+ *       - ApiKeyAuth: []
+ *     responses:
+ *       200:
+ *         description: Lista de agentes
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 agents:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ */
+
+/**
+ * @swagger
+ * /api/baileys/agents/{agentId}:
+ *   get:
+ *     tags:
+ *       - AI Assistant
+ *     summary: Obter agente de IA
+ *     description: Obtém informações de um agente específico
+ *     security:
+ *       - ApiKeyAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: agentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID do agente
+ *     responses:
+ *       200:
+ *         description: Informações do agente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ *   delete:
+ *     tags:
+ *       - AI Assistant
+ *     summary: Deletar agente de IA
+ *     description: Remove um agente de IA
+ *     security:
+ *       - ApiKeyAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: agentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID do agente
+ *     responses:
+ *       200:
+ *         description: Agente deletado com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ */
+
+/**
+ * @swagger
+ * /api/baileys/agents/{agentId}/api-key:
+ *   patch:
+ *     tags:
+ *       - AI Assistant
+ *     summary: Atualizar chave API do agente
+ *     description: Atualiza a chave API do OpenAI do agente
+ *     security:
+ *       - ApiKeyAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: agentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID do agente
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - apiKey
+ *             properties:
+ *               apiKey:
+ *                 type: string
+ *                 description: Nova chave API do OpenAI
+ *                 example: "sk-xxx"
+ *     responses:
+ *       200:
+ *         description: Chave API atualizada com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ */
+
+/**
+ * @swagger
+ * /api/baileys/agents/{agentId}/settings:
+ *   patch:
+ *     tags:
+ *       - AI Assistant
+ *     summary: Atualizar configurações do agente
+ *     description: Atualiza as configurações do agente de IA
+ *     security:
+ *       - ApiKeyAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: agentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID do agente
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 description: Nome do agente
+ *               model:
+ *                 type: string
+ *                 description: Modelo do OpenAI
+ *               systemPrompt:
+ *                 type: string
+ *                 description: Prompt do sistema
+ *               autoReply:
+ *                 type: boolean
+ *                 description: Resposta automática ativa
+ *     responses:
+ *       200:
+ *         description: Configurações atualizadas com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ */
+
+/**
+ * @swagger
+ * /api/baileys/agents/{agentId}/activate:
+ *   patch:
+ *     tags:
+ *       - AI Assistant
+ *     summary: Ativar agente de IA
+ *     description: Ativa um agente de IA
+ *     security:
+ *       - ApiKeyAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: agentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID do agente
+ *     responses:
+ *       200:
+ *         description: Agente ativado com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ */
+
+/**
+ * @swagger
+ * /api/baileys/agents/{agentId}/deactivate:
+ *   patch:
+ *     tags:
+ *       - AI Assistant
+ *     summary: Desativar agente de IA
+ *     description: Desativa um agente de IA
+ *     security:
+ *       - ApiKeyAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: agentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID do agente
+ *     responses:
+ *       200:
+ *         description: Agente desativado com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ */
+
+/**
+ * @swagger
+ * /api/baileys/agents/process-message:
+ *   post:
+ *     tags:
+ *       - AI Assistant
+ *     summary: Processar mensagem com IA
+ *     description: Processa uma mensagem através do agente de IA
+ *     security:
+ *       - ApiKeyAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - message
+ *               - chatId
+ *             properties:
+ *               message:
+ *                 type: string
+ *                 description: Mensagem para processar
+ *                 example: "Olá!"
+ *               chatId:
+ *                 type: string
+ *                 description: ID do chat
+ *                 example: "5521999999999@c.us"
+ *               sessionId:
+ *                 type: string
+ *                 description: ID da sessão
+ *                 example: "minha-sessao-1"
+ *     responses:
+ *       200:
+ *         description: Mensagem processada com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ */
+
+/**
+ * @swagger
+ * /api/baileys/agents/{agentId}/conversations/{chatId}:
+ *   get:
+ *     tags:
+ *       - AI Assistant
+ *     summary: Obter histórico de conversas
+ *     description: Obtém o histórico de conversas do agente
+ *     security:
+ *       - ApiKeyAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: agentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID do agente
+ *       - in: path
+ *         name: chatId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID do chat
+ *     responses:
+ *       200:
+ *         description: Histórico de conversas
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ *   delete:
+ *     tags:
+ *       - AI Assistant
+ *     summary: Deletar histórico de conversas
+ *     description: Remove o histórico de conversas do agente
+ *     security:
+ *       - ApiKeyAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: agentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID do agente
+ *       - in: path
+ *         name: chatId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID do chat
+ *     responses:
+ *       200:
+ *         description: Histórico deletado com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ */
+
+/**
+ * @swagger
+ * /api/baileys/agents/{agentId}/stats:
+ *   get:
+ *     tags:
+ *       - AI Assistant
+ *     summary: Obter estatísticas do agente
+ *     description: Obtém estatísticas de uso do agente
+ *     security:
+ *       - ApiKeyAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: agentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID do agente
+ *     responses:
+ *       200:
+ *         description: Estatísticas do agente
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 stats:
+ *                   type: object
+ *                   properties:
+ *                     totalMessages:
+ *                       type: number
+ *                       example: 150
+ *                     totalChats:
+ *                       type: number
+ *                       example: 25
+ *                     avgResponseTime:
+ *                       type: number
+ *                       example: 1.5
+ */
+
+/**
+ * @swagger
+ * /api/baileys/agents/test-search:
+ *   post:
+ *     tags:
+ *       - AI Assistant
+ *     summary: Testar busca de agentes
+ *     description: Testa a funcionalidade de busca de agentes
+ *     security:
+ *       - ApiKeyAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - query
+ *             properties:
+ *               query:
+ *                 type: string
+ *                 description: Consulta de busca
+ *                 example: "vendas"
+ *     responses:
+ *       200:
+ *         description: Resultados da busca
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ */
+
+/**
+ * @swagger
+ * /api/baileys/agents/download/{fileName}:
+ *   get:
+ *     tags:
+ *       - AI Assistant
+ *     summary: Download de arquivo gerado pelo agente
+ *     description: Faz download de arquivo gerado pelo agente de IA
+ *     security:
+ *       - ApiKeyAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: fileName
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Nome do arquivo
+ *         example: "report.pdf"
+ *     responses:
+ *       200:
+ *         description: Arquivo baixado com sucesso
+ *         content:
+ *           application/octet-stream:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *       404:
+ *         description: Arquivo não encontrado
  */
 
 // ========================================
@@ -3026,6 +3655,213 @@ const swaggerUiOptions = {
  *                   example: "https://chat.whatsapp.com/ZYXWVUTSRQPONMLKJIHGFEDCBAzyxwvu"
  *       400:
  *         description: Erro ao revogar código de convite
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ */
+
+/**
+ * @swagger
+ * /api/baileys/groups/{sessionId}/{groupId}/messages:
+ *   get:
+ *     tags:
+ *       - Grupos
+ *     summary: Obter mensagens do grupo
+ *     description: Obtém o histórico de mensagens de um grupo específico
+ *     security:
+ *       - ApiKeyAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID da sessão
+ *         example: "minha-sessao-1"
+ *       - in: path
+ *         name: groupId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID do grupo
+ *         example: "120363043716731234@g.us"
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *         description: Número máximo de mensagens a retornar
+ *         example: 50
+ *       - in: query
+ *         name: before
+ *         schema:
+ *           type: string
+ *         description: ID da mensagem para paginação (mensagens anteriores)
+ *         example: "3EB0C767B7CE45A3B3A36"
+ *     responses:
+ *       200:
+ *         description: Mensagens do grupo obtidas com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 messages:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                         example: "3EB0C767B7CE45A3B3A36"
+ *                       messageType:
+ *                         type: string
+ *                         example: "conversation"
+ *                       sender:
+ *                         type: string
+ *                         example: "5521999999999@c.us"
+ *                       timestamp:
+ *                         type: number
+ *                         example: 1703155200
+ *                       content:
+ *                         type: string
+ *                         example: "Olá pessoal!"
+ *                       isFromMe:
+ *                         type: boolean
+ *                         example: false
+ *                 groupInfo:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                       example: "120363043716731234@g.us"
+ *                     name:
+ *                       type: string
+ *                       example: "Meu Grupo"
+ *                     participantCount:
+ *                       type: number
+ *                       example: 15
+ *                 pagination:
+ *                   type: object
+ *                   properties:
+ *                     hasMore:
+ *                       type: boolean
+ *                       example: true
+ *                     nextCursor:
+ *                       type: string
+ *                       example: "3EB0C767B7CE45A3B3A36"
+ *       404:
+ *         description: Grupo não encontrado
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ */
+
+/**
+ * @swagger
+ * /api/baileys/groups/{sessionId}/messages/search:
+ *   get:
+ *     tags:
+ *       - Grupos
+ *     summary: Buscar mensagens em todos os grupos
+ *     description: Busca mensagens em todos os grupos de uma sessão
+ *     security:
+ *       - ApiKeyAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID da sessão
+ *         example: "minha-sessao-1"
+ *       - in: query
+ *         name: query
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Termo de busca
+ *         example: "reunião"
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *         description: Número máximo de resultados
+ *         example: 50
+ *       - in: query
+ *         name: startDate
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Data inicial da busca
+ *         example: "2023-12-01"
+ *       - in: query
+ *         name: endDate
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Data final da busca
+ *         example: "2023-12-31"
+ *     responses:
+ *       200:
+ *         description: Resultados da busca
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 results:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       messageId:
+ *                         type: string
+ *                         example: "3EB0C767B7CE45A3B3A36"
+ *                       groupId:
+ *                         type: string
+ *                         example: "120363043716731234@g.us"
+ *                       groupName:
+ *                         type: string
+ *                         example: "Meu Grupo"
+ *                       sender:
+ *                         type: string
+ *                         example: "5521999999999@c.us"
+ *                       content:
+ *                         type: string
+ *                         example: "Vamos marcar uma reunião"
+ *                       timestamp:
+ *                         type: number
+ *                         example: 1703155200
+ *                       messageType:
+ *                         type: string
+ *                         example: "conversation"
+ *                 totalResults:
+ *                   type: number
+ *                   example: 15
+ *                 query:
+ *                   type: string
+ *                   example: "reunião"
+ *                 searchMetadata:
+ *                   type: object
+ *                   properties:
+ *                     searchedGroups:
+ *                       type: number
+ *                       example: 5
+ *                     totalMessages:
+ *                       type: number
+ *                       example: 1500
+ *       400:
+ *         description: Parâmetros de busca inválidos
  *         content:
  *           application/json:
  *             schema:
