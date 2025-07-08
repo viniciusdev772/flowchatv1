@@ -38,7 +38,7 @@ const createAgentSchema = z.object({
   openaiApiKey: z.string().min(1, 'Chave da API OpenAI é obrigatória'),
   tools: z
     .array(z.string())
-    .default(['web_search', 'web_scrape', 'html_analysis', 'generate_zip']),
+    .default(['web_search', 'web_scrape', 'html_analysis']),
   replyToGroups: z.boolean().default(true), // Nova opção para responder grupos
 });
 
@@ -1129,9 +1129,7 @@ Ferramentas disponíveis:
   Use quando precisar de: análise especializada (notícias, e-commerce, contatos, redes sociais, formulários)
   Tipos disponíveis: 'news', 'ecommerce', 'contact', 'social', 'forms', 'general'
 
-- generate_zip: Gera arquivo ZIP com dados coletados para download
-  Use quando o usuário solicitar: exportação de dados, arquivo ZIP, download de resultados
-  Tipos disponíveis: 'scraping' (dados de site), 'search' (resultados de pesquisa)
+NOTA: Quando você usa web_scrape, um arquivo ZIP é automaticamente gerado com todos os dados do site.
 
 IMPORTANTE: Quando decidir usar uma ferramenta, informe ao usuário que está processando a solicitação antes de executar.
 
@@ -1275,7 +1273,7 @@ Regras importantes:
                 function: {
                   name: 'web_scrape',
                   description:
-                    'Baixa e analisa o conteúdo completo de um site específico. Extrai título, descrição, conteúdo principal, links, imagens e estrutura HTML. Use quando precisar analisar uma página específica.',
+                    'Baixa e analisa o conteúdo completo de um site específico. Extrai título, descrição, conteúdo principal, links, imagens e estrutura HTML. AUTOMATICAMENTE gera um arquivo ZIP com todos os dados do site para download. Use quando precisar analisar uma página específica.',
                   parameters: {
                     type: 'object',
                     properties: {
@@ -1317,31 +1315,6 @@ Regras importantes:
                       },
                     },
                     required: ['url'],
-                  },
-                },
-              },
-              {
-                type: 'function',
-                function: {
-                  name: 'generate_zip',
-                  description:
-                    'Gera um arquivo ZIP com dados de scraping ou pesquisa para download. Use quando o usuário solicitar um arquivo ZIP, exportação ou download de dados coletados.',
-                  parameters: {
-                    type: 'object',
-                    properties: {
-                      data: {
-                        type: 'string',
-                        description:
-                          'Dados em formato JSON string para incluir no ZIP',
-                      },
-                      type: {
-                        type: 'string',
-                        description:
-                          "Tipo de dados: 'scraping' para dados de site ou 'search' para resultados de pesquisa",
-                        enum: ['scraping', 'search'],
-                      },
-                    },
-                    required: ['data', 'type'],
                   },
                 },
               },
@@ -1443,7 +1416,7 @@ Regras importantes:
 
                   // Send notification to user that scraping is starting
                   await this.sendToolNotification(
-                    `🌐 Baixando e analisando site: "${args.url}"...\n📊 Extraindo conteúdo, links, imagens e estrutura`,
+                    `🌐 Baixando e analisando site: "${args.url}"...\n📊 Extraindo conteúdo, links, imagens e estrutura\n📦 Preparando arquivo ZIP para download`,
                     conversationEntry.chat.id,
                     whatsappClient
                   );
@@ -1455,11 +1428,26 @@ Regras importantes:
 
                   console.log(`✅ Web scraping completed for: ${args.url}`);
 
-                  // Store successful tool result
+                  // Auto-generate ZIP file after successful scraping
+                  let zipData = null;
+                  if (!scrapeData.error) {
+                    try {
+                      console.log(`📦 Auto-generating ZIP file for scraped data`);
+                      const zipResult = await generateZipFile(scrapeData, 'scraping');
+                      zipData = JSON.parse(zipResult);
+                      console.log(`✅ ZIP file automatically generated: ${zipData.fileName}`);
+                    } catch (zipError) {
+                      console.error(`❌ ZIP generation failed: ${zipError.message}`);
+                      // Don't fail the entire scraping process if ZIP fails
+                    }
+                  }
+
+                  // Store successful tool result with ZIP info
                   executedToolResults.push({
                     toolName: 'web_scrape',
                     args: args,
                     result: scrapeData,
+                    zipData: zipData,
                     success: !scrapeData.error,
                   });
 
@@ -1469,6 +1457,7 @@ Regras importantes:
                     toolName: toolCall.function.name,
                     toolArgs: args,
                     toolResult: scrapeData,
+                    zipData: zipData,
                     timestamp: new Date().toISOString(),
                     chat: conversationEntry.chat,
                     agentId: this.id,
@@ -1487,14 +1476,23 @@ Regras importantes:
                       whatsappClient
                     );
                   } else {
+                    let notificationText = `✅ Site analisado com sucesso!\n📄 ${
+                      scrapeData.stats?.contentLength || scrapeData.content?.length || 0
+                    } caracteres de texto\n🔗 ${
+                      scrapeData.stats?.totalLinks || scrapeData.links?.length || 0
+                    } links encontrados\n🖼️ ${
+                      scrapeData.stats?.totalImages || scrapeData.images?.length || 0
+                    } imagens encontradas`;
+                    
+                    // Add ZIP information if available
+                    if (zipData && zipData.success) {
+                      notificationText += `\n📦 ZIP criado: ${zipData.fileName}\n💾 Tamanho: ${zipData.size || 'N/A'}\n🔗 Download: ${zipData.downloadUrl || 'Disponível via API'}`;
+                    } else if (zipData && !zipData.success) {
+                      notificationText += `\n⚠️ ZIP: Erro na criação (${zipData.error || 'Erro desconhecido'})`;
+                    }
+                    
                     await this.sendToolNotification(
-                      `✅ Site analisado com sucesso!\n📄 ${
-                        scrapeData.stats?.contentLength || scrapeData.content?.length || 0
-                      } caracteres de texto\n🔗 ${
-                        scrapeData.stats?.totalLinks || scrapeData.links?.length || 0
-                      } links encontrados\n🖼️ ${
-                        scrapeData.stats?.totalImages || scrapeData.images?.length || 0
-                      } imagens encontradas`,
+                      notificationText,
                       conversationEntry.chat.id,
                       whatsappClient
                     );
@@ -1594,78 +1592,6 @@ Regras importantes:
 
                     await this.sendToolNotification(
                       `✅ Análise HTML concluída!\n📋 Tipo: ${analysisType}\n${analysisInfo}`,
-                      conversationEntry.chat.id,
-                      whatsappClient
-                    );
-                  }
-                } else if (toolCall.function.name === 'generate_zip') {
-                  const args = JSON.parse(toolCall.function.arguments);
-                  const dataType = args.type || 'scraping';
-                  console.log(
-                    `📦 Model requested ZIP generation: type ${dataType}`
-                  );
-
-                  // Send notification to user that ZIP generation is starting
-                  await this.sendToolNotification(
-                    `📦 Gerando arquivo ZIP para download...\n📋 Tipo: ${dataType}\n⏳ Preparando dados para exportação`,
-                    conversationEntry.chat.id,
-                    whatsappClient
-                  );
-
-                  try {
-                    const data = JSON.parse(args.data);
-                    toolResult = await generateZipFile(data, dataType);
-
-                    // Parse results to get info
-                    const zipData = JSON.parse(toolResult);
-
-                    console.log(
-                      `✅ ZIP generation completed: ${zipData.fileName}`
-                    );
-
-                    // Save tool call to conversation history for context
-                    const toolCallEntry = {
-                      type: 'tool_call',
-                      toolName: toolCall.function.name,
-                      toolArgs: args,
-                      toolResult: zipData,
-                      timestamp: new Date().toISOString(),
-                      chat: conversationEntry.chat,
-                      agentId: this.id,
-                      sessionId: this.sessionId,
-                    };
-                    await this.saveConversationEntry(toolCallEntry);
-
-                    // Small delay before completion notification
-                    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-                    // Send completion notification with download link
-                    if (zipData.success) {
-                      await this.sendToolNotification(
-                        `✅ Arquivo ZIP criado com sucesso!\n\n📁 Nome: ${
-                          zipData.fileName
-                        }\n💾 Tamanho: ${Math.round(
-                          zipData.size / 1024
-                        )} KB\n\n🔗 Link de download:\n${zipData.downloadUrl}\n\nO arquivo estará disponível para download por 7 dias.`,
-                        conversationEntry.chat.id,
-                        whatsappClient
-                      );
-                    } else {
-                      await this.sendToolNotification(
-                        `❌ Erro ao gerar ZIP:\n${zipData.error || 'Erro desconhecido'}`,
-                        conversationEntry.chat.id,
-                        whatsappClient
-                      );
-                    }
-                  } catch (parseError) {
-                    console.error('Error parsing ZIP data:', parseError);
-                    toolResult = JSON.stringify({
-                      success: false,
-                      error: 'Erro ao processar dados para ZIP',
-                    });
-
-                    await this.sendToolNotification(
-                      `❌ Erro ao processar dados para ZIP: ${parseError.message}`,
                       conversationEntry.chat.id,
                       whatsappClient
                     );
@@ -1865,6 +1791,16 @@ Regras importantes:
                 responseFromTools += `🖼️ **Imagens**: ${
                   data.structure?.totalImages || data.images?.length || 0
                 }\n`;
+
+                // Add ZIP download information
+                if (toolResult.zipData && toolResult.zipData.success) {
+                  responseFromTools += `📦 **ZIP criado**: ${toolResult.zipData.fileName}\n`;
+                  responseFromTools += `💾 **Tamanho**: ${toolResult.zipData.size || 'N/A'}\n`;
+                  if (toolResult.zipData.downloadUrl) {
+                    responseFromTools += `🔗 **Download**: ${toolResult.zipData.downloadUrl}\n`;
+                  }
+                  responseFromTools += `\n*Arquivo ZIP contém todos os dados do site incluindo HTML, conteúdo, links, imagens e metadados.*\n`;
+                }
 
                 if (data.headings) {
                   responseFromTools += `\n📌 **Principais tópicos**:\n`;
