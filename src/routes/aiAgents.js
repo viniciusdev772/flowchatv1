@@ -1433,239 +1433,51 @@ Regras importantes:
 
             // Execute tool calls
             for (const toolCall of toolCalls) {
-              let toolResult;
+              let toolResult = '';
+              
+              try {
+                console.log(
+                  `🛠️ Executing tool: ${toolCall.function.name} with args:`,
+                  toolCall.function.arguments
+                );
 
-              console.log(
-                `🛠️ Executing tool: ${toolCall.function.name} with args:`,
-                toolCall.function.arguments
-              );
-
-              if (toolCall.function.name === 'web_search') {
-                const args = JSON.parse(toolCall.function.arguments);
-                console.log(
-                  `🔍 Model requested web search: "${args.query}"`
-                );
-                
-                // Send notification to user that search is starting
-                await this.sendToolNotification(
-                  `🔍 Buscando em múltiplas fontes: "${args.query}"...\n🌐 Consultando: DuckDuckGo, Bing, Yahoo, Searx, Brave, Yandex`,
-                  conversationEntry.chat.id,
-                  whatsappClient
-                );
-                
-                toolResult = await executeWebSearch(args.query);
-                
-                // Parse results to get count
-                const searchData = JSON.parse(toolResult);
-                const resultCount = searchData.results?.length || 0;
-                
-                console.log(
-                  `✅ Search completed, result length: ${toolResult.length}`
-                );
-                
-                // Store successful tool result
-                executedToolResults.push({
-                  toolName: 'web_search',
-                  args: args,
-                  result: searchData,
-                  success: !searchData.error
-                });
-                
-                // Save tool call to conversation history for context
-                const toolCallEntry = {
-                  type: 'tool_call',
-                  toolName: toolCall.function.name,
-                  toolArgs: args,
-                  toolResult: searchData,
-                  timestamp: new Date().toISOString(),
-                  chat: conversationEntry.chat,
-                  agentId: this.id,
-                  sessionId: this.sessionId
-                };
-                await this.saveConversationEntry(toolCallEntry);
-                
-                // Small delay before completion notification
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                
-                // Send completion notification with detailed info
-                const sourcesUsed = searchData.sources?.join(', ') || 'N/A';
-                const duplicatesInfo = searchData.duplicatesRemoved > 0 ? ` (${searchData.duplicatesRemoved} duplicatas removidas)` : '';
-                
-                await this.sendToolNotification(
-                  `✅ Busca concluída!\n📊 ${resultCount} resultados únicos de ${searchData.sources?.length || 0} fontes\n🌐 Fontes: ${sourcesUsed}${duplicatesInfo}`,
-                  conversationEntry.chat.id,
-                  whatsappClient
-                );
-                
-              } else if (toolCall.function.name === 'web_scrape') {
-                const args = JSON.parse(toolCall.function.arguments);
-                console.log(
-                  `🌐 Model requested web scraping: "${args.url}"`
-                );
-                
-                // Send notification to user that scraping is starting
-                await this.sendToolNotification(
-                  `🌐 Baixando e analisando site: "${args.url}"...\n📊 Extraindo conteúdo, links, imagens e estrutura`,
-                  conversationEntry.chat.id,
-                  whatsappClient
-                );
-                
-                toolResult = await executeWebScrape(args.url);
-                
-                // Parse results to get info
-                const scrapeData = JSON.parse(toolResult);
-                
-                console.log(
-                  `✅ Web scraping completed for: ${args.url}`
-                );
-                
-                // Store successful tool result
-                executedToolResults.push({
-                  toolName: 'web_scrape',
-                  args: args,
-                  result: scrapeData,
-                  success: !scrapeData.error
-                });
-                
-                // Save tool call to conversation history for context
-                const toolCallEntry = {
-                  type: 'tool_call',
-                  toolName: toolCall.function.name,
-                  toolArgs: args,
-                  toolResult: scrapeData,
-                  timestamp: new Date().toISOString(),
-                  chat: conversationEntry.chat,
-                  agentId: this.id,
-                  sessionId: this.sessionId
-                };
-                await this.saveConversationEntry(toolCallEntry);
-                
-                // Small delay before completion notification
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                
-                // Send completion notification with detailed info
-                if (scrapeData.error) {
-                  await this.sendToolNotification(
-                    `❌ Erro ao baixar site:\n${scrapeData.error}`,
-                    conversationEntry.chat.id,
-                    whatsappClient
+                if (toolCall.function.name === 'web_search') {
+                  const args = JSON.parse(toolCall.function.arguments);
+                  console.log(
+                    `🔍 Model requested web search: "${args.query}"`
                   );
-                } else {
-                  await this.sendToolNotification(
-                    `✅ Site analisado com sucesso!\n📄 ${scrapeData.textLength || 0} caracteres de texto\n🔗 ${scrapeData.structure?.totalLinks || 0} links encontrados\n🖼️ ${scrapeData.structure?.totalImages || 0} imagens encontradas`,
-                    conversationEntry.chat.id,
-                    whatsappClient
-                  );
-                }
-                
-              } else if (toolCall.function.name === 'html_analysis') {
-                const args = JSON.parse(toolCall.function.arguments);
-                const analysisType = args.analysisType || 'general';
-                console.log(
-                  `🔍 Model requested HTML analysis: "${args.url}" (type: ${analysisType})`
-                );
-                
-                // Send notification to user that analysis is starting
-                await this.sendToolNotification(
-                  `🔍 Analisando estrutura HTML: "${args.url}"...\n📋 Tipo de análise: ${analysisType}\n🔬 Extraindo informações específicas`,
-                  conversationEntry.chat.id,
-                  whatsappClient
-                );
-                
-                toolResult = await executeHtmlAnalysis(args.url, analysisType);
-                
-                // Parse results to get info
-                const analysisData = JSON.parse(toolResult);
-                
-                console.log(
-                  `✅ HTML analysis completed for: ${args.url} (${analysisType})`
-                );
-                
-                // Store successful tool result
-                executedToolResults.push({
-                  toolName: 'html_analysis',
-                  args: args,
-                  result: analysisData,
-                  success: !analysisData.error
-                });
-                
-                // Save tool call to conversation history for context
-                const toolCallEntry = {
-                  type: 'tool_call',
-                  toolName: toolCall.function.name,
-                  toolArgs: args,
-                  toolResult: analysisData,
-                  timestamp: new Date().toISOString(),
-                  chat: conversationEntry.chat,
-                  agentId: this.id,
-                  sessionId: this.sessionId
-                };
-                await this.saveConversationEntry(toolCallEntry);
-                
-                // Small delay before completion notification
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                
-                // Send completion notification with detailed info
-                if (analysisData.error) {
-                  await this.sendToolNotification(
-                    `❌ Erro na análise HTML:\n${analysisData.error}`,
-                    conversationEntry.chat.id,
-                    whatsappClient
-                  );
-                } else {
-                  let analysisInfo = '';
-                  switch (analysisType) {
-                    case 'news':
-                      analysisInfo = `📰 Título: ${analysisData.headline || 'N/A'}\n👤 Autor: ${analysisData.author || 'N/A'}\n📅 Data: ${analysisData.publishDate || 'N/A'}`;
-                      break;
-                    case 'ecommerce':
-                      analysisInfo = `🛍️ Produto: ${analysisData.productName || 'N/A'}\n💰 Preço: ${analysisData.price || 'N/A'}\n📦 Em estoque: ${analysisData.inStock ? 'Sim' : 'Não'}`;
-                      break;
-                    case 'contact':
-                      analysisInfo = `📧 E-mails: ${analysisData.emails?.length || 0}\n📞 Telefones: ${analysisData.phones?.length || 0}\n🌐 Redes sociais: ${Object.keys(analysisData.socialMedia || {}).length}`;
-                      break;
-                    default:
-                      analysisInfo = `📄 Título: ${analysisData.title || 'N/A'}\n🔗 Links: ${analysisData.links || 0}\n🖼️ Imagens: ${analysisData.content?.images || 0}`;
-                  }
                   
+                  // Send notification to user that search is starting
                   await this.sendToolNotification(
-                    `✅ Análise HTML concluída!\n📋 Tipo: ${analysisType}\n${analysisInfo}`,
+                    `🔍 Buscando em múltiplas fontes: "${args.query}"...\n🌐 Consultando: DuckDuckGo, Bing, Yahoo, Searx, Brave, Yandex`,
                     conversationEntry.chat.id,
                     whatsappClient
                   );
-                }
-                
-              } else if (toolCall.function.name === 'generate_zip') {
-                const args = JSON.parse(toolCall.function.arguments);
-                const dataType = args.type || 'scraping';
-                console.log(
-                  `📦 Model requested ZIP generation: type ${dataType}`
-                );
-                
-                // Send notification to user that ZIP generation is starting
-                await this.sendToolNotification(
-                  `📦 Gerando arquivo ZIP para download...\n📋 Tipo: ${dataType}\n⏳ Preparando dados para exportação`,
-                  conversationEntry.chat.id,
-                  whatsappClient
-                );
-                
-                try {
-                  const data = JSON.parse(args.data);
-                  toolResult = await generateZipFile(data, dataType);
                   
-                  // Parse results to get info
-                  const zipData = JSON.parse(toolResult);
+                  toolResult = await executeWebSearch(args.query);
+                  
+                  // Parse results to get count
+                  const searchData = JSON.parse(toolResult);
+                  const resultCount = searchData.results?.length || 0;
                   
                   console.log(
-                    `✅ ZIP generation completed: ${zipData.fileName}`
+                    `✅ Search completed, result length: ${toolResult.length}`
                   );
+                  
+                  // Store successful tool result
+                  executedToolResults.push({
+                    toolName: 'web_search',
+                    args: args,
+                    result: searchData,
+                    success: !searchData.error
+                  });
                   
                   // Save tool call to conversation history for context
                   const toolCallEntry = {
                     type: 'tool_call',
                     toolName: toolCall.function.name,
                     toolArgs: args,
-                    toolResult: zipData,
+                    toolResult: searchData,
                     timestamp: new Date().toISOString(),
                     chat: conversationEntry.chat,
                     agentId: this.id,
@@ -1676,67 +1488,286 @@ Regras importantes:
                   // Small delay before completion notification
                   await new Promise(resolve => setTimeout(resolve, 1000));
                   
-                  // Send completion notification with download link
-                  if (zipData.success) {
+                  // Send completion notification with detailed info
+                  const sourcesUsed = searchData.sources?.join(', ') || 'N/A';
+                  const duplicatesInfo = searchData.duplicatesRemoved > 0 ? ` (${searchData.duplicatesRemoved} duplicatas removidas)` : '';
+                  
+                  await this.sendToolNotification(
+                    `✅ Busca concluída!\n📊 ${resultCount} resultados únicos de ${searchData.sources?.length || 0} fontes\n🌐 Fontes: ${sourcesUsed}${duplicatesInfo}`,
+                    conversationEntry.chat.id,
+                    whatsappClient
+                  );
+                  
+                } else if (toolCall.function.name === 'web_scrape') {
+                  const args = JSON.parse(toolCall.function.arguments);
+                  console.log(
+                    `🌐 Model requested web scraping: "${args.url}"`
+                  );
+                  
+                  // Send notification to user that scraping is starting
+                  await this.sendToolNotification(
+                    `🌐 Baixando e analisando site: "${args.url}"...\n📊 Extraindo conteúdo, links, imagens e estrutura`,
+                    conversationEntry.chat.id,
+                    whatsappClient
+                  );
+                  
+                  toolResult = await executeWebScrape(args.url);
+                  
+                  // Parse results to get info
+                  const scrapeData = JSON.parse(toolResult);
+                  
+                  console.log(
+                    `✅ Web scraping completed for: ${args.url}`
+                  );
+                  
+                  // Store successful tool result
+                  executedToolResults.push({
+                    toolName: 'web_scrape',
+                    args: args,
+                    result: scrapeData,
+                    success: !scrapeData.error
+                  });
+                  
+                  // Save tool call to conversation history for context
+                  const toolCallEntry = {
+                    type: 'tool_call',
+                    toolName: toolCall.function.name,
+                    toolArgs: args,
+                    toolResult: scrapeData,
+                    timestamp: new Date().toISOString(),
+                    chat: conversationEntry.chat,
+                    agentId: this.id,
+                    sessionId: this.sessionId
+                  };
+                  await this.saveConversationEntry(toolCallEntry);
+                  
+                  // Small delay before completion notification
+                  await new Promise(resolve => setTimeout(resolve, 1000));
+                  
+                  // Send completion notification with detailed info
+                  if (scrapeData.error) {
                     await this.sendToolNotification(
-                      `✅ Arquivo ZIP criado com sucesso!\n📁 Nome: ${zipData.fileName}\n💾 Tamanho: ${Math.round(zipData.size / 1024)} KB\n🔗 Download: ${zipData.downloadUrl}`,
+                      `❌ Erro ao baixar site:\n${scrapeData.error}`,
                       conversationEntry.chat.id,
                       whatsappClient
                     );
                   } else {
                     await this.sendToolNotification(
-                      `❌ Erro ao gerar ZIP:\n${zipData.error}`,
+                      `✅ Site analisado com sucesso!\n📄 ${scrapeData.textLength || 0} caracteres de texto\n🔗 ${scrapeData.structure?.totalLinks || 0} links encontrados\n🖼️ ${scrapeData.structure?.totalImages || 0} imagens encontradas`,
                       conversationEntry.chat.id,
                       whatsappClient
                     );
                   }
-                } catch (parseError) {
-                  console.error('Error parsing ZIP data:', parseError);
-                  toolResult = JSON.stringify({
-                    success: false,
-                    error: 'Erro ao processar dados para ZIP'
+                  
+                } else if (toolCall.function.name === 'html_analysis') {
+                  const args = JSON.parse(toolCall.function.arguments);
+                  const analysisType = args.analysisType || 'general';
+                  console.log(
+                    `🔍 Model requested HTML analysis: "${args.url}" (type: ${analysisType})`
+                  );
+                  
+                  // Send notification to user that analysis is starting
+                  await this.sendToolNotification(
+                    `🔍 Analisando estrutura HTML: "${args.url}"...\n📋 Tipo de análise: ${analysisType}\n🔬 Extraindo informações específicas`,
+                    conversationEntry.chat.id,
+                    whatsappClient
+                  );
+                  
+                  toolResult = await executeHtmlAnalysis(args.url, analysisType);
+                  
+                  // Parse results to get info
+                  const analysisData = JSON.parse(toolResult);
+                  
+                  console.log(
+                    `✅ HTML analysis completed for: ${args.url} (${analysisType})`
+                  );
+                  
+                  // Store successful tool result
+                  executedToolResults.push({
+                    toolName: 'html_analysis',
+                    args: args,
+                    result: analysisData,
+                    success: !analysisData.error
                   });
                   
+                  // Save tool call to conversation history for context
+                  const toolCallEntry = {
+                    type: 'tool_call',
+                    toolName: toolCall.function.name,
+                    toolArgs: args,
+                    toolResult: analysisData,
+                    timestamp: new Date().toISOString(),
+                    chat: conversationEntry.chat,
+                    agentId: this.id,
+                    sessionId: this.sessionId
+                  };
+                  await this.saveConversationEntry(toolCallEntry);
+                  
+                  // Small delay before completion notification
+                  await new Promise(resolve => setTimeout(resolve, 1000));
+                  
+                  // Send completion notification with detailed info
+                  if (analysisData.error) {
+                    await this.sendToolNotification(
+                      `❌ Erro na análise HTML:\n${analysisData.error}`,
+                      conversationEntry.chat.id,
+                      whatsappClient
+                    );
+                  } else {
+                    let analysisInfo = '';
+                    switch (analysisType) {
+                      case 'news':
+                        analysisInfo = `📰 Título: ${analysisData.headline || 'N/A'}\n👤 Autor: ${analysisData.author || 'N/A'}\n📅 Data: ${analysisData.publishDate || 'N/A'}`;
+                        break;
+                      case 'ecommerce':
+                        analysisInfo = `🛍️ Produto: ${analysisData.productName || 'N/A'}\n💰 Preço: ${analysisData.price || 'N/A'}\n📦 Em estoque: ${analysisData.inStock ? 'Sim' : 'Não'}`;
+                        break;
+                      case 'contact':
+                        analysisInfo = `📧 E-mails: ${analysisData.emails?.length || 0}\n📞 Telefones: ${analysisData.phones?.length || 0}\n🌐 Redes sociais: ${Object.keys(analysisData.socialMedia || {}).length}`;
+                        break;
+                      default:
+                        analysisInfo = `📄 Título: ${analysisData.title || 'N/A'}\n🔗 Links: ${analysisData.links || 0}\n🖼️ Imagens: ${analysisData.content?.images || 0}`;
+                    }
+                    
+                    await this.sendToolNotification(
+                      `✅ Análise HTML concluída!\n📋 Tipo: ${analysisType}\n${analysisInfo}`,
+                      conversationEntry.chat.id,
+                      whatsappClient
+                    );
+                  }
+                  
+                } else if (toolCall.function.name === 'generate_zip') {
+                  const args = JSON.parse(toolCall.function.arguments);
+                  const dataType = args.type || 'scraping';
+                  console.log(
+                    `📦 Model requested ZIP generation: type ${dataType}`
+                  );
+                  
+                  // Send notification to user that ZIP generation is starting
                   await this.sendToolNotification(
-                    `❌ Erro ao processar dados para ZIP: ${parseError.message}`,
+                    `📦 Gerando arquivo ZIP para download...\n📋 Tipo: ${dataType}\n⏳ Preparando dados para exportação`,
+                    conversationEntry.chat.id,
+                    whatsappClient
+                  );
+                  
+                  try {
+                    const data = JSON.parse(args.data);
+                    toolResult = await generateZipFile(data, dataType);
+                    
+                    // Parse results to get info
+                    const zipData = JSON.parse(toolResult);
+                    
+                    console.log(
+                      `✅ ZIP generation completed: ${zipData.fileName}`
+                    );
+                    
+                    // Save tool call to conversation history for context
+                    const toolCallEntry = {
+                      type: 'tool_call',
+                      toolName: toolCall.function.name,
+                      toolArgs: args,
+                      toolResult: zipData,
+                      timestamp: new Date().toISOString(),
+                      chat: conversationEntry.chat,
+                      agentId: this.id,
+                      sessionId: this.sessionId
+                    };
+                    await this.saveConversationEntry(toolCallEntry);
+                    
+                    // Small delay before completion notification
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                    
+                    // Send completion notification with download link
+                    if (zipData.success) {
+                      await this.sendToolNotification(
+                        `✅ Arquivo ZIP criado com sucesso!\n📁 Nome: ${zipData.fileName}\n💾 Tamanho: ${Math.round(zipData.size / 1024)} KB\n🔗 Download: ${zipData.downloadUrl}`,
+                        conversationEntry.chat.id,
+                        whatsappClient
+                      );
+                    } else {
+                      await this.sendToolNotification(
+                        `❌ Erro ao gerar ZIP:\n${zipData.error}`,
+                        conversationEntry.chat.id,
+                        whatsappClient
+                      );
+                    }
+                  } catch (parseError) {
+                    console.error('Error parsing ZIP data:', parseError);
+                    toolResult = JSON.stringify({
+                      success: false,
+                      error: 'Erro ao processar dados para ZIP'
+                    });
+                    
+                    await this.sendToolNotification(
+                      `❌ Erro ao processar dados para ZIP: ${parseError.message}`,
+                      conversationEntry.chat.id,
+                      whatsappClient
+                    );
+                  }
+                  
+                } else {
+                  toolResult = JSON.stringify({
+                    error: `Unknown tool: ${toolCall.function.name}`,
+                  });
+                  console.log(`❌ Unknown tool: ${toolCall.function.name}`);
+                  
+                  // Send error notification
+                  await this.sendToolNotification(
+                    `❌ Ferramenta desconhecida: ${toolCall.function.name}`,
                     conversationEntry.chat.id,
                     whatsappClient
                   );
                 }
-                
-              } else {
+              } catch (toolExecutionError) {
+                console.error(`❌ Tool execution error for ${toolCall.function.name}:`, toolExecutionError);
                 toolResult = JSON.stringify({
-                  error: `Unknown tool: ${toolCall.function.name}`,
+                  error: `Tool execution failed: ${toolExecutionError.message}`,
+                  toolName: toolCall.function.name
                 });
-                console.log(`❌ Unknown tool: ${toolCall.function.name}`);
                 
                 // Send error notification
                 await this.sendToolNotification(
-                  `❌ Ferramenta desconhecida: ${toolCall.function.name}`,
+                  `❌ Erro na execução da ferramenta ${toolCall.function.name}:\n${toolExecutionError.message}`,
                   conversationEntry.chat.id,
                   whatsappClient
                 );
               }
 
-              // Add tool result to conversation
+              // Add tool result to conversation - This is critical for OpenAI API
               messages.push({
                 role: "tool",
                 content: toolResult,
                 tool_call_id: toolCall.id
               });
+              
+              console.log(`✅ Tool result added to conversation for tool_call_id: ${toolCall.id}`);
             }
 
             // Get response after tool execution
             console.log(`🔄 Getting final response after tool execution`);
-            response = await openai.chat.completions.create({
-              model: this.model,
-              messages: messages,
-              temperature: this.creativity / 100,
-              max_tokens: 600, // Reduced for final response to save quota
-            });
-            
-            // Check again for more tool calls
-            toolCalls = response.choices[0]?.message?.tool_calls;
+            try {
+              response = await openai.chat.completions.create({
+                model: this.model,
+                messages: messages,
+                temperature: this.creativity / 100,
+                max_tokens: 600, // Reduced for final response to save quota
+              });
+              
+              // Check again for more tool calls
+              toolCalls = response.choices[0]?.message?.tool_calls;
+            } catch (finalResponseError) {
+              console.error('Error getting final response after tool execution:', finalResponseError);
+              // Break the loop to prevent infinite attempts
+              toolCalls = null;
+              
+              // If we have tool results, use them for response
+              if (executedToolResults.length > 0) {
+                console.log(`🔧 Using tool results for response due to final response error`);
+                break;
+              }
+              
+              throw finalResponseError;
+            }
           }
         } catch (toolError) {
           console.log(
@@ -1744,6 +1775,14 @@ Regras importantes:
             toolError.message
           );
           console.log(`Error stack:`, toolError.stack);
+          
+          // If we have successful tool results, don't fallback completely
+          if (executedToolResults.length > 0) {
+            console.log(`🔧 Found ${executedToolResults.length} successful tool results, using them instead of fallback`);
+            // We'll handle this in the error handler below
+            throw toolError;
+          }
+          
           // Fallback to regular completion without tools
           response = await openai.chat.completions.create({
             model: this.model,
@@ -1910,7 +1949,8 @@ Regras importantes:
         if (urlMatch) {
           try {
             console.log(`🔄 Manual web scraping attempt for: ${urlMatch[0]}`);
-            const scrapingResult = await executeBasicWebScrape(urlMatch[0]);
+            // Fixed: Use the globally available function instead of undefined one
+            const scrapingResult = await this.executeBasicWebScrapeHelper(urlMatch[0]);
             const scrapedData = JSON.parse(scrapingResult);
             
             if (!scrapedData.error) {
@@ -2023,6 +2063,11 @@ Regras importantes:
 
       return responseText;
     }
+  }
+
+  // Helper method to make executeBasicWebScrape available in the class scope
+  async executeBasicWebScrapeHelper(url) {
+    return await executeBasicWebScrape(url);
   }
 
   getStats() {
