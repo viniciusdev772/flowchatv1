@@ -1154,6 +1154,9 @@ class AIAgent {
         `🤖 Agent ${this.id} generating response with model ${this.model}`
       );
 
+      // Variable to store executed tool results
+      const executedToolResults = [];
+
       // Build context prompt with rich message information
       const personalityPrompts = {
         professional: 'Você é um assistente profissional, formal e objetivo.',
@@ -1460,6 +1463,14 @@ Regras importantes:
                   `✅ Search completed, result length: ${toolResult.length}`
                 );
                 
+                // Store successful tool result
+                executedToolResults.push({
+                  toolName: 'web_search',
+                  args: args,
+                  result: searchData,
+                  success: !searchData.error
+                });
+                
                 // Save tool call to conversation history for context
                 const toolCallEntry = {
                   type: 'tool_call',
@@ -1507,6 +1518,14 @@ Regras importantes:
                 console.log(
                   `✅ Web scraping completed for: ${args.url}`
                 );
+                
+                // Store successful tool result
+                executedToolResults.push({
+                  toolName: 'web_scrape',
+                  args: args,
+                  result: scrapeData,
+                  success: !scrapeData.error
+                });
                 
                 // Save tool call to conversation history for context
                 const toolCallEntry = {
@@ -1561,6 +1580,14 @@ Regras importantes:
                 console.log(
                   `✅ HTML analysis completed for: ${args.url} (${analysisType})`
                 );
+                
+                // Store successful tool result
+                executedToolResults.push({
+                  toolName: 'html_analysis',
+                  args: args,
+                  result: analysisData,
+                  success: !analysisData.error
+                });
                 
                 // Save tool call to conversation history for context
                 const toolCallEntry = {
@@ -1794,6 +1821,84 @@ Regras importantes:
       console.error('Error details:', error.message);
       console.error('Error stack:', error.stack);
 
+      // First, check if we have any successful tool executions
+      if (executedToolResults.length > 0) {
+        console.log(`🔧 Found ${executedToolResults.length} executed tools, generating response from results`);
+        
+        try {
+          let responseFromTools = '';
+          
+          for (const toolResult of executedToolResults) {
+            if (toolResult.success && toolResult.result) {
+              if (toolResult.toolName === 'web_scrape') {
+                const data = toolResult.result;
+                responseFromTools += `Analisei o site ${toolResult.args.url} e encontrei:\n\n`;
+                responseFromTools += `📄 **Título**: ${data.title || 'N/A'}\n`;
+                responseFromTools += `📝 **Descrição**: ${data.description || 'N/A'}\n`;
+                responseFromTools += `📊 **Conteúdo**: ${data.content ? data.content.substring(0, 500) + '...' : 'N/A'}\n`;
+                responseFromTools += `🔗 **Links encontrados**: ${data.structure?.totalLinks || data.links?.length || 0}\n`;
+                responseFromTools += `🖼️ **Imagens**: ${data.structure?.totalImages || data.images?.length || 0}\n`;
+                
+                if (data.headings) {
+                  responseFromTools += `\n📌 **Principais tópicos**:\n`;
+                  if (data.headings.h1?.length > 0) {
+                    responseFromTools += data.headings.h1.slice(0, 3).map(h => `• ${h}`).join('\n') + '\n';
+                  }
+                }
+              } else if (toolResult.toolName === 'web_search') {
+                const data = toolResult.result;
+                responseFromTools += `Encontrei ${data.results?.length || 0} resultados para "${toolResult.args.query}":\n\n`;
+                
+                if (data.results && data.results.length > 0) {
+                  data.results.slice(0, 5).forEach((result, index) => {
+                    responseFromTools += `${index + 1}. **${result.title}**\n`;
+                    responseFromTools += `   ${result.snippet}\n`;
+                    responseFromTools += `   🔗 ${result.url}\n\n`;
+                  });
+                  
+                  if (data.sources?.length > 0) {
+                    responseFromTools += `\n📍 Fontes consultadas: ${data.sources.join(', ')}\n`;
+                  }
+                }
+              } else if (toolResult.toolName === 'html_analysis') {
+                const data = toolResult.result;
+                const analysisType = toolResult.args.analysisType || 'general';
+                responseFromTools += `Análise ${analysisType} do site ${toolResult.args.url}:\n\n`;
+                
+                if (analysisType === 'news' && data.headline) {
+                  responseFromTools += `📰 **Título**: ${data.headline}\n`;
+                  responseFromTools += `👤 **Autor**: ${data.author || 'N/A'}\n`;
+                  responseFromTools += `📅 **Data**: ${data.publishDate || 'N/A'}\n`;
+                  responseFromTools += `🏷️ **Categoria**: ${data.category || 'N/A'}\n`;
+                } else if (analysisType === 'ecommerce' && data.productName) {
+                  responseFromTools += `🛍️ **Produto**: ${data.productName}\n`;
+                  responseFromTools += `💰 **Preço**: ${data.price || 'N/A'}\n`;
+                  responseFromTools += `📦 **Disponibilidade**: ${data.inStock ? 'Em estoque' : 'Indisponível'}\n`;
+                  responseFromTools += `🏪 **Marca**: ${data.brand || 'N/A'}\n`;
+                } else if (analysisType === 'contact') {
+                  responseFromTools += `📧 **E-mails encontrados**: ${data.emails?.length || 0}\n`;
+                  responseFromTools += `📞 **Telefones**: ${data.phones?.length || 0}\n`;
+                  responseFromTools += `🌐 **Redes sociais**: ${Object.keys(data.socialMedia || {}).length}\n`;
+                  responseFromTools += `📝 **Formulário de contato**: ${data.contactForm ? 'Sim' : 'Não'}\n`;
+                } else {
+                  responseFromTools += `📄 **Título**: ${data.title || 'N/A'}\n`;
+                  responseFromTools += `🔗 **Total de links**: ${data.links || 0}\n`;
+                  responseFromTools += `🖼️ **Total de imagens**: ${data.content?.images || 0}\n`;
+                  responseFromTools += `📊 **Estrutura**: ${data.structure ? JSON.stringify(data.structure) : 'N/A'}\n`;
+                }
+              }
+            }
+          }
+          
+          if (responseFromTools) {
+            console.log(`✅ Generated response from tool results`);
+            return responseFromTools.trim();
+          }
+        } catch (toolResponseError) {
+          console.error('Error generating response from tools:', toolResponseError);
+        }
+      }
+
       // Try to handle the user's request manually if OpenAI fails
       const messageText = messageData.content || messageData.text || messageData.body || '';
       const lowerMessage = messageText.toLowerCase();
@@ -1868,6 +1973,12 @@ Regras importantes:
       }
 
       console.error(`AI Agent Error [${this.id}]:`, errorMessage);
+
+      // If tools were successfully executed, don't show generic fallback message
+      if (executedToolResults.length > 0) {
+        console.log(`🔧 Tools were executed, not showing generic fallback`);
+        return 'Desculpe, não consegui processar completamente sua solicitação, mas executei as ferramentas solicitadas. Verifique os resultados acima.';
+      }
 
       // Resposta de fallback baseada na personalidade do agente - mais útil e menos genérica
       const fallbackResponses = {
