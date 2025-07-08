@@ -189,40 +189,20 @@ async function shouldContinueWithTools(originalMessage, toolResults, context = {
 
     // Prepare context about what tools were executed and their results
     const toolSummary = toolResults.map(result => {
-      return `Tool: ${result.toolName}\nArgs: ${JSON.stringify(result.args)}\nSuccess: ${result.success}\nResult Summary: ${JSON.stringify(result.result).substring(0, 200)}...`;
-    }).join('\n\n');
+      return `${result.toolName}: ${result.success ? 'OK' : 'ERRO'}`;
+    }).join(', ');
 
-    const decisionPrompt = `
-Você é um sistema de decisão autônomo que determina se deve executar mais ferramentas após uma operação inicial.
+    const decisionPrompt = `Usuário: "${originalMessage}"
 
-MENSAGEM ORIGINAL DO USUÁRIO:
-"${originalMessage}"
+Executado: ${toolSummary}
 
-FERRAMENTAS JÁ EXECUTADAS:
-${toolSummary}
+Decidir se continuar com mais ferramentas:
+1. Análise site + só web_search → web_scrape
+2. URLs encontradas não analisadas → web_scrape  
+3. Resposta completa → parar
 
-FERRAMENTAS DISPONÍVEIS:
-- web_search: Busca na internet
-- web_scrape: Análise completa de sites específicos
-- html_analysis: Análise especializada de estruturas HTML
-
-DECISÃO REQUERIDA:
-Baseado na mensagem original do usuário e nos resultados das ferramentas já executadas, você deve decidir se é necessário executar mais ferramentas para fornecer uma resposta completa.
-
-CRITÉRIOS DE DECISÃO:
-1. Se o usuário pediu análise/informações sobre um site específico e apenas web_search foi executado → Continue com web_scrape
-2. Se foram encontradas URLs relevantes mas não foram analisadas → Continue com web_scrape
-3. Se o usuário parece precisar de informações mais detalhadas → Continue com ferramentas apropriadas
-4. Se a resposta já está completa e satisfatória → Não continue
-
-RESPONDA APENAS COM UM JSON:
-{
-  "shouldContinue": true/false,
-  "nextTool": "web_search" | "web_scrape" | "html_analysis" | null,
-  "reason": "Explicação breve da decisão",
-  "parameters": { "url": "URL_se_aplicável" } ou null
-}
-`;
+JSON:
+{"shouldContinue": true/false, "nextTool": "web_search|web_scrape|html_analysis|null", "reason": "breve", "parameters": {"url": "se_aplicável"} ou null}`;
 
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-mini', // Modelo mais rápido e barato para decisões
@@ -237,7 +217,7 @@ RESPONDA APENAS COM UM JSON:
         }
       ],
       temperature: 0.1, // Baixa temperatura para decisões consistentes
-      max_tokens: 200,
+      max_tokens: 150,
     });
 
     const decisionText = response.choices[0].message.content.trim();
@@ -1279,75 +1259,34 @@ class AIAgent {
       }
 
 Nome: ${this.name}
-${this.description ? `Descrição: ${this.description}` : ''}
 ${contextInfo}
 
-FERRAMENTAS DISPONÍVEIS:
-Você tem acesso a ferramentas poderosas que são executadas automaticamente. Seja PROATIVO e use-as sempre que necessário sem pedir permissão.
+FERRAMENTAS DISPONÍVEIS - Use automaticamente quando necessário:
 
-🔍 BUSCA PROFUNDA E AUTÔNOMA:
-Você deve usar ferramentas automaticamente quando detectar:
-- Perguntas sobre informações atuais/recentes
-- Solicitações de dados específicos de sites
-- Pedidos de análise ou comparação
-- Necessidade de informações detalhadas
-- Qualquer consulta que se beneficie de dados atualizados
+🔍 web_search: Busca informações atualizadas na internet via múltiplos buscadores (DuckDuckGo, Bing, Yahoo)
+- USE AUTOMATICAMENTE para: notícias, preços, clima, eventos, dados atuais, estatísticas
+- Para perguntas sobre informações recentes ou atuais
 
-Ferramentas disponíveis:
-- web_search: Busca informações atualizadas na internet via múltiplos buscadores
-  🚀 USE AUTOMATICAMENTE para: notícias, preços, clima, eventos, dados atuais, estatísticas
-  💡 DICA: Faça múltiplas buscas se necessário para obter informações completas
+🌐 web_scrape: Baixa e analisa o conteúdo completo de um site específico + gera ZIP automaticamente
+- USE AUTOMATICAMENTE para: análise detalhada de páginas, extração de dados específicos
+- Combine com web_search para encontrar sites relevantes primeiro
 
-- web_scrape: Baixa e analisa o conteúdo completo de um site específico
-  🚀 USE AUTOMATICAMENTE para: análise detalhada de páginas, extração de dados específicos
-  💡 DICA: Combine com web_search para encontrar sites relevantes primeiro
-  📦 BONUS: Gera ZIP automaticamente com todos os dados
+🔬 html_analysis: Analisa estrutura HTML e extrai informações específicas
+- USE AUTOMATICAMENTE para: análise especializada (notícias, e-commerce, contatos, etc.)
+- Use após web_scrape para análises mais profundas
 
-- html_analysis: Analisa estrutura HTML e extrai informações específicas
-  🚀 USE AUTOMATICAMENTE para: análise especializada (notícias, e-commerce, contatos, etc.)
-  💡 DICA: Use após web_scrape para análises mais profundas
+SEJA PROATIVO: Execute ferramentas IMEDIATAMENTE quando detectar necessidade de informações atualizadas. NÃO peça permissão - execute diretamente.
 
-🎯 ESTRATÉGIAS DE BUSCA PROFUNDA:
-1. Para pesquisas complexas: Use web_search → web_scrape → html_analysis em sequência
-2. Para comparações: Faça múltiplas buscas e compare resultados
-3. Para dados específicos: Use web_scrape diretamente se você conhece a URL
-4. Para análises completas: Combine todas as ferramentas conforme necessário
-
-⚡ SEJA EXTREMAMENTE PROATIVO:
-- NÃO peça permissão para usar ferramentas
-- Use ferramentas IMEDIATAMENTE quando detectar necessidade
-- Faça buscas profundas e abrangentes
-- Combine múltiplas ferramentas para resultados completos
-- NUNCA diga "vou analisar" ou "aguarde" - EXECUTE DIRETAMENTE
-- Se uma busca não trouxer resultados suficientes, faça AUTOMATICAMENTE buscas adicionais com termos diferentes
-- Para perguntas complexas, execute MÚLTIPLAS ferramentas em sequência NA MESMA RESPOSTA
-- NUNCA diga "posso buscar" ou "posso analisar" - SEMPRE execute diretamente
-- Se você encontrar URLs em resultados de busca, use web_scrape IMEDIATAMENTE
-- NUNCA termine uma resposta dizendo que vai fazer algo - FAÇA IMEDIATAMENTE
-
-Regras importantes:
-1. Sempre responda em português brasileiro
+Regras:
+1. Responda em português brasileiro
 2. Seja útil e prestativo  
 3. Mantenha o tom de acordo com sua personalidade
-4. Seja conciso mas informativo
+4. Use ferramentas para informações atualizadas
 5. ${
         isGroup
-          ? 'Quando em grupos, você pode se dirigir às pessoas pelo nome quando relevante'
-          : 'Adapte suas respostas ao contexto da conversa privada'
-      }
-6. ${
-        isGroup
-          ? 'Em grupos, seja respeitoso com todos os participantes'
-          : 'Mantenha uma conversa natural e personalizada'
-      }
-7. Use as ferramentas disponíveis quando apropriado para dar respostas mais precisas e atualizadas  
-8. ${
-        messageType !== 'text'
-          ? `A mensagem recebida é do tipo: ${messageType}`
-          : ''
-      }
-9. Quando usar ferramentas, primeiro avise o usuário que está buscando informações
-10. Após obter resultados, forneça as informações de forma natural e útil`;
+          ? 'Em grupos, seja respeitoso com todos'
+          : 'Mantenha conversa natural'
+      }`;
 
       const messageText =
         messageData.content || messageData.text || messageData.body || '';
@@ -1360,10 +1299,10 @@ Regras importantes:
       // Prepare messages array for OpenAI API
       const messages = [{ role: 'system', content: systemPrompt }];
 
-      // Load conversation history from MongoDB for context (reduced to 8 messages to save tokens)
+      // Load conversation history from MongoDB for context (reduced to 3 messages to save tokens)
       const recentHistory = await this.loadConversationHistory(
         conversationEntry.chat.id,
-        8
+        3
       );
       console.log(
         `📚 Loaded ${recentHistory.length} previous messages for context from chat ${conversationEntry.chat.id}`
@@ -1376,8 +1315,8 @@ Regras importantes:
         const contentLength = msg.content?.length || 0;
         const estimatedTokens = Math.ceil(contentLength / 4);
 
-        if (totalTokensEstimate + estimatedTokens > 1500) {
-          // Limit context to ~1500 tokens
+        if (totalTokensEstimate + estimatedTokens > 500) {
+          // Limit context to ~500 tokens
           return; // Skip this message to stay within token limits
         }
 
@@ -1460,7 +1399,7 @@ Regras importantes:
             model: this.model,
             messages: messages,
             temperature: this.creativity / 100,
-            max_tokens: 1200, // Increased to allow more comprehensive responses
+            max_tokens: 600, // Reduced for token limits
             tools: [
               {
                 type: 'function',
@@ -1857,10 +1796,20 @@ Regras importantes:
             }
 
             // Implement iterative tool chaining with AI decisions
-            let maxIterations = 3; // Prevent infinite loops
+            let maxIterations = 1; // Reduced to prevent token overflow
             let currentIteration = 0;
             
             while (currentIteration < maxIterations) {
+              // Check token count before continuing
+              const currentTokenCount = messages.reduce((total, msg) => {
+                return total + Math.ceil((msg.content?.length || 0) / 4);
+              }, 0);
+              
+              if (currentTokenCount > 15000) { // More conservative limit
+                console.log(`🚫 Token limit approaching (${currentTokenCount}), stopping chaining`);
+                break;
+              }
+              
               // Get current tool results for AI decision
               const currentToolResults = executedToolResults.filter(result => result.success);
               const originalMessage = conversationEntry.messageText || '';
@@ -1872,6 +1821,10 @@ Regras importantes:
               
               // Ask AI if we should continue
               console.log(`🤖 Iteration ${currentIteration + 1}: Consulting AI decision system...`);
+              
+              // Add delay to prevent rate limiting
+              await new Promise(resolve => setTimeout(resolve, 1000));
+              
               const aiDecision = await shouldContinueWithTools(originalMessage, currentToolResults, {
                 apiKey: this.openaiApiKey
               });
@@ -1972,7 +1925,7 @@ Regras importantes:
                 model: this.model,
                 messages: messages,
                 temperature: this.creativity / 100,
-                max_tokens: 1200,
+                max_tokens: 500, // Reduced for chaining calls
                 tools: availableTools,
                 tool_choice: 'auto',
               });
@@ -2082,7 +2035,7 @@ Regras importantes:
                 model: this.model,
                 messages: messages,
                 temperature: this.creativity / 100,
-                max_tokens: 600, // Reduced for final response to save quota
+                max_tokens: 500, // Reduced for final response to save quota
               });
 
               // Check again for more tool calls
