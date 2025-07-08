@@ -105,6 +105,90 @@ async function executeWebSearch(query) {
   }
 }
 
+// Enhanced web scraping with robust error handling and multiple strategies
+async function executeWebScrape(url) {
+  try {
+    console.log(`🌐 AI Agent downloading website: "${url}"`);
+
+    // Validate URL
+    const urlObj = new URL(url);
+    if (!['http:', 'https:'].includes(urlObj.protocol)) {
+      throw new Error('Only HTTP and HTTPS URLs are supported');
+    }
+
+    const scrapingResult = await webScraper.scrapeWithRetry(url);
+
+    console.log(
+      `✅ Website scraped successfully using ${
+        scrapingResult.strategy
+      }. Content: ${scrapingResult.stats?.contentLength || 0} chars, ${
+        scrapingResult.stats?.totalLinks || 0
+      } links, ${scrapingResult.stats?.totalImages || 0} images`
+    );
+
+    return JSON.stringify(scrapingResult);
+  } catch (error) {
+    console.error(`❌ Enhanced web scraping failed: ${error.message}`);
+
+    // Return useful error information
+    return JSON.stringify({
+      error: `Não foi possível acessar o site: ${error.message}`,
+      url: url,
+      timestamp: new Date().toISOString(),
+      suggestion: 'Verifique se a URL está correta e se o site está acessível',
+      fallbackContent: `Site solicitado: ${url}. Erro: ${error.message}. Posso ajudá-lo de outra forma?`,
+    });
+  }
+}
+
+// Enhanced HTML analysis with specialized parsers
+async function executeHtmlAnalysis(url, analysisType = 'general') {
+  try {
+    console.log(
+      `🔍 Starting HTML analysis for: "${url}" (type: ${analysisType})`
+    );
+    const analysisResult = await htmlAnalyzer.analyze(url, analysisType);
+    console.log(`✅ HTML analysis completed for ${analysisType} analysis`);
+    return JSON.stringify(analysisResult);
+  } catch (error) {
+    console.error(`❌ HTML analysis failed: ${error.message}`);
+    return JSON.stringify({
+      error: error.message,
+      url: url,
+      analysisType: analysisType,
+      timestamp: new Date().toISOString(),
+    });
+  }
+}
+
+// Generate ZIP file with scraped data or search results
+async function generateZipFile(data, type = 'scraping') {
+  try {
+    console.log(`📦 Generating ZIP file for ${type} data`);
+    let zipResult;
+
+    if (type === 'scraping' && data.url) {
+      zipResult = await zipGenerator.generateScrapingZip(data);
+    } else if (type === 'search' && data.query) {
+      zipResult = await zipGenerator.generateSearchZip(data);
+    } else {
+      throw new Error(
+        'Invalid data type for ZIP generation. Requires scraping data with URL or search data with query.'
+      );
+    }
+
+    console.log(`✅ ZIP file created: ${zipResult.fileName}`);
+    return JSON.stringify(zipResult);
+  } catch (error) {
+    console.error(`❌ ZIP generation failed: ${error.message}`);
+    return JSON.stringify({
+      error: error.message,
+      type: type,
+      timestamp: new Date().toISOString(),
+    });
+  }
+}
+
 // Fallback basic web search
 async function executeBasicWebSearch(query) {
   const fetch = require('node-fetch');
@@ -124,92 +208,7 @@ async function executeBasicWebSearch(query) {
     'Upgrade-Insecure-Requests': '1',
   };
 
-  // Enhanced web scraping with robust error handling and multiple strategies
-  async function executeWebScrape(url) {
-    try {
-      console.log(`🌐 AI Agent downloading website: "${url}"`);
-
-      // Validate URL
-      const urlObj = new URL(url);
-      if (!['http:', 'https:'].includes(urlObj.protocol)) {
-        throw new Error('Only HTTP and HTTPS URLs are supported');
-      }
-
-      const scrapingResult = await webScraper.scrapeWithRetry(url);
-
-      console.log(
-        `✅ Website scraped successfully using ${
-          scrapingResult.strategy
-        }. Content: ${scrapingResult.stats?.contentLength || 0} chars, ${
-          scrapingResult.stats?.totalLinks || 0
-        } links, ${scrapingResult.stats?.totalImages || 0} images`
-      );
-
-      return JSON.stringify(scrapingResult);
-    } catch (error) {
-      console.error(`❌ Enhanced web scraping failed: ${error.message}`);
-
-      // Return useful error information
-      return JSON.stringify({
-        error: `Não foi possível acessar o site: ${error.message}`,
-        url: url,
-        timestamp: new Date().toISOString(),
-        suggestion:
-          'Verifique se a URL está correta e se o site está acessível',
-        fallbackContent: `Site solicitado: ${url}. Erro: ${error.message}. Posso ajudá-lo de outra forma?`,
-      });
-    }
-  }
-
-  // Enhanced HTML analysis with specialized parsers
-  async function executeHtmlAnalysis(url, analysisType = 'general') {
-    try {
-      console.log(
-        `🔍 Starting HTML analysis for: "${url}" (type: ${analysisType})`
-      );
-      const analysisResult = await htmlAnalyzer.analyze(url, analysisType);
-      console.log(`✅ HTML analysis completed for ${analysisType} analysis`);
-      return JSON.stringify(analysisResult);
-    } catch (error) {
-      console.error(`❌ HTML analysis failed: ${error.message}`);
-      return JSON.stringify({
-        error: error.message,
-        url: url,
-        analysisType: analysisType,
-        timestamp: new Date().toISOString(),
-      });
-    }
-  }
-
-  // Generate ZIP file with scraped data or search results
-  async function generateZipFile(data, type = 'scraping') {
-    try {
-      console.log(`📦 Generating ZIP file for ${type} data`);
-      let zipResult;
-
-      if (type === 'scraping' && data.url) {
-        zipResult = await zipGenerator.generateScrapingZip(data);
-      } else if (type === 'search' && data.query) {
-        zipResult = await zipGenerator.generateSearchZip(data);
-      } else {
-        throw new Error(
-          'Invalid data type for ZIP generation. Requires scraping data with URL or search data with query.'
-        );
-      }
-
-      console.log(`✅ ZIP file created: ${zipResult.fileName}`);
-      return JSON.stringify(zipResult);
-    } catch (error) {
-      console.error(`❌ ZIP generation failed: ${error.message}`);
-      return JSON.stringify({
-        error: error.message,
-        type: type,
-        timestamp: new Date().toISOString(),
-      });
-    }
-  }
-
-  // Specific analysis functions
+  // Specific analysis functions (moved outside to proper scope)
   function analyzeNewsArticle($) {
     return {
       headline: $('h1').first().text().trim(),
