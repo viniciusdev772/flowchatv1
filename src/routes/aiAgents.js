@@ -1488,11 +1488,11 @@ Regras importantes:
                   } else {
                     await this.sendToolNotification(
                       `✅ Site analisado com sucesso!\n📄 ${
-                        scrapeData.textLength || 0
+                        scrapeData.stats?.contentLength || scrapeData.content?.length || 0
                       } caracteres de texto\n🔗 ${
-                        scrapeData.structure?.totalLinks || 0
+                        scrapeData.stats?.totalLinks || scrapeData.links?.length || 0
                       } links encontrados\n🖼️ ${
-                        scrapeData.structure?.totalImages || 0
+                        scrapeData.stats?.totalImages || scrapeData.images?.length || 0
                       } imagens encontradas`,
                       conversationEntry.chat.id,
                       whatsappClient
