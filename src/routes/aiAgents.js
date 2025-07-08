@@ -75,7 +75,29 @@ async function executeWebSearch(query) {
   } catch (error) {
     console.error(`❌ Enhanced search failed: ${error.message}`);
     // Fallback to basic search
-    return await executeBasicWebSearch(query);
+    try {
+      return await executeBasicWebSearch(query);
+    } catch (fallbackError) {
+      console.error(`❌ Basic search also failed: ${fallbackError.message}`);
+      // Ultimate fallback - return helpful error message
+      return JSON.stringify({
+        query,
+        results: [],
+        timestamp: new Date().toISOString(),
+        sources: [],
+        total: 0,
+        totalFound: 0,
+        duplicatesRemoved: 0,
+        error: `Não foi possível realizar a busca por "${query}". Motivo: ${fallbackError.message}`,
+        message: `Busca temporariamente indisponível. Tente novamente em alguns minutos ou reformule sua consulta.`,
+        suggestions: [
+          'Tente novamente em alguns minutos',
+          'Use termos mais simples',
+          'Divida a busca em partes menores',
+          'Verifique sua conexão com a internet'
+        ]
+      });
+    }
   }
 }
 
@@ -108,7 +130,30 @@ async function executeWebScrape(url) {
   } catch (error) {
     console.error(`❌ Enhanced scraping failed: ${error.message}`);
     // Fallback to basic scraping
-    return await executeBasicWebScrape(url);
+    try {
+      return await executeBasicWebScrape(url);
+    } catch (fallbackError) {
+      console.error(`❌ Basic scraping also failed: ${fallbackError.message}`);
+      // Ultimate fallback - return helpful error message
+      return JSON.stringify({
+        url: url,
+        error: `Não foi possível acessar o site: ${fallbackError.message}`,
+        timestamp: new Date().toISOString(),
+        message: `Site "${url}" temporariamente inacessível`,
+        suggestions: [
+          'Verifique se a URL está correta',
+          'Tente novamente em alguns minutos',
+          'Verifique se o site está online',
+          'Confirme que a URL é completa (inclui http:// ou https://)'
+        ],
+        possibleCauses: [
+          'Site pode estar temporariamente fora do ar',
+          'URL pode estar incorreta',
+          'Site pode ter bloqueado o acesso',
+          'Problema de conectividade'
+        ]
+      });
+    }
   }
 }
 
@@ -218,10 +263,46 @@ async function executeBasicWebScrape(url) {
     
   } catch (error) {
     console.error(`❌ Website download failed: ${error.message}`);
+    
+    // Try alternative approach with more lenient parsing
+    try {
+      console.log(`🔄 Attempting alternative scraping approach for: ${url}`);
+      
+      const alternativeResponse = await fetch(url, { 
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; AIBot/1.0)',
+          'Accept': 'text/html,application/xhtml+xml,*/*;q=0.9',
+        },
+        timeout: 10000,
+        follow: 3
+      });
+      
+      if (alternativeResponse.ok) {
+        const alternativeHtml = await alternativeResponse.text();
+        const basicTitle = alternativeHtml.match(/<title[^>]*>([^<]+)<\/title>/i);
+        const basicContent = alternativeHtml.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+        
+        return JSON.stringify({
+          url: url,
+          title: basicTitle ? basicTitle[1].trim() : 'Página analisada',
+          content: basicContent.substring(0, 1000) + '...',
+          description: 'Conteúdo extraído com análise básica',
+          timestamp: new Date().toISOString(),
+          method: 'alternative_scraping',
+          textLength: basicContent.length
+        });
+      }
+    } catch (alternativeError) {
+      console.error(`❌ Alternative scraping also failed: ${alternativeError.message}`);
+    }
+    
+    // Ultimate fallback - return useful error information
     return JSON.stringify({
-      error: error.message,
+      error: `Não foi possível acessar o site: ${error.message}`,
       url: url,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      suggestion: 'Verifique se a URL está correta e se o site está acessível',
+      fallbackContent: `Site solicitado: ${url}. Erro: ${error.message}. Posso ajudá-lo de outra forma?`
     });
   }
 }
@@ -573,6 +654,28 @@ function extractBusinessHours(text) {
   };
 
   console.log(`✅ Multi-source search completed: ${finalResults.length} unique results from ${searchSources.length} sources`);
+  
+  // If no results were found, provide a helpful response
+  if (finalResults.length === 0) {
+    const fallbackResults = {
+      query,
+      results: [],
+      timestamp: new Date().toISOString(),
+      sources: searchSources,
+      total: 0,
+      totalFound: 0,
+      duplicatesRemoved: 0,
+      message: `Não foram encontrados resultados para "${query}". Tente usar termos diferentes ou mais específicos.`,
+      suggestions: [
+        'Verifique a ortografia dos termos de busca',
+        'Use palavras-chave mais específicas',
+        'Tente sinônimos ou termos relacionados',
+        'Use aspas para buscar frases exatas'
+      ]
+    };
+    
+    return JSON.stringify(fallbackResults);
+  }
   
   return JSON.stringify(searchResults);
 }
@@ -1521,7 +1624,7 @@ Regras importantes:
                 
                 try {
                   const data = JSON.parse(args.data);
-                  toolResult = await executeZipGeneration(data, dataType);
+                  toolResult = await generateZipFile(data, dataType);
                   
                   // Parse results to get info
                   const zipData = JSON.parse(toolResult);
@@ -1691,6 +1794,55 @@ Regras importantes:
       console.error('Error details:', error.message);
       console.error('Error stack:', error.stack);
 
+      // Try to handle the user's request manually if OpenAI fails
+      const messageText = messageData.content || messageData.text || messageData.body || '';
+      const lowerMessage = messageText.toLowerCase();
+      
+      // Check if user is asking for web scraping or search
+      if (lowerMessage.includes('http') || lowerMessage.includes('www.') || lowerMessage.includes('site') || lowerMessage.includes('página')) {
+        // Try to extract URL and perform scraping
+        const urlMatch = messageText.match(/https?:\/\/[^\s]+/);
+        if (urlMatch) {
+          try {
+            console.log(`🔄 Manual web scraping attempt for: ${urlMatch[0]}`);
+            const scrapingResult = await executeBasicWebScrape(urlMatch[0]);
+            const scrapedData = JSON.parse(scrapingResult);
+            
+            if (!scrapedData.error) {
+              return `Analisei o site ${urlMatch[0]} e encontrei:\n\n` +
+                     `📄 **Título**: ${scrapedData.title || 'N/A'}\n` +
+                     `📝 **Descrição**: ${scrapedData.description || 'N/A'}\n` +
+                     `📊 **Conteúdo**: ${scrapedData.content ? scrapedData.content.substring(0, 500) + '...' : 'N/A'}\n` +
+                     `🔗 **Links encontrados**: ${scrapedData.structure?.totalLinks || 0}\n` +
+                     `🖼️ **Imagens**: ${scrapedData.structure?.totalImages || 0}`;
+            }
+          } catch (scrapingError) {
+            console.error('Manual scraping failed:', scrapingError);
+          }
+        }
+      }
+      
+      // Check if user is asking for search
+      if (lowerMessage.includes('buscar') || lowerMessage.includes('pesquisar') || lowerMessage.includes('procurar')) {
+        try {
+          console.log(`🔄 Manual search attempt for: ${messageText}`);
+          const searchResult = await executeBasicWebSearch(messageText);
+          const searchData = JSON.parse(searchResult);
+          
+          if (searchData.results && searchData.results.length > 0) {
+            let response = `Encontrei ${searchData.results.length} resultados para sua pesquisa:\n\n`;
+            searchData.results.slice(0, 3).forEach((result, index) => {
+              response += `${index + 1}. **${result.title}**\n`;
+              response += `   ${result.snippet}\n`;
+              response += `   🔗 ${result.url}\n\n`;
+            });
+            return response;
+          }
+        } catch (searchError) {
+          console.error('Manual search failed:', searchError);
+        }
+      }
+
       // Specific error handling with quota management
       let errorMessage = 'Erro interno do sistema';
       let useExtendedFallback = false;
@@ -1717,36 +1869,36 @@ Regras importantes:
 
       console.error(`AI Agent Error [${this.id}]:`, errorMessage);
 
-      // Resposta de fallback baseada na personalidade do agente
+      // Resposta de fallback baseada na personalidade do agente - mais útil e menos genérica
       const fallbackResponses = {
         professional:
-          'Momentaneamente indisponível. Como posso assistí-lo de outra forma?',
+          'Posso ajudá-lo de forma alternativa. Qual informação específica você precisa?',
         friendly:
-          'Ops! Algo deu errado, mas estou aqui para ajudar. Me conte mais sobre o que precisa!',
+          'Ops! Vou tentar uma abordagem diferente para te ajudar. Me conte mais sobre o que precisa!',
         creative:
-          'Hmm, vamos tentar uma abordagem diferente! O que você gostaria de explorar?',
+          'Vamos explorar outras possibilidades! Qual é o seu objetivo principal?',
         analytical:
-          'Sistema temporariamente instável. Pode reformular sua pergunta?',
+          'Deixe-me analisar isso de outra forma. Pode fornecer mais detalhes?',
         casual:
-          'Eita! Deu um probleminha aqui. Mas me fala aí, no que posso te ajudar?',
+          'Beleza! Vou tentar outro caminho. O que você tá procurando exatamente?',
         empathetic:
-          'Compreendo que isso pode ser frustrante. Vamos tentar novamente?',
+          'Entendo sua necessidade. Vamos encontrar uma solução juntos. Como posso ajudar?',
       };
 
       // Extended fallback for quota issues
       const quotaFallbackResponses = {
         professional:
-          'Sistema em modo econômico devido ao alto volume de consultas. Ainda posso ajudá-lo com informações básicas.',
+          'Sistema operando em modo econômico. Posso analisar sites e fazer pesquisas na internet. Envie uma URL ou me diga o que precisa pesquisar.',
         friendly:
-          'Oi! Estou em modo econômico agora para economizar recursos, mas ainda posso conversar! Como posso ajudar?',
+          'Oi! Estou em modo econômico, mas ainda posso te ajudar! Posso pesquisar na internet ou analisar sites para você. Me mande uma URL ou diga o que quer pesquisar!',
         creative:
-          'Modo criativo econômico ativado! Vamos ser mais diretos - me conte o que você precisa.',
+          'Modo econômico ativado! Mas ainda posso ser criativo analisando sites e pesquisando informações. Me conte o que você precisa!',
         analytical:
-          'Sistema operando em modo reduzido. Posso fornecer respostas básicas sem consultas externas.',
+          'Sistema em modo econômico. Posso executar análises de sites e pesquisas na web. Forneça uma URL ou termo de pesquisa.',
         casual:
-          'Opa! Tô em modo econômico aqui, mas ainda posso bater um papo! Me fala o que precisa.',
+          'Tô em modo econômico, mas ainda posso pesquisar coisas na internet e analisar sites! Me manda uma URL ou fala o que quer pesquisar.',
         empathetic:
-          'Entendo que você precisa de ajuda. Estou em modo econômico, mas farei o meu melhor para ajudá-lo.',
+          'Entendo que você precisa de ajuda. Estou em modo econômico, mas ainda posso pesquisar informações e analisar sites para você. Como posso ajudar?',
       };
 
       const responseText = useExtendedFallback 
