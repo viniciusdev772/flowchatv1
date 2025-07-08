@@ -179,7 +179,88 @@ function extractCommonTerms(results) {
     .map(([term]) => term);
 }
 
-// Enhanced message processing for better tool detection
+// AI-powered decision system for tool chaining
+async function shouldContinueWithTools(originalMessage, toolResults, context = {}) {
+  try {
+    const OpenAI = require('openai');
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY || context.apiKey,
+    });
+
+    // Prepare context about what tools were executed and their results
+    const toolSummary = toolResults.map(result => {
+      return `Tool: ${result.toolName}\nArgs: ${JSON.stringify(result.args)}\nSuccess: ${result.success}\nResult Summary: ${JSON.stringify(result.result).substring(0, 200)}...`;
+    }).join('\n\n');
+
+    const decisionPrompt = `
+Você é um sistema de decisão autônomo que determina se deve executar mais ferramentas após uma operação inicial.
+
+MENSAGEM ORIGINAL DO USUÁRIO:
+"${originalMessage}"
+
+FERRAMENTAS JÁ EXECUTADAS:
+${toolSummary}
+
+FERRAMENTAS DISPONÍVEIS:
+- web_search: Busca na internet
+- web_scrape: Análise completa de sites específicos
+- html_analysis: Análise especializada de estruturas HTML
+
+DECISÃO REQUERIDA:
+Baseado na mensagem original do usuário e nos resultados das ferramentas já executadas, você deve decidir se é necessário executar mais ferramentas para fornecer uma resposta completa.
+
+CRITÉRIOS DE DECISÃO:
+1. Se o usuário pediu análise/informações sobre um site específico e apenas web_search foi executado → Continue com web_scrape
+2. Se foram encontradas URLs relevantes mas não foram analisadas → Continue com web_scrape
+3. Se o usuário parece precisar de informações mais detalhadas → Continue com ferramentas apropriadas
+4. Se a resposta já está completa e satisfatória → Não continue
+
+RESPONDA APENAS COM UM JSON:
+{
+  "shouldContinue": true/false,
+  "nextTool": "web_search" | "web_scrape" | "html_analysis" | null,
+  "reason": "Explicação breve da decisão",
+  "parameters": { "url": "URL_se_aplicável" } ou null
+}
+`;
+
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o-mini', // Modelo mais rápido e barato para decisões
+      messages: [
+        {
+          role: 'system',
+          content: 'Você é um sistema de decisão autônomo. Responda APENAS com JSON válido, sem explicações adicionais.'
+        },
+        {
+          role: 'user',
+          content: decisionPrompt
+        }
+      ],
+      temperature: 0.1, // Baixa temperatura para decisões consistentes
+      max_tokens: 200,
+    });
+
+    const decisionText = response.choices[0].message.content.trim();
+    
+    // Parse JSON response
+    const decision = JSON.parse(decisionText);
+    
+    console.log('🤖 AI Decision:', decision);
+    return decision;
+    
+  } catch (error) {
+    console.error('❌ Error in AI decision system:', error);
+    // Fallback to safe decision
+    return {
+      shouldContinue: false,
+      nextTool: null,
+      reason: 'Error in decision system',
+      parameters: null
+    };
+  }
+}
+
+// Simplified message enhancement (no keywords)
 function enhanceMessageWithSearchContext(message) {
   // Ensure we have a string
   if (typeof message !== 'string') {
@@ -187,60 +268,8 @@ function enhanceMessageWithSearchContext(message) {
     return String(message || '');
   }
   
-  const lowerMessage = message.toLowerCase();
-  
-  // Search trigger words that should immediately trigger web_search
-  const searchTriggers = [
-    'preço', 'valor', 'custo', 'hoje', 'atual', 'agora', 'recente',
-    'último', 'nova', 'notícia', 'informação', 'dados', 'estatística',
-    'clima', 'temperatura', 'tempo', 'horário', 'quando', 'onde',
-    'quem', 'como', 'porque', 'quantos', 'qual', 'compare', 'diferença',
-    'versus', 'melhor', 'pior', 'ranking', 'lista', 'top', 'review',
-    'análise', 'avaliação', 'opinião', 'recomendação', 'dica'
-  ];
-  
-  // URL detection for web_scrape
-  const urlPattern = /https?:\/\/[^\s]+/g;
-  const urls = message.match(urlPattern);
-  
-  // Site mention detection
-  const siteMentions = [
-    'site', 'página', 'website', 'portal', 'blog', 'artigo',
-    'post', 'conteúdo', 'link', 'url', 'endereço'
-  ];
-  
-  let enhancement = '';
-  
-  // Check for search triggers
-  const hasSearchTriggers = searchTriggers.some(trigger => lowerMessage.includes(trigger));
-  if (hasSearchTriggers) {
-    enhancement += '\n[CONTEXTO DE BUSCA: Esta mensagem contém termos que indicam necessidade de busca na internet. Use web_search AUTOMATICAMENTE para obter informações atualizadas.]';
-  }
-  
-  // Check for URLs
-  if (urls && urls.length > 0) {
-    enhancement += '\n[CONTEXTO DE SCRAPING: Esta mensagem contém URLs. Use web_scrape AUTOMATICAMENTE para analisar os sites mencionados.]';
-  }
-  
-  // Check for site mentions
-  const hasSiteMentions = siteMentions.some(mention => lowerMessage.includes(mention));
-  if (hasSiteMentions && !urls) {
-    enhancement += '\n[CONTEXTO DE SITE: Esta mensagem menciona sites/páginas. Use web_search para encontrar URLs relevantes, depois web_scrape para análise detalhada.]';
-  }
-  
-  // Check for comparison requests
-  if (lowerMessage.includes('compare') || lowerMessage.includes('diferença') || lowerMessage.includes('versus')) {
-    enhancement += '\n[CONTEXTO DE COMPARAÇÃO: Esta mensagem solicita comparação. Use múltiplas buscas (web_search) para obter informações abrangentes.]';
-  }
-  
-  // Check for analysis requests
-  if (lowerMessage.includes('analise') || lowerMessage.includes('estude') || lowerMessage.includes('investigue')) {
-    enhancement += '\n[CONTEXTO DE ANÁLISE: Esta mensagem solicita análise profunda. Use web_search + web_scrape + html_analysis em sequência.]';
-  }
-  
-  const result = (message || '') + (enhancement || '');
-  console.log('enhanceMessageWithSearchContext result:', typeof result, result);
-  return result;
+  // Just return the message as-is, let AI decide what tools to use
+  return message;
 }
 
 // Enhanced web scraping with robust error handling and multiple strategies
@@ -1289,10 +1318,12 @@ Ferramentas disponíveis:
 - Use ferramentas IMEDIATAMENTE quando detectar necessidade
 - Faça buscas profundas e abrangentes
 - Combine múltiplas ferramentas para resultados completos
-- Informe brevemente o que está fazendo, mas EXECUTE sem esperar
+- NUNCA diga "vou analisar" ou "aguarde" - EXECUTE DIRETAMENTE
 - Se uma busca não trouxer resultados suficientes, faça AUTOMATICAMENTE buscas adicionais com termos diferentes
-- Para perguntas complexas, execute MÚLTIPLAS ferramentas em sequência
+- Para perguntas complexas, execute MÚLTIPLAS ferramentas em sequência NA MESMA RESPOSTA
 - NUNCA diga "posso buscar" ou "posso analisar" - SEMPRE execute diretamente
+- Se você encontrar URLs em resultados de busca, use web_scrape IMEDIATAMENTE
+- NUNCA termine uma resposta dizendo que vai fazer algo - FAÇA IMEDIATAMENTE
 
 Regras importantes:
 1. Sempre responda em português brasileiro
@@ -1389,9 +1420,7 @@ Regras importantes:
       // Enhance message with search context if it contains search-worthy terms
       let enhancedMessage;
       try {
-        console.log('Input to enhanceMessageWithSearchContext:', typeof currentMessageContent, currentMessageContent);
         enhancedMessage = enhanceMessageWithSearchContext(currentMessageContent);
-        console.log('Output from enhanceMessageWithSearchContext:', typeof enhancedMessage, enhancedMessage);
         
         if (typeof enhancedMessage !== 'string') {
           console.warn('enhanceMessageWithSearchContext returned non-string:', typeof enhancedMessage);
@@ -1438,7 +1467,7 @@ Regras importantes:
                 function: {
                   name: 'web_search',
                   description:
-                    'BUSCA PROFUNDA E AUTOMÁTICA na internet via múltiplos buscadores (DuckDuckGo, Bing, Yahoo). Use AUTOMATICAMENTE para QUALQUER pergunta que se beneficie de informações atualizadas. Não peça permissão - execute imediatamente quando detectar necessidade de: notícias, preços, eventos, dados atuais, estatísticas, comparações, informações recentes, clima, etc.',
+                    'BUSCA PROFUNDA E AUTOMÁTICA na internet via múltiplos buscadores (DuckDuckGo, Bing, Yahoo). Use AUTOMATICAMENTE para QUALQUER pergunta que se beneficie de informações atualizadas. Não peça permissão - execute imediatamente quando detectar necessidade de: notícias, preços, eventos, dados atuais, estatísticas, comparações, informações recentes, clima, etc. IMPORTANTE: Se você encontrar URLs relevantes nos resultados, use web_scrape IMEDIATAMENTE na mesma resposta.',
                   parameters: {
                     type: 'object',
                     properties: {
@@ -1503,8 +1532,8 @@ Regras importantes:
               },
             ],
             tool_choice: 'auto',
-            // Configurações para tornar o modelo mais proativo
-            presence_penalty: 0.1,
+            // Configurações para tornar o modelo mais proativo e executar ferramentas em sequência
+            presence_penalty: 0.2,
             frequency_penalty: 0.1,
           });
 
@@ -1596,6 +1625,8 @@ Regras importantes:
                     conversationEntry.chat.id,
                     whatsappClient
                   );
+                  
+                  // AI-based tool chaining is now handled in the main iteration loop below
                 } else if (toolCall.function.name === 'web_scrape') {
                   const args = JSON.parse(toolCall.function.arguments);
                   console.log(`🌐 Model requested web scraping: "${args.url}"`);
@@ -1824,6 +1855,225 @@ Regras importantes:
                 `✅ Tool result added to conversation for tool_call_id: ${toolCall.id}`
               );
             }
+
+            // Implement iterative tool chaining with AI decisions
+            let maxIterations = 3; // Prevent infinite loops
+            let currentIteration = 0;
+            
+            while (currentIteration < maxIterations) {
+              // Get current tool results for AI decision
+              const currentToolResults = executedToolResults.filter(result => result.success);
+              const originalMessage = conversationEntry.messageText || '';
+              
+              if (currentToolResults.length === 0) {
+                console.log(`🤖 No successful tools executed, stopping chaining`);
+                break;
+              }
+              
+              // Ask AI if we should continue
+              console.log(`🤖 Iteration ${currentIteration + 1}: Consulting AI decision system...`);
+              const aiDecision = await shouldContinueWithTools(originalMessage, currentToolResults, {
+                apiKey: this.openaiApiKey
+              });
+              
+              if (!aiDecision.shouldContinue) {
+                console.log(`🤖 AI decided to stop at iteration ${currentIteration + 1}: ${aiDecision.reason}`);
+                break;
+              }
+              
+              console.log(`🤖 AI decided to continue with ${aiDecision.nextTool}: ${aiDecision.reason}`);
+              
+              // Build tools array based on AI decision
+              const availableTools = [];
+              
+              if (aiDecision.nextTool === 'web_scrape') {
+                availableTools.push({
+                  type: 'function',
+                  function: {
+                    name: 'web_scrape',
+                    description: 'EXECUTE IMEDIATAMENTE para análise completa do site.',
+                    parameters: {
+                      type: 'object',
+                      properties: {
+                        url: {
+                          type: 'string',
+                          description: 'URL para análise detalhada',
+                        },
+                      },
+                      required: ['url'],
+                    },
+                  },
+                });
+              }
+              
+              if (aiDecision.nextTool === 'html_analysis') {
+                availableTools.push({
+                  type: 'function',
+                  function: {
+                    name: 'html_analysis',
+                    description: 'EXECUTE IMEDIATAMENTE para análise especializada.',
+                    parameters: {
+                      type: 'object',
+                      properties: {
+                        url: {
+                          type: 'string',
+                          description: 'URL para análise',
+                        },
+                        analysisType: {
+                          type: 'string',
+                          enum: ['news', 'ecommerce', 'contact', 'social', 'forms', 'general'],
+                          description: 'Tipo de análise',
+                        },
+                      },
+                      required: ['url'],
+                    },
+                  },
+                });
+              }
+              
+              if (aiDecision.nextTool === 'web_search') {
+                availableTools.push({
+                  type: 'function',
+                  function: {
+                    name: 'web_search',
+                    description: 'EXECUTE IMEDIATAMENTE para busca adicional.',
+                    parameters: {
+                      type: 'object',
+                      properties: {
+                        query: {
+                          type: 'string',
+                          description: 'Consulta de busca',
+                        },
+                      },
+                      required: ['query'],
+                    },
+                  },
+                });
+              }
+              
+              if (availableTools.length === 0) {
+                console.log(`🤖 No tools available for AI decision: ${aiDecision.nextTool}`);
+                break;
+              }
+              
+              // Add instruction to force tool execution
+              const instructionMessage = `DECISÃO IA: ${aiDecision.reason}. Execute ${aiDecision.nextTool} IMEDIATAMENTE.`;
+              if (aiDecision.parameters && aiDecision.parameters.url) {
+                instructionMessage += ` URL: ${aiDecision.parameters.url}`;
+              }
+              
+              messages.push({
+                role: 'system',
+                content: `${instructionMessage}\n\nIMPORTANTE: Execute a próxima ferramenta IMEDIATAMENTE. NÃO termine sua resposta sem executar a análise completa.`
+              });
+              
+              // Make call to execute next tool
+              const iterationResponse = await openai.chat.completions.create({
+                model: this.model,
+                messages: messages,
+                temperature: this.creativity / 100,
+                max_tokens: 1200,
+                tools: availableTools,
+                tool_choice: 'auto',
+              });
+              
+              // Process iteration response
+              if (iterationResponse.choices[0].message.tool_calls) {
+                const iterationToolCalls = iterationResponse.choices[0].message.tool_calls;
+                console.log(`🔄 Processing ${iterationToolCalls.length} iteration tool calls`);
+                
+                // Add iteration response to conversation
+                messages.push({
+                  role: 'assistant',
+                  content: iterationResponse.choices[0].message.content,
+                  tool_calls: iterationToolCalls,
+                });
+                
+                // Execute iteration tools
+                for (const toolCall of iterationToolCalls) {
+                  let toolResult = '';
+                  
+                  if (toolCall.function.name === 'web_scrape') {
+                    const args = JSON.parse(toolCall.function.arguments);
+                    console.log(`🌐 Iteration web scraping: "${args.url}"`);
+                    
+                    await this.sendToolNotification(
+                      `🌐 Continuando análise: "${args.url}"...\n📊 Extraindo conteúdo completo`,
+                      conversationEntry.chat.id,
+                      whatsappClient
+                    );
+                    
+                    toolResult = await executeWebScrape(args.url);
+                    const scrapeData = JSON.parse(toolResult);
+                    
+                    // Store iteration tool result
+                    executedToolResults.push({
+                      toolName: 'web_scrape',
+                      args: args,
+                      result: scrapeData,
+                      zipData: scrapeData.zipData,
+                      success: !scrapeData.error,
+                    });
+                    
+                  } else if (toolCall.function.name === 'html_analysis') {
+                    const args = JSON.parse(toolCall.function.arguments);
+                    const analysisType = args.analysisType || 'general';
+                    console.log(`🔍 Iteration HTML analysis: "${args.url}" (${analysisType})`);
+                    
+                    await this.sendToolNotification(
+                      `🔍 Continuando análise especializada: "${args.url}"...\n📋 Tipo: ${analysisType}`,
+                      conversationEntry.chat.id,
+                      whatsappClient
+                    );
+                    
+                    toolResult = await executeHtmlAnalysis(args.url, analysisType);
+                    const analysisData = JSON.parse(toolResult);
+                    
+                    // Store iteration tool result
+                    executedToolResults.push({
+                      toolName: 'html_analysis',
+                      args: args,
+                      result: analysisData,
+                      success: !analysisData.error,
+                    });
+                    
+                  } else if (toolCall.function.name === 'web_search') {
+                    const args = JSON.parse(toolCall.function.arguments);
+                    console.log(`🔍 Iteration web search: "${args.query}"`);
+                    
+                    await this.sendToolNotification(
+                      `🔍 Continuando busca: "${args.query}"...\n🌐 Consultando múltiplas fontes`,
+                      conversationEntry.chat.id,
+                      whatsappClient
+                    );
+                    
+                    toolResult = await executeWebSearch(args.query);
+                    const searchData = JSON.parse(toolResult);
+                    
+                    // Store iteration tool result
+                    executedToolResults.push({
+                      toolName: 'web_search',
+                      args: args,
+                      result: searchData,
+                      success: !searchData.error,
+                    });
+                  }
+                  
+                  // Add tool result to conversation
+                  messages.push({
+                    role: 'tool',
+                    content: toolResult,
+                    tool_call_id: toolCall.id,
+                  });
+                }
+              } else {
+                console.log(`🤖 No tool calls in iteration ${currentIteration + 1}, stopping`);
+                break;
+              }
+              
+              currentIteration++;
+            }
+            
 
             // Get response after tool execution
             console.log(`🔄 Getting final response after tool execution`);
