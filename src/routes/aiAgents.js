@@ -180,7 +180,13 @@ function extractCommonTerms(results) {
 }
 
 // Enhanced message processing for better tool detection
-async function enhanceMessageWithSearchContext(message) {
+function enhanceMessageWithSearchContext(message) {
+  // Ensure we have a string
+  if (typeof message !== 'string') {
+    console.warn('enhanceMessageWithSearchContext received non-string:', typeof message, message);
+    return String(message || '');
+  }
+  
   const lowerMessage = message.toLowerCase();
   
   // Search trigger words that should immediately trigger web_search
@@ -232,7 +238,9 @@ async function enhanceMessageWithSearchContext(message) {
     enhancement += '\n[CONTEXTO DE ANÁLISE: Esta mensagem solicita análise profunda. Use web_search + web_scrape + html_analysis em sequência.]';
   }
   
-  return message + enhancement;
+  const result = (message || '') + (enhancement || '');
+  console.log('enhanceMessageWithSearchContext result:', typeof result, result);
+  return result;
 }
 
 // Enhanced web scraping with robust error handling and multiple strategies
@@ -1379,8 +1387,27 @@ Regras importantes:
         : messageText;
       
       // Enhance message with search context if it contains search-worthy terms
-      const enhancedMessage = enhanceMessageWithSearchContext(currentMessageContent);
-      messages.push({ role: 'user', content: enhancedMessage.trim() });
+      let enhancedMessage;
+      try {
+        console.log('Input to enhanceMessageWithSearchContext:', typeof currentMessageContent, currentMessageContent);
+        enhancedMessage = enhanceMessageWithSearchContext(currentMessageContent);
+        console.log('Output from enhanceMessageWithSearchContext:', typeof enhancedMessage, enhancedMessage);
+        
+        if (typeof enhancedMessage !== 'string') {
+          console.warn('enhanceMessageWithSearchContext returned non-string:', typeof enhancedMessage);
+          enhancedMessage = String(currentMessageContent || '');
+        }
+      } catch (error) {
+        console.error('Error enhancing message with search context:', error);
+        enhancedMessage = String(currentMessageContent || '');
+      }
+      
+      // Ensure we have a valid string before calling trim
+      const finalMessage = (enhancedMessage && typeof enhancedMessage === 'string') 
+        ? enhancedMessage.trim() 
+        : String(currentMessageContent || '').trim();
+      
+      messages.push({ role: 'user', content: finalMessage });
 
       // Create chat completion with tools
       console.log(
