@@ -103,7 +103,22 @@ async function executeWebSearch(query) {
 
 // Fallback basic web search
 async function executeBasicWebSearch(query) {
-  const fetch = require('node-fetch');
+  // Robust fetch initialization – tries node-fetch first, then falls back to global fetch
+  let fetch;
+  try {
+    // eslint-disable-next-line global-require
+    fetch = require('node-fetch');
+    if (fetch && typeof fetch !== 'function' && fetch.default) {
+      fetch = fetch.default;
+    }
+  } catch (err) {
+    if (typeof globalThis.fetch === 'function') {
+      fetch = globalThis.fetch;
+    } else {
+      throw new Error(`Fetch API não disponível: ${err.message}`);
+    }
+  }
+
   const cheerio = require('cheerio');
   
   console.log(`🔍 AI Agent performing multi-source web search for: "${query}"`);
@@ -159,7 +174,26 @@ async function executeWebScrape(url) {
 
 // Fallback basic web scraping
 async function executeBasicWebScrape(url) {
-  const fetch = require('node-fetch');
+  // Robust fetch initialization – tries node-fetch first, then falls back to the global Fetch API (Node 18+)
+  let fetch;
+  try {
+    // Prefer the bundled node-fetch (CommonJS)
+    // eslint-disable-next-line global-require
+    fetch = require('node-fetch');
+    // node-fetch v2 exports the fetch function directly, while v3 exports it under .default when imported via CJS
+    if (fetch && typeof fetch !== 'function' && fetch.default) {
+      fetch = fetch.default;
+    }
+  } catch (err) {
+    if (typeof globalThis.fetch === 'function') {
+      // Node >= 18 ships with a native fetch implementation
+      fetch = globalThis.fetch;
+    } else {
+      // Re-throw so the outer try/catch can handle this as a network/tool error
+      throw new Error(`Fetch API não disponível: ${err.message}`);
+    }
+  }
+
   const cheerio = require('cheerio');
   
   console.log(`🌐 AI Agent downloading website: "${url}"`);
