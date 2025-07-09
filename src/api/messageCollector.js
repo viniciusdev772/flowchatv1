@@ -65,6 +65,67 @@ async function updateCollectorStatus(collectorId, updates) {
   }
 }
 
+// Função para limpar mensagens duplicadas de um coletor específico
+async function cleanDuplicateMessages(collectorId) {
+  try {
+    const db = database.getDb();
+    if (!db) return { success: false, error: 'Database não disponível' };
+
+    // Buscar todas as mensagens do coletor
+    const messages = await db.collection('collectedMessages')
+      .find({ collectorId })
+      .sort({ collectedAt: 1 })
+      .toArray();
+
+    if (messages.length === 0) {
+      return { success: true, removed: 0, total: 0 };
+    }
+
+    // Encontrar duplicatas (manter a primeira ocorrência)
+    const seenIds = new Set();
+    const duplicateIds = [];
+    
+    messages.forEach(msg => {
+      if (seenIds.has(msg.id)) {
+        duplicateIds.push(msg._id);
+      } else {
+        seenIds.add(msg.id);
+      }
+    });
+
+    if (duplicateIds.length > 0) {
+      // Deletar duplicatas
+      await db.collection('collectedMessages').deleteMany({
+        _id: { $in: duplicateIds }
+      });
+
+      // Atualizar contador no coletor
+      const uniqueCount = messages.length - duplicateIds.length;
+      await db.collection('messageCollectors').updateOne(
+        { _id: collectorId },
+        {
+          $set: { 
+            totalMessages: uniqueCount,
+            lastActivity: new Date()
+          }
+        }
+      );
+
+      logger.info(`🧹 Removidas ${duplicateIds.length} mensagens duplicadas do coletor ${collectorId}`);
+    }
+
+    return { 
+      success: true, 
+      removed: duplicateIds.length, 
+      total: messages.length,
+      unique: messages.length - duplicateIds.length
+    };
+  } catch (error) {
+    logger.error('Erro ao limpar mensagens duplicadas:', error);
+    return { success: false, error: error.message };
+  }
+}
+
 async function addMessageToDB(collectorId, messageData) {
   try {
     const db = database.getDb();
@@ -638,11 +699,17 @@ router.get('/messages/:collectorId', authenticateToken, async (req, res) => {
           message: 'Você não tem permissão para esse coletor',
         });
       }
-      // Buscar mensagens coletadas
+      // Buscar mensagens coletadas e limpar duplicatas automaticamente
       let messages = [];
       try {
         const db = database.getDb();
         if (db) {
+          // Limpar duplicatas antes de buscar
+          const cleanResult = await cleanDuplicateMessages(collectorId);
+          if (cleanResult.success && cleanResult.removed > 0) {
+            logger.info(`🧹 Limpeza automática: ${cleanResult.removed} mensagens duplicadas removidas`);
+          }
+          
           messages = await db
             .collection('collectedMessages')
             .find({ collectorId })
