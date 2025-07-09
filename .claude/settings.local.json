@@ -25,7 +25,9 @@
       "Bash(find:*)",
       "WebFetch(domain:platform.openai.com)",
       "Bash(mkdir:*)",
-      "Bash(timeout:*)"
+      "Bash(timeout:*)",
+      "Bash(npx shadcn@latest init:*)",
+      "Bash(npx shadcn@latest add:*)"
     ],
     "deny": []
   },
