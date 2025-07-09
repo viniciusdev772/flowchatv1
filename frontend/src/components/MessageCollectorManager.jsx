@@ -414,17 +414,28 @@ export default function MessageCollectorManager() {
         const data = await response.json();
         if (data.success) {
           const messages = data.data.messages || [];
-          setCollectedMessages(messages);
-          setFilteredMessages(messages);
-          setSelectedCollector(data.data);
+          
+          // Filtrar mensagens duplicadas usando o ID único do WhatsApp
+          const uniqueMessages = messages.filter((message, index, self) => 
+            index === self.findIndex(m => m.id === message.id)
+          );
+          
+          console.log(`📊 Mensagens antes da filtragem: ${messages.length}, após: ${uniqueMessages.length}`);
+          
+          setCollectedMessages(uniqueMessages);
+          setFilteredMessages(uniqueMessages);
+          setSelectedCollector({
+            ...data.data,
+            messages: uniqueMessages
+          });
           setSummaryData({
-            messages: messages,
+            messages: uniqueMessages,
             collectorId: collectorId,
-            totalMessages: data.data.totalMessages
+            totalMessages: uniqueMessages.length
           });
           
           // Calcular estatísticas
-          calculateMessageStats(messages);
+          calculateMessageStats(uniqueMessages);
           
           // Reset filters
           setMessageSearch('');

@@ -70,6 +70,17 @@ async function addMessageToDB(collectorId, messageData) {
     const db = database.getDb();
     if (!db) return false;
 
+    // Verificar se a mensagem já existe usando o ID único do WhatsApp
+    const existingMessage = await db.collection('collectedMessages').findOne({
+      collectorId,
+      id: messageData.id
+    });
+
+    if (existingMessage) {
+      logger.debug(`⚠️  Mensagem duplicada ignorada: ${messageData.id}`);
+      return false; // Não é erro, apenas mensagem duplicada
+    }
+
     // Adicionar mensagem à collection de mensagens coletadas
     await db.collection('collectedMessages').insertOne({
       collectorId,
@@ -86,6 +97,7 @@ async function addMessageToDB(collectorId, messageData) {
       }
     );
 
+    logger.debug(`✅ Nova mensagem coletada: ${messageData.id}`);
     return true;
   } catch (error) {
     logger.error('Erro ao salvar mensagem:', error);
