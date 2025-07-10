@@ -111,13 +111,13 @@ export default function AIStreamingChat() {
     }
   }, [streamingToolCalls.length]);
 
-  // Auto-scroll contínuo durante streaming
+  // Auto-scroll otimizado durante streaming
   useEffect(() => {
     if (isStreaming) {
-      // Scroll automático a cada 100ms durante streaming
+      // Scroll automático a cada 200ms durante streaming (menos frequente)
       autoScrollIntervalRef.current = setInterval(() => {
         scrollToBottomInstant();
-      }, 100);
+      }, 200);
     } else {
       // Limpar intervalo quando não está streaming
       if (autoScrollIntervalRef.current) {
@@ -263,7 +263,7 @@ export default function AIStreamingChat() {
             if (data.type === 'content') {
               accumulatedContent += data.content;
               setStreamingContent(accumulatedContent);
-              // Atualizar mensagem sem trigger de re-render completo
+              // Atualizar mensagem de forma otimizada
               setMessages((prev) => {
                 const newMessages = [...prev];
                 const msgIndex = newMessages.findIndex(
@@ -277,8 +277,6 @@ export default function AIStreamingChat() {
                 }
                 return newMessages;
               });
-              // Scroll automático imediato durante streaming
-              setTimeout(() => scrollToBottomInstant(), 10);
             } else if (data.type === 'thinking') {
               setIsThinking(true);
               setTimeout(() => scrollToBottom(), 50);
@@ -426,8 +424,6 @@ export default function AIStreamingChat() {
                 }
                 return newMessages;
               });
-              // Scroll após processar imagens
-              setTimeout(() => scrollToBottom(), 100);
             } else if (data.type === 'done') {
               // Finalize the message
               setMessages((prev) =>

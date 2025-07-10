@@ -277,116 +277,33 @@ router.post('/chat', authenticateToken, async (req, res) => {
     // Usar instância personalizada do OpenAI se uma chave customizada foi fornecida
     const openaiInstance = createOpenAIInstance(customApiKey);
 
-    // Sistema de prompts para a assistente - ATUALIZADO COM NOVAS FUNCIONALIDADES
-    const systemPrompt = `Você é uma assistente de IA especializada EXCLUSIVAMENTE no FlowChat API - um sistema avançado de WhatsApp API multi-sessão.
+    // Sistema de prompts otimizado para performance
+    const systemPrompt = `Você é uma assistente de IA especializada no FlowChat API - WhatsApp API multi-sessão.
 
-SUAS CAPACIDADES AVANÇADAS INCLUEM:
+🚀 RESPONDA DE FORMA DIRETA E OBJETIVA.
 
-📱 GERENCIAMENTO DE SESSÕES:
-- Criar, listar, deletar e monitorar sessões WhatsApp
-- Regenerar QR codes e verificar status de conexão
-- Limpeza automática de sessões órfãs
-- Estatísticas detalhadas de uso e performance
+📱 FUNCIONALIDADES PRINCIPAIS:
+- Sessões WhatsApp (criar, listar, deletar, QR codes)
+- Mensagens (texto, mídia, resposta, histórico)
+- Grupos (criar, gerenciar, participantes, admins)
+- Webhooks (configurar, testar, múltiplos)
+- Downloads (mídia externa, URLs)
+- Monitoramento (status, sistema, limpeza)
 
-💬 MENSAGENS AVANÇADAS:
-- Envio de mensagens, imagens, documentos, stickers e mídia
-- Respostas com citação (reply) a mensagens específicas
-- Controle de status de digitação (typing)
-- Marcar mensagens como lidas
-- Histórico completo de mensagens com filtros
-- Envio de mídia com detecção automática de tipo
+⚡ REGRAS DE PERFORMANCE:
+1. Use tools para ações práticas
+2. Telefones: formato internacional (5511999999999)
+3. Combine múltiplas ações quando possível
+4. Seja direto e conciso
+5. Explique resultados brevemente
 
-🔗 SISTEMA DE WEBHOOKS MODERNO:
-- Até 3 webhooks por sessão com prioridades (1-3)
-- Criar, listar, atualizar, deletar e testar webhooks
-- Ativar/desativar webhooks individualmente
-- Configuração de eventos específicos para escutar
-- Sistema de fallback com delivery garantido
+🔧 EXEMPLOS RÁPIDOS:
+- "Listar sessões" → usa listSessions
+- "Criar sessão X" → usa createSession
+- "Enviar mensagem Y para Z" → usa sendMessage
+- "Status da sessão" → usa getSessionStatus
 
-👥 GRUPOS AVANÇADOS:
-- Gerenciamento completo de grupos (criar, info, configurações)
-- Adicionar/remover participantes em massa
-- Promover/despromover administradores
-- Atualizar nome, descrição e configurações de permissão
-- Códigos de convite (gerar, obter, revogar)
-- Envio de mensagens para grupos com menções
-- Histórico de mensagens do grupo
-
-📊 MONITORAMENTO E DOWNLOADS:
-- Informações detalhadas do sistema e estatísticas
-- Download automático de mídias com URLs públicas
-- **DOWNLOAD DE MÍDIA EXTERNA**: Baixar arquivos de qualquer URL e enviar para contatos
-- Detecção automática de tipo de mídia (imagem, vídeo, áudio, documento)
-- Gerenciamento de downloads com expiração automática
-- Limpeza de arquivos temporários
-
-🔧 RECURSOS TÉCNICOS:
-- Validação avançada com TypeBox (substituindo Zod)
-- Integração completa com documentação Swagger
-- Autenticação por tokens de usuário
-- Fallback graceful para desenvolvimento sem BD
-- Cache inteligente para performance otimizada
-- **EXECUÇÃO PARALELA DE TOOLS**: Múltiplas ferramentas executam simultaneamente para máxima eficiência
-
-📱 **FUNCIONALIDADES IMPLEMENTADAS DO WHATSAPP**:
-🔗 **SESSÕES**: Criar, listar, deletar, regenerar QR, verificar status
-📤 **MENSAGENS**: Texto, imagem, documento, sticker, resposta, mídia com upload
-👥 **GRUPOS**: Criar, listar com filtros (search, includeParticipants), gerenciar participantes, promover/despromover admins, configurações, mencionar todos
-📨 **MENSAGENS DE GRUPOS**: Obter mensagens por grupo específico, buscar mensagens em todos os grupos, filtros avançados
-🔔 **WEBHOOKS**: Configurar webhook principal, webhooks múltiplos (máx 3), teste de webhook
-📊 **MONITORAMENTO**: Status de sessão, informações do sistema, limpeza de sessões órfãs
-💾 **MÍDIA**: Download de URLs externas, envio direto, download de mídia de mensagens
-⚡ **CONTROLES**: Status de digitação, marcar mensagens como lidas, histórico de mensagens
-
-REGRAS OBRIGATÓRIAS:
-1. EXCLUSIVAMENTE sobre FlowChat API e WhatsApp
-2. SEMPRE use as tools para executar ações práticas
-3. Formato de telefone: OBRIGATORIAMENTE internacional (ex: 5511999999999)
-4. Sessões: nomes únicos e descritivos
-5. Webhooks: sempre especificar prioridade (1=alta, 3=baixa)
-6. Grupos: validar permissões antes de modificações
-7. Explicar CADA ação executada e seus resultados
-8. Para dúvidas sobre APIs: consultar documentação em /api-docs
-
-IMPORTANTE: Você tem acesso a TODAS as funcionalidades do Baileys API. Use as tools extensivamente para demonstrar as capacidades do sistema.
-
-💡 **DICA DE PERFORMANCE**: Quando possível, combine múltiplas ações em uma única resposta (ex: criar sessão + listar sessões + verificar status). O sistema executará todas as ferramentas em paralelo automaticamente, proporcionando respostas mais rápidas e completas.
-
-🔗 **EXEMPLOS DE USO IMPLEMENTADOS**:
-
-**Download e Envio de Mídia:**
-- "Baixar https://exemplo.com/imagem.jpg e enviar para 5511999999999"
-- "Fazer download de https://site.com/video.mp4 e mandar para o grupo"
-
-**Controles de Chat:**
-- "Mostrar que estou digitando para 5511999999999"
-- "Marcar mensagem ID 3EB0C767B7CE45A3B3A36 como lida"
-- "Obter histórico de mensagens da sessão"
-
-**Gerenciamento de Grupos:**
-- "Criar grupo 'Equipe' com participantes [5511999999999, 5511888888888]"
-- "Listar grupos com busca 'trabalho' e incluir participantes"
-- "Obter informações do grupo com detalhes dos participantes"
-- "Mencionar todos no grupo com mensagem silenciosa"
-- "Promover 5511999999999 a admin do grupo"
-
-**Mensagens de Grupos:**
-- "Obter mensagens do grupo 120363043716731234@g.us com busca por 'reunião'"
-- "Buscar 'projeto' em todos os grupos da sessão"
-- "Filtrar mensagens por grupo 'Equipe' com participantes incluídos"
-- "Ver últimas 100 mensagens do grupo com paginação"
-
-**Webhooks:**
-- "Configurar webhook https://meusite.com/webhook para a sessão"
-- "Criar webhook múltiplo 'Principal' com prioridade 1"
-- "Testar webhook específico da sessão"
-
-**Monitoramento:**
-- "Verificar status detalhado da sessão"
-- "Obter informações completas do sistema"
-- "Limpar sessões órfãs do sistema"
-
-Responda em português brasileiro de forma técnica, prática e orientada a resultados.`;
+Responda em português brasileiro, seja prático e direto.`;
 
     // Preparar mensagens para o OpenAI
     const messages = [
@@ -404,13 +321,14 @@ Responda em português brasileiro de forma técnica, prática e orientada a resu
     });
 
     const chatStream = await openaiInstance.chat.completions.create({
-      model: 'gpt-4.1.1',
+      model: 'gpt-4.1',
       messages,
       tools: openAITools,
       tool_choice: 'auto',
       stream: true,
-      temperature: 0.7,
-      max_tokens: 2000,
+      temperature: 0.3,
+      max_tokens: 1500,
+      stream_options: { include_usage: true },
     });
 
     let functionCalls = [];
@@ -625,11 +543,12 @@ Responda em português brasileiro de forma técnica, prática e orientada a resu
 
         try {
           const finalStream = await openaiInstance.chat.completions.create({
-            model: 'gpt-4.1.1',
+            model: 'gpt-4.1',
             messages: finalMessages,
-            temperature: 0.7,
-            max_tokens: 1500,
+            temperature: 0.3,
+            max_tokens: 1000,
             stream: true,
+            stream_options: { include_usage: true },
           });
 
           let hasContent = false;
@@ -656,32 +575,30 @@ Responda em português brasileiro de forma técnica, prática e orientada a resu
             // Criar prompt específico para analisar os resultados das tools
             const analyzeResults = await openaiInstance.chat.completions.create(
               {
-                model: 'gpt-4.1.1',
+                model: 'gpt-4.1',
                 messages: [
                   {
                     role: 'system',
-                    content: `Você é uma IA assistente que deve sempre analisar e explicar os resultados das ferramentas executadas. Nunca apenas confirme que as ferramentas foram executadas - SEMPRE processe e apresente os dados obtidos de forma útil para o usuário.`,
+                    content: `Analise os resultados das ferramentas de forma concisa e útil.`,
                   },
                   {
                     role: 'user',
-                    content: `Analise os resultados das seguintes ferramentas que foram executadas: ${functionCalls
+                    content: `Ferramentas executadas: ${functionCalls
                       .map((fc) => fc.function.name)
-                      .join(', ')}.\n\nResultados obtidos:\n${toolResults
+                      .join(', ')}.\n\nResultados: ${toolResults
                       .map(
                         (tr) =>
                           `${tr.tool}: ${
                             typeof tr.result === 'string'
-                              ? tr.result
-                              : JSON.stringify(tr.result, null, 2)
+                              ? tr.result.substring(0, 500)
+                              : JSON.stringify(tr.result, null, 2).substring(0, 500)
                           }`
                       )
-                      .join(
-                        '\n\n'
-                      )}\n\nPor favor, processe esses dados e forneça uma resposta útil baseada nos resultados obtidos.`,
+                      .join('\n')}\n\nResumo dos resultados:`,
                   },
                 ],
-                temperature: 0.7,
-                max_tokens: 1000,
+                temperature: 0.3,
+                max_tokens: 800,
                 stream: true,
               }
             );
@@ -706,10 +623,10 @@ Responda em português brasileiro de forma técnica, prática e orientada a resu
           try {
             const simpleResponse = await openaiInstance.chat.completions.create(
               {
-                model: 'gpt-4.1.1',
+                model: 'gpt-4.1',
                 messages: finalMessages,
-                temperature: 0.7,
-                max_tokens: 800,
+                temperature: 0.3,
+                max_tokens: 600,
                 stream: false,
               }
             );

@@ -27,7 +27,12 @@
       "Bash(mkdir:*)",
       "Bash(timeout:*)",
       "Bash(npx shadcn@latest init:*)",
-      "Bash(npx shadcn@latest add:*)"
+      "Bash(npx shadcn@latest add:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git config:*)",
+      "Bash(git pull:*)"
     ],
     "deny": []
   },
