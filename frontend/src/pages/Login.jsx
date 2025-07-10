@@ -3,6 +3,12 @@ import { useForm } from 'react-hook-form';
 import { EyeIcon, EyeSlashIcon, UserIcon, EnvelopeIcon, LockClosedIcon, ChatBubbleLeftRightIcon } from '@heroicons/react/24/outline';
 import { motion, AnimatePresence } from 'framer-motion';
 import { getApiUrl, apiRequest } from '../utils/api';
+import { Button } from '../components/ui/button';
+import { Input } from '../components/ui/input';
+import { Label } from '../components/ui/label';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { Alert, AlertDescription } from '../components/ui/alert';
+import { Checkbox } from '../components/ui/checkbox';
 
 export default function Login() {
   const [showPassword, setShowPassword] = useState(false);
@@ -607,11 +613,9 @@ export default function Login() {
                     <label htmlFor="name" className="block text-xs xs:text-sm font-semibold text-white lg:text-gray-700 mb-1 sm:mb-2">
                       Nome completo
                     </label>
-                    <div className="relative group">
-                      <div className="absolute inset-y-0 left-0 pl-3 sm:pl-4 flex items-center pointer-events-none">
-                        <UserIcon className="h-4 w-4 sm:h-5 sm:w-5 text-white/50 lg:text-gray-400 group-focus-within:text-blue-500 transition-colors" />
-                      </div>
-                      <input
+                    <div className="relative">
+                      <UserIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                      <Input
                         {...register('name', {
                           required: !isLogin ? 'Nome é obrigatório' : false,
                           minLength: {
@@ -620,7 +624,7 @@ export default function Login() {
                           }
                         })}
                         type="text"
-                        className="block w-full pl-10 sm:pl-12 pr-3 sm:pr-4 py-3 sm:py-4 border-2 border-white/30 lg:border-gray-200 bg-white/10 lg:bg-white rounded-xl sm:rounded-2xl text-white lg:text-gray-900 placeholder-white/60 lg:placeholder-gray-400 focus:ring-0 focus:border-blue-500 lg:focus:border-blue-500 focus:bg-white/20 lg:focus:bg-white transition-all duration-200 text-sm sm:text-base lg:text-lg"
+                        className="pl-10"
                         placeholder="Digite seu nome completo"
                       />
                     </div>
@@ -640,11 +644,9 @@ export default function Login() {
                   <label htmlFor="email" className="block text-xs xs:text-sm font-semibold text-white lg:text-gray-700 mb-1 sm:mb-2">
                     Email
                   </label>
-                  <div className="relative group">
-                    <div className="absolute inset-y-0 left-0 pl-3 sm:pl-4 flex items-center pointer-events-none">
-                      <EnvelopeIcon className="h-4 w-4 sm:h-5 sm:w-5 text-white/50 lg:text-gray-400 group-focus-within:text-blue-500 transition-colors" />
-                    </div>
-                    <input
+                  <div className="relative">
+                    <EnvelopeIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
                       {...register('email', {
                         required: 'Email é obrigatório',
                         pattern: {
@@ -653,7 +655,7 @@ export default function Login() {
                         }
                       })}
                       type="email"
-                      className="block w-full pl-10 sm:pl-12 pr-3 sm:pr-4 py-3 sm:py-4 border-2 border-white/30 lg:border-gray-200 bg-white/10 lg:bg-white rounded-xl sm:rounded-2xl text-white lg:text-gray-900 placeholder-white/60 lg:placeholder-gray-400 focus:ring-0 focus:border-blue-500 lg:focus:border-blue-500 focus:bg-white/20 lg:focus:bg-white transition-all duration-200 text-sm sm:text-base lg:text-lg"
+                      className="pl-10"
                       placeholder="Digite seu email"
                     />
                   </div>
@@ -672,11 +674,9 @@ export default function Login() {
                   <label htmlFor="password" className="block text-xs xs:text-sm font-semibold text-white lg:text-gray-700 mb-1 sm:mb-2">
                     Senha
                   </label>
-                  <div className="relative group">
-                    <div className="absolute inset-y-0 left-0 pl-3 sm:pl-4 flex items-center pointer-events-none">
-                      <LockClosedIcon className="h-4 w-4 sm:h-5 sm:w-5 text-white/50 lg:text-gray-400 group-focus-within:text-blue-500 transition-colors" />
-                    </div>
-                    <input
+                  <div className="relative">
+                    <LockClosedIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                    <Input
                       {...register('password', {
                         required: 'Senha é obrigatória',
                         minLength: {
@@ -685,18 +685,18 @@ export default function Login() {
                         }
                       })}
                       type={showPassword ? 'text' : 'password'}
-                      className="block w-full pl-10 sm:pl-12 pr-11 sm:pr-14 py-3 sm:py-4 border-2 border-white/30 lg:border-gray-200 bg-white/10 lg:bg-white rounded-xl sm:rounded-2xl text-white lg:text-gray-900 placeholder-white/60 lg:placeholder-gray-400 focus:ring-0 focus:border-blue-500 lg:focus:border-blue-500 focus:bg-white/20 lg:focus:bg-white transition-all duration-200 text-sm sm:text-base lg:text-lg"
+                      className="pl-10 pr-10"
                       placeholder="Digite sua senha"
                     />
                     <button
                       type="button"
-                      className="absolute inset-y-0 right-0 pr-3 sm:pr-4 flex items-center hover:scale-110 transition-transform"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                       onClick={() => setShowPassword(!showPassword)}
                     >
                       {showPassword ? (
-                        <EyeSlashIcon className="h-4 w-4 sm:h-5 sm:w-5 text-white/60 lg:text-gray-400 hover:text-white/80 lg:hover:text-gray-600" />
+                        <EyeSlashIcon className="h-4 w-4" />
                       ) : (
-                        <EyeIcon className="h-4 w-4 sm:h-5 sm:w-5 text-white/60 lg:text-gray-400 hover:text-white/80 lg:hover:text-gray-600" />
+                        <EyeIcon className="h-4 w-4" />
                       )}
                     </button>
                   </div>

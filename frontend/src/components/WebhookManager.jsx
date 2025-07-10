@@ -14,6 +14,15 @@ import {
   BoltIcon,
   CogIcon
 } from '@heroicons/react/24/outline';
+import { Button } from './ui/button';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
+import { Badge } from './ui/badge';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
+import { Input } from './ui/input';
+import { Label } from './ui/label';
+import { Switch } from './ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
+import { Alert, AlertDescription } from './ui/alert';
 
 export default function WebhookManager({ sessionId, tokenId, onClose }) {
   const [webhooks, setWebhooks] = useState([]);

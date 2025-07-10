@@ -8,6 +8,9 @@ import {
 import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 import AIStreamingChat from '../components/AIStreamingChat';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
+import { Badge } from '../components/ui/badge';
+import { Alert, AlertDescription } from '../components/ui/alert';
 
 export default function AIAssistantPage() {
   const [aiStatus, setAiStatus] = useState('checking');
