@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { motion, AnimatePresence } from 'framer-motion'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -33,25 +32,6 @@ import {
 } from 'lucide-react'
 import AgentsList from '../components/AgentsList'
 
-const fadeInUp = {
-  initial: { opacity: 0, y: 20 },
-  animate: { opacity: 1, y: 0 },
-  exit: { opacity: 0, y: -20 }
-}
-
-const slideIn = {
-  initial: { opacity: 0, x: -20 },
-  animate: { opacity: 1, x: 0 },
-  exit: { opacity: 0, x: 20 }
-}
-
-const stagger = {
-  animate: {
-    transition: {
-      staggerChildren: 0.1
-    }
-  }
-}
 
 export default function AIAgent() {
   const [activeTab, setActiveTab] = useState('create')
@@ -85,28 +65,28 @@ export default function AIAgent() {
       name: 'Profissional', 
       desc: 'Formal e objetivo',
       icon: '💼',
-      color: 'bg-blue-100 text-blue-800'
+      color: 'text-blue-800'
     },
     { 
       id: 'friendly', 
       name: 'Amigável', 
       desc: 'Caloroso e acolhedor',
       icon: '😊',
-      color: 'bg-green-100 text-green-800'
+      color: 'text-green-800'
     },
     { 
       id: 'creative', 
       name: 'Criativo', 
       desc: 'Inovador e artístico',
       icon: '🎨',
-      color: 'bg-purple-100 text-purple-800'
+      color: 'text-purple-800'
     },
     { 
       id: 'analytical', 
       name: 'Analítico', 
       desc: 'Lógico e detalhado',
       icon: '📊',
-      color: 'bg-orange-100 text-orange-800'
+      color: 'text-orange-800'
     },
   ]
 
@@ -369,67 +349,38 @@ export default function AIAgent() {
 
   if (loading) {
     return (
-      <motion.div 
-        className="flex items-center justify-center min-h-[600px]"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-      >
+      <div className="flex items-center justify-center min-h-[600px]">
         <div className="text-center space-y-4">
-          <motion.div
-            animate={{ rotate: 360 }}
-            transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-          >
-            <Loader2 className="h-12 w-12 mx-auto text-primary" />
-          </motion.div>
+          <Loader2 className="h-12 w-12 mx-auto text-primary animate-spin" />
           <div className="space-y-2">
             <p className="text-lg font-medium">Inicializando Sistema de IA</p>
             <p className="text-sm text-muted-foreground">Carregando sessões WhatsApp...</p>
           </div>
           <Progress value={60} className="w-64 mx-auto" />
         </div>
-      </motion.div>
+      </div>
     )
   }
 
   return (
-    <motion.div 
-      className="container mx-auto py-8 space-y-8"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ duration: 0.5 }}
-    >
+    <div className="container mx-auto py-8 space-y-8">
       {/* Header */}
-      <motion.div 
-        className="text-center space-y-4"
-        variants={fadeInUp}
-        initial="initial"
-        animate="animate"
-      >
+      <div className="text-center space-y-4">
         <div className="flex items-center justify-center space-x-3">
-          <motion.div
-            whileHover={{ scale: 1.1, rotate: 180 }}
-            transition={{ duration: 0.3 }}
-            className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full"
-          >
-            <Sparkles className="h-8 w-8 text-white" />
-          </motion.div>
-          <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+          <div className="p-3 rounded-full border">
+            <Sparkles className="h-8 w-8" />
+          </div>
+          <h1 className="text-4xl font-bold">
             Agentes de IA
           </h1>
         </div>
         <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
           Crie e gerencie assistentes inteligentes para WhatsApp com tecnologia de ponta
         </p>
-      </motion.div>
+      </div>
 
-      {/* Enhanced Tab Navigation */}
-      <motion.div 
-        className="flex justify-center"
-        variants={fadeInUp}
-        initial="initial"
-        animate="animate"
-        transition={{ delay: 0.2 }}
-      >
+      {/* Tab Navigation */}
+      <div className="flex justify-center">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full max-w-md">
           <TabsList className="grid w-full grid-cols-2 h-12">
             <TabsTrigger value="create" className="flex items-center gap-2 text-sm font-medium">
@@ -442,67 +393,36 @@ export default function AIAgent() {
             </TabsTrigger>
           </TabsList>
         </Tabs>
-      </motion.div>
+      </div>
 
       {/* Content */}
-      <AnimatePresence mode="wait">
-        {activeTab === 'manage' ? (
-          <motion.div
-            key="manage"
-            variants={slideIn}
-            initial="initial"
-            animate="animate"
-            exit="exit"
-          >
-            <AgentsList onRefresh={() => {}} />
-          </motion.div>
-        ) : (
-          <motion.div
-            key="create"
-            variants={slideIn}
-            initial="initial"
-            animate="animate"
-            exit="exit"
-            className="max-w-4xl mx-auto"
-          >
-            {/* Enhanced Progress Steps */}
-            <motion.div 
-              className="mb-12"
-              variants={stagger}
-              initial="initial"
-              animate="animate"
-            >
+      {activeTab === 'manage' ? (
+        <div>
+          <AgentsList onRefresh={() => {}} />
+        </div>
+      ) : (
+        <div className="max-w-4xl mx-auto">
+            {/* Progress Steps */}
+            <div className="mb-12">
               <div className="flex justify-between items-center mb-6">
                 {steps.map((step, index) => (
-                  <motion.div
+                  <div
                     key={step.id}
-                    variants={fadeInUp}
                     className="flex flex-col items-center space-y-2 flex-1"
                   >
-                    <motion.div
+                    <div
                       className={`relative w-12 h-12 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${
                         currentStep >= step.id
-                          ? 'bg-primary border-primary text-primary-foreground shadow-lg'
+                          ? 'bg-primary border-primary text-primary-foreground'
                           : 'bg-background border-muted-foreground/30 text-muted-foreground'
                       }`}
-                      whileHover={{ scale: 1.05 }}
-                      animate={currentStep === step.id ? { 
-                        boxShadow: "0 0 0 4px rgba(99, 102, 241, 0.2)" 
-                      } : {}}
                     >
                       {currentStep > step.id ? (
                         <CheckCircle className="h-6 w-6" />
                       ) : (
                         <step.icon className={`h-6 w-6 ${step.color}`} />
                       )}
-                      {currentStep === step.id && (
-                        <motion.div
-                          className="absolute inset-0 rounded-full border-2 border-primary"
-                          animate={{ scale: [1, 1.2, 1] }}
-                          transition={{ duration: 2, repeat: Infinity }}
-                        />
-                      )}
-                    </motion.div>
+                    </div>
                     <div className="text-center">
                       <p className={`text-sm font-medium ${
                         currentStep >= step.id ? 'text-foreground' : 'text-muted-foreground'
@@ -516,48 +436,34 @@ export default function AIAgent() {
                         currentStep > step.id ? 'bg-primary' : 'bg-muted'
                       }`} />
                     )}
-                  </motion.div>
+                  </div>
                 ))}
               </div>
               <Progress value={progress} className="h-2" />
-            </motion.div>
+            </div>
 
             {/* Error Display */}
-            <AnimatePresence>
-              {error && (
-                <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="mb-6 p-4 border border-destructive/50 bg-destructive/10 rounded-lg flex items-start gap-3"
-                >
-                  <AlertCircle className="h-5 w-5 text-destructive mt-0.5 flex-shrink-0" />
-                  <div>
-                    <p className="font-medium text-destructive">Erro</p>
-                    <p className="text-sm text-destructive/80">{error}</p>
-                  </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
+            {error && (
+              <div className="mb-6 p-4 border border-destructive/50 bg-destructive/10 rounded-lg flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 text-destructive mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="font-medium text-destructive">Erro</p>
+                  <p className="text-sm text-destructive/80">{error}</p>
+                </div>
+              </div>
+            )}
 
             {/* Step Content */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               {/* Main Content */}
               <div className="lg:col-span-2">
-                <AnimatePresence mode="wait">
                   {/* Step 1: Session Selection */}
                   {currentStep === 1 && (
-                    <motion.div
-                      key="step1"
-                      variants={fadeInUp}
-                      initial="initial"
-                      animate="animate"
-                      exit="exit"
-                    >
-                      <Card className="border-0 shadow-lg">
-                        <CardHeader className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-t-lg">
+                    <div>
+                      <Card>
+                        <CardHeader>
                           <CardTitle className="flex items-center gap-3">
-                            <Bot className="h-6 w-6 text-blue-600" />
+                            <Bot className="h-6 w-6" />
                             Conectar Sessão WhatsApp
                           </CardTitle>
                           <CardDescription>
@@ -583,7 +489,7 @@ export default function AIAgent() {
                                 {sessions.map((session) => (
                                   <SelectItem key={session.sessionId} value={session.sessionId}>
                                     <div className="flex items-center gap-3">
-                                      <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse" />
+                                      <div className="w-3 h-3 bg-green-500 rounded-full" />
                                       <div>
                                         <p className="font-medium">{session.sessionId}</p>
                                         <p className="text-xs text-muted-foreground">Conectado</p>
@@ -600,8 +506,8 @@ export default function AIAgent() {
                               </p>
                             )}
                             {sessions.length === 0 && (
-                              <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                                <p className="text-sm text-yellow-800 flex items-center gap-2">
+                              <div className="p-4 border rounded-lg">
+                                <p className="text-sm text-muted-foreground flex items-center gap-2">
                                   <AlertCircle className="h-4 w-4" />
                                   Nenhuma sessão conectada encontrada. Conecte uma sessão WhatsApp primeiro.
                                 </p>
@@ -610,23 +516,16 @@ export default function AIAgent() {
                           </div>
                         </CardContent>
                       </Card>
-                    </motion.div>
+                    </div>
                   )}
 
                   {/* Step 2: Configuration */}
                   {currentStep === 2 && (
-                    <motion.div
-                      key="step2"
-                      variants={fadeInUp}
-                      initial="initial"
-                      animate="animate"
-                      exit="exit"
-                      className="space-y-6"
-                    >
-                      <Card className="border-0 shadow-lg">
-                        <CardHeader className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-t-lg">
+                    <div className="space-y-6">
+                      <Card>
+                        <CardHeader>
                           <CardTitle className="flex items-center gap-3">
-                            <Sparkles className="h-6 w-6 text-purple-600" />
+                            <Sparkles className="h-6 w-6" />
                             Configuração do Agente
                           </CardTitle>
                           <CardDescription>
@@ -731,10 +630,8 @@ export default function AIAgent() {
                             <Label className="text-base font-medium">Personalidade</Label>
                             <div className="grid grid-cols-2 gap-3">
                               {personalities.map((personality) => (
-                                <motion.div
+                                <div
                                   key={personality.id}
-                                  whileHover={{ scale: 1.02 }}
-                                  whileTap={{ scale: 0.98 }}
                                   className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
                                     formData.personality === personality.id
                                       ? 'border-primary bg-primary/5'
@@ -749,29 +646,22 @@ export default function AIAgent() {
                                       <p className="text-xs text-muted-foreground">{personality.desc}</p>
                                     </div>
                                   </div>
-                                </motion.div>
+                                </div>
                               ))}
                             </div>
                           </div>
                         </CardContent>
                       </Card>
-                    </motion.div>
+                    </div>
                   )}
 
                   {/* Step 3: Advanced Settings */}
                   {currentStep === 3 && (
-                    <motion.div
-                      key="step3"
-                      variants={fadeInUp}
-                      initial="initial"
-                      animate="animate"
-                      exit="exit"
-                      className="space-y-6"
-                    >
-                      <Card className="border-0 shadow-lg">
-                        <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-t-lg">
+                    <div className="space-y-6">
+                      <Card>
+                        <CardHeader>
                           <CardTitle className="flex items-center gap-3">
-                            <Settings className="h-6 w-6 text-green-600" />
+                            <Settings className="h-6 w-6" />
                             Configurações Avançadas
                           </CardTitle>
                           <CardDescription>
@@ -796,7 +686,7 @@ export default function AIAgent() {
                                   ...prev, 
                                   creativity: parseInt(e.target.value) 
                                 }))}
-                                className="w-full h-2 bg-gradient-to-r from-blue-200 to-purple-200 rounded-lg appearance-none cursor-pointer"
+                                className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer"
                               />
                               <div className="flex justify-between text-xs text-muted-foreground">
                                 <span>Conservador</span>
@@ -828,10 +718,9 @@ export default function AIAgent() {
                                 icon: Users
                               }
                             ].map((feature) => (
-                              <motion.div
+                              <div
                                 key={feature.key}
                                 className="flex items-center justify-between p-4 border rounded-lg"
-                                whileHover={{ backgroundColor: "rgba(0,0,0,0.02)" }}
                               >
                                 <div className="flex items-start gap-3">
                                   <feature.icon className="h-5 w-5 text-primary mt-1" />
@@ -848,15 +737,12 @@ export default function AIAgent() {
                                     setFormData(prev => ({ ...prev, [feature.key]: checked }))
                                   }
                                 />
-                              </motion.div>
+                              </div>
                             ))}
                           </div>
 
                           {/* Summary */}
-                          <motion.div 
-                            className="border-t pt-6"
-                            variants={fadeInUp}
-                          >
+                          <div className="border-t pt-6">
                             <h4 className="font-semibold mb-6 flex items-center gap-2">
                               <Activity className="h-5 w-5" />
                               Resumo da Configuração
@@ -869,11 +755,9 @@ export default function AIAgent() {
                                 { label: 'Personalidade', value: personalities.find(p => p.id === formData.personality)?.name },
                                 { label: 'Criatividade', value: `${formData.creativity}%` },
                               ].map((item, index) => (
-                                <motion.div
+                                <div
                                   key={item.label}
                                   className="flex justify-between items-center"
-                                  variants={fadeInUp}
-                                  transition={{ delay: index * 0.1 }}
                                 >
                                   <span className="text-muted-foreground">{item.label}:</span>
                                   {item.type === 'badge' ? (
@@ -883,29 +767,22 @@ export default function AIAgent() {
                                   ) : (
                                     <span className="font-medium">{item.value}</span>
                                   )}
-                                </motion.div>
+                                </div>
                               ))}
                             </div>
-                          </motion.div>
+                          </div>
                         </CardContent>
                       </Card>
-                    </motion.div>
+                    </div>
                   )}
-                </AnimatePresence>
               </div>
 
               {/* Sidebar */}
-              <motion.div 
-                className="lg:col-span-1"
-                variants={fadeInUp}
-                initial="initial"
-                animate="animate"
-                transition={{ delay: 0.3 }}
-              >
-                <Card className="sticky top-8 border-0 shadow-lg">
+              <div className="lg:col-span-1">
+                <Card className="sticky top-8">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-2">
-                      <Star className="h-5 w-5 text-yellow-500" />
+                      <Star className="h-5 w-5" />
                       Recursos Premium
                     </CardTitle>
                   </CardHeader>
@@ -916,32 +793,24 @@ export default function AIAgent() {
                       { icon: Shield, title: 'Segurança Total', desc: 'Dados criptografados' },
                       { icon: Clock, title: 'Disponível 24/7', desc: 'Suporte contínuo' },
                     ].map((feature, index) => (
-                      <motion.div
+                      <div
                         key={feature.title}
-                        className="flex items-start gap-3 p-3 rounded-lg bg-gradient-to-r from-gray-50 to-gray-100"
-                        variants={fadeInUp}
-                        transition={{ delay: 0.4 + index * 0.1 }}
+                        className="flex items-start gap-3 p-3 rounded-lg border"
                       >
                         <feature.icon className="h-5 w-5 text-primary mt-1" />
                         <div>
                           <p className="font-medium text-sm">{feature.title}</p>
                           <p className="text-xs text-muted-foreground">{feature.desc}</p>
                         </div>
-                      </motion.div>
+                      </div>
                     ))}
                   </CardContent>
                 </Card>
-              </motion.div>
+              </div>
             </div>
 
             {/* Navigation */}
-            <motion.div 
-              className="flex justify-between items-center mt-8 pt-6 border-t"
-              variants={fadeInUp}
-              initial="initial"
-              animate="animate"
-              transition={{ delay: 0.5 }}
-            >
+            <div className="flex justify-between items-center mt-8 pt-6 border-t">
               <Button
                 variant="outline"
                 onClick={prevStep}
@@ -983,49 +852,33 @@ export default function AIAgent() {
                   )}
                 </Button>
               )}
-            </motion.div>
+            </div>
 
             {/* Progress during creation */}
-            <AnimatePresence>
-              {creating && (
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  className="fixed bottom-4 right-4 bg-background border rounded-lg shadow-lg p-4 min-w-[300px]"
-                >
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      <span className="font-medium">Criando agente...</span>
-                    </div>
-                    <Progress value={progress} className="h-2" />
-                    <p className="text-xs text-muted-foreground">
-                      {progress}% concluído
-                    </p>
+            {creating && (
+              <div className="fixed bottom-4 right-4 bg-background border rounded-lg shadow-lg p-4 min-w-[300px]">
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    <span className="font-medium">Criando agente...</span>
                   </div>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </motion.div>
-        )}
-      </AnimatePresence>
+                  <Progress value={progress} className="h-2" />
+                  <p className="text-xs text-muted-foreground">
+                    {progress}% concluído
+                  </p>
+                </div>
+              </div>
+            )}
+        </div>
+      )}
 
       {/* Success Dialog */}
       <Dialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
         <DialogContent className="max-w-md">
-          <motion.div
-            initial={{ scale: 0.9, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            className="text-center space-y-4"
-          >
-            <motion.div
-              animate={{ rotate: [0, 10, -10, 0] }}
-              transition={{ duration: 0.5, repeat: 2 }}
-              className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto"
-            >
-              <CheckCircle className="h-8 w-8 text-green-600" />
-            </motion.div>
+          <div className="text-center space-y-4">
+            <div className="w-16 h-16 border rounded-full flex items-center justify-center mx-auto">
+              <CheckCircle className="h-8 w-8" />
+            </div>
             <DialogHeader>
               <DialogTitle className="text-xl">Agente Criado com Sucesso! 🎉</DialogTitle>
               <DialogDescription>
@@ -1050,9 +903,9 @@ export default function AIAgent() {
                 Ver Agentes
               </Button>
             </div>
-          </motion.div>
+          </div>
         </DialogContent>
       </Dialog>
-    </motion.div>
+    </div>
   )
 }
