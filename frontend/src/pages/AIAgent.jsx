@@ -349,21 +349,24 @@ export default function AIAgent() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-[600px]">
-        <div className="text-center space-y-4">
-          <Loader2 className="h-12 w-12 mx-auto text-primary animate-spin" />
-          <div className="space-y-2">
-            <p className="text-lg font-medium">Inicializando Sistema de IA</p>
-            <p className="text-sm text-muted-foreground">Carregando sessões WhatsApp...</p>
+      <div className="min-h-screen bg-white">
+        <div className="flex items-center justify-center min-h-[600px]">
+          <div className="text-center space-y-4">
+            <Loader2 className="h-12 w-12 mx-auto text-primary animate-spin" />
+            <div className="space-y-2">
+              <p className="text-lg font-medium">Inicializando Sistema de IA</p>
+              <p className="text-sm text-muted-foreground">Carregando sessões WhatsApp...</p>
+            </div>
+            <Progress value={60} className="w-64 mx-auto" />
           </div>
-          <Progress value={60} className="w-64 mx-auto" />
         </div>
       </div>
     )
   }
 
   return (
-    <div className="container mx-auto py-8 space-y-8">
+    <div className="min-h-screen bg-white">
+      <div className="container mx-auto py-8 space-y-8">
       {/* Header */}
       <div className="text-center space-y-4">
         <div className="flex items-center justify-center space-x-3">
@@ -906,6 +909,7 @@ export default function AIAgent() {
           </div>
         </DialogContent>
       </Dialog>
+      </div>
     </div>
   )
 }
