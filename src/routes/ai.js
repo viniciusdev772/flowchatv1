@@ -160,24 +160,48 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// Função para criar instância do OpenAI com chave customizada
+// Função para criar instância do OpenAI SEMPRE com chave customizada
 function createOpenAIInstance(customApiKey) {
+  if (!customApiKey) {
+    throw new Error('Chave OpenAI personalizada é obrigatória');
+  }
   return new OpenAI({
-    apiKey: customApiKey || process.env.OPENAI_API_KEY,
+    apiKey: customApiKey,
   });
 }
 
-// Middleware para validar API key do OpenAI
+// Middleware para validar API key do OpenAI - SEMPRE OBRIGAR CUSTOM API KEY
 router.use((req, res, next) => {
+  // Pular validação para rotas de health e tools
+  if (req.path === '/health' || req.path === '/tools') {
+    return next();
+  }
+  
   const customApiKey = req.body?.customApiKey;
-  if (!process.env.OPENAI_API_KEY && !customApiKey) {
-    return res.status(500).json({
+  
+  // SEMPRE EXIGIR CHAVE CUSTOMIZADA DO FRONTEND
+  if (!customApiKey) {
+    return res.status(400).json({
       success: false,
-      error: 'OpenAI API key não configurada',
-      message:
-        'Configure a variável de ambiente OPENAI_API_KEY ou forneça uma chave personalizada',
+      error: 'CUSTOM_API_KEY_REQUIRED',
+      message: 'Chave OpenAI personalizada é obrigatória',
+      userMessage: 'Configure sua chave OpenAI nas configurações para usar o chat de IA',
+      timestamp: new Date().toISOString()
     });
   }
+  
+  // Validar formato da chave
+  if (!customApiKey.startsWith('sk-') || customApiKey.length < 48) {
+    return res.status(400).json({
+      success: false,
+      error: 'INVALID_API_KEY_FORMAT',
+      message: 'Formato de chave OpenAI inválido',
+      userMessage: 'A chave OpenAI deve começar com "sk-" e ter pelo menos 48 caracteres',
+      timestamp: new Date().toISOString()
+    });
+  }
+  
+  console.log(`🔐 Usuário ${req.user?._id || 'unknown'} usando chave OpenAI personalizada`);
   next();
 });
 

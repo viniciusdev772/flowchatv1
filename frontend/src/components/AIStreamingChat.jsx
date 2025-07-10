@@ -195,6 +195,16 @@ export default function AIStreamingChat() {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
       const customApiKey = localStorage.getItem('openai_api_key');
 
+      // Validar se tem API key antes de enviar
+      if (!customApiKey) {
+        throw new Error('API_KEY_REQUIRED');
+      }
+
+      // Validar formato da API key
+      if (!customApiKey.startsWith('sk-') || customApiKey.length < 48) {
+        throw new Error('INVALID_API_KEY_FORMAT');
+      }
+
       const response = await fetch(`${apiUrl}/api/management/ai/chat`, {
         method: 'POST',
         headers: {
@@ -208,7 +218,7 @@ export default function AIStreamingChat() {
             role: msg.role,
             content: msg.content,
           })),
-          customApiKey: customApiKey || undefined,
+          customApiKey: customApiKey,
         }),
       });
 
@@ -460,10 +470,20 @@ export default function AIStreamingChat() {
           prev.filter((msg) => msg.id !== assistantMessageId)
         );
       } else {
+        let errorContent = `Desculpe, ocorreu um erro: ${error.message}`;
+        
+        if (error.message === 'API_KEY_REQUIRED') {
+          errorContent = '🔑 **Chave OpenAI necessária!**\n\nPara usar o chat de IA, você precisa configurar sua chave OpenAI pessoal nas configurações.';
+        } else if (error.message === 'INVALID_API_KEY_FORMAT') {
+          errorContent = '🔑 **Formato de chave inválido!**\n\nA chave OpenAI deve começar com "sk-" e ter pelo menos 48 caracteres.';
+        } else if (error.message.includes('401') || error.message.includes('Unauthorized')) {
+          errorContent = '🔑 **Chave OpenAI inválida!**\n\nA chave fornecida não é válida. Verifique se copiou corretamente.';
+        }
+
         const errorMessage = {
           id: assistantMessageId,
           role: 'assistant',
-          content: `Desculpe, ocorreu um erro: ${error.message}. Verifique se a chave da OpenAI está configurada corretamente.`,
+          content: errorContent,
           timestamp: new Date(),
           isError: true,
           isComplete: true,
