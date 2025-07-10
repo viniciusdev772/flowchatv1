@@ -20,7 +20,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs';
 import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 import { Input } from './ui/input';
-import { Alert, AlertDescription } from './ui/alert';
 
 // Componente simplificado para renderizar mensagens (backend processa base64 automaticamente)
 const MessageContentRenderer = ({ content }) => {

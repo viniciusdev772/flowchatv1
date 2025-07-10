@@ -22,7 +22,6 @@ import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Switch } from './ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Alert, AlertDescription } from './ui/alert';
 
 export default function WebhookManager({ sessionId, tokenId, onClose }) {
   const [webhooks, setWebhooks] = useState([]);
