@@ -64,29 +64,25 @@ export default function AIAgent() {
       id: 'professional', 
       name: 'Profissional', 
       desc: 'Formal e objetivo',
-      icon: '💼',
-      color: 'text-blue-800'
+      icon: '💼'
     },
     { 
       id: 'friendly', 
       name: 'Amigável', 
       desc: 'Caloroso e acolhedor',
-      icon: '😊',
-      color: 'text-green-800'
+      icon: '😊'
     },
     { 
       id: 'creative', 
       name: 'Criativo', 
       desc: 'Inovador e artístico',
-      icon: '🎨',
-      color: 'text-purple-800'
+      icon: '🎨'
     },
     { 
       id: 'analytical', 
       name: 'Analítico', 
       desc: 'Lógico e detalhado',
-      icon: '📊',
-      color: 'text-orange-800'
+      icon: '📊'
     },
   ]
 
@@ -102,22 +98,19 @@ export default function AIAgent() {
       id: 1, 
       name: 'Sessão', 
       description: 'Conectar WhatsApp',
-      icon: Bot,
-      color: 'text-blue-600'
+      icon: Bot
     },
     { 
       id: 2, 
       name: 'Configuração', 
       description: 'Personalizar agente',
-      icon: Settings,
-      color: 'text-purple-600'
+      icon: Settings
     },
     { 
       id: 3, 
       name: 'Finalização', 
       description: 'Revisar e criar',
-      icon: Rocket,
-      color: 'text-green-600'
+      icon: Rocket
     }
   ]
 
@@ -349,56 +342,64 @@ export default function AIAgent() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-white">
+      <div className="min-h-screen bg-background">
         <div className="flex items-center justify-center min-h-[600px]">
-          <div className="text-center space-y-4">
-            <Loader2 className="h-12 w-12 mx-auto text-primary animate-spin" />
-            <div className="space-y-2">
-              <p className="text-lg font-medium">Inicializando Sistema de IA</p>
-              <p className="text-sm text-muted-foreground">Carregando sessões WhatsApp...</p>
-            </div>
-            <Progress value={60} className="w-64 mx-auto" />
-          </div>
+          <Card className="w-full max-w-md mx-4">
+            <CardContent className="pt-6">
+              <div className="text-center space-y-4">
+                <Loader2 className="h-12 w-12 mx-auto text-primary animate-spin" />
+                <div className="space-y-2">
+                  <p className="text-lg font-medium">Inicializando Sistema de IA</p>
+                  <p className="text-sm text-muted-foreground">Carregando sessões WhatsApp...</p>
+                </div>
+                <Progress value={60} className="w-64 mx-auto" />
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-4 md:py-8 space-y-4 md:space-y-8">
       {/* Header */}
-      <div className="text-center space-y-2 md:space-y-4">
-        <div className="flex items-center justify-center space-x-2 md:space-x-3">
-          <div className="p-2 md:p-3 rounded-full border">
-            <Sparkles className="h-6 w-6 md:h-8 md:w-8" />
+      <Card className="border-0 shadow-none bg-transparent">
+        <CardHeader className="text-center space-y-2 md:space-y-4">
+          <div className="flex items-center justify-center space-x-2 md:space-x-3">
+            <div className="p-2 md:p-3 rounded-full border bg-primary/10">
+              <Sparkles className="h-6 w-6 md:h-8 md:w-8 text-primary" />
+            </div>
+            <CardTitle className="text-2xl md:text-4xl">
+              Agentes de IA
+            </CardTitle>
           </div>
-          <h1 className="text-2xl md:text-4xl font-bold">
-            Agentes de IA
-          </h1>
-        </div>
-        <p className="text-sm md:text-lg text-muted-foreground max-w-2xl mx-auto px-4">
-          Crie e gerencie assistentes inteligentes para WhatsApp com tecnologia de ponta
-        </p>
-      </div>
+          <CardDescription className="text-sm md:text-lg max-w-2xl mx-auto">
+            Crie e gerencie assistentes inteligentes para WhatsApp com tecnologia de ponta
+          </CardDescription>
+        </CardHeader>
+      </Card>
 
       {/* Tab Navigation */}
-      <div className="flex justify-center px-4">
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full max-w-md">
-          <TabsList className="grid w-full grid-cols-2 h-10 md:h-12">
-            <TabsTrigger value="create" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm font-medium">
-              <Plus className="h-3 w-3 md:h-4 md:w-4" />
-              <span className="hidden sm:inline">Criar Agente</span>
-              <span className="sm:hidden">Criar</span>
-            </TabsTrigger>
-            <TabsTrigger value="manage" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm font-medium">
-              <Settings className="h-3 w-3 md:h-4 md:w-4" />
-              <span className="hidden sm:inline">Gerenciar</span>
-              <span className="sm:hidden">Gerenciar</span>
-            </TabsTrigger>
-          </TabsList>
-        </Tabs>
-      </div>
+      <Card className="mx-auto max-w-md">
+        <CardContent className="p-4">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-2 h-10 md:h-12">
+              <TabsTrigger value="create" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm font-medium">
+                <Plus className="h-3 w-3 md:h-4 md:w-4" />
+                <span className="hidden sm:inline">Criar Agente</span>
+                <span className="sm:hidden">Criar</span>
+              </TabsTrigger>
+              <TabsTrigger value="manage" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm font-medium">
+                <Settings className="h-3 w-3 md:h-4 md:w-4" />
+                <span className="hidden sm:inline">Gerenciar</span>
+                <span className="sm:hidden">Gerenciar</span>
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+        </CardContent>
+      </Card>
 
       {/* Content */}
       {activeTab === 'manage' ? (
@@ -425,7 +426,7 @@ export default function AIAgent() {
                       {currentStep > step.id ? (
                         <CheckCircle className="h-4 w-4 md:h-6 md:w-6" />
                       ) : (
-                        <step.icon className={`h-4 w-4 md:h-6 md:w-6 ${step.color}`} />
+                        <step.icon className="h-4 w-4 md:h-6 md:w-6" />
                       )}
                     </div>
                     <div className="text-center">
@@ -869,18 +870,20 @@ export default function AIAgent() {
 
             {/* Progress during creation */}
             {creating && (
-              <div className="fixed bottom-4 right-4 bg-background border rounded-lg shadow-lg p-3 md:p-4 min-w-[250px] md:min-w-[300px] z-50">
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Loader2 className="h-3 w-3 md:h-4 md:w-4 animate-spin" />
-                    <span className="font-medium text-sm md:text-base">Criando agente...</span>
+              <Card className="fixed bottom-4 right-4 min-w-[250px] md:min-w-[300px] z-50 shadow-lg">
+                <CardContent className="p-3 md:p-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Loader2 className="h-3 w-3 md:h-4 md:w-4 animate-spin text-primary" />
+                      <span className="font-medium text-sm md:text-base">Criando agente...</span>
+                    </div>
+                    <Progress value={progress} className="h-1 md:h-2" />
+                    <p className="text-xs text-muted-foreground">
+                      {progress}% concluído
+                    </p>
                   </div>
-                  <Progress value={progress} className="h-1 md:h-2" />
-                  <p className="text-xs text-muted-foreground">
-                    {progress}% concluído
-                  </p>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
             )}
         </div>
       )}

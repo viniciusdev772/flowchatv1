@@ -246,13 +246,13 @@ export default function AgentsList({ onRefresh }) {
 
   return (
     <Card className="overflow-hidden">
-      <CardHeader className="bg-gradient-to-r from-purple-500 to-pink-500 text-white">
+      <CardHeader className="bg-primary text-primary-foreground">
         <div className="flex items-center justify-between">
           <div className="flex items-center">
             <Sparkles className="w-5 h-5 md:w-6 md:h-6 mr-2 md:mr-3" />
             <CardTitle className="text-lg md:text-xl">Agentes de IA</CardTitle>
           </div>
-          <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
+          <Badge variant="secondary" className="bg-primary-foreground/20 text-primary-foreground border-primary-foreground/30">
             {agents.length} agente{agents.length !== 1 ? 's' : ''}
           </Badge>
         </div>
@@ -380,17 +380,17 @@ export default function AgentsList({ onRefresh }) {
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           {selectedAgent && (
             <div>
-              <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-t-lg -m-6 mb-6 px-4 md:px-6 py-4">
+              <div className="bg-primary text-primary-foreground rounded-t-lg -m-6 mb-6 px-4 md:px-6 py-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center">
-                    <div className="w-10 h-10 md:w-12 md:h-12 bg-white bg-opacity-20 rounded-full flex items-center justify-center text-lg md:text-2xl mr-3 md:mr-4">
+                    <div className="w-10 h-10 md:w-12 md:h-12 bg-primary-foreground/20 rounded-full flex items-center justify-center text-lg md:text-2xl mr-3 md:mr-4">
                       {personalities[selectedAgent.personality]?.emoji || '🤖'}
                     </div>
                     <div>
                       <DialogTitle className="text-lg md:text-xl font-bold">
                         {selectedAgent.name}
                       </DialogTitle>
-                      <DialogDescription className="text-purple-100 text-sm md:text-base">
+                      <DialogDescription className="text-primary-foreground/80 text-sm md:text-base">
                         {specializations[selectedAgent.specialization]?.name}
                       </DialogDescription>
                     </div>
@@ -477,57 +477,57 @@ export default function AgentsList({ onRefresh }) {
                 <TabsContent value="stats" className="space-y-4 mt-4">
                   {selectedAgent.conversations ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
-                      <Card className="bg-blue-50 border-blue-200">
+                      <Card className="border">
                         <CardContent className="p-3 md:p-4">
                           <div className="flex items-center">
-                            <MessageCircle className="w-5 h-5 md:w-6 md:h-6 text-blue-600 mr-2" />
+                            <MessageCircle className="w-5 h-5 md:w-6 md:h-6 text-primary mr-2" />
                             <div>
-                              <div className="text-lg md:text-2xl font-bold text-blue-600">
+                              <div className="text-lg md:text-2xl font-bold">
                                 {selectedAgent.conversations.totalMessages}
                               </div>
-                              <div className="text-xs md:text-sm text-blue-600">Total de Mensagens</div>
+                              <div className="text-xs md:text-sm text-muted-foreground">Total de Mensagens</div>
                             </div>
                           </div>
                         </CardContent>
                       </Card>
                       
-                      <Card className="bg-green-50 border-green-200">
+                      <Card className="border">
                         <CardContent className="p-3 md:p-4">
                           <div className="flex items-center">
-                            <Users className="w-5 h-5 md:w-6 md:h-6 text-green-600 mr-2" />
+                            <Users className="w-5 h-5 md:w-6 md:h-6 text-primary mr-2" />
                             <div>
-                              <div className="text-lg md:text-2xl font-bold text-green-600">
+                              <div className="text-lg md:text-2xl font-bold">
                                 {selectedAgent.conversations.uniqueChats}
                               </div>
-                              <div className="text-xs md:text-sm text-green-600">Chats Únicos</div>
+                              <div className="text-xs md:text-sm text-muted-foreground">Chats Únicos</div>
                             </div>
                           </div>
                         </CardContent>
                       </Card>
                       
-                      <Card className="bg-purple-50 border-purple-200">
+                      <Card className="border">
                         <CardContent className="p-3 md:p-4">
                           <div className="flex items-center">
-                            <Users className="w-5 h-5 md:w-6 md:h-6 text-purple-600 mr-2" />
+                            <Users className="w-5 h-5 md:w-6 md:h-6 text-primary mr-2" />
                             <div>
-                              <div className="text-lg md:text-2xl font-bold text-purple-600">
+                              <div className="text-lg md:text-2xl font-bold">
                                 {selectedAgent.conversations.groupMessages}
                               </div>
-                              <div className="text-xs md:text-sm text-purple-600">Mensagens em Grupos</div>
+                              <div className="text-xs md:text-sm text-muted-foreground">Mensagens em Grupos</div>
                             </div>
                           </div>
                         </CardContent>
                       </Card>
                       
-                      <Card className="bg-indigo-50 border-indigo-200">
+                      <Card className="border">
                         <CardContent className="p-3 md:p-4">
                           <div className="flex items-center">
-                            <MessageCircle className="w-5 h-5 md:w-6 md:h-6 text-indigo-600 mr-2" />
+                            <MessageCircle className="w-5 h-5 md:w-6 md:h-6 text-primary mr-2" />
                             <div>
-                              <div className="text-lg md:text-2xl font-bold text-indigo-600">
+                              <div className="text-lg md:text-2xl font-bold">
                                 {selectedAgent.conversations.privateMessages}
                               </div>
-                              <div className="text-xs md:text-sm text-indigo-600">Mensagens Privadas</div>
+                              <div className="text-xs md:text-sm text-muted-foreground">Mensagens Privadas</div>
                             </div>
                           </div>
                         </CardContent>
