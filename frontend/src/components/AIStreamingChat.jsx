@@ -195,6 +195,16 @@ export default function AIStreamingChat() {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
       const customApiKey = localStorage.getItem('openai_api_key');
 
+      // Validar se tem API key antes de enviar
+      if (!customApiKey) {
+        throw new Error('API_KEY_REQUIRED');
+      }
+
+      // Validar formato da API key
+      if (!customApiKey.startsWith('sk-') || customApiKey.length < 48) {
+        throw new Error('INVALID_API_KEY_FORMAT');
+      }
+
       const response = await fetch(`${apiUrl}/api/management/ai/chat`, {
         method: 'POST',
         headers: {
