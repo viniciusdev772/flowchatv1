@@ -1,30 +1,31 @@
-import React, { useState, useEffect, Fragment } from 'react';
-import {
-  Dialog,
-  Transition,
-  Tab,
-  Switch,
-  Button
-} from '@headlessui/react';
-import {
-  TrashIcon,
-  EyeIcon,
-  PauseIcon,
-  PlayIcon,
-  ChatBubbleLeftRightIcon,
-  CpuChipIcon,
-  UsersIcon,
-  CalendarIcon,
-  ChartBarIcon,
-  ExclamationTriangleIcon,
-  CheckCircleIcon,
-  XMarkIcon,
-  SparklesIcon
-} from '@heroicons/react/24/outline';
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Switch } from '@/components/ui/switch'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { 
+  Trash2, 
+  Eye, 
+  Pause, 
+  Play, 
+  MessageCircle, 
+  Cpu, 
+  Users, 
+  Calendar, 
+  BarChart3, 
+  AlertTriangle, 
+  CheckCircle, 
+  X, 
+  Sparkles,
+  Bot,
+  Activity,
+  Brain,
+  Zap,
+  Clock
+} from 'lucide-react';
 
-function classNames(...classes) {
-  return classes.filter(Boolean).join(' ');
-}
 
 export default function AgentsList({ onRefresh }) {
   const [agents, setAgents] = useState([]);
@@ -234,419 +235,358 @@ export default function AgentsList({ onRefresh }) {
 
   if (isLoading) {
     return (
-      <div className="bg-white rounded-2xl shadow-xl p-8">
+      <Card className="p-6 md:p-8">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Carregando agentes...</p>
+          <div className="animate-spin rounded-full h-8 w-8 md:h-12 md:w-12 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground text-sm md:text-base">Carregando agentes...</p>
         </div>
-      </div>
+      </Card>
     );
   }
 
   return (
-    <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
-      <div className="bg-gradient-to-r from-purple-500 to-pink-500 px-6 py-4">
+    <Card className="overflow-hidden">
+      <CardHeader className="bg-gradient-to-r from-purple-500 to-pink-500 text-white">
         <div className="flex items-center justify-between">
           <div className="flex items-center">
-            <SparklesIcon className="w-6 h-6 text-white mr-3" />
-            <h2 className="text-xl font-bold text-white">Agentes de IA</h2>
+            <Sparkles className="w-5 h-5 md:w-6 md:h-6 mr-2 md:mr-3" />
+            <CardTitle className="text-lg md:text-xl">Agentes de IA</CardTitle>
           </div>
-          <div className="text-white text-sm">
+          <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
             {agents.length} agente{agents.length !== 1 ? 's' : ''}
-          </div>
+          </Badge>
         </div>
-      </div>
+      </CardHeader>
 
       {error && (
-        <div className="bg-red-50 border-l-4 border-red-400 p-4 m-6">
+        <div className="bg-destructive/10 border-l-4 border-destructive/50 p-3 md:p-4 m-4 md:m-6">
           <div className="flex">
-            <ExclamationTriangleIcon className="h-5 w-5 text-red-400" />
-            <div className="ml-3">
-              <p className="text-sm text-red-700">{error}</p>
+            <AlertTriangle className="h-4 w-4 md:h-5 md:w-5 text-destructive flex-shrink-0" />
+            <div className="ml-2 md:ml-3">
+              <p className="text-xs md:text-sm text-destructive">{error}</p>
             </div>
           </div>
         </div>
       )}
 
-      <div className="p-6">
+      <CardContent className="p-4 md:p-6">
         {agents.length === 0 ? (
-          <div className="text-center py-12">
-            <CpuChipIcon className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">
+          <div className="text-center py-8 md:py-12">
+            <Cpu className="w-12 h-12 md:w-16 md:h-16 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-base md:text-lg font-medium mb-2">
               Nenhum agente criado
             </h3>
-            <p className="text-gray-500">
+            <p className="text-sm md:text-base text-muted-foreground">
               Crie seu primeiro agente de IA para começar
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
             {agents.map((agent) => {
               const personality = personalities[agent.personality] || {};
               const specialization = specializations[agent.specialization] || {};
               
               return (
-                <div
+                <Card
                   key={agent.id}
-                  className="bg-gray-50 rounded-xl p-6 border-2 border-gray-200 hover:border-purple-300 transition-all duration-200"
+                  className="hover:shadow-md transition-all duration-200 border-2 hover:border-primary/30"
                 >
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center">
-                      <div className={`w-12 h-12 rounded-full flex items-center justify-center text-xl bg-${personality.color || 'gray'}-100`}>
-                        {personality.emoji || '🤖'}
-                      </div>
-                      <div className="ml-3">
-                        <h3 className="font-semibold text-gray-900 truncate">
-                          {agent.name}
-                        </h3>
-                        <div className="flex items-center mt-1">
-                          <div className={`w-2 h-2 rounded-full mr-2 ${
-                            agent.isActive ? 'bg-green-500' : 'bg-gray-400'
-                          }`} />
-                          <span className={`text-xs font-medium ${
-                            agent.isActive ? 'text-green-700' : 'text-gray-500'
-                          }`}>
-                            {agent.isActive ? 'Ativo' : 'Inativo'}
-                          </span>
+                  <CardContent className="p-4 md:p-6">
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex items-center">
+                        <div className="w-10 h-10 md:w-12 md:h-12 rounded-full flex items-center justify-center text-lg md:text-xl bg-muted">
+                          {personality.emoji || '🤖'}
+                        </div>
+                        <div className="ml-2 md:ml-3">
+                          <h3 className="font-semibold text-sm md:text-base truncate">
+                            {agent.name}
+                          </h3>
+                          <div className="flex items-center mt-1">
+                            <div className={`w-2 h-2 rounded-full mr-2 ${
+                              agent.isActive ? 'bg-green-500' : 'bg-muted-foreground'
+                            }`} />
+                            <Badge 
+                              variant={agent.isActive ? "default" : "secondary"}
+                              className="text-xs"
+                            >
+                              {agent.isActive ? 'Ativo' : 'Inativo'}
+                            </Badge>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    
-                    <Switch
-                      checked={agent.isActive}
-                      onChange={() => toggleAgentStatus(agent)}
-                      className={classNames(
-                        agent.isActive ? 'bg-green-600' : 'bg-gray-200',
-                        'relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-purple-500'
-                      )}
-                    >
-                      <span
-                        className={classNames(
-                          agent.isActive ? 'translate-x-5' : 'translate-x-1',
-                          'inline-block h-3 w-3 transform rounded-full bg-white transition-transform'
-                        )}
+                      
+                      <Switch
+                        checked={agent.isActive}
+                        onCheckedChange={() => toggleAgentStatus(agent)}
+                        className="data-[state=checked]:bg-green-600"
                       />
-                    </Switch>
-                  </div>
-
-                  <div className="space-y-2 mb-4">
-                    <div className="flex items-center text-sm text-gray-600">
-                      <span className="text-lg mr-2">{specialization.emoji || '🤖'}</span>
-                      <span>{specialization.name || 'Especialização'}</span>
-                    </div>
-                    
-                    <div className="flex items-center text-sm text-gray-600">
-                      <CpuChipIcon className="w-4 h-4 mr-2" />
-                      <span>{agent.model}</span>
-                    </div>
-                    
-                    <div className="flex items-center text-sm text-gray-600">
-                      <ChatBubbleLeftRightIcon className="w-4 h-4 mr-2" />
-                      <span>{agent.messageCount || 0} mensagens</span>
                     </div>
 
-                    {agent.replyToGroups && (
-                      <div className="flex items-center text-sm text-green-600">
-                        <UsersIcon className="w-4 h-4 mr-2" />
-                        <span>Responde em grupos</span>
+                    <div className="space-y-2 mb-4">
+                      <div className="flex items-center text-xs md:text-sm text-muted-foreground">
+                        <span className="text-base md:text-lg mr-2">{specialization.emoji || '🤖'}</span>
+                        <span>{specialization.name || 'Especialização'}</span>
                       </div>
-                    )}
-                  </div>
+                      
+                      <div className="flex items-center text-xs md:text-sm text-muted-foreground">
+                        <Cpu className="w-3 h-3 md:w-4 md:h-4 mr-2" />
+                        <span>{agent.model}</span>
+                      </div>
+                      
+                      <div className="flex items-center text-xs md:text-sm text-muted-foreground">
+                        <MessageCircle className="w-3 h-3 md:w-4 md:h-4 mr-2" />
+                        <span>{agent.messageCount || 0} mensagens</span>
+                      </div>
 
-                  <div className="flex space-x-2">
-                    <Button
-                      onClick={() => handleViewDetails(agent)}
-                      className="flex-1 bg-blue-50 text-blue-700 py-2 px-3 rounded-lg hover:bg-blue-100 transition-colors duration-200 flex items-center justify-center text-sm font-medium"
-                    >
-                      <EyeIcon className="w-4 h-4 mr-1" />
-                      Detalhes
-                    </Button>
-                    
-                    <Button
-                      onClick={() => handleDeleteAgent(agent)}
-                      className="bg-red-50 text-red-700 py-2 px-3 rounded-lg hover:bg-red-100 transition-colors duration-200 flex items-center justify-center"
-                    >
-                      <TrashIcon className="w-4 h-4" />
-                    </Button>
-                  </div>
-                </div>
+                      {agent.replyToGroups && (
+                        <div className="flex items-center text-xs md:text-sm text-green-600">
+                          <Users className="w-3 h-3 md:w-4 md:h-4 mr-2" />
+                          <span>Responde em grupos</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="flex space-x-2">
+                      <Button
+                        onClick={() => handleViewDetails(agent)}
+                        variant="outline"
+                        size="sm"
+                        className="flex-1 h-8 md:h-9"
+                      >
+                        <Eye className="w-3 h-3 md:w-4 md:h-4 mr-1" />
+                        <span className="hidden sm:inline">Detalhes</span>
+                        <span className="sm:hidden">Ver</span>
+                      </Button>
+                      
+                      <Button
+                        onClick={() => handleDeleteAgent(agent)}
+                        variant="outline"
+                        size="sm"
+                        className="text-destructive hover:text-destructive-foreground hover:bg-destructive h-8 md:h-9 px-2 md:px-3"
+                      >
+                        <Trash2 className="w-3 h-3 md:w-4 md:h-4" />
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
               );
             })}
           </div>
         )}
-      </div>
+      </CardContent>
 
       {/* Detail Modal */}
-      <Transition show={showDetailModal} as={Fragment}>
-        <Dialog as="div" className="relative z-50" onClose={setShowDetailModal}>
-          <Transition.Child
-            as={Fragment}
-            enter="ease-out duration-300"
-            enterFrom="opacity-0"
-            enterTo="opacity-100"
-            leave="ease-in duration-200"
-            leaveFrom="opacity-100"
-            leaveTo="opacity-0"
-          >
-            <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm" />
-          </Transition.Child>
-
-          <div className="fixed inset-0 overflow-y-auto">
-            <div className="flex min-h-full items-center justify-center p-4">
-              <Transition.Child
-                as={Fragment}
-                enter="ease-out duration-300"
-                enterFrom="opacity-0 scale-95"
-                enterTo="opacity-100 scale-100"
-                leave="ease-in duration-200"
-                leaveFrom="opacity-100 scale-100"
-                leaveTo="opacity-0 scale-95"
-              >
-                <Dialog.Panel className="w-full max-w-2xl transform overflow-hidden rounded-2xl bg-white shadow-2xl transition-all">
-                  {selectedAgent && (
-                    <div>
-                      <div className="bg-gradient-to-r from-purple-500 to-pink-500 px-6 py-4">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center">
-                            <div className="w-12 h-12 bg-white bg-opacity-20 rounded-full flex items-center justify-center text-2xl mr-4">
-                              {personalities[selectedAgent.personality]?.emoji || '🤖'}
-                            </div>
-                            <div>
-                              <Dialog.Title className="text-xl font-bold text-white">
-                                {selectedAgent.name}
-                              </Dialog.Title>
-                              <p className="text-purple-100">
-                                {specializations[selectedAgent.specialization]?.name}
-                              </p>
-                            </div>
-                          </div>
-                          
-                          <Button
-                            onClick={() => setShowDetailModal(false)}
-                            className="text-white hover:bg-white hover:bg-opacity-20 rounded-lg p-2 transition-colors"
-                          >
-                            <XMarkIcon className="w-6 h-6" />
-                          </Button>
-                        </div>
-                      </div>
-
-                      <div className="p-6">
-                        <Tab.Group>
-                          <Tab.List className="flex space-x-1 rounded-xl bg-gray-100 p-1">
-                            <Tab className={({ selected }) =>
-                              classNames(
-                                'w-full rounded-lg py-2.5 text-sm font-medium leading-5',
-                                selected
-                                  ? 'bg-white text-purple-700 shadow'
-                                  : 'text-gray-600 hover:bg-white/[0.12] hover:text-gray-700'
-                              )
-                            }>
-                              Configuração
-                            </Tab>
-                            <Tab className={({ selected }) =>
-                              classNames(
-                                'w-full rounded-lg py-2.5 text-sm font-medium leading-5',
-                                selected
-                                  ? 'bg-white text-purple-700 shadow'
-                                  : 'text-gray-600 hover:bg-white/[0.12] hover:text-gray-700'
-                              )
-                            }>
-                              Estatísticas
-                            </Tab>
-                          </Tab.List>
-                          
-                          <Tab.Panels className="mt-6">
-                            <Tab.Panel className="space-y-4">
-                              <div className="grid grid-cols-2 gap-4">
-                                <div className="bg-gray-50 rounded-lg p-4">
-                                  <div className="text-sm text-gray-600 mb-1">Modelo de IA</div>
-                                  <div className="font-medium">{selectedAgent.model}</div>
-                                </div>
-                                
-                                <div className="bg-gray-50 rounded-lg p-4">
-                                  <div className="text-sm text-gray-600 mb-1">Personalidade</div>
-                                  <div className="font-medium">
-                                    {personalities[selectedAgent.personality]?.name}
-                                  </div>
-                                </div>
-                                
-                                <div className="bg-gray-50 rounded-lg p-4">
-                                  <div className="text-sm text-gray-600 mb-1">Sessão WhatsApp</div>
-                                  <div className="font-medium text-sm">{selectedAgent.sessionId}</div>
-                                </div>
-                                
-                                <div className="bg-gray-50 rounded-lg p-4">
-                                  <div className="text-sm text-gray-600 mb-1">Status</div>
-                                  <div className={`font-medium flex items-center ${
-                                    selectedAgent.isActive ? 'text-green-600' : 'text-red-600'
-                                  }`}>
-                                    <div className={`w-2 h-2 rounded-full mr-2 ${
-                                      selectedAgent.isActive ? 'bg-green-500' : 'bg-red-500'
-                                    }`} />
-                                    {selectedAgent.isActive ? 'Ativo' : 'Inativo'}
-                                  </div>
-                                </div>
-                              </div>
-                              
-                              {selectedAgent.description && (
-                                <div className="bg-gray-50 rounded-lg p-4">
-                                  <div className="text-sm text-gray-600 mb-2">Descrição</div>
-                                  <div className="text-sm">{selectedAgent.description}</div>
-                                </div>
-                              )}
-                              
-                              <div className="grid grid-cols-2 gap-4">
-                                <div className="bg-gray-50 rounded-lg p-4">
-                                  <div className="text-sm text-gray-600 mb-1">Criado em</div>
-                                  <div className="text-sm">{formatDate(selectedAgent.createdAt)}</div>
-                                </div>
-                                
-                                <div className="bg-gray-50 rounded-lg p-4">
-                                  <div className="text-sm text-gray-600 mb-1">Atualizado em</div>
-                                  <div className="text-sm">{formatDate(selectedAgent.updatedAt)}</div>
-                                </div>
-                              </div>
-                            </Tab.Panel>
-                            
-                            <Tab.Panel className="space-y-4">
-                              {selectedAgent.conversations ? (
-                                <div className="grid grid-cols-2 gap-4">
-                                  <div className="bg-blue-50 rounded-lg p-4">
-                                    <div className="flex items-center">
-                                      <ChatBubbleLeftRightIcon className="w-6 h-6 text-blue-600 mr-2" />
-                                      <div>
-                                        <div className="text-2xl font-bold text-blue-600">
-                                          {selectedAgent.conversations.totalMessages}
-                                        </div>
-                                        <div className="text-sm text-blue-600">Total de Mensagens</div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                  
-                                  <div className="bg-green-50 rounded-lg p-4">
-                                    <div className="flex items-center">
-                                      <UsersIcon className="w-6 h-6 text-green-600 mr-2" />
-                                      <div>
-                                        <div className="text-2xl font-bold text-green-600">
-                                          {selectedAgent.conversations.uniqueChats}
-                                        </div>
-                                        <div className="text-sm text-green-600">Chats Únicos</div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                  
-                                  <div className="bg-purple-50 rounded-lg p-4">
-                                    <div className="flex items-center">
-                                      <UsersIcon className="w-6 h-6 text-purple-600 mr-2" />
-                                      <div>
-                                        <div className="text-2xl font-bold text-purple-600">
-                                          {selectedAgent.conversations.groupMessages}
-                                        </div>
-                                        <div className="text-sm text-purple-600">Mensagens em Grupos</div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                  
-                                  <div className="bg-indigo-50 rounded-lg p-4">
-                                    <div className="flex items-center">
-                                      <ChatBubbleLeftRightIcon className="w-6 h-6 text-indigo-600 mr-2" />
-                                      <div>
-                                        <div className="text-2xl font-bold text-indigo-600">
-                                          {selectedAgent.conversations.privateMessages}
-                                        </div>
-                                        <div className="text-sm text-indigo-600">Mensagens Privadas</div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              ) : (
-                                <div className="text-center py-8">
-                                  <ChartBarIcon className="w-12 h-12 text-gray-300 mx-auto mb-4" />
-                                  <p className="text-gray-500">Estatísticas não disponíveis</p>
-                                </div>
-                              )}
-                            </Tab.Panel>
-                          </Tab.Panels>
-                        </Tab.Group>
-                      </div>
-                    </div>
-                  )}
-                </Dialog.Panel>
-              </Transition.Child>
-            </div>
-          </div>
-        </Dialog>
-      </Transition>
-
-      {/* Delete Modal */}
-      <Transition show={showDeleteModal} as={Fragment}>
-        <Dialog as="div" className="relative z-50" onClose={setShowDeleteModal}>
-          <Transition.Child
-            as={Fragment}
-            enter="ease-out duration-300"
-            enterFrom="opacity-0"
-            enterTo="opacity-100"
-            leave="ease-in duration-200"
-            leaveFrom="opacity-100"
-            leaveTo="opacity-0"
-          >
-            <div className="fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm" />
-          </Transition.Child>
-
-          <div className="fixed inset-0 overflow-y-auto">
-            <div className="flex min-h-full items-center justify-center p-4">
-              <Transition.Child
-                as={Fragment}
-                enter="ease-out duration-300"
-                enterFrom="opacity-0 scale-95"
-                enterTo="opacity-100 scale-100"
-                leave="ease-in duration-200"
-                leaveFrom="opacity-100 scale-100"
-                leaveTo="opacity-0 scale-95"
-              >
-                <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl bg-white p-6 shadow-2xl transition-all">
+      <Dialog open={showDetailModal} onOpenChange={setShowDetailModal}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          {selectedAgent && (
+            <div>
+              <div className="bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-t-lg -m-6 mb-6 px-4 md:px-6 py-4">
+                <div className="flex items-center justify-between">
                   <div className="flex items-center">
-                    <div className="mx-auto flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-full bg-red-100">
-                      <ExclamationTriangleIcon className="h-6 w-6 text-red-600" />
+                    <div className="w-10 h-10 md:w-12 md:h-12 bg-white bg-opacity-20 rounded-full flex items-center justify-center text-lg md:text-2xl mr-3 md:mr-4">
+                      {personalities[selectedAgent.personality]?.emoji || '🤖'}
                     </div>
+                    <div>
+                      <DialogTitle className="text-lg md:text-xl font-bold">
+                        {selectedAgent.name}
+                      </DialogTitle>
+                      <DialogDescription className="text-purple-100 text-sm md:text-base">
+                        {specializations[selectedAgent.specialization]?.name}
+                      </DialogDescription>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <Tabs defaultValue="config" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="config" className="text-xs md:text-sm">
+                    Configuração
+                  </TabsTrigger>
+                  <TabsTrigger value="stats" className="text-xs md:text-sm">
+                    Estatísticas
+                  </TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="config" className="space-y-4 mt-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                    <Card>
+                      <CardContent className="p-3 md:p-4">
+                        <div className="text-xs md:text-sm text-muted-foreground mb-1">Modelo de IA</div>
+                        <div className="font-medium text-sm md:text-base">{selectedAgent.model}</div>
+                      </CardContent>
+                    </Card>
+                    
+                    <Card>
+                      <CardContent className="p-3 md:p-4">
+                        <div className="text-xs md:text-sm text-muted-foreground mb-1">Personalidade</div>
+                        <div className="font-medium text-sm md:text-base">
+                          {personalities[selectedAgent.personality]?.name}
+                        </div>
+                      </CardContent>
+                    </Card>
+                    
+                    <Card>
+                      <CardContent className="p-3 md:p-4">
+                        <div className="text-xs md:text-sm text-muted-foreground mb-1">Sessão WhatsApp</div>
+                        <div className="font-medium text-xs md:text-sm">{selectedAgent.sessionId}</div>
+                      </CardContent>
+                    </Card>
+                    
+                    <Card>
+                      <CardContent className="p-3 md:p-4">
+                        <div className="text-xs md:text-sm text-muted-foreground mb-1">Status</div>
+                        <div className="flex items-center">
+                          <div className={`w-2 h-2 rounded-full mr-2 ${
+                            selectedAgent.isActive ? 'bg-green-500' : 'bg-red-500'
+                          }`} />
+                          <Badge variant={selectedAgent.isActive ? "default" : "secondary"}>
+                            {selectedAgent.isActive ? 'Ativo' : 'Inativo'}
+                          </Badge>
+                        </div>
+                      </CardContent>
+                    </Card>
                   </div>
                   
-                  <div className="mt-4 text-center">
-                    <Dialog.Title className="text-lg font-medium text-gray-900">
-                      Deletar Agente
-                    </Dialog.Title>
+                  {selectedAgent.description && (
+                    <Card>
+                      <CardContent className="p-3 md:p-4">
+                        <div className="text-xs md:text-sm text-muted-foreground mb-2">Descrição</div>
+                        <div className="text-sm">{selectedAgent.description}</div>
+                      </CardContent>
+                    </Card>
+                  )}
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                    <Card>
+                      <CardContent className="p-3 md:p-4">
+                        <div className="text-xs md:text-sm text-muted-foreground mb-1">Criado em</div>
+                        <div className="text-xs md:text-sm">{formatDate(selectedAgent.createdAt)}</div>
+                      </CardContent>
+                    </Card>
                     
-                    <div className="mt-2">
-                      <p className="text-sm text-gray-500">
-                        Tem certeza que deseja deletar o agente <strong>{agentToDelete?.name}</strong>? 
-                        Esta ação não pode ser desfeita e todos os dados do agente serão perdidos.
-                      </p>
+                    <Card>
+                      <CardContent className="p-3 md:p-4">
+                        <div className="text-xs md:text-sm text-muted-foreground mb-1">Atualizado em</div>
+                        <div className="text-xs md:text-sm">{formatDate(selectedAgent.updatedAt)}</div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value="stats" className="space-y-4 mt-4">
+                  {selectedAgent.conversations ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+                      <Card className="bg-blue-50 border-blue-200">
+                        <CardContent className="p-3 md:p-4">
+                          <div className="flex items-center">
+                            <MessageCircle className="w-5 h-5 md:w-6 md:h-6 text-blue-600 mr-2" />
+                            <div>
+                              <div className="text-lg md:text-2xl font-bold text-blue-600">
+                                {selectedAgent.conversations.totalMessages}
+                              </div>
+                              <div className="text-xs md:text-sm text-blue-600">Total de Mensagens</div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      
+                      <Card className="bg-green-50 border-green-200">
+                        <CardContent className="p-3 md:p-4">
+                          <div className="flex items-center">
+                            <Users className="w-5 h-5 md:w-6 md:h-6 text-green-600 mr-2" />
+                            <div>
+                              <div className="text-lg md:text-2xl font-bold text-green-600">
+                                {selectedAgent.conversations.uniqueChats}
+                              </div>
+                              <div className="text-xs md:text-sm text-green-600">Chats Únicos</div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      
+                      <Card className="bg-purple-50 border-purple-200">
+                        <CardContent className="p-3 md:p-4">
+                          <div className="flex items-center">
+                            <Users className="w-5 h-5 md:w-6 md:h-6 text-purple-600 mr-2" />
+                            <div>
+                              <div className="text-lg md:text-2xl font-bold text-purple-600">
+                                {selectedAgent.conversations.groupMessages}
+                              </div>
+                              <div className="text-xs md:text-sm text-purple-600">Mensagens em Grupos</div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                      
+                      <Card className="bg-indigo-50 border-indigo-200">
+                        <CardContent className="p-3 md:p-4">
+                          <div className="flex items-center">
+                            <MessageCircle className="w-5 h-5 md:w-6 md:h-6 text-indigo-600 mr-2" />
+                            <div>
+                              <div className="text-lg md:text-2xl font-bold text-indigo-600">
+                                {selectedAgent.conversations.privateMessages}
+                              </div>
+                              <div className="text-xs md:text-sm text-indigo-600">Mensagens Privadas</div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
                     </div>
-                  </div>
+                  ) : (
+                    <div className="text-center py-6 md:py-8">
+                      <BarChart3 className="w-8 h-8 md:w-12 md:h-12 text-muted-foreground mx-auto mb-4" />
+                      <p className="text-muted-foreground text-sm md:text-base">Estatísticas não disponíveis</p>
+                    </div>
+                  )}
+                </TabsContent>
+              </Tabs>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
-                  <div className="mt-6 flex space-x-3">
-                    <Button
-                      onClick={() => setShowDeleteModal(false)}
-                      disabled={isDeleting}
-                      className="flex-1 bg-gray-100 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-200 transition-colors duration-200"
-                    >
-                      Cancelar
-                    </Button>
-                    
-                    <Button
-                      onClick={confirmDelete}
-                      disabled={isDeleting}
-                      className="flex-1 bg-red-600 text-white py-2 px-4 rounded-lg hover:bg-red-700 transition-colors duration-200 disabled:opacity-50"
-                    >
-                      {isDeleting ? 'Deletando...' : 'Deletar'}
-                    </Button>
-                  </div>
-                </Dialog.Panel>
-              </Transition.Child>
+      {/* Delete Modal */}
+      <Dialog open={showDeleteModal} onOpenChange={setShowDeleteModal}>
+        <DialogContent className="max-w-md">
+          <div className="flex items-center">
+            <div className="mx-auto flex h-10 w-10 md:h-12 md:w-12 flex-shrink-0 items-center justify-center rounded-full bg-destructive/10">
+              <AlertTriangle className="h-5 w-5 md:h-6 md:w-6 text-destructive" />
             </div>
           </div>
-        </Dialog>
-      </Transition>
-    </div>
+          
+          <div className="mt-4 text-center">
+            <DialogTitle className="text-base md:text-lg font-medium">
+              Deletar Agente
+            </DialogTitle>
+            
+            <DialogDescription className="mt-2 text-sm md:text-base">
+              Tem certeza que deseja deletar o agente <strong>{agentToDelete?.name}</strong>? 
+              Esta ação não pode ser desfeita e todos os dados do agente serão perdidos.
+            </DialogDescription>
+          </div>
+
+          <div className="mt-6 flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
+            <Button
+              onClick={() => setShowDeleteModal(false)}
+              disabled={isDeleting}
+              variant="outline"
+              className="flex-1"
+            >
+              Cancelar
+            </Button>
+            
+            <Button
+              onClick={confirmDelete}
+              disabled={isDeleting}
+              variant="destructive"
+              className="flex-1"
+            >
+              {isDeleting ? 'Deletando...' : 'Deletar'}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </Card>
   );
 }

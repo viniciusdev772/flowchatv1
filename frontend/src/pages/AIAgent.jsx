@@ -366,33 +366,35 @@ export default function AIAgent() {
 
   return (
     <div className="min-h-screen bg-white">
-      <div className="container mx-auto py-8 space-y-8">
+      <div className="container mx-auto px-4 py-4 md:py-8 space-y-4 md:space-y-8">
       {/* Header */}
-      <div className="text-center space-y-4">
-        <div className="flex items-center justify-center space-x-3">
-          <div className="p-3 rounded-full border">
-            <Sparkles className="h-8 w-8" />
+      <div className="text-center space-y-2 md:space-y-4">
+        <div className="flex items-center justify-center space-x-2 md:space-x-3">
+          <div className="p-2 md:p-3 rounded-full border">
+            <Sparkles className="h-6 w-6 md:h-8 md:w-8" />
           </div>
-          <h1 className="text-4xl font-bold">
+          <h1 className="text-2xl md:text-4xl font-bold">
             Agentes de IA
           </h1>
         </div>
-        <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
+        <p className="text-sm md:text-lg text-muted-foreground max-w-2xl mx-auto px-4">
           Crie e gerencie assistentes inteligentes para WhatsApp com tecnologia de ponta
         </p>
       </div>
 
       {/* Tab Navigation */}
-      <div className="flex justify-center">
+      <div className="flex justify-center px-4">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full max-w-md">
-          <TabsList className="grid w-full grid-cols-2 h-12">
-            <TabsTrigger value="create" className="flex items-center gap-2 text-sm font-medium">
-              <Plus className="h-4 w-4" />
-              Criar Agente
+          <TabsList className="grid w-full grid-cols-2 h-10 md:h-12">
+            <TabsTrigger value="create" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm font-medium">
+              <Plus className="h-3 w-3 md:h-4 md:w-4" />
+              <span className="hidden sm:inline">Criar Agente</span>
+              <span className="sm:hidden">Criar</span>
             </TabsTrigger>
-            <TabsTrigger value="manage" className="flex items-center gap-2 text-sm font-medium">
-              <Settings className="h-4 w-4" />
-              Gerenciar
+            <TabsTrigger value="manage" className="flex items-center gap-1 md:gap-2 text-xs md:text-sm font-medium">
+              <Settings className="h-3 w-3 md:h-4 md:w-4" />
+              <span className="hidden sm:inline">Gerenciar</span>
+              <span className="sm:hidden">Gerenciar</span>
             </TabsTrigger>
           </TabsList>
         </Tabs>
@@ -404,60 +406,60 @@ export default function AIAgent() {
           <AgentsList onRefresh={() => {}} />
         </div>
       ) : (
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-4xl mx-auto px-4">
             {/* Progress Steps */}
-            <div className="mb-12">
-              <div className="flex justify-between items-center mb-6">
+            <div className="mb-6 md:mb-12">
+              <div className="flex justify-between items-center mb-4 md:mb-6 overflow-x-auto">
                 {steps.map((step, index) => (
                   <div
                     key={step.id}
-                    className="flex flex-col items-center space-y-2 flex-1"
+                    className="flex flex-col items-center space-y-1 md:space-y-2 flex-1 min-w-0 px-1"
                   >
                     <div
-                      className={`relative w-12 h-12 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${
+                      className={`relative w-8 h-8 md:w-12 md:h-12 rounded-full flex items-center justify-center border-2 transition-all duration-300 ${
                         currentStep >= step.id
                           ? 'bg-primary border-primary text-primary-foreground'
                           : 'bg-background border-muted-foreground/30 text-muted-foreground'
                       }`}
                     >
                       {currentStep > step.id ? (
-                        <CheckCircle className="h-6 w-6" />
+                        <CheckCircle className="h-4 w-4 md:h-6 md:w-6" />
                       ) : (
-                        <step.icon className={`h-6 w-6 ${step.color}`} />
+                        <step.icon className={`h-4 w-4 md:h-6 md:w-6 ${step.color}`} />
                       )}
                     </div>
                     <div className="text-center">
-                      <p className={`text-sm font-medium ${
+                      <p className={`text-xs md:text-sm font-medium ${
                         currentStep >= step.id ? 'text-foreground' : 'text-muted-foreground'
                       }`}>
                         {step.name}
                       </p>
-                      <p className="text-xs text-muted-foreground">{step.description}</p>
+                      <p className="text-xs text-muted-foreground hidden md:block">{step.description}</p>
                     </div>
                     {index < steps.length - 1 && (
-                      <div className={`absolute top-6 left-full w-full h-0.5 -translate-y-1/2 ${
+                      <div className={`absolute top-4 md:top-6 left-full w-full h-0.5 -translate-y-1/2 ${
                         currentStep > step.id ? 'bg-primary' : 'bg-muted'
                       }`} />
                     )}
                   </div>
                 ))}
               </div>
-              <Progress value={progress} className="h-2" />
+              <Progress value={progress} className="h-1 md:h-2" />
             </div>
 
             {/* Error Display */}
             {error && (
-              <div className="mb-6 p-4 border border-destructive/50 bg-destructive/10 rounded-lg flex items-start gap-3">
-                <AlertCircle className="h-5 w-5 text-destructive mt-0.5 flex-shrink-0" />
+              <div className="mb-4 md:mb-6 p-3 md:p-4 border border-destructive/50 bg-destructive/10 rounded-lg flex items-start gap-2 md:gap-3">
+                <AlertCircle className="h-4 w-4 md:h-5 md:w-5 text-destructive mt-0.5 flex-shrink-0" />
                 <div>
-                  <p className="font-medium text-destructive">Erro</p>
-                  <p className="text-sm text-destructive/80">{error}</p>
+                  <p className="font-medium text-destructive text-sm md:text-base">Erro</p>
+                  <p className="text-xs md:text-sm text-destructive/80">{error}</p>
                 </div>
               </div>
             )}
 
             {/* Step Content */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-8">
               {/* Main Content */}
               <div className="lg:col-span-2">
                   {/* Step 1: Session Selection */}
@@ -473,9 +475,9 @@ export default function AIAgent() {
                             Selecione uma sessão ativa para o seu agente de IA
                           </CardDescription>
                         </CardHeader>
-                        <CardContent className="p-6 space-y-6">
+                        <CardContent className="p-4 md:p-6 space-y-4 md:space-y-6">
                           <div className="space-y-3">
-                            <Label htmlFor="session" className="text-base font-medium">
+                            <Label htmlFor="session" className="text-sm md:text-base font-medium">
                               Sessão WhatsApp
                             </Label>
                             <Select 
@@ -485,16 +487,16 @@ export default function AIAgent() {
                                 setValidationErrors(prev => ({ ...prev, sessionId: undefined }))
                               }}
                             >
-                              <SelectTrigger className={`h-12 ${validationErrors.sessionId ? 'border-destructive' : ''}`}>
+                              <SelectTrigger className={`h-10 md:h-12 ${validationErrors.sessionId ? 'border-destructive' : ''}`}>
                                 <SelectValue placeholder="Selecione uma sessão conectada..." />
                               </SelectTrigger>
                               <SelectContent>
                                 {sessions.map((session) => (
                                   <SelectItem key={session.sessionId} value={session.sessionId}>
-                                    <div className="flex items-center gap-3">
-                                      <div className="w-3 h-3 bg-green-500 rounded-full" />
+                                    <div className="flex items-center gap-2 md:gap-3">
+                                      <div className="w-2 h-2 md:w-3 md:h-3 bg-green-500 rounded-full" />
                                       <div>
-                                        <p className="font-medium">{session.sessionId}</p>
+                                        <p className="font-medium text-sm md:text-base">{session.sessionId}</p>
                                         <p className="text-xs text-muted-foreground">Conectado</p>
                                       </div>
                                     </div>
@@ -503,15 +505,15 @@ export default function AIAgent() {
                               </SelectContent>
                             </Select>
                             {validationErrors.sessionId && (
-                              <p className="text-sm text-destructive flex items-center gap-1">
-                                <AlertCircle className="h-4 w-4" />
+                              <p className="text-xs md:text-sm text-destructive flex items-center gap-1">
+                                <AlertCircle className="h-3 w-3 md:h-4 md:w-4" />
                                 {validationErrors.sessionId}
                               </p>
                             )}
                             {sessions.length === 0 && (
-                              <div className="p-4 border rounded-lg">
-                                <p className="text-sm text-muted-foreground flex items-center gap-2">
-                                  <AlertCircle className="h-4 w-4" />
+                              <div className="p-3 md:p-4 border rounded-lg">
+                                <p className="text-xs md:text-sm text-muted-foreground flex items-center gap-2">
+                                  <AlertCircle className="h-3 w-3 md:h-4 md:w-4" />
                                   Nenhuma sessão conectada encontrada. Conecte uma sessão WhatsApp primeiro.
                                 </p>
                               </div>
@@ -524,22 +526,22 @@ export default function AIAgent() {
 
                   {/* Step 2: Configuration */}
                   {currentStep === 2 && (
-                    <div className="space-y-6">
+                    <div className="space-y-4 md:space-y-6">
                       <Card>
                         <CardHeader>
-                          <CardTitle className="flex items-center gap-3">
-                            <Sparkles className="h-6 w-6" />
+                          <CardTitle className="flex items-center gap-2 md:gap-3 text-lg md:text-xl">
+                            <Sparkles className="h-5 w-5 md:h-6 md:w-6" />
                             Configuração do Agente
                           </CardTitle>
-                          <CardDescription>
+                          <CardDescription className="text-sm md:text-base">
                             Defina a identidade e comportamento do seu assistente
                           </CardDescription>
                         </CardHeader>
-                        <CardContent className="p-6 space-y-6">
+                        <CardContent className="p-4 md:p-6 space-y-4 md:space-y-6">
                           {/* Basic Info */}
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                             <div className="space-y-3">
-                              <Label htmlFor="name" className="text-base font-medium">
+                              <Label htmlFor="name" className="text-sm md:text-base font-medium">
                                 Nome do Agente
                               </Label>
                               <Input
@@ -550,33 +552,33 @@ export default function AIAgent() {
                                   setFormData(prev => ({ ...prev, name: e.target.value }))
                                   setValidationErrors(prev => ({ ...prev, name: undefined }))
                                 }}
-                                className={`h-12 ${validationErrors.name ? 'border-destructive' : ''}`}
+                                className={`h-10 md:h-12 ${validationErrors.name ? 'border-destructive' : ''}`}
                               />
                               {validationErrors.name && (
-                                <p className="text-sm text-destructive flex items-center gap-1">
-                                  <AlertCircle className="h-4 w-4" />
+                                <p className="text-xs md:text-sm text-destructive flex items-center gap-1">
+                                  <AlertCircle className="h-3 w-3 md:h-4 md:w-4" />
                                   {validationErrors.name}
                                 </p>
                               )}
                             </div>
                             
                             <div className="space-y-3">
-                              <Label className="text-base font-medium">Especialização</Label>
+                              <Label className="text-sm md:text-base font-medium">Especialização</Label>
                               <Select 
                                 value={formData.specialization} 
                                 onValueChange={(value) =>
                                   setFormData(prev => ({ ...prev, specialization: value }))
                                 }
                               >
-                                <SelectTrigger className="h-12">
+                                <SelectTrigger className="h-10 md:h-12">
                                   <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
                                   {specializations.map((spec) => (
                                     <SelectItem key={spec.id} value={spec.id}>
                                       <div className="flex items-center gap-2">
-                                        <spec.icon className="h-4 w-4" />
-                                        {spec.name}
+                                        <spec.icon className="h-3 w-3 md:h-4 md:w-4" />
+                                        <span className="text-sm md:text-base">{spec.name}</span>
                                       </div>
                                     </SelectItem>
                                   ))}
@@ -587,7 +589,7 @@ export default function AIAgent() {
 
                           {/* Description */}
                           <div className="space-y-3">
-                            <Label htmlFor="description" className="text-base font-medium">
+                            <Label htmlFor="description" className="text-sm md:text-base font-medium">
                               Descrição (Opcional)
                             </Label>
                             <Textarea
@@ -596,13 +598,13 @@ export default function AIAgent() {
                               value={formData.description}
                               onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                               rows={3}
-                              className="resize-none"
+                              className="resize-none text-sm md:text-base"
                             />
                           </div>
 
                           {/* API Key */}
                           <div className="space-y-3">
-                            <Label htmlFor="apiKey" className="text-base font-medium">
+                            <Label htmlFor="apiKey" className="text-sm md:text-base font-medium">
                               Chave OpenAI API
                             </Label>
                             <Input
@@ -614,11 +616,11 @@ export default function AIAgent() {
                                 setFormData(prev => ({ ...prev, apiKey: e.target.value }))
                                 setValidationErrors(prev => ({ ...prev, apiKey: undefined }))
                               }}
-                              className={`h-12 ${validationErrors.apiKey ? 'border-destructive' : ''}`}
+                              className={`h-10 md:h-12 ${validationErrors.apiKey ? 'border-destructive' : ''}`}
                             />
                             {validationErrors.apiKey && (
-                              <p className="text-sm text-destructive flex items-center gap-1">
-                                <AlertCircle className="h-4 w-4" />
+                              <p className="text-xs md:text-sm text-destructive flex items-center gap-1">
+                                <AlertCircle className="h-3 w-3 md:h-4 md:w-4" />
                                 {validationErrors.apiKey}
                               </p>
                             )}
@@ -630,22 +632,22 @@ export default function AIAgent() {
 
                           {/* Personality */}
                           <div className="space-y-4">
-                            <Label className="text-base font-medium">Personalidade</Label>
-                            <div className="grid grid-cols-2 gap-3">
+                            <Label className="text-sm md:text-base font-medium">Personalidade</Label>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                               {personalities.map((personality) => (
                                 <div
                                   key={personality.id}
-                                  className={`p-4 border-2 rounded-lg cursor-pointer transition-all ${
+                                  className={`p-3 md:p-4 border-2 rounded-lg cursor-pointer transition-all ${
                                     formData.personality === personality.id
                                       ? 'border-primary bg-primary/5'
                                       : 'border-muted hover:border-primary/50'
                                   }`}
                                   onClick={() => setFormData(prev => ({ ...prev, personality: personality.id }))}
                                 >
-                                  <div className="flex items-center gap-3">
-                                    <span className="text-2xl">{personality.icon}</span>
+                                  <div className="flex items-center gap-2 md:gap-3">
+                                    <span className="text-xl md:text-2xl">{personality.icon}</span>
                                     <div>
-                                      <p className="font-medium">{personality.name}</p>
+                                      <p className="font-medium text-sm md:text-base">{personality.name}</p>
                                       <p className="text-xs text-muted-foreground">{personality.desc}</p>
                                     </div>
                                   </div>
@@ -660,21 +662,21 @@ export default function AIAgent() {
 
                   {/* Step 3: Advanced Settings */}
                   {currentStep === 3 && (
-                    <div className="space-y-6">
+                    <div className="space-y-4 md:space-y-6">
                       <Card>
                         <CardHeader>
-                          <CardTitle className="flex items-center gap-3">
-                            <Settings className="h-6 w-6" />
+                          <CardTitle className="flex items-center gap-2 md:gap-3 text-lg md:text-xl">
+                            <Settings className="h-5 w-5 md:h-6 md:w-6" />
                             Configurações Avançadas
                           </CardTitle>
-                          <CardDescription>
+                          <CardDescription className="text-sm md:text-base">
                             Ajuste o comportamento e capacidades do agente
                           </CardDescription>
                         </CardHeader>
-                        <CardContent className="p-6 space-y-8">
+                        <CardContent className="p-4 md:p-6 space-y-6 md:space-y-8">
                           {/* Creativity Slider */}
                           <div className="space-y-4">
-                            <Label className="text-base font-medium flex items-center gap-2">
+                            <Label className="text-sm md:text-base font-medium flex items-center gap-2">
                               <Brain className="h-4 w-4" />
                               Criatividade: {formData.creativity}%
                             </Label>
@@ -700,7 +702,7 @@ export default function AIAgent() {
                           </div>
 
                           {/* Feature Toggles */}
-                          <div className="grid gap-6">
+                          <div className="grid gap-4 md:gap-6">
                             {[
                               {
                                 key: 'learningEnabled',
@@ -723,13 +725,13 @@ export default function AIAgent() {
                             ].map((feature) => (
                               <div
                                 key={feature.key}
-                                className="flex items-center justify-between p-4 border rounded-lg"
+                                className="flex items-center justify-between p-3 md:p-4 border rounded-lg"
                               >
-                                <div className="flex items-start gap-3">
-                                  <feature.icon className="h-5 w-5 text-primary mt-1" />
-                                  <div>
-                                    <Label className="text-base font-medium">{feature.title}</Label>
-                                    <p className="text-sm text-muted-foreground mt-1">
+                                <div className="flex items-start gap-2 md:gap-3 flex-1">
+                                  <feature.icon className="h-4 w-4 md:h-5 md:w-5 text-primary mt-1 flex-shrink-0" />
+                                  <div className="min-w-0 flex-1">
+                                    <Label className="text-sm md:text-base font-medium block">{feature.title}</Label>
+                                    <p className="text-xs md:text-sm text-muted-foreground mt-1">
                                       {feature.description}
                                     </p>
                                   </div>
@@ -739,18 +741,19 @@ export default function AIAgent() {
                                   onCheckedChange={(checked) =>
                                     setFormData(prev => ({ ...prev, [feature.key]: checked }))
                                   }
+                                  className="flex-shrink-0"
                                 />
                               </div>
                             ))}
                           </div>
 
                           {/* Summary */}
-                          <div className="border-t pt-6">
-                            <h4 className="font-semibold mb-6 flex items-center gap-2">
-                              <Activity className="h-5 w-5" />
+                          <div className="border-t pt-4 md:pt-6">
+                            <h4 className="font-semibold mb-4 md:mb-6 flex items-center gap-2 text-sm md:text-base">
+                              <Activity className="h-4 w-4 md:h-5 md:w-5" />
                               Resumo da Configuração
                             </h4>
-                            <div className="grid gap-4">
+                            <div className="grid gap-3 md:gap-4">
                               {[
                                 { label: 'Sessão', value: formData.sessionId, type: 'badge' },
                                 { label: 'Nome', value: formData.name },
@@ -762,13 +765,13 @@ export default function AIAgent() {
                                   key={item.label}
                                   className="flex justify-between items-center"
                                 >
-                                  <span className="text-muted-foreground">{item.label}:</span>
+                                  <span className="text-muted-foreground text-sm md:text-base">{item.label}:</span>
                                   {item.type === 'badge' ? (
-                                    <Badge variant="outline" className="font-mono">
+                                    <Badge variant="outline" className="font-mono text-xs md:text-sm">
                                       {item.value}
                                     </Badge>
                                   ) : (
-                                    <span className="font-medium">{item.value}</span>
+                                    <span className="font-medium text-sm md:text-base">{item.value}</span>
                                   )}
                                 </div>
                               ))}
@@ -782,14 +785,14 @@ export default function AIAgent() {
 
               {/* Sidebar */}
               <div className="lg:col-span-1">
-                <Card className="sticky top-8">
+                <Card className="sticky top-4 md:top-8">
                   <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Star className="h-5 w-5" />
+                    <CardTitle className="flex items-center gap-2 text-base md:text-lg">
+                      <Star className="h-4 w-4 md:h-5 md:w-5" />
                       Recursos Premium
                     </CardTitle>
                   </CardHeader>
-                  <CardContent className="space-y-4">
+                  <CardContent className="space-y-3 md:space-y-4 p-4 md:p-6">
                     {[
                       { icon: Brain, title: 'IA Avançada', desc: 'GPT-4 e modelos de última geração' },
                       { icon: Zap, title: 'Respostas Rápidas', desc: 'Processamento em tempo real' },
@@ -798,11 +801,11 @@ export default function AIAgent() {
                     ].map((feature, index) => (
                       <div
                         key={feature.title}
-                        className="flex items-start gap-3 p-3 rounded-lg border"
+                        className="flex items-start gap-2 md:gap-3 p-2 md:p-3 rounded-lg border"
                       >
-                        <feature.icon className="h-5 w-5 text-primary mt-1" />
+                        <feature.icon className="h-4 w-4 md:h-5 md:w-5 text-primary mt-1 flex-shrink-0" />
                         <div>
-                          <p className="font-medium text-sm">{feature.title}</p>
+                          <p className="font-medium text-xs md:text-sm">{feature.title}</p>
                           <p className="text-xs text-muted-foreground">{feature.desc}</p>
                         </div>
                       </div>
@@ -813,17 +816,19 @@ export default function AIAgent() {
             </div>
 
             {/* Navigation */}
-            <div className="flex justify-between items-center mt-8 pt-6 border-t">
+            <div className="flex justify-between items-center mt-4 md:mt-8 pt-4 md:pt-6 border-t">
               <Button
                 variant="outline"
                 onClick={prevStep}
                 disabled={currentStep === 1}
-                className="px-6"
+                className="px-4 md:px-6 h-9 md:h-10"
+                size="sm"
               >
-                Anterior
+                <span className="hidden sm:inline">Anterior</span>
+                <span className="sm:hidden">Ant</span>
               </Button>
 
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2 text-xs md:text-sm text-muted-foreground">
                 <span>Passo {currentStep} de {steps.length}</span>
               </div>
 
@@ -831,26 +836,31 @@ export default function AIAgent() {
                 <Button
                   onClick={nextStep}
                   disabled={!canProceed()}
-                  className="px-6"
+                  className="px-4 md:px-6 h-9 md:h-10"
+                  size="sm"
                 >
-                  Próximo
-                  <ChevronRight className="h-4 w-4 ml-1" />
+                  <span className="hidden sm:inline">Próximo</span>
+                  <span className="sm:hidden">Próx</span>
+                  <ChevronRight className="h-3 w-3 md:h-4 md:w-4 ml-1" />
                 </Button>
               ) : (
                 <Button
                   onClick={handleSubmit}
                   disabled={creating || !canProceed()}
-                  className="px-8"
+                  className="px-4 md:px-8 h-9 md:h-10"
+                  size="sm"
                 >
                   {creating ? (
                     <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Criando...
+                      <Loader2 className="h-3 w-3 md:h-4 md:w-4 mr-2 animate-spin" />
+                      <span className="hidden sm:inline">Criando...</span>
+                      <span className="sm:hidden">...</span>
                     </>
                   ) : (
                     <>
-                      <Rocket className="h-4 w-4 mr-2" />
-                      Criar Agente
+                      <Rocket className="h-3 w-3 md:h-4 md:w-4 mr-2" />
+                      <span className="hidden sm:inline">Criar Agente</span>
+                      <span className="sm:hidden">Criar</span>
                     </>
                   )}
                 </Button>
@@ -859,13 +869,13 @@ export default function AIAgent() {
 
             {/* Progress during creation */}
             {creating && (
-              <div className="fixed bottom-4 right-4 bg-background border rounded-lg shadow-lg p-4 min-w-[300px]">
+              <div className="fixed bottom-4 right-4 bg-background border rounded-lg shadow-lg p-3 md:p-4 min-w-[250px] md:min-w-[300px] z-50">
                 <div className="space-y-2">
                   <div className="flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    <span className="font-medium">Criando agente...</span>
+                    <Loader2 className="h-3 w-3 md:h-4 md:w-4 animate-spin" />
+                    <span className="font-medium text-sm md:text-base">Criando agente...</span>
                   </div>
-                  <Progress value={progress} className="h-2" />
+                  <Progress value={progress} className="h-1 md:h-2" />
                   <p className="text-xs text-muted-foreground">
                     {progress}% concluído
                   </p>
@@ -877,22 +887,23 @@ export default function AIAgent() {
 
       {/* Success Dialog */}
       <Dialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
-        <DialogContent className="max-w-md">
-          <div className="text-center space-y-4">
-            <div className="w-16 h-16 border rounded-full flex items-center justify-center mx-auto">
-              <CheckCircle className="h-8 w-8" />
+        <DialogContent className="max-w-sm md:max-w-md mx-4">
+          <div className="text-center space-y-3 md:space-y-4">
+            <div className="w-12 h-12 md:w-16 md:h-16 border rounded-full flex items-center justify-center mx-auto">
+              <CheckCircle className="h-6 w-6 md:h-8 md:w-8" />
             </div>
             <DialogHeader>
-              <DialogTitle className="text-xl">Agente Criado com Sucesso! 🎉</DialogTitle>
-              <DialogDescription>
+              <DialogTitle className="text-lg md:text-xl">Agente Criado com Sucesso! 🎉</DialogTitle>
+              <DialogDescription className="text-sm md:text-base">
                 Seu agente de IA está pronto e operacional. Você pode visualizá-lo na aba "Gerenciar".
               </DialogDescription>
             </DialogHeader>
-            <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row gap-2">
               <Button 
                 variant="outline" 
                 onClick={() => setShowSuccessDialog(false)}
-                className="flex-1"
+                className="flex-1 h-9 md:h-10"
+                size="sm"
               >
                 Fechar
               </Button>
@@ -901,7 +912,8 @@ export default function AIAgent() {
                   setShowSuccessDialog(false)
                   setActiveTab('manage')
                 }}
-                className="flex-1"
+                className="flex-1 h-9 md:h-10"
+                size="sm"
               >
                 Ver Agentes
               </Button>
