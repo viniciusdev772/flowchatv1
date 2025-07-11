@@ -1043,7 +1043,7 @@ export default function Dashboard() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <motion.div
           className="bg-card border rounded-lg shadow-sm p-8 text-center"
           initial={{ opacity: 0, scale: 0.9 }}
@@ -1051,12 +1051,12 @@ export default function Dashboard() {
           transition={{ duration: 0.5 }}
         >
           <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-            <ServerIcon className="w-8 h-8 text-white animate-pulse" />
+            <ServerIcon className="w-8 h-8 text-foreground animate-pulse" />
           </div>
-          <h2 className="text-xl font-semibold text-white mb-2">
+          <h2 className="text-xl font-semibold text-foreground mb-2">
             Carregando Dashboard
           </h2>
-          <p className="text-white/70">
+          <p className="text-muted-foreground">
             Conectando com suas sessões WhatsApp...
           </p>
           <div className="mt-4 flex justify-center">
@@ -1068,7 +1068,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+    <div className="min-h-screen bg-background">
       {/* Floating Elements Background - removidos em modo performance */}
       {!performanceMode && (
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
@@ -1107,13 +1107,13 @@ export default function Dashboard() {
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div className="flex items-center space-x-3 md:space-x-4">
               <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
-                <ChatBubbleLeftRightIcon className="w-5 h-5 md:w-6 md:h-6 text-white" />
+                <ChatBubbleLeftRightIcon className="w-5 h-5 md:w-6 md:h-6 text-foreground" />
               </div>
               <div>
-                <h1 className="text-lg md:text-2xl font-bold text-white">
+                <h1 className="text-lg md:text-2xl font-bold text-foreground">
                   FlowChat API
                 </h1>
-                <p className="text-xs md:text-sm text-white/70 hidden sm:block">
+                <p className="text-xs md:text-sm text-muted-foreground hidden sm:block">
                   Gerencie seus fluxos de mensagens
                 </p>
               </div>
@@ -1147,17 +1147,17 @@ export default function Dashboard() {
               >
                 <div className="flex items-center space-x-2">
                   <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                  <span className="text-sm text-white/80">Sistema Online</span>
+                  <span className="text-sm text-muted-foreground">Sistema Online</span>
                 </div>
               </div>
 
               {/* User Menu */}
               <div className="flex items-center space-x-3">
                 <div className="text-right">
-                  <div className="text-sm font-medium text-white">
+                  <div className="text-sm font-medium text-foreground">
                     {user?.name || 'Carregando...'}
                   </div>
-                  <div className="text-xs text-white/70 capitalize">
+                  <div className="text-xs text-muted-foreground capitalize">
                     {user?.role === 'user'
                       ? 'Usuário'
                       : user?.role === 'admin'
@@ -1165,7 +1165,7 @@ export default function Dashboard() {
                       : 'Carregando...'}
                   </div>
                   {user?.email && (
-                    <div className="text-xs text-white/50">{user.email}</div>
+                    <div className="text-xs text-muted-foreground">{user.email}</div>
                   )}
                 </div>
                 <motion.div
@@ -1182,7 +1182,7 @@ export default function Dashboard() {
                     />
                   ) : (
                     <div className="w-10 h-10 rounded-full bg-gradient-to-r from-green-400 to-blue-500 flex items-center justify-center hover:from-green-300 hover:to-blue-400 transition-colors">
-                      <span className="text-white font-semibold text-sm">
+                      <span className="text-foreground font-semibold text-sm">
                         {user?.name
                           ? user.name
                               .split(' ')
@@ -1205,7 +1205,7 @@ export default function Dashboard() {
                   whileTap={performanceMode ? {} : { scale: 0.95 }}
                   title="Sair"
                 >
-                  <ArrowRightOnRectangleIcon className="w-5 h-5 text-white/70" />
+                  <ArrowRightOnRectangleIcon className="w-5 h-5 text-muted-foreground" />
                 </motion.button>
               </div>
             </div>
@@ -1238,8 +1238,8 @@ export default function Dashboard() {
                   onClick={() => setActiveTab(tab.id)}
                   className={`flex-shrink-0 flex items-center space-x-2 px-3 py-2 rounded-lg text-sm transition-all duration-200 ${
                     activeTab === tab.id
-                      ? 'bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-white border border-blue-500/30'
-                      : 'text-white/70 hover:text-white hover:bg-white/5'
+                      ? 'bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-foreground border border-blue-500/30'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
                   }`}
                   whileTap={{ scale: 0.98 }}
                 >
@@ -1265,8 +1265,8 @@ export default function Dashboard() {
                   onClick={() => setActiveTab(tab.id)}
                   className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 ${
                     activeTab === tab.id
-                      ? 'bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-white border border-blue-500/30'
-                      : 'text-white/70 hover:text-white hover:bg-white/5'
+                      ? 'bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-foreground border border-blue-500/30'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
                   }`}
                   whileHover={{ scale: 1.01 }}
                   whileTap={{ scale: 0.99 }}
@@ -1289,24 +1289,24 @@ export default function Dashboard() {
               'bg-card border rounded-lg'
             } p-4 rounded-xl`}
           >
-            <h3 className="text-sm font-semibold text-white/80 mb-3">
+            <h3 className="text-sm font-semibold text-muted-foreground mb-3">
               Estatísticas Rápidas
             </h3>
             <div className="space-y-2">
               <div className="flex justify-between items-center">
-                <span className="text-xs text-white/60">Sessões Ativas</span>
+                <span className="text-xs text-foreground/60">Sessões Ativas</span>
                 <span className="text-sm font-medium text-green-400">
                   {stats.activeSessions}/{stats.totalSessions}
                 </span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-xs text-white/60">Mensagens</span>
+                <span className="text-xs text-foreground/60">Mensagens</span>
                 <span className="text-sm font-medium text-blue-400">
                   {stats.totalMessages}
                 </span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-xs text-white/60">Uptime</span>
+                <span className="text-xs text-foreground/60">Uptime</span>
                 <span className="text-sm font-medium text-purple-400">
                   {stats.uptime}
                 </span>
@@ -1377,17 +1377,17 @@ export default function Dashboard() {
                       >
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="text-white/70 text-sm">
+                            <p className="text-muted-foreground text-sm">
                               {stat.label}
                             </p>
-                            <p className="text-2xl font-bold text-white">
+                            <p className="text-2xl font-bold text-foreground">
                               {stat.value}
                             </p>
                           </div>
                           <div
                             className={`w-12 h-12 rounded-xl bg-gradient-to-r ${stat.color} flex items-center justify-center`}
                           >
-                            <Icon className="w-6 h-6 text-white" />
+                            <Icon className="w-6 h-6 text-foreground" />
                           </div>
                         </div>
                       </motion.div>
@@ -1402,7 +1402,7 @@ export default function Dashboard() {
                   } p-6 rounded-xl`}
                 >
                   <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-xl font-semibold text-white">
+                    <h2 className="text-xl font-semibold text-foreground">
                       Sessões Recentes
                     </h2>
                     <motion.button
@@ -1419,11 +1419,11 @@ export default function Dashboard() {
                   <div className="space-y-4">
                     {sessions.length === 0 ? (
                       <div className="text-center py-8">
-                        <PhoneIcon className="w-12 h-12 text-white/30 mx-auto mb-4" />
-                        <h4 className="text-lg font-semibold text-white mb-2">
+                        <PhoneIcon className="w-12 h-12 text-foreground/30 mx-auto mb-4" />
+                        <h4 className="text-lg font-semibold text-foreground mb-2">
                           Nenhuma Sessão Ativa
                         </h4>
-                        <p className="text-white/70 mb-4">
+                        <p className="text-muted-foreground mb-4">
                           Crie sua primeira sessão WhatsApp para começar a
                           enviar mensagens
                         </p>
@@ -1450,13 +1450,13 @@ export default function Dashboard() {
                         >
                           <div className="flex items-center space-x-4">
                             <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
-                              <PhoneIcon className="w-5 h-5 text-white" />
+                              <PhoneIcon className="w-5 h-5 text-foreground" />
                             </div>
                             <div>
-                              <h3 className="text-white font-medium">
+                              <h3 className="text-foreground font-medium">
                                 {session.name}
                               </h3>
-                              <p className="text-white/60 text-sm">
+                              <p className="text-foreground/60 text-sm">
                                 Última atividade: {session.lastSeen}
                               </p>
                             </div>
@@ -1479,10 +1479,10 @@ export default function Dashboard() {
                             </div>
 
                             <div className="text-right text-sm">
-                              <div className="text-white/70">
+                              <div className="text-muted-foreground">
                                 {session.messages} mensagens
                               </div>
-                              <div className="text-white/50">
+                              <div className="text-muted-foreground">
                                 {session.groups} grupos
                               </div>
                             </div>
@@ -1506,8 +1506,8 @@ export default function Dashboard() {
               >
                 <div className="bg-gradient-to-r from-blue-500/10 to-purple-500/10 border border-blue-500/20 rounded-2xl p-8 text-center">
                   <ServerIcon className="w-16 h-16 text-blue-400 mx-auto mb-4" />
-                  <h3 className="text-2xl font-bold text-white mb-2">Agente de IA</h3>
-                  <p className="text-white/70 mb-6">
+                  <h3 className="text-2xl font-bold text-foreground mb-2">Agente de IA</h3>
+                  <p className="text-muted-foreground mb-6">
                     Configure agentes de IA inteligentes para automatizar suas conversas no WhatsApp
                   </p>
                   <div className="flex items-center justify-center space-x-2 mb-6">
@@ -1520,7 +1520,7 @@ export default function Dashboard() {
                   </div>
                   <button
                     onClick={() => window.open('/ai-agent', '_blank')}
-                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white px-8 py-3 rounded-lg font-medium transition-all transform hover:scale-105 inline-flex items-center"
+                    className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-foreground px-8 py-3 rounded-lg font-medium transition-all transform hover:scale-105 inline-flex items-center"
                   >
                     <SparklesIcon className="w-5 h-5 mr-2" />
                     Criar Agente de IA
@@ -1539,7 +1539,7 @@ export default function Dashboard() {
                 className="space-y-6"
               >
                 <div className="flex items-center justify-between">
-                  <h2 className="text-2xl font-bold text-white">
+                  <h2 className="text-2xl font-bold text-foreground">
                     Gerenciar Sessões
                   </h2>
                   <motion.button
@@ -1567,13 +1567,13 @@ export default function Dashboard() {
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-4">
                           <div className="w-16 h-16 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
-                            <PhoneIcon className="w-8 h-8 text-white" />
+                            <PhoneIcon className="w-8 h-8 text-foreground" />
                           </div>
                           <div>
-                            <h3 className="text-xl font-semibold text-white">
+                            <h3 className="text-xl font-semibold text-foreground">
                               {session.name}
                             </h3>
-                            <p className="text-white/70">ID: {session.id}</p>
+                            <p className="text-muted-foreground">ID: {session.id}</p>
                             <div className="flex items-center space-x-4 mt-2">
                               <div
                                 className={`px-3 py-1 rounded-full border ${getStatusColor(
@@ -1589,7 +1589,7 @@ export default function Dashboard() {
                                     : 'Desconectado'}
                                 </span>
                               </div>
-                              <span className="text-sm text-white/60">
+                              <span className="text-sm text-foreground/60">
                                 Uptime: {session.uptime}
                               </span>
                             </div>
@@ -1598,21 +1598,21 @@ export default function Dashboard() {
 
                         <div className="flex items-center space-x-4">
                           <div className="text-right">
-                            <div className="text-sm text-white/70">
+                            <div className="text-sm text-muted-foreground">
                               Mensagens:{' '}
-                              <span className="text-white font-medium">
+                              <span className="text-foreground font-medium">
                                 {session.messages}
                               </span>
                             </div>
-                            <div className="text-sm text-white/70">
+                            <div className="text-sm text-muted-foreground">
                               Grupos:{' '}
-                              <span className="text-white font-medium">
+                              <span className="text-foreground font-medium">
                                 {session.groups}
                               </span>
                             </div>
-                            <div className="text-sm text-white/70">
+                            <div className="text-sm text-muted-foreground">
                               Webhooks:{' '}
-                              <span className="text-white font-medium">
+                              <span className="text-foreground font-medium">
                                 {session.webhooks}
                               </span>
                             </div>
@@ -1677,7 +1677,7 @@ export default function Dashboard() {
                         {session.qrCodeImage && (
                           <div className="mt-4 pt-4 border-t border-white/10">
                             <div className="flex items-center justify-between">
-                              <div className="text-sm text-white/70">
+                              <div className="text-sm text-muted-foreground">
                                 QR Code disponível para escaneamento:
                               </div>
                               <div className="w-20 h-20 bg-white/10 rounded-lg p-1">
@@ -1707,7 +1707,7 @@ export default function Dashboard() {
                 className="space-y-6"
               >
                 <div className="flex items-center justify-between">
-                  <h2 className="text-2xl font-bold text-white">
+                  <h2 className="text-2xl font-bold text-foreground">
                     Tokens de API
                   </h2>
                   <motion.button
@@ -1727,10 +1727,10 @@ export default function Dashboard() {
                   } p-6 rounded-xl`}
                 >
                   <div className="mb-6">
-                    <h3 className="text-lg font-semibold text-white mb-2">
+                    <h3 className="text-lg font-semibold text-foreground mb-2">
                       Como usar os tokens de API
                     </h3>
-                    <p className="text-white/70 mb-4">
+                    <p className="text-muted-foreground mb-4">
                       Use seus tokens para criar e gerenciar sessões WhatsApp.
                       Há duas formas principais:
                     </p>
@@ -1741,11 +1741,11 @@ export default function Dashboard() {
                           'bg-card border rounded-lg'
                         } p-4 rounded-xl`}
                       >
-                        <h4 className="text-white font-semibold mb-2 flex items-center">
+                        <h4 className="text-foreground font-semibold mb-2 flex items-center">
                           <DocumentTextIcon className="w-4 h-4 mr-2 text-blue-400" />
                           Via Swagger
                         </h4>
-                        <p className="text-white/70 text-sm mb-2">
+                        <p className="text-muted-foreground text-sm mb-2">
                           Acesse /api-docs e use o botão "Authorize"
                         </p>
                         <div className="font-mono text-xs text-green-400">
@@ -1758,11 +1758,11 @@ export default function Dashboard() {
                           'bg-card border rounded-lg'
                         } p-4 rounded-xl`}
                       >
-                        <h4 className="text-white font-semibold mb-2 flex items-center">
+                        <h4 className="text-foreground font-semibold mb-2 flex items-center">
                           <ClipboardDocumentIcon className="w-4 h-4 mr-2 text-purple-400" />
                           Via cURL
                         </h4>
-                        <p className="text-white/70 text-sm mb-2">
+                        <p className="text-muted-foreground text-sm mb-2">
                           Use o botão 📋 do token
                         </p>
                         <div className="font-mono text-xs text-purple-400">
@@ -1787,11 +1787,11 @@ export default function Dashboard() {
 
                   {apiTokens.length === 0 ? (
                     <div className="text-center py-12">
-                      <KeyIcon className="w-16 h-16 text-white/30 mx-auto mb-4" />
-                      <h3 className="text-lg font-semibold text-white mb-2">
+                      <KeyIcon className="w-16 h-16 text-foreground/30 mx-auto mb-4" />
+                      <h3 className="text-lg font-semibold text-foreground mb-2">
                         Nenhum token criado
                       </h3>
-                      <p className="text-white/70 mb-6">
+                      <p className="text-muted-foreground mb-6">
                         Crie seu primeiro token de API para começar a usar o
                         WhatsApp Bot
                       </p>
@@ -1820,7 +1820,7 @@ export default function Dashboard() {
                           <div className="flex items-center justify-between">
                             <div className="flex-1">
                               <div className="flex items-center space-x-3 mb-2">
-                                <h4 className="text-lg font-semibold text-white">
+                                <h4 className="text-lg font-semibold text-foreground">
                                   {token.name}
                                 </h4>
                                 <span
@@ -1840,20 +1840,20 @@ export default function Dashboard() {
                               </div>
                               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                                 <div>
-                                  <span className="text-white/60">
+                                  <span className="text-foreground/60">
                                     Criado em:
                                   </span>
-                                  <div className="text-white">
+                                  <div className="text-foreground">
                                     {new Date(
                                       token.createdAt
                                     ).toLocaleDateString('pt-BR')}
                                   </div>
                                 </div>
                                 <div>
-                                  <span className="text-white/60">
+                                  <span className="text-foreground/60">
                                     Expira em:
                                   </span>
-                                  <div className="text-white">
+                                  <div className="text-foreground">
                                     {token.expiresAt
                                       ? new Date(
                                           token.expiresAt
@@ -1862,10 +1862,10 @@ export default function Dashboard() {
                                   </div>
                                 </div>
                                 <div>
-                                  <span className="text-white/60">
+                                  <span className="text-foreground/60">
                                     Último uso:
                                   </span>
-                                  <div className="text-white">
+                                  <div className="text-foreground">
                                     {token.lastUsedAt
                                       ? new Date(
                                           token.lastUsedAt
@@ -1950,10 +1950,10 @@ export default function Dashboard() {
                     <div className="flex items-center">
                       <BellIcon className="w-8 h-8 text-blue-400 mr-3" />
                       <div>
-                        <h2 className="text-2xl font-semibold text-white">
+                        <h2 className="text-2xl font-semibold text-foreground">
                           Gerenciar Webhooks
                         </h2>
-                        <p className="text-white/70">
+                        <p className="text-muted-foreground">
                           Configure webhooks para receber eventos em tempo real
                         </p>
                       </div>
@@ -1962,11 +1962,11 @@ export default function Dashboard() {
 
                   {userSessions.length === 0 ? (
                     <div className="text-center py-12">
-                      <BellIcon className="w-16 h-16 text-white/30 mx-auto mb-4" />
-                      <h3 className="text-lg font-medium text-white mb-2">
+                      <BellIcon className="w-16 h-16 text-foreground/30 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-foreground mb-2">
                         Nenhuma sessão disponível
                       </h3>
-                      <p className="text-white/70">
+                      <p className="text-muted-foreground">
                         Crie uma sessão primeiro para configurar webhooks
                       </p>
                     </div>
@@ -1990,7 +1990,7 @@ export default function Dashboard() {
                           <div className="flex items-center justify-between mb-4">
                             <div className="flex items-center">
                               <PhoneIcon className="w-6 h-6 text-blue-400 mr-3" />
-                              <h3 className="text-lg font-semibold text-white">
+                              <h3 className="text-lg font-semibold text-foreground">
                                 {session.sessionId}
                               </h3>
                             </div>
@@ -2003,10 +2003,10 @@ export default function Dashboard() {
                             </div>
                           </div>
 
-                          <div className="space-y-2 text-sm text-white/70">
+                          <div className="space-y-2 text-sm text-muted-foreground">
                             <div className="flex justify-between">
                               <span>Status:</span>
-                              <span className="text-white">
+                              <span className="text-foreground">
                                 {session.status || 'Desconectado'}
                               </span>
                             </div>
@@ -2059,12 +2059,12 @@ export default function Dashboard() {
                   } p-8 text-center rounded-xl`}
                 >
                   <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-full flex items-center justify-center">
-                    <CogIcon className="w-10 h-10 text-white/70" />
+                    <CogIcon className="w-10 h-10 text-muted-foreground" />
                   </div>
-                  <h2 className="text-2xl font-semibold text-white mb-2">
+                  <h2 className="text-2xl font-semibold text-foreground mb-2">
                     {tabs.find((tab) => tab.id === activeTab)?.name}
                   </h2>
-                  <p className="text-white/70 mb-6">
+                  <p className="text-muted-foreground mb-6">
                     Esta seção está em desenvolvimento. Em breve você poderá
                     gerenciar todas as funcionalidades da API aqui.
                   </p>
@@ -2101,19 +2101,19 @@ export default function Dashboard() {
               exit={{ scale: 0.9, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 className="text-xl font-semibold text-white mb-4">
+              <h3 className="text-xl font-semibold text-foreground mb-4">
                 Nova Sessão WhatsApp
               </h3>
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-white/80 mb-2">
+                  <label className="block text-sm font-medium text-muted-foreground mb-2">
                     Nome da Sessão
                   </label>
                   <input
                     type="text"
                     className={`w-full px-4 py-3 ${
                       'bg-card border rounded-lg'
-                    } rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-500 focus:outline-none`}
+                    } rounded-xl text-foreground placeholder-white/50 focus:ring-2 focus:ring-blue-500 focus:outline-none`}
                     placeholder="Ex: Vendas, Suporte, Marketing..."
                   />
                 </div>
@@ -2160,7 +2160,7 @@ export default function Dashboard() {
               exit={{ scale: 0.9, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 className="text-xl font-semibold text-white mb-4">
+              <h3 className="text-xl font-semibold text-foreground mb-4">
                 QR Code - {selectedSession.name}
               </h3>
               <div
@@ -2171,7 +2171,7 @@ export default function Dashboard() {
                 {loadingQrCode ? (
                   <div className="text-center">
                     <div className="w-16 h-16 mx-auto mb-2 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"></div>
-                    <p className="text-white/50 text-sm">
+                    <p className="text-muted-foreground text-sm">
                       Carregando QR Code...
                     </p>
                   </div>
@@ -2183,10 +2183,10 @@ export default function Dashboard() {
                   />
                 ) : qrCodeData?.qrCode ? (
                   <div className="text-center w-full">
-                    <QrCodeIcon className="w-16 h-16 text-white/50 mx-auto mb-2" />
-                    <p className="text-white/70 text-xs mb-2">QR Code Text:</p>
+                    <QrCodeIcon className="w-16 h-16 text-muted-foreground mx-auto mb-2" />
+                    <p className="text-muted-foreground text-xs mb-2">QR Code Text:</p>
                     <div className="bg-black/20 rounded p-2 max-h-32 overflow-y-auto">
-                      <code className="text-white/90 text-xs break-all">
+                      <code className="text-foreground/90 text-xs break-all">
                         {qrCodeData.qrCode}
                       </code>
                     </div>
@@ -2197,21 +2197,21 @@ export default function Dashboard() {
                     <p className="text-red-400 text-sm">
                       QR Code não disponível
                     </p>
-                    <p className="text-white/40 text-xs mt-2">
+                    <p className="text-foreground/40 text-xs mt-2">
                       Sessão pode já estar conectada
                     </p>
                   </div>
                 ) : (
                   <div className="text-center">
-                    <QrCodeIcon className="w-16 h-16 text-white/30 mx-auto mb-2" />
-                    <p className="text-white/50 text-sm">Gerando QR Code...</p>
-                    <p className="text-white/40 text-xs mt-2">
+                    <QrCodeIcon className="w-16 h-16 text-foreground/30 mx-auto mb-2" />
+                    <p className="text-muted-foreground text-sm">Gerando QR Code...</p>
+                    <p className="text-foreground/40 text-xs mt-2">
                       Aguarde a geração do QR Code...
                     </p>
                   </div>
                 )}
               </div>{' '}
-              <p className="text-white/70 mb-6 text-center">
+              <p className="text-muted-foreground mb-6 text-center">
                 {qrCodeData?.qrCode || qrCodeData?.qrCodeImage
                   ? 'Escaneie este QR Code com o WhatsApp Web para conectar a sessão.'
                   : qrCodeData?.hasQrCode === false
@@ -2266,7 +2266,7 @@ export default function Dashboard() {
               exit={{ scale: 0.9, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 className="text-xl font-semibold text-white mb-4">
+              <h3 className="text-xl font-semibold text-foreground mb-4">
                 Token de API Gerado
               </h3>
 
@@ -2284,7 +2284,7 @@ export default function Dashboard() {
                   </p>
                 </div>
 
-                <label className="block text-sm font-medium text-white/80 mb-2">
+                <label className="block text-sm font-medium text-muted-foreground mb-2">
                   Seu Token de API:
                 </label>
                 <div
@@ -2310,10 +2310,10 @@ export default function Dashboard() {
               </div>
 
               <div className="mb-6">
-                <h4 className="text-lg font-semibold text-white mb-2">
+                <h4 className="text-lg font-semibold text-foreground mb-2">
                   Como usar
                 </h4>
-                <p className="text-white/70 mb-4">
+                <p className="text-muted-foreground mb-4">
                   Inclua este token no header Authorization de suas requisições
                   para as rotas do WhatsApp API:
                 </p>
@@ -2322,7 +2322,7 @@ export default function Dashboard() {
                     'bg-card border rounded-lg'
                   } p-4 rounded-xl font-mono text-sm`}
                 >
-                  <div className="text-white/80">
+                  <div className="text-muted-foreground">
                     Authorization: Bearer {newToken}
                   </div>
                 </div>
@@ -2345,7 +2345,7 @@ export default function Dashboard() {
                   }}
                   className={`px-4 py-3 ${
                     'bg-card border rounded-lg'
-                  } rounded-xl text-white/70 hover:text-white transition-colors`}
+                  } rounded-xl text-muted-foreground hover:text-foreground transition-colors`}
                   whileHover={performanceMode ? {} : { scale: 1.02 }}
                   whileTap={performanceMode ? {} : { scale: 0.98 }}
                 >
@@ -2376,13 +2376,13 @@ export default function Dashboard() {
               exit={{ scale: 0.9, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 className="text-xl font-semibold text-white mb-6">
+              <h3 className="text-xl font-semibold text-foreground mb-6">
                 Criar Token de API
               </h3>
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-white/80 mb-2">
+                  <label className="block text-sm font-medium text-muted-foreground mb-2">
                     Nome do Token *
                   </label>
                   <input
@@ -2396,14 +2396,14 @@ export default function Dashboard() {
                     }
                     className={`w-full px-4 py-3 ${
                       'bg-card border rounded-lg'
-                    } rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-500 focus:outline-none`}
+                    } rounded-xl text-foreground placeholder-white/50 focus:ring-2 focus:ring-blue-500 focus:outline-none`}
                     placeholder="Ex: API Principal, Bot Vendas, Sistema..."
                     maxLength={50}
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-white/80 mb-2">
+                  <label className="block text-sm font-medium text-muted-foreground mb-2">
                     Prazo de Expiração
                   </label>
                   <select
@@ -2416,7 +2416,7 @@ export default function Dashboard() {
                     }
                     className={`w-full px-4 py-3 ${
                       'bg-card border rounded-lg'
-                    } rounded-xl text-white bg-transparent focus:ring-2 focus:ring-blue-500 focus:outline-none`}
+                    } rounded-xl text-foreground bg-transparent focus:ring-2 focus:ring-blue-500 focus:outline-none`}
                   >
                     <option value="never" className="bg-slate-800">
                       Nunca expira
@@ -2447,7 +2447,7 @@ export default function Dashboard() {
                       Informações Importantes
                     </span>
                   </div>
-                  <ul className="text-xs text-white/70 space-y-1">
+                  <ul className="text-xs text-muted-foreground space-y-1">
                     <li>
                       • O token será mostrado apenas uma vez após a criação
                     </li>
@@ -2517,13 +2517,13 @@ export default function Dashboard() {
               exit={{ scale: 0.9, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 className="text-xl font-semibold text-white mb-6">
+              <h3 className="text-xl font-semibold text-foreground mb-6">
                 Criar Sessão WhatsApp
               </h3>
 
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-white/80 mb-2">
+                  <label className="block text-sm font-medium text-muted-foreground mb-2">
                     ID da Sessão *
                   </label>
                   <input
@@ -2537,7 +2537,7 @@ export default function Dashboard() {
                     }
                     className={`w-full px-4 py-3 ${
                       'bg-card border rounded-lg'
-                    } rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-500 focus:outline-none`}
+                    } rounded-xl text-foreground placeholder-white/50 focus:ring-2 focus:ring-blue-500 focus:outline-none`}
                     placeholder="Ex: vendas-bot, suporte-cliente, marketing..."
                     maxLength={30}
                   />
@@ -2554,7 +2554,7 @@ export default function Dashboard() {
                       Como Usar
                     </span>
                   </div>
-                  <div className="text-xs text-white/70 space-y-1">
+                  <div className="text-xs text-muted-foreground space-y-1">
                     <p>• Digite um nome único para identificar sua sessão</p>
                     <p>
                       • Após criar, um QR Code será gerado para escaneamento
@@ -2655,13 +2655,13 @@ export default function Dashboard() {
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center space-x-3">
                   <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
-                    <WrenchScrewdriverIcon className="w-6 h-6 text-white" />
+                    <WrenchScrewdriverIcon className="w-6 h-6 text-foreground" />
                   </div>
                   <div>
-                    <h3 className="text-xl font-semibold text-white">
+                    <h3 className="text-xl font-semibold text-foreground">
                       Configurar Sessão
                     </h3>
-                    <p className="text-white/70">
+                    <p className="text-muted-foreground">
                       {selectedSessionForConfig.name} (
                       {selectedSessionForConfig.id})
                     </p>
@@ -2678,7 +2678,7 @@ export default function Dashboard() {
                   whileHover={performanceMode ? {} : { scale: 1.05 }}
                   whileTap={performanceMode ? {} : { scale: 0.95 }}
                 >
-                  <XCircleIcon className="w-6 h-6 text-white/70" />
+                  <XCircleIcon className="w-6 h-6 text-muted-foreground" />
                 </motion.button>
               </div>
 
@@ -2688,7 +2688,7 @@ export default function Dashboard() {
                   'bg-card border rounded-lg'
                 } p-4 rounded-xl mb-6`}
               >
-                <h4 className="text-lg font-semibold text-white mb-4">
+                <h4 className="text-lg font-semibold text-foreground mb-4">
                   Status da Sessão
                 </h4>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -2702,8 +2702,8 @@ export default function Dashboard() {
                           : 'bg-red-400'
                       }`}
                     ></div>
-                    <div className="text-sm text-white/60">Status</div>
-                    <div className="text-sm font-medium text-white capitalize">
+                    <div className="text-sm text-foreground/60">Status</div>
+                    <div className="text-sm font-medium text-foreground capitalize">
                       {selectedSessionForConfig.status === 'connected'
                         ? 'Conectado'
                         : selectedSessionForConfig.status === 'connecting'
@@ -2715,19 +2715,19 @@ export default function Dashboard() {
                     <div className="text-lg font-bold text-blue-400">
                       {selectedSessionForConfig.messages}
                     </div>
-                    <div className="text-sm text-white/60">Mensagens</div>
+                    <div className="text-sm text-foreground/60">Mensagens</div>
                   </div>
                   <div className="text-center">
                     <div className="text-lg font-bold text-purple-400">
                       {selectedSessionForConfig.groups}
                     </div>
-                    <div className="text-sm text-white/60">Grupos</div>
+                    <div className="text-sm text-foreground/60">Grupos</div>
                   </div>
                   <div className="text-center">
                     <div className="text-lg font-bold text-green-400">
                       {selectedSessionForConfig.webhooks}
                     </div>
-                    <div className="text-sm text-white/60">Webhooks</div>
+                    <div className="text-sm text-foreground/60">Webhooks</div>
                   </div>
                 </div>
               </div>
@@ -2740,7 +2740,7 @@ export default function Dashboard() {
                     'bg-card border rounded-lg'
                   } p-4 rounded-xl`}
                 >
-                  <h4 className="text-lg font-semibold text-white mb-4 flex items-center">
+                  <h4 className="text-lg font-semibold text-foreground mb-4 flex items-center">
                     <ServerIcon className="w-5 h-5 mr-2" />
                     Ações da Sessão
                   </h4>
@@ -2800,34 +2800,34 @@ export default function Dashboard() {
                     'bg-card border rounded-lg'
                   } p-4 rounded-xl`}
                 >
-                  <h4 className="text-lg font-semibold text-white mb-4 flex items-center">
+                  <h4 className="text-lg font-semibold text-foreground mb-4 flex items-center">
                     <DocumentTextIcon className="w-5 h-5 mr-2" />
                     Informações da Sessão
                   </h4>
                   <div className="space-y-3">
                     <div>
-                      <div className="text-sm text-white/60">ID da Sessão</div>
-                      <div className="text-sm font-mono text-white bg-white/5 p-2 rounded border">
+                      <div className="text-sm text-foreground/60">ID da Sessão</div>
+                      <div className="text-sm font-mono text-foreground bg-white/5 p-2 rounded border">
                         {selectedSessionForConfig.id}
                       </div>
                     </div>
                     <div>
-                      <div className="text-sm text-white/60">Nome</div>
-                      <div className="text-sm text-white">
+                      <div className="text-sm text-foreground/60">Nome</div>
+                      <div className="text-sm text-foreground">
                         {selectedSessionForConfig.name}
                       </div>
                     </div>
                     <div>
-                      <div className="text-sm text-white/60">Tempo Ativo</div>
-                      <div className="text-sm text-white">
+                      <div className="text-sm text-foreground/60">Tempo Ativo</div>
+                      <div className="text-sm text-foreground">
                         {selectedSessionForConfig.uptime}
                       </div>
                     </div>
                     <div>
-                      <div className="text-sm text-white/60">
+                      <div className="text-sm text-foreground/60">
                         Última Atualização
                       </div>
-                      <div className="text-sm text-white">
+                      <div className="text-sm text-foreground">
                         {new Date().toLocaleString('pt-BR')}
                       </div>
                     </div>
@@ -2842,12 +2842,12 @@ export default function Dashboard() {
                 } p-4 rounded-xl mt-6`}
               >
                 <div className="flex items-center justify-between mb-4">
-                  <h4 className="text-lg font-semibold text-white flex items-center">
+                  <h4 className="text-lg font-semibold text-foreground flex items-center">
                     <ClipboardDocumentIcon className="w-5 h-5 mr-2" />
                     Exemplos de Uso da API
                   </h4>
                   <div className="flex items-center space-x-2">
-                    <KeyIcon className="w-4 h-4 text-white/60" />
+                    <KeyIcon className="w-4 h-4 text-foreground/60" />
                     <select
                       value={selectedTokenForExamples}
                       onChange={(e) =>
@@ -2855,7 +2855,7 @@ export default function Dashboard() {
                       }
                       className={`px-3 py-2 ${
                         'bg-card border rounded-lg'
-                      } rounded-lg text-white text-sm bg-transparent focus:ring-2 focus:ring-blue-500 focus:outline-none min-w-[200px]`}
+                      } rounded-lg text-foreground text-sm bg-transparent focus:ring-2 focus:ring-blue-500 focus:outline-none min-w-[200px]`}
                     >
                       <option value="" className="bg-slate-800">
                         Selecione um token
@@ -2883,7 +2883,7 @@ export default function Dashboard() {
                   <div className="space-y-4 text-sm">
                     <div>
                       <div className="flex items-center justify-between mb-1">
-                        <div className="text-white/60">Enviar Mensagem:</div>
+                        <div className="text-foreground/60">Enviar Mensagem:</div>
                         <motion.button
                           onClick={() => {
                             const command = `curl -X POST "${
@@ -2908,7 +2908,7 @@ export default function Dashboard() {
                           <span>Copiar</span>
                         </motion.button>
                       </div>
-                      <div className="font-mono text-xs text-white bg-white/5 p-3 rounded border overflow-x-auto">
+                      <div className="font-mono text-xs text-foreground bg-white/5 p-3 rounded border overflow-x-auto">
                         {`curl -X POST "${
                           import.meta.env.VITE_API_URL ||
                           'http://localhost:3000'
@@ -2925,7 +2925,7 @@ export default function Dashboard() {
                     </div>
                     <div>
                       <div className="flex items-center justify-between mb-1">
-                        <div className="text-white/60">Verificar Status:</div>
+                        <div className="text-foreground/60">Verificar Status:</div>
                         <motion.button
                           onClick={() => {
                             const command = `curl -X GET "${
@@ -2945,7 +2945,7 @@ export default function Dashboard() {
                           <span>Copiar</span>
                         </motion.button>
                       </div>
-                      <div className="font-mono text-xs text-white bg-white/5 p-3 rounded border overflow-x-auto">
+                      <div className="font-mono text-xs text-foreground bg-white/5 p-3 rounded border overflow-x-auto">
                         {`curl -X GET "${
                           import.meta.env.VITE_API_URL ||
                           'http://localhost:3000'
@@ -2957,7 +2957,7 @@ export default function Dashboard() {
                     </div>
                     <div>
                       <div className="flex items-center justify-between mb-1">
-                        <div className="text-white/60">Listar Grupos:</div>
+                        <div className="text-foreground/60">Listar Grupos:</div>
                         <motion.button
                           onClick={() => {
                             const command = `curl -X GET "${
@@ -2977,7 +2977,7 @@ export default function Dashboard() {
                           <span>Copiar</span>
                         </motion.button>
                       </div>
-                      <div className="font-mono text-xs text-white bg-white/5 p-3 rounded border overflow-x-auto">
+                      <div className="font-mono text-xs text-foreground bg-white/5 p-3 rounded border overflow-x-auto">
                         {`curl -X GET "${
                           import.meta.env.VITE_API_URL ||
                           'http://localhost:3000'
@@ -2989,7 +2989,7 @@ export default function Dashboard() {
                     </div>
                     <div>
                       <div className="flex items-center justify-between mb-1">
-                        <div className="text-white/60">Enviar Mídia:</div>
+                        <div className="text-foreground/60">Enviar Mídia:</div>
                         <motion.button
                           onClick={() => {
                             const command = `curl -X POST "${
@@ -3012,7 +3012,7 @@ export default function Dashboard() {
                           <span>Copiar</span>
                         </motion.button>
                       </div>
-                      <div className="font-mono text-xs text-white bg-white/5 p-3 rounded border overflow-x-auto">
+                      <div className="font-mono text-xs text-foreground bg-white/5 p-3 rounded border overflow-x-auto">
                         {`curl -X POST "${
                           import.meta.env.VITE_API_URL ||
                           'http://localhost:3000'
@@ -3028,11 +3028,11 @@ export default function Dashboard() {
                   </div>
                 ) : (
                   <div className="text-center py-8">
-                    <KeyIcon className="w-16 h-16 text-white/20 mx-auto mb-4" />
-                    <h4 className="text-lg font-semibold text-white/60 mb-2">
+                    <KeyIcon className="w-16 h-16 text-foreground/20 mx-auto mb-4" />
+                    <h4 className="text-lg font-semibold text-foreground/60 mb-2">
                       Selecione um Token
                     </h4>
-                    <p className="text-white/40 text-sm">
+                    <p className="text-foreground/40 text-sm">
                       Escolha um token acima para ver os exemplos personalizados
                       com seu token real.
                     </p>
@@ -3049,7 +3049,7 @@ export default function Dashboard() {
                       Dicas de Uso
                     </span>
                   </div>
-                  <div className="text-xs text-white/70 space-y-1">
+                  <div className="text-xs text-muted-foreground space-y-1">
                     {selectedTokenForExamples ? (
                       <>
                         <p>
@@ -3133,7 +3133,7 @@ export default function Dashboard() {
                       />
                     ) : (
                       <div className="w-20 h-20 rounded-full bg-gradient-to-r from-green-400 to-blue-500 flex items-center justify-center mx-auto">
-                        <span className="text-white font-bold text-2xl">
+                        <span className="text-foreground font-bold text-2xl">
                           {user.name
                             ? user.name
                                 .split(' ')
@@ -3149,10 +3149,10 @@ export default function Dashboard() {
                       <div className="absolute bottom-2 right-2 w-4 h-4 bg-green-400 border-2 border-slate-900 rounded-full"></div>
                     )}
                   </div>
-                  <h3 className="text-xl font-semibold text-white mb-2">
+                  <h3 className="text-xl font-semibold text-foreground mb-2">
                     {user.name}
                   </h3>
-                  <p className="text-white/70 mb-1">{user.email}</p>
+                  <p className="text-muted-foreground mb-1">{user.email}</p>
                   <span
                     className={`inline-block px-3 py-1 rounded-full text-xs font-medium ${
                       user.role === 'admin'
@@ -3177,23 +3177,23 @@ export default function Dashboard() {
                       'bg-card border rounded-lg'
                     } p-4 rounded-xl`}
                   >
-                    <h4 className="text-sm font-semibold text-white/80 mb-3">
+                    <h4 className="text-sm font-semibold text-muted-foreground mb-3">
                       Informações da Conta
                     </h4>
                     <div className="space-y-2">
                       <div className="flex justify-between items-center">
-                        <span className="text-xs text-white/60">
+                        <span className="text-xs text-foreground/60">
                           ID do Usuário
                         </span>
-                        <span className="text-sm text-white font-mono">
+                        <span className="text-sm text-foreground font-mono">
                           {user._id?.substring(0, 8)}...
                         </span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="text-xs text-white/60">
+                        <span className="text-xs text-foreground/60">
                           Membro desde
                         </span>
-                        <span className="text-sm text-white">
+                        <span className="text-sm text-foreground">
                           {user.createdAt
                             ? new Date(user.createdAt).toLocaleDateString(
                                 'pt-BR'
@@ -3202,10 +3202,10 @@ export default function Dashboard() {
                         </span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="text-xs text-white/60">
+                        <span className="text-xs text-foreground/60">
                           Último login
                         </span>
-                        <span className="text-sm text-white">
+                        <span className="text-sm text-foreground">
                           {user.lastLogin
                             ? new Date(user.lastLogin).toLocaleDateString(
                                 'pt-BR'
@@ -3214,7 +3214,7 @@ export default function Dashboard() {
                         </span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="text-xs text-white/60">Status</span>
+                        <span className="text-xs text-foreground/60">Status</span>
                         <span
                           className={`text-sm font-medium ${
                             user.active ? 'text-green-400' : 'text-red-400'
@@ -3232,7 +3232,7 @@ export default function Dashboard() {
                       'bg-card border rounded-lg'
                     } p-4 rounded-xl`}
                   >
-                    <h4 className="text-sm font-semibold text-white/80 mb-3">
+                    <h4 className="text-sm font-semibold text-muted-foreground mb-3">
                       Estatísticas da API
                     </h4>
                     <div className="grid grid-cols-3 gap-3">
@@ -3240,19 +3240,19 @@ export default function Dashboard() {
                         <div className="text-lg font-bold text-blue-400">
                           {user.stats?.totalSessions || 0}
                         </div>
-                        <div className="text-xs text-white/60">Sessões</div>
+                        <div className="text-xs text-foreground/60">Sessões</div>
                       </div>
                       <div className="text-center">
                         <div className="text-lg font-bold text-green-400">
                           {user.stats?.activeConnections || 0}
                         </div>
-                        <div className="text-xs text-white/60">Ativas</div>
+                        <div className="text-xs text-foreground/60">Ativas</div>
                       </div>
                       <div className="text-center">
                         <div className="text-lg font-bold text-purple-400">
                           {user.stats?.messagesCount || 0}
                         </div>
-                        <div className="text-xs text-white/60">Mensagens</div>
+                        <div className="text-xs text-foreground/60">Mensagens</div>
                       </div>
                     </div>
                   </div>
@@ -3264,12 +3264,12 @@ export default function Dashboard() {
                         'bg-card border rounded-lg'
                       } p-4 rounded-xl`}
                     >
-                      <h4 className="text-sm font-semibold text-white/80 mb-3">
+                      <h4 className="text-sm font-semibold text-muted-foreground mb-3">
                         Configurações
                       </h4>
                       <div className="space-y-2">
                         <div className="flex justify-between items-center">
-                          <span className="text-xs text-white/60">
+                          <span className="text-xs text-foreground/60">
                             Notificações
                           </span>
                           <span
@@ -3285,13 +3285,13 @@ export default function Dashboard() {
                           </span>
                         </div>
                         <div className="flex justify-between items-center">
-                          <span className="text-xs text-white/60">Idioma</span>
-                          <span className="text-sm text-white">
+                          <span className="text-xs text-foreground/60">Idioma</span>
+                          <span className="text-sm text-foreground">
                             {user.settings.language || 'pt-BR'}
                           </span>
                         </div>
                         <div className="flex justify-between items-center">
-                          <span className="text-xs text-white/60">
+                          <span className="text-xs text-foreground/60">
                             Modo Escuro
                           </span>
                           <span
@@ -3314,19 +3314,19 @@ export default function Dashboard() {
                       'bg-card border rounded-lg'
                     } p-4 rounded-xl`}
                   >
-                    <h4 className="text-sm font-semibold text-white/80 mb-3">
+                    <h4 className="text-sm font-semibold text-muted-foreground mb-3">
                       Informações do Perfil
                     </h4>
                     <div className="space-y-2">
                       <div className="flex justify-between items-center">
-                        <span className="text-xs text-white/60">Telefone</span>
-                        <span className="text-sm text-white">
+                        <span className="text-xs text-foreground/60">Telefone</span>
+                        <span className="text-sm text-foreground">
                           {user.profile?.phone || 'Não informado'}
                         </span>
                       </div>
                       <div className="flex justify-between items-center">
-                        <span className="text-xs text-white/60">Empresa</span>
-                        <span className="text-sm text-white">
+                        <span className="text-xs text-foreground/60">Empresa</span>
+                        <span className="text-sm text-foreground">
                           {user.profile?.company || 'Não informado'}
                         </span>
                       </div>
@@ -3339,17 +3339,17 @@ export default function Dashboard() {
                       'bg-card border rounded-lg'
                     } p-4 rounded-xl`}
                   >
-                    <h4 className="text-sm font-semibold text-white/80 mb-3">
+                    <h4 className="text-sm font-semibold text-muted-foreground mb-3">
                       Atividade Recente
                     </h4>
                     <div className="space-y-3">
                       <div className="flex items-center space-x-3">
                         <div className="w-2 h-2 bg-green-400 rounded-full"></div>
                         <div className="flex-1">
-                          <div className="text-sm text-white">
+                          <div className="text-sm text-foreground">
                             Login realizado
                           </div>
-                          <div className="text-xs text-white/60">
+                          <div className="text-xs text-foreground/60">
                             {user.lastLogin
                               ? new Date(user.lastLogin).toLocaleString('pt-BR')
                               : 'N/A'}
@@ -3359,8 +3359,8 @@ export default function Dashboard() {
                       <div className="flex items-center space-x-3">
                         <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
                         <div className="flex-1">
-                          <div className="text-sm text-white">Conta criada</div>
-                          <div className="text-xs text-white/60">
+                          <div className="text-sm text-foreground">Conta criada</div>
+                          <div className="text-xs text-foreground/60">
                             {user.createdAt
                               ? new Date(user.createdAt).toLocaleString('pt-BR')
                               : 'N/A'}
@@ -3370,10 +3370,10 @@ export default function Dashboard() {
                       <div className="flex items-center space-x-3">
                         <div className="w-2 h-2 bg-purple-400 rounded-full"></div>
                         <div className="flex-1">
-                          <div className="text-sm text-white">
+                          <div className="text-sm text-foreground">
                             Perfil atualizado
                           </div>
-                          <div className="text-xs text-white/60">
+                          <div className="text-xs text-foreground/60">
                             {user.updatedAt
                               ? new Date(user.updatedAt).toLocaleString('pt-BR')
                               : 'N/A'}
