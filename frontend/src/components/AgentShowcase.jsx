@@ -29,7 +29,6 @@ import {
   Cpu,
   Eye,
   Layers,
-  Circuit,
   Radio,
   Wifi
 } from 'lucide-react'
@@ -158,7 +157,7 @@ const agentTypes = [
 // Partículas de fundo dinâmicas
 const particleConfigs = [
   { icon: Code, count: 15, speed: 0.5, size: 'w-4 h-4' },
-  { icon: Circuit, count: 12, speed: 0.3, size: 'w-3 h-3' },
+  { icon: Cpu, count: 12, speed: 0.3, size: 'w-3 h-3' },
   { icon: Radio, count: 8, speed: 0.7, size: 'w-5 h-5' },
   { icon: Network, count: 10, speed: 0.4, size: 'w-4 h-4' },
   { icon: Wifi, count: 6, speed: 0.6, size: 'w-3 h-3' },
