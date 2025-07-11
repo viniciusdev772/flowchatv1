@@ -1045,7 +1045,7 @@ export default function Dashboard() {
     return (
       <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900 flex items-center justify-center">
         <motion.div
-          className="glass-card p-8 text-center"
+          className="bg-card border rounded-lg shadow-sm p-8 text-center"
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.5 }}
@@ -1098,7 +1098,7 @@ export default function Dashboard() {
 
       {/* Header */}
       <motion.header
-        className="glass-performance mx-2 md:mx-4 mt-2 md:mt-4 mb-4 md:mb-6"
+        className="bg-card border rounded-lg mx-2 md:mx-4 mt-2 md:mt-4 mb-4 md:mb-6"
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.2 }}
@@ -1142,7 +1142,7 @@ export default function Dashboard() {
               {/* Status Indicator */}
               <div
                 className={`${
-                  performanceMode ? 'glass-performance' : 'glass-performance'
+                  'bg-card border rounded-lg'
                 } px-4 py-2 rounded-xl`}
               >
                 <div className="flex items-center space-x-2">
@@ -1216,7 +1216,7 @@ export default function Dashboard() {
       <div className="flex flex-col lg:flex-row">
         {/* Sidebar Navigation - Desktop */}
         <motion.nav
-          className="hidden lg:block lg:w-64 glass-performance mx-2 md:mx-4 mb-4 p-3 md:p-4"
+          className="hidden lg:block lg:w-64 bg-card border rounded-lg mx-2 md:mx-4 mb-4 p-3 md:p-4"
           initial={{ opacity: 0, x: -10 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.2 }}
@@ -1224,7 +1224,7 @@ export default function Dashboard() {
         
         {/* Mobile Tab Navigation */}
         <motion.nav
-          className="lg:hidden glass-performance mx-2 md:mx-4 mb-4 p-3"
+          className="lg:hidden bg-card border rounded-lg mx-2 md:mx-4 mb-4 p-3"
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.2 }}
@@ -1286,7 +1286,7 @@ export default function Dashboard() {
           {/* Quick Stats */}
           <div
             className={`mt-8 ${
-              performanceMode ? 'glass-performance' : 'glass-performance'
+              'bg-card border rounded-lg'
             } p-4 rounded-xl`}
           >
             <h3 className="text-sm font-semibold text-white/80 mb-3">
@@ -1365,7 +1365,7 @@ export default function Dashboard() {
                       <motion.div
                         key={stat.label}
                         className={`${
-                          performanceMode ? 'glass-performance' : 'glass-card'
+                          performanceMode ? 'bg-card border rounded-lg' : 'bg-card border rounded-lg shadow-sm'
                         } p-6 rounded-xl`}
                         initial={{ opacity: 0, y: performanceMode ? 0 : 10 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -1398,7 +1398,7 @@ export default function Dashboard() {
                 {/* Recent Sessions */}
                 <div
                   className={`${
-                    performanceMode ? 'glass-performance' : 'glass-card'
+                    performanceMode ? 'bg-card border rounded-lg' : 'bg-card border rounded-lg shadow-sm'
                   } p-6 rounded-xl`}
                 >
                   <div className="flex items-center justify-between mb-6">
@@ -1407,7 +1407,7 @@ export default function Dashboard() {
                     </h2>
                     <motion.button
                       onClick={() => setActiveTab('sessions')}
-                      className="liquid-button inline-flex items-center text-sm"
+                      className="bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-md transition-colors inline-flex items-center text-sm"
                       whileHover={performanceMode ? {} : { scale: 1.05 }}
                       whileTap={performanceMode ? {} : { scale: 0.95 }}
                     >
@@ -1429,7 +1429,7 @@ export default function Dashboard() {
                         </p>
                         <motion.button
                           onClick={() => setShowCreateSessionModal(true)}
-                          className="liquid-button inline-flex items-center text-sm"
+                          className="bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-md transition-colors inline-flex items-center text-sm"
                           whileHover={performanceMode ? {} : { scale: 1.02 }}
                           whileTap={performanceMode ? {} : { scale: 0.98 }}
                         >
@@ -1443,8 +1443,8 @@ export default function Dashboard() {
                           key={session.id}
                           className={`flex items-center justify-between p-4 ${
                             performanceMode
-                              ? 'glass-performance'
-                              : 'glass-performance'
+                              ? 'bg-card border rounded-lg'
+                              : 'bg-card border rounded-lg'
                           } rounded-xl`}
                           whileHover={performanceMode ? {} : { scale: 1.005 }}
                         >
@@ -1544,7 +1544,7 @@ export default function Dashboard() {
                   </h2>
                   <motion.button
                     onClick={() => setShowCreateSessionModal(true)}
-                    className="liquid-button inline-flex items-center"
+                    className="bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-md transition-colors inline-flex items-center"
                     whileHover={performanceMode ? {} : { scale: 1.05 }}
                     whileTap={performanceMode ? {} : { scale: 0.95 }}
                   >
@@ -1558,7 +1558,7 @@ export default function Dashboard() {
                     <motion.div
                       key={session.id}
                       className={`${
-                        performanceMode ? 'glass-performance' : 'glass-card'
+                        performanceMode ? 'bg-card border rounded-lg' : 'bg-card border rounded-lg shadow-sm'
                       } p-6 rounded-xl`}
                       initial={{ opacity: 0, y: performanceMode ? 0 : 10 }}
                       animate={{ opacity: 1, y: 0 }}
@@ -1633,7 +1633,7 @@ export default function Dashboard() {
                                   setShowQRCode(true);
                                   await fetchQRCodeForSession(session.id);
                                 }}
-                                className="liquid-button inline-flex items-center text-sm"
+                                className="bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-md transition-colors inline-flex items-center text-sm"
                                 whileHover={
                                   performanceMode ? {} : { scale: 1.05 }
                                 }
@@ -1661,7 +1661,7 @@ export default function Dashboard() {
                                 });
                                 setShowSessionConfig(true);
                               }}
-                              className="liquid-button inline-flex items-center text-sm"
+                              className="bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-md transition-colors inline-flex items-center text-sm"
                               whileHover={
                                 performanceMode ? {} : { scale: 1.05 }
                               }
@@ -1712,7 +1712,7 @@ export default function Dashboard() {
                   </h2>
                   <motion.button
                     onClick={() => setShowCreateTokenModal(true)}
-                    className="liquid-button inline-flex items-center"
+                    className="bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-md transition-colors inline-flex items-center"
                     whileHover={performanceMode ? {} : { scale: 1.05 }}
                     whileTap={performanceMode ? {} : { scale: 0.95 }}
                   >
@@ -1723,7 +1723,7 @@ export default function Dashboard() {
 
                 <div
                   className={`${
-                    performanceMode ? 'glass-performance' : 'glass-card'
+                    performanceMode ? 'bg-card border rounded-lg' : 'bg-card border rounded-lg shadow-sm'
                   } p-6 rounded-xl`}
                 >
                   <div className="mb-6">
@@ -1738,7 +1738,7 @@ export default function Dashboard() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                       <div
                         className={`${
-                          performanceMode ? 'glass-performance' : 'glass-performance'
+                          'bg-card border rounded-lg'
                         } p-4 rounded-xl`}
                       >
                         <h4 className="text-white font-semibold mb-2 flex items-center">
@@ -1755,7 +1755,7 @@ export default function Dashboard() {
 
                       <div
                         className={`${
-                          performanceMode ? 'glass-performance' : 'glass-performance'
+                          'bg-card border rounded-lg'
                         } p-4 rounded-xl`}
                       >
                         <h4 className="text-white font-semibold mb-2 flex items-center">
@@ -1775,7 +1775,7 @@ export default function Dashboard() {
                       <motion.a
                         href="/api-docs"
                         target="_blank"
-                        className="liquid-button inline-flex items-center text-sm"
+                        className="bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-md transition-colors inline-flex items-center text-sm"
                         whileHover={performanceMode ? {} : { scale: 1.05 }}
                         whileTap={performanceMode ? {} : { scale: 0.95 }}
                       >
@@ -1797,7 +1797,7 @@ export default function Dashboard() {
                       </p>
                       <motion.button
                         onClick={() => setShowCreateTokenModal(true)}
-                        className="liquid-button inline-flex items-center"
+                        className="bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-md transition-colors inline-flex items-center"
                         whileHover={performanceMode ? {} : { scale: 1.05 }}
                         whileTap={performanceMode ? {} : { scale: 0.95 }}
                       >
@@ -1812,8 +1812,8 @@ export default function Dashboard() {
                           key={token._id}
                           className={`${
                             performanceMode
-                              ? 'glass-performance'
-                              : 'glass-performance'
+                              ? 'bg-card border rounded-lg'
+                              : 'bg-card border rounded-lg'
                           } p-4 rounded-xl`}
                           whileHover={performanceMode ? {} : { scale: 1.01 }}
                         >
@@ -1943,7 +1943,7 @@ export default function Dashboard() {
               >
                 <div
                   className={`${
-                    performanceMode ? 'glass-performance' : 'glass-card'
+                    performanceMode ? 'bg-card border rounded-lg' : 'bg-card border rounded-lg shadow-sm'
                   } p-6 rounded-xl`}
                 >
                   <div className="flex items-center justify-between mb-6">
@@ -1977,8 +1977,8 @@ export default function Dashboard() {
                           key={session.sessionId}
                           className={`${
                             performanceMode
-                              ? 'glass-performance'
-                              : 'glass-performance'
+                              ? 'bg-card border rounded-lg'
+                              : 'bg-card border rounded-lg'
                           } p-6 rounded-xl hover:shadow-lg transition-all cursor-pointer`}
                           whileHover={performanceMode ? {} : { scale: 1.02 }}
                           whileTap={performanceMode ? {} : { scale: 0.98 }}
@@ -2055,7 +2055,7 @@ export default function Dashboard() {
                   exit={{ opacity: 0, x: performanceMode ? 0 : -10 }}
                   transition={{ duration: performanceMode ? 0.1 : 0.2 }}
                   className={`${
-                    performanceMode ? 'glass-performance' : 'glass-card'
+                    performanceMode ? 'bg-card border rounded-lg' : 'bg-card border rounded-lg shadow-sm'
                   } p-8 text-center rounded-xl`}
                 >
                   <div className="w-20 h-20 mx-auto mb-4 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-full flex items-center justify-center">
@@ -2069,7 +2069,7 @@ export default function Dashboard() {
                     gerenciar todas as funcionalidades da API aqui.
                   </p>
                   <motion.button
-                    className="liquid-button inline-flex items-center"
+                    className="bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-md transition-colors inline-flex items-center"
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                   >
@@ -2094,7 +2094,7 @@ export default function Dashboard() {
           >
             <motion.div
               className={`${
-                performanceMode ? 'glass-performance' : 'glass-card'
+                performanceMode ? 'bg-card border rounded-lg' : 'bg-card border rounded-lg shadow-sm'
               } p-6 max-w-md w-full mx-4 rounded-xl`}
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -2112,7 +2112,7 @@ export default function Dashboard() {
                   <input
                     type="text"
                     className={`w-full px-4 py-3 ${
-                      performanceMode ? 'glass-performance' : 'glass-performance'
+                      'bg-card border rounded-lg'
                     } rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-500 focus:outline-none`}
                     placeholder="Ex: Vendas, Suporte, Marketing..."
                   />
@@ -2120,14 +2120,14 @@ export default function Dashboard() {
                 <div className="flex space-x-3">
                   <motion.button
                     onClick={() => setShowNewSession(false)}
-                    className="flex-1 liquid-button-secondary"
+                    className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-md transition-colors-secondary"
                     whileHover={performanceMode ? {} : { scale: 1.02 }}
                     whileTap={performanceMode ? {} : { scale: 0.98 }}
                   >
                     Cancelar
                   </motion.button>
                   <motion.button
-                    className="flex-1 liquid-button"
+                    className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-md transition-colors"
                     whileHover={performanceMode ? {} : { scale: 1.02 }}
                     whileTap={performanceMode ? {} : { scale: 0.98 }}
                   >
@@ -2153,7 +2153,7 @@ export default function Dashboard() {
           >
             <motion.div
               className={`${
-                performanceMode ? 'glass-performance' : 'glass-card'
+                performanceMode ? 'bg-card border rounded-lg' : 'bg-card border rounded-lg shadow-sm'
               } p-6 max-w-md w-full mx-4 text-center rounded-xl`}
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -2165,7 +2165,7 @@ export default function Dashboard() {
               </h3>
               <div
                 className={`w-64 h-64 mx-auto mb-4 ${
-                  performanceMode ? 'glass-performance' : 'glass-performance'
+                  'bg-card border rounded-lg'
                 } rounded-xl flex items-center justify-center p-4`}
               >
                 {loadingQrCode ? (
@@ -2222,7 +2222,7 @@ export default function Dashboard() {
                 {qrCodeData?.qrCode && (
                   <motion.button
                     onClick={() => copyToClipboard(qrCodeData.qrCode)}
-                    className="liquid-button flex-1 text-sm"
+                    className="bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-md transition-colors flex-1 text-sm"
                     whileHover={performanceMode ? {} : { scale: 1.02 }}
                     whileTap={performanceMode ? {} : { scale: 0.98 }}
                   >
@@ -2235,7 +2235,7 @@ export default function Dashboard() {
                     setQrCodeData(null);
                     setSelectedSession(null);
                   }}
-                  className="liquid-button flex-1"
+                  className="bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-md transition-colors flex-1"
                   whileHover={performanceMode ? {} : { scale: 1.02 }}
                   whileTap={performanceMode ? {} : { scale: 0.98 }}
                 >
@@ -2259,7 +2259,7 @@ export default function Dashboard() {
           >
             <motion.div
               className={`${
-                performanceMode ? 'glass-performance' : 'glass-card'
+                performanceMode ? 'bg-card border rounded-lg' : 'bg-card border rounded-lg shadow-sm'
               } p-6 max-w-2xl w-full mx-4 rounded-xl`}
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -2289,7 +2289,7 @@ export default function Dashboard() {
                 </label>
                 <div
                   className={`${
-                    performanceMode ? 'glass-performance' : 'glass-performance'
+                    'bg-card border rounded-lg'
                   } p-4 rounded-xl`}
                 >
                   <div className="flex items-center justify-between">
@@ -2319,7 +2319,7 @@ export default function Dashboard() {
                 </p>
                 <div
                   className={`${
-                    performanceMode ? 'glass-performance' : 'glass-performance'
+                    'bg-card border rounded-lg'
                   } p-4 rounded-xl font-mono text-sm`}
                 >
                   <div className="text-white/80">
@@ -2331,7 +2331,7 @@ export default function Dashboard() {
               <div className="flex space-x-3">
                 <motion.button
                   onClick={() => copyToClipboard(newToken)}
-                  className="flex-1 liquid-button inline-flex items-center justify-center"
+                  className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-md transition-colors inline-flex items-center justify-center"
                   whileHover={performanceMode ? {} : { scale: 1.02 }}
                   whileTap={performanceMode ? {} : { scale: 0.98 }}
                 >
@@ -2344,7 +2344,7 @@ export default function Dashboard() {
                     setNewToken(null);
                   }}
                   className={`px-4 py-3 ${
-                    performanceMode ? 'glass-performance' : 'glass-performance'
+                    'bg-card border rounded-lg'
                   } rounded-xl text-white/70 hover:text-white transition-colors`}
                   whileHover={performanceMode ? {} : { scale: 1.02 }}
                   whileTap={performanceMode ? {} : { scale: 0.98 }}
@@ -2369,7 +2369,7 @@ export default function Dashboard() {
           >
             <motion.div
               className={`${
-                performanceMode ? 'glass-performance' : 'glass-card'
+                performanceMode ? 'bg-card border rounded-lg' : 'bg-card border rounded-lg shadow-sm'
               } p-6 max-w-md w-full mx-4 rounded-xl`}
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -2395,7 +2395,7 @@ export default function Dashboard() {
                       }))
                     }
                     className={`w-full px-4 py-3 ${
-                      performanceMode ? 'glass-performance' : 'glass-performance'
+                      'bg-card border rounded-lg'
                     } rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-500 focus:outline-none`}
                     placeholder="Ex: API Principal, Bot Vendas, Sistema..."
                     maxLength={50}
@@ -2415,7 +2415,7 @@ export default function Dashboard() {
                       }))
                     }
                     className={`w-full px-4 py-3 ${
-                      performanceMode ? 'glass-performance' : 'glass-performance'
+                      'bg-card border rounded-lg'
                     } rounded-xl text-white bg-transparent focus:ring-2 focus:ring-blue-500 focus:outline-none`}
                   >
                     <option value="never" className="bg-slate-800">
@@ -2438,7 +2438,7 @@ export default function Dashboard() {
 
                 <div
                   className={`${
-                    performanceMode ? 'glass-performance' : 'glass-performance'
+                    'bg-card border rounded-lg'
                   } p-4 rounded-xl`}
                 >
                   <div className="flex items-center space-x-2 mb-2">
@@ -2464,7 +2464,7 @@ export default function Dashboard() {
                     setShowCreateTokenModal(false);
                     setTokenForm({ name: '', expiresIn: 'never' });
                   }}
-                  className="flex-1 liquid-button-secondary"
+                  className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-md transition-colors-secondary"
                   whileHover={performanceMode ? {} : { scale: 1.02 }}
                   whileTap={performanceMode ? {} : { scale: 0.98 }}
                 >
@@ -2473,7 +2473,7 @@ export default function Dashboard() {
                 <motion.button
                   onClick={generateApiToken}
                   disabled={!tokenForm.name.trim()}
-                  className={`flex-1 liquid-button ${
+                  className={`flex-1 bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-md transition-colors ${
                     !tokenForm.name.trim()
                       ? 'opacity-50 cursor-not-allowed'
                       : ''
@@ -2510,7 +2510,7 @@ export default function Dashboard() {
           >
             <motion.div
               className={`${
-                performanceMode ? 'glass-performance' : 'glass-card'
+                performanceMode ? 'bg-card border rounded-lg' : 'bg-card border rounded-lg shadow-sm'
               } p-6 max-w-lg w-full mx-4 rounded-xl`}
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -2536,7 +2536,7 @@ export default function Dashboard() {
                       }))
                     }
                     className={`w-full px-4 py-3 ${
-                      performanceMode ? 'glass-performance' : 'glass-performance'
+                      'bg-card border rounded-lg'
                     } rounded-xl text-white placeholder-white/50 focus:ring-2 focus:ring-blue-500 focus:outline-none`}
                     placeholder="Ex: vendas-bot, suporte-cliente, marketing..."
                     maxLength={30}
@@ -2545,7 +2545,7 @@ export default function Dashboard() {
 
                 <div
                   className={`${
-                    performanceMode ? 'glass-performance' : 'glass-performance'
+                    'bg-card border rounded-lg'
                   } p-4 rounded-xl`}
                 >
                   <div className="flex items-center space-x-2 mb-2">
@@ -2574,7 +2574,7 @@ export default function Dashboard() {
                     setShowCreateSessionModal(false);
                     setSessionForm({ sessionId: '' });
                   }}
-                  className="flex-1 liquid-button-secondary"
+                  className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-md transition-colors-secondary"
                   whileHover={performanceMode ? {} : { scale: 1.02 }}
                   whileTap={performanceMode ? {} : { scale: 0.98 }}
                 >
@@ -2583,7 +2583,7 @@ export default function Dashboard() {
                 <motion.button
                   onClick={createWhatsAppSession}
                   disabled={!sessionForm.sessionId.trim() || creatingSession}
-                  className={`flex-1 liquid-button ${
+                  className={`flex-1 bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-md transition-colors ${
                     !sessionForm.sessionId.trim() || creatingSession
                       ? 'opacity-50 cursor-not-allowed'
                       : ''
@@ -2645,7 +2645,7 @@ export default function Dashboard() {
           >
             <motion.div
               className={`${
-                performanceMode ? 'glass-performance' : 'glass-card'
+                performanceMode ? 'bg-card border rounded-lg' : 'bg-card border rounded-lg shadow-sm'
               } p-6 max-w-4xl w-full mx-4 rounded-xl max-h-[90vh] overflow-y-auto`}
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -2685,7 +2685,7 @@ export default function Dashboard() {
               {/* Session Status Overview */}
               <div
                 className={`${
-                  performanceMode ? 'glass-performance' : 'glass-performance'
+                  'bg-card border rounded-lg'
                 } p-4 rounded-xl mb-6`}
               >
                 <h4 className="text-lg font-semibold text-white mb-4">
@@ -2737,7 +2737,7 @@ export default function Dashboard() {
                 {/* Session Actions */}
                 <div
                   className={`${
-                    performanceMode ? 'glass-performance' : 'glass-performance'
+                    'bg-card border rounded-lg'
                   } p-4 rounded-xl`}
                 >
                   <h4 className="text-lg font-semibold text-white mb-4 flex items-center">
@@ -2755,7 +2755,7 @@ export default function Dashboard() {
                         setShowQRCode(true);
                         setShowSessionConfig(false);
                       }}
-                      className="w-full liquid-button inline-flex items-center justify-center"
+                      className="w-full bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-md transition-colors inline-flex items-center justify-center"
                       whileHover={performanceMode ? {} : { scale: 1.02 }}
                       whileTap={performanceMode ? {} : { scale: 0.98 }}
                     >
@@ -2772,7 +2772,7 @@ export default function Dashboard() {
                         setShowWebhookManager(true);
                         setShowSessionConfig(false);
                       }}
-                      className="w-full liquid-button inline-flex items-center justify-center"
+                      className="w-full bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-md transition-colors inline-flex items-center justify-center"
                       whileHover={performanceMode ? {} : { scale: 1.02 }}
                       whileTap={performanceMode ? {} : { scale: 0.98 }}
                     >
@@ -2784,7 +2784,7 @@ export default function Dashboard() {
                       onClick={() =>
                         handleDeleteSession(selectedSessionForConfig.id)
                       }
-                      className="w-full liquid-button-danger inline-flex items-center justify-center"
+                      className="w-full bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-md transition-colors-danger inline-flex items-center justify-center"
                       whileHover={performanceMode ? {} : { scale: 1.02 }}
                       whileTap={performanceMode ? {} : { scale: 0.98 }}
                     >
@@ -2797,7 +2797,7 @@ export default function Dashboard() {
                 {/* Session Information */}
                 <div
                   className={`${
-                    performanceMode ? 'glass-performance' : 'glass-performance'
+                    'bg-card border rounded-lg'
                   } p-4 rounded-xl`}
                 >
                   <h4 className="text-lg font-semibold text-white mb-4 flex items-center">
@@ -2838,7 +2838,7 @@ export default function Dashboard() {
               {/* API Usage Examples */}
               <div
                 className={`${
-                  performanceMode ? 'glass-performance' : 'glass-performance'
+                  'bg-card border rounded-lg'
                 } p-4 rounded-xl mt-6`}
               >
                 <div className="flex items-center justify-between mb-4">
@@ -2854,7 +2854,7 @@ export default function Dashboard() {
                         setSelectedTokenForExamples(e.target.value)
                       }
                       className={`px-3 py-2 ${
-                        performanceMode ? 'glass-performance' : 'glass-performance'
+                        'bg-card border rounded-lg'
                       } rounded-lg text-white text-sm bg-transparent focus:ring-2 focus:ring-blue-500 focus:outline-none min-w-[200px]`}
                     >
                       <option value="" className="bg-slate-800">
@@ -3040,7 +3040,7 @@ export default function Dashboard() {
                 )}
                 <div
                   className={`${
-                    performanceMode ? 'glass-performance' : 'glass-performance'
+                    'bg-card border rounded-lg'
                   } p-3 rounded-xl mt-4`}
                 >
                   <div className="flex items-center space-x-2 mb-2">
@@ -3093,7 +3093,7 @@ export default function Dashboard() {
                     setSelectedTokenForExamples('');
                     setFullTokenForExamples('');
                   }}
-                  className="liquid-button inline-flex items-center"
+                  className="bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-md transition-colors inline-flex items-center"
                   whileHover={performanceMode ? {} : { scale: 1.05 }}
                   whileTap={performanceMode ? {} : { scale: 0.95 }}
                 >
@@ -3114,7 +3114,7 @@ export default function Dashboard() {
           >
             <motion.div
               className={`${
-                performanceMode ? 'glass-performance' : 'glass-card'
+                performanceMode ? 'bg-card border rounded-lg' : 'bg-card border rounded-lg shadow-sm'
               } rounded-xl max-w-md w-full max-h-[90vh] overflow-hidden flex flex-col`}
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
@@ -3174,7 +3174,7 @@ export default function Dashboard() {
                 <div className="space-y-4">
                   <div
                     className={`${
-                      performanceMode ? 'glass-performance' : 'glass-performance'
+                      'bg-card border rounded-lg'
                     } p-4 rounded-xl`}
                   >
                     <h4 className="text-sm font-semibold text-white/80 mb-3">
@@ -3229,7 +3229,7 @@ export default function Dashboard() {
                   {/* Estatísticas da API */}
                   <div
                     className={`${
-                      performanceMode ? 'glass-performance' : 'glass-performance'
+                      'bg-card border rounded-lg'
                     } p-4 rounded-xl`}
                   >
                     <h4 className="text-sm font-semibold text-white/80 mb-3">
@@ -3261,7 +3261,7 @@ export default function Dashboard() {
                   {user.settings && (
                     <div
                       className={`${
-                        performanceMode ? 'glass-performance' : 'glass-performance'
+                        'bg-card border rounded-lg'
                       } p-4 rounded-xl`}
                     >
                       <h4 className="text-sm font-semibold text-white/80 mb-3">
@@ -3311,7 +3311,7 @@ export default function Dashboard() {
                   {/* Informações Adicionais */}
                   <div
                     className={`${
-                      performanceMode ? 'glass-performance' : 'glass-performance'
+                      'bg-card border rounded-lg'
                     } p-4 rounded-xl`}
                   >
                     <h4 className="text-sm font-semibold text-white/80 mb-3">
@@ -3336,7 +3336,7 @@ export default function Dashboard() {
                   {/* Atividade Recente */}
                   <div
                     className={`${
-                      performanceMode ? 'glass-performance' : 'glass-performance'
+                      'bg-card border rounded-lg'
                     } p-4 rounded-xl`}
                   >
                     <h4 className="text-sm font-semibold text-white/80 mb-3">
@@ -3389,7 +3389,7 @@ export default function Dashboard() {
               <div className="p-6 pt-4 flex-shrink-0">
                 <motion.button
                   onClick={() => setShowUserProfile(false)}
-                  className="liquid-button w-full"
+                  className="bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-md transition-colors w-full"
                   whileHover={performanceMode ? {} : { scale: 1.02 }}
                   whileTap={performanceMode ? {} : { scale: 0.98 }}
                 >
