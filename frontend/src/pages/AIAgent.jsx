@@ -31,6 +31,7 @@ import {
   Activity
 } from 'lucide-react'
 import AgentsList from '../components/AgentsList'
+import AgentShowcase from '../components/AgentShowcase'
 
 
 export default function AIAgent() {
@@ -400,6 +401,11 @@ export default function AIAgent() {
           </Tabs>
         </CardContent>
       </Card>
+
+      {/* Agent Showcase */}
+      <div className="mb-8">
+        <AgentShowcase />
+      </div>
 
       {/* Content */}
       {activeTab === 'manage' ? (
