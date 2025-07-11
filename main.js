@@ -19,7 +19,6 @@ const database = require('./src/config/database');
 const managementRoutes = require('./src/routes');
 const { app: baileysApp, initializeApp } = require('./src/app');
 const apiTokenAuth = require('./src/middleware/apiTokenAuth');
-const { FlowChatMCPServer } = require('./mcp-server');
 
 // Swagger setup
 const swaggerUi = require('swagger-ui-express');
@@ -29,7 +28,6 @@ class Server {
   constructor() {
     this.app = express();
     this.port = process.env.PORT || 3000;
-    this.mcpServer = null;
     this.setupMiddleware();
     this.setupRoutes();
     this.setupErrorHandling();
@@ -254,15 +252,6 @@ class Server {
       // Initialize Baileys app first
       await initializeApp();
 
-      // Initialize MCP server if API key is provided
-      if (process.env.BAILEYS_API_KEY) {
-        try {
-          this.mcpServer = new FlowChatMCPServer();
-          console.log('✅ MCP Server initialized');
-        } catch (mcpError) {
-          console.log('⚠️  MCP Server initialization failed:', mcpError.message);
-        }
-      }
 
       // Start server
       this.server = this.app.listen(this.port, () => {
@@ -280,9 +269,6 @@ class Server {
         console.log(`📖 API Docs: http://localhost:${this.port}/api-docs`);
         console.log(`🖥️  Frontend: http://localhost:${this.port}`);
         console.log(`📋 API Info: http://localhost:${this.port}/api`);
-        if (this.mcpServer) {
-          console.log(`🤖 MCP Server: Ready for Model Context Protocol connections`);
-        }
         console.log('🎉 ===========================================');
 
         if (process.env.NODE_ENV === 'development') {
@@ -291,9 +277,6 @@ class Server {
           console.log('   - Works without MongoDB');
           console.log('   - Mock authentication available');
           console.log('   - Enhanced error logging');
-          if (this.mcpServer) {
-            console.log('   - MCP Server integrated');
-          }
           console.log('');
         }
       });

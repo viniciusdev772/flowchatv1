@@ -31,7 +31,6 @@
     "@hapi/boom": "^10.0.1",
     "@langchain/core": "^0.3.62",
     "@langchain/openai": "^0.5.18",
-    "@modelcontextprotocol/sdk": "^1.15.0",
     "@sinclair/typebox": "^0.34.37",
     "@whiskeysockets/baileys": "^6.7.18",
     "archiver": "^7.0.1",
