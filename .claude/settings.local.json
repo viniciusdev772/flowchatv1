@@ -32,7 +32,8 @@
       "Bash(git commit:*)",
       "Bash(git push:*)",
       "Bash(git config:*)",
-      "Bash(git pull:*)"
+      "Bash(git pull:*)",
+      "WebFetch(domain:www.rockstargames.com)"
     ],
     "deny": []
   },
