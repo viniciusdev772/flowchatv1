@@ -49,8 +49,11 @@ export default function MessageCollectorManager() {
   const [stopOptions, setStopOptions] = useState({
     generateSummary: false,
     sendToGroup: false,
-    summaryTone: 'professional'
+    summaryTone: 'professional',
+    customInstructions: '',
+    topParticipants: 5
   });
+  const [isGeneratingResume, setIsGeneratingResume] = useState(false);
   const [loading, setLoading] = useState(true);
   const [sessions, setSessions] = useState([]);
   const [groups, setGroups] = useState([]);
@@ -398,7 +401,9 @@ export default function MessageCollectorManager() {
     setStopOptions({
       generateSummary: false,
       sendToGroup: false,
-      summaryTone: 'professional'
+      summaryTone: 'professional',
+      customInstructions: '',
+      topParticipants: 5
     });
     setShowStopOptionsModal(true);
   };
@@ -411,6 +416,9 @@ export default function MessageCollectorManager() {
   const confirmStopCollector = async () => {
     if (!collectorToStop) return;
     
+    // Prevenir cliques duplos
+    if (isGeneratingResume) return;
+    
     try {
       // Obter chave OpenAI do localStorage se gerar resumo estiver ativado
       let customApiKey = null;
@@ -420,6 +428,7 @@ export default function MessageCollectorManager() {
           alert('Chave OpenAI não configurada. Configure em AI Assistant > Configurações para gerar resumos.');
           return;
         }
+        setIsGeneratingResume(true);
       }
 
       const requestBody = { 
@@ -427,6 +436,8 @@ export default function MessageCollectorManager() {
         generateSummary: stopOptions.generateSummary,
         sendToGroup: stopOptions.sendToGroup,
         summaryTone: stopOptions.summaryTone,
+        customInstructions: stopOptions.customInstructions,
+        topParticipants: stopOptions.topParticipants,
         customApiKey: customApiKey // Enviar chave OpenAI se disponível
       };
       
@@ -443,7 +454,13 @@ export default function MessageCollectorManager() {
           setShowConfirmModal(false);
           setShowStopOptionsModal(false);
           setCollectorToStop(null);
-          setStopOptions({ generateSummary: false, sendToGroup: false, summaryTone: 'professional' });
+          setStopOptions({ 
+            generateSummary: false, 
+            sendToGroup: false, 
+            summaryTone: 'professional',
+            customInstructions: '',
+            topParticipants: 5
+          });
           loadCollectors();
         } else {
           alert(`Erro: ${data.message}`);
@@ -455,6 +472,8 @@ export default function MessageCollectorManager() {
     } catch (error) {
       console.error('Erro ao parar coletor:', error);
       alert('Erro ao parar coletor');
+    } finally {
+      setIsGeneratingResume(false);
     }
   };
 
@@ -2180,6 +2199,56 @@ export default function MessageCollectorManager() {
                   </div>
                 )}
 
+                {/* Número de Participantes */}
+                {stopOptions.generateSummary && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-2 block">
+                      👥 Top Participantes
+                    </label>
+                    <div className="flex items-center space-x-3">
+                      <input
+                        type="number"
+                        min="3"
+                        max="20"
+                        value={stopOptions.topParticipants}
+                        onChange={(e) => setStopOptions(prev => ({
+                          ...prev,
+                          topParticipants: parseInt(e.target.value) || 5
+                        }))}
+                        className="w-20 p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center"
+                      />
+                      <span className="text-sm text-gray-600">
+                        participantes mais ativos no resumo
+                      </span>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Entre 3 e 20 participantes (padrão: 5)
+                    </p>
+                  </div>
+                )}
+
+                {/* Instruções Personalizadas */}
+                {stopOptions.generateSummary && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-2 block">
+                      📝 Instruções Adicionais (Opcional)
+                    </label>
+                    <textarea
+                      value={stopOptions.customInstructions}
+                      onChange={(e) => setStopOptions(prev => ({
+                        ...prev,
+                        customInstructions: e.target.value
+                      }))}
+                      placeholder="Ex: Foque mais nos aspectos técnicos, ignore mensagens de spam, destaque as principais decisões..."
+                      className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                      rows={3}
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Instruções específicas para personalizar o resumo
+                    </p>
+                  </div>
+                )}
+
                 {/* Enviar para Grupo */}
                 {stopOptions.generateSummary && (
                   <div className="flex items-center justify-between">
@@ -2210,13 +2279,15 @@ export default function MessageCollectorManager() {
               <div className="flex gap-3">
                 <button
                   onClick={() => setShowStopOptionsModal(false)}
-                  className="flex-1 py-2 px-4 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                  disabled={isGeneratingResume}
+                  className="flex-1 py-2 px-4 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={proceedToConfirmation}
-                  className="flex-1 py-2 px-4 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                  disabled={isGeneratingResume}
+                  className="flex-1 py-2 px-4 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   Continuar
                 </button>
@@ -2279,6 +2350,44 @@ export default function MessageCollectorManager() {
                 <p className="text-gray-600 mb-3">
                   Tem certeza que deseja parar o coletor <span className="font-semibold text-gray-800">"{collectorToStop.sessionId}"</span>?
                 </p>
+                
+                {/* Mostrar configurações de resumo se ativadas */}
+                {stopOptions.generateSummary && (
+                  <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg mb-3">
+                    <div className="flex items-start space-x-2">
+                      <div className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0">🤖</div>
+                      <div className="text-left">
+                        <p className="text-blue-800 text-sm font-medium mb-1">
+                          Resumo com IA será gerado
+                        </p>
+                        <ul className="text-blue-700 text-sm space-y-1">
+                          <li>• Tom: {stopOptions.summaryTone === 'professional' ? '💼 Profissional' : stopOptions.summaryTone === 'casual' ? '😊 Casual' : stopOptions.summaryTone === 'analytical' ? '📊 Analítico' : '⚡ Breve'}</li>
+                          <li>• 👥 Top {stopOptions.topParticipants} participantes mais ativos</li>
+                          {stopOptions.sendToGroup && <li>• 📤 Será enviado automaticamente no grupo</li>}
+                          {stopOptions.customInstructions && <li>• 📝 Com instruções personalizadas</li>}
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Progresso de geração */}
+                {isGeneratingResume && (
+                  <div className="bg-green-50 border border-green-200 p-4 rounded-lg mb-3">
+                    <div className="flex items-center space-x-3">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600"></div>
+                      <div className="text-left">
+                        <p className="text-green-800 text-sm font-medium">
+                          🤖 Gerando resumo com IA...
+                        </p>
+                        <p className="text-green-700 text-xs">
+                          Aguarde, pode levar alguns minutos dependendo do volume de mensagens
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
                 <div className="bg-yellow-50 border border-yellow-200 p-3 rounded-lg">
                   <div className="flex items-start space-x-2">
                     <ExclamationTriangleIcon className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" />
@@ -2298,11 +2407,19 @@ export default function MessageCollectorManager() {
               <div className="flex gap-3">
                 <motion.button
                   onClick={confirmStopCollector}
-                  className="flex-1 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 font-medium transition-colors"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
+                  disabled={isGeneratingResume}
+                  className="flex-1 py-3 bg-red-600 text-white rounded-xl hover:bg-red-700 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                  whileHover={!isGeneratingResume ? { scale: 1.02 } : {}}
+                  whileTap={!isGeneratingResume ? { scale: 0.98 } : {}}
                 >
-                  Sim, Parar Coletor
+                  {isGeneratingResume ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Processando...
+                    </>
+                  ) : (
+                    'Sim, Parar Coletor'
+                  )}
                 </motion.button>
 
                 <motion.button
@@ -2310,9 +2427,10 @@ export default function MessageCollectorManager() {
                     setShowConfirmModal(false);
                     setCollectorToStop(null);
                   }}
-                  className="flex-1 py-3 bg-gray-100 rounded-xl text-gray-700 hover:bg-gray-200 font-medium transition-colors"
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
+                  disabled={isGeneratingResume}
+                  className="flex-1 py-3 bg-gray-100 rounded-xl text-gray-700 hover:bg-gray-200 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  whileHover={!isGeneratingResume ? { scale: 1.02 } : {}}
+                  whileTap={!isGeneratingResume ? { scale: 0.98 } : {}}
                 >
                   Cancelar
                 </motion.button>

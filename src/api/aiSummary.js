@@ -166,18 +166,21 @@ router.post('/summarize', (req, res, next) => {
     // Configurar OpenAI
     const openai = getOpenAIClient(effectiveApiKey);
 
+    // Construir template dinâmico baseado no número de participantes
+    const topParticipantsCount = parseInt(req.body.topParticipants) || 5;
+    const validatedCount = Math.max(3, Math.min(20, topParticipantsCount));
+    const participantsList = Array.from({length: validatedCount}, (_, i) => 
+      `${i + 1}. [Nome] - [X] mensagens`
+    ).join('\n');
+    
     // Template de resumo estruturado
     const summaryTemplate = `
 Siga este formato exato para o resumo:
 
 Resumo do Grupo - [Nome do Grupo] 📆 - [Data]
 
-👥 Top 5 Participantes Ativos:
-1. [Nome] - [X] mensagens
-2. [Nome] - [X] mensagens
-3. [Nome] - [X] mensagens
-4. [Nome] - [X] mensagens
-5. [Nome] - [X] mensagens
+👥 Top ${validatedCount} Participantes Ativos:
+${participantsList}
 
 📌 Assunto Principal: 
 [Descrição geral dos temas mais discutidos]

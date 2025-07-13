@@ -569,6 +569,8 @@ router.post('/stop', authenticateToken, async (req, res) => {
       generateSummary = false, 
       sendToGroup = false, 
       summaryTone = 'professional',
+      customInstructions = '',
+      topParticipants = 5,
       customApiKey = null 
     } = req.body;
     const userId = req.user._id;
@@ -628,6 +630,8 @@ router.post('/stop', authenticateToken, async (req, res) => {
           const summaryConfig = {
             tone: summaryTone,
             sendToGroup: sendToGroup || collector.config?.summaryConfig?.sendToGroup || false,
+            customInstructions: customInstructions,
+            topParticipants: Math.max(3, Math.min(20, parseInt(topParticipants) || 5)), // Validar entre 3-20
             customApiKey: customApiKey // Usar chave do frontend se fornecida
           };
           
@@ -954,18 +958,20 @@ async function generateAndSendSummary(collectorId, collector) {
     const batchesToProcess = batches.slice(0, MAX_ITERATIONS);
     const partialSummaries = [];
     
+    // Construir template dinâmico baseado no número de participantes
+    const topParticipantsCount = collector.config?.summaryConfig?.topParticipants || 5;
+    const participantsList = Array.from({length: topParticipantsCount}, (_, i) => 
+      `${i + 1}. [Nome] - [X] mensagens`
+    ).join('\n');
+    
     // Template de resumo para a IA seguir
     const summaryTemplate = `
 Siga este formato exato para o resumo:
 
 Resumo do Grupo - [Nome do Grupo] 📆 - [Data]
 
-👥 Top 5 Participantes Ativos:
-1. [Nome] - [X] mensagens
-2. [Nome] - [X] mensagens
-3. [Nome] - [X] mensagens
-4. [Nome] - [X] mensagens
-5. [Nome] - [X] mensagens
+👥 Top ${topParticipantsCount} Participantes Ativos:
+${participantsList}
 
 📌 Assunto Principal: 
 [Descrição geral dos temas mais discutidos]
@@ -1006,8 +1012,8 @@ Encerramento 🌟
           batchNumber: i + 1,
           totalBatches: batchesToProcess.length,
           customPrompt: i === 0 ? 
-            `Analise estas mensagens e crie um resumo parcial seguindo este template:\n\n${summaryTemplate}\n\nDados obrigatórios:\n- Nome do Grupo: ${collector.config?.name || collector.groupId || 'Grupo WhatsApp'}\n- Data: ${collector.startTime ? new Date(collector.startTime).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR')}\n\nEste é o lote ${i + 1} de ${batchesToProcess.length}. Se for o primeiro lote, inclua estrutura completa. Se for lote subsequente, foque nos conteúdos específicos deste lote.` :
-            `Continue o resumo analisando este lote ${i + 1} de ${batchesToProcess.length}. Foque nos conteúdos específicos deste lote mantendo a estrutura do template.`
+            `Analise estas mensagens e crie um resumo parcial seguindo este template:\n\n${summaryTemplate}\n\nDados obrigatórios:\n- Nome do Grupo: ${collector.config?.name || collector.groupId || 'Grupo WhatsApp'}\n- Data: ${collector.startTime ? new Date(collector.startTime).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR')}\n\n${collector.config?.summaryConfig?.customInstructions ? `Instruções adicionais: ${collector.config.summaryConfig.customInstructions}\n\n` : ''}Este é o lote ${i + 1} de ${batchesToProcess.length}. Se for o primeiro lote, inclua estrutura completa. Se for lote subsequente, foque nos conteúdos específicos deste lote.` :
+            `Continue o resumo analisando este lote ${i + 1} de ${batchesToProcess.length}. Foque nos conteúdos específicos deste lote mantendo a estrutura do template.${collector.config?.summaryConfig?.customInstructions ? `\n\nInstruções adicionais: ${collector.config.summaryConfig.customInstructions}` : ''}`
         };
         
         // Filtrar mensagens deste lote
@@ -1081,7 +1087,7 @@ DADOS OBRIGATÓRIOS PARA O TEMPLATE:
 - Data da coleta: ${startDate}
 - Total de mensagens: ${messages.length}
 
-Resumos parciais para consolidar:
+${collector.config?.summaryConfig?.customInstructions ? `INSTRUÇÕES ADICIONAIS: ${collector.config.summaryConfig.customInstructions}\n\n` : ''}Resumos parciais para consolidar:
 ${partialSummaries.map(ps => `--- Lote ${ps.batchNumber} (${ps.messageCount} mensagens) ---\n${ps.summary}`).join('\n\n')}
 
 Instruções de consolidação:

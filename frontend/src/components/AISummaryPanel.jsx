@@ -42,7 +42,8 @@ export default function AISummaryPanel({ collectedMessages, collectorId }) {
     customPrompt: '',
     customApiKey: '',
     language: 'pt-BR',
-    length: 'medium'
+    length: 'medium',
+    topParticipants: 5
   });
 
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -1043,6 +1044,26 @@ export default function AISummaryPanel({ collectedMessages, collectorId }) {
                       <option value="long">Longo</option>
                       <option value="detailed">Detalhado</option>
                     </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      👥 Top Participantes
+                    </label>
+                    <div className="flex items-center space-x-2">
+                      <input
+                        type="number"
+                        min="3"
+                        max="20"
+                        value={summaryConfig.topParticipants}
+                        onChange={(e) => setSummaryConfig(prev => ({ 
+                          ...prev, 
+                          topParticipants: parseInt(e.target.value) || 5 
+                        }))}
+                        className="w-16 px-2 py-1 bg-gray-50 rounded-lg text-gray-800 focus:ring-2 focus:ring-blue-500 focus:outline-none border border-gray-200 focus:bg-white transition-colors text-sm text-center"
+                      />
+                      <span className="text-xs text-gray-600">participantes (3-20)</span>
+                    </div>
                   </div>
                 </div>
 
