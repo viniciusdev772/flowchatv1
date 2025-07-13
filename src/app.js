@@ -66,8 +66,8 @@ app.use('/api/baileys', (req, res, next) => {
   return apiTokenAuth(req, res, next);
 });
 
-// Rota para download do arquivo OpenAPI JSON
-app.get('/api-docs/openapi.json', (req, res) => {
+// Rota para download do OpenAPI JSON (caminho diferente para evitar conflito)
+app.get('/openapi.json', (req, res) => {
   try {
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Content-Disposition', 'attachment; filename="openapi.json"');
@@ -81,7 +81,7 @@ app.get('/api-docs/openapi.json', (req, res) => {
   }
 });
 
-// Documentação Swagger
+// Documentação Swagger - middleware genérico
 app.use(
   '/api-docs',
   swaggerUi.serve,
@@ -89,36 +89,75 @@ app.use(
     ...swaggerUiOptions,
     customCss: `
       ${swaggerUiOptions.customCss}
-      .info .title::after {
-        content: " 📥";
-        margin-left: 10px;
+      .topbar-wrapper .download-contents {
+        display: flex;
+        align-items: center;
+        gap: 10px;
       }
-      .info .description::after {
-        content: "\\A\\A📥 Download OpenAPI JSON: ";
-        white-space: pre;
-        font-weight: bold;
+      .download-btn {
+        background: #3b82f6;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+        text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
       }
-      .info .description::after + a {
-        color: #3b82f6;
-        text-decoration: underline;
+      .download-btn:hover {
+        background: #2563eb;
+        color: white;
+        text-decoration: none;
       }
     `,
-    customJs: `
-      // Adicionar link de download na página
-      document.addEventListener('DOMContentLoaded', function() {
-        setTimeout(() => {
-          const description = document.querySelector('.info .description');
-          if (description) {
-            const downloadLink = document.createElement('a');
-            downloadLink.href = '/api-docs/openapi.json';
-            downloadLink.textContent = 'Baixar OpenAPI JSON';
-            downloadLink.style.color = '#3b82f6';
-            downloadLink.style.textDecoration = 'underline';
-            downloadLink.style.fontWeight = 'bold';
-            description.appendChild(downloadLink);
+    customJsStr: `
+      window.onload = function() {
+        // Esperar o Swagger UI carregar completamente
+        setTimeout(function() {
+          // Procurar pela topbar
+          let topbar = document.querySelector('.topbar-wrapper .topbar');
+          if (!topbar) {
+            topbar = document.querySelector('.topbar');
+          }
+          
+          if (topbar) {
+            // Criar container para downloads
+            const downloadContainer = document.createElement('div');
+            downloadContainer.className = 'download-contents';
+            downloadContainer.innerHTML = \`
+              <a href="/openapi.json" class="download-btn" download="openapi.json">
+                📥 Download JSON
+              </a>
+            \`;
+            
+            // Adicionar à topbar
+            topbar.appendChild(downloadContainer);
+          } else {
+            // Fallback: adicionar após a descrição
+            setTimeout(function() {
+              const infoSection = document.querySelector('.info');
+              if (infoSection) {
+                const downloadDiv = document.createElement('div');
+                downloadDiv.style.marginTop = '20px';
+                downloadDiv.style.padding = '15px';
+                downloadDiv.style.backgroundColor = '#f8f9fa';
+                downloadDiv.style.borderRadius = '8px';
+                downloadDiv.style.border = '1px solid #e9ecef';
+                downloadDiv.innerHTML = \`
+                  <h4 style="margin-bottom: 10px; color: #495057;">📥 Downloads</h4>
+                  <a href="/openapi.json" class="download-btn" download="openapi.json">
+                    Download OpenAPI JSON
+                  </a>
+                \`;
+                infoSection.appendChild(downloadDiv);
+              }
+            }, 500);
           }
         }, 1000);
-      });
+      };
     `
   })
 );
