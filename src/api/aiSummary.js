@@ -82,9 +82,42 @@ function formatMessagesForPrompt(messages) {
       const name = msg.pushName || 'Usuário';
       
       // Filtrar links de download internos do texto da mensagem
-      const filteredText = filterInternalDownloadLinks(msg.text);
+      let filteredText = filterInternalDownloadLinks(msg.text);
       
-      return `[${time}] ${name}: ${filteredText}`;
+      // Construir texto da mensagem com informações adicionais
+      let messageContent = '';
+      
+      // Adicionar informação de mensagem citada se existir
+      if (msg.quotedMessage) {
+        const quotedUser = msg.quotedMessage.participant ? 
+          msg.quotedMessage.participant.split('@')[0] : 'Usuário';
+        const quotedText = msg.quotedMessage.text || '[Mídia]';
+        messageContent += `(respondendo a ${quotedUser}: "${quotedText}") `;
+      }
+      
+      // Adicionar conteúdo principal
+      if (msg.caption && msg.hasMedia) {
+        // Se há caption e mídia, mostrar caption e tipo de mídia
+        const mediaType = msg.mediaType === 'image' ? 'imagem' : 
+                         msg.mediaType === 'video' ? 'vídeo' : 
+                         msg.mediaType === 'audio' ? 'áudio' : 
+                         msg.mediaType === 'document' ? 'documento' : 
+                         msg.mediaType === 'sticker' ? 'figurinha' : 'mídia';
+        messageContent += `${msg.caption} [${mediaType} compartilhada]`;
+      } else if (msg.hasMedia) {
+        // Se só há mídia sem caption
+        const mediaType = msg.mediaType === 'image' ? 'Imagem' : 
+                         msg.mediaType === 'video' ? 'Vídeo' : 
+                         msg.mediaType === 'audio' ? 'Áudio' : 
+                         msg.mediaType === 'document' ? 'Documento' : 
+                         msg.mediaType === 'sticker' ? 'Figurinha' : 'Mídia';
+        messageContent += `[${mediaType} compartilhada]`;
+      } else {
+        // Mensagem de texto normal
+        messageContent += filteredText;
+      }
+      
+      return `[${time}] ${name}: ${messageContent}`;
     })
     .join('\n');
 }

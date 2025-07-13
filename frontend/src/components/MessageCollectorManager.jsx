@@ -829,14 +829,74 @@ export default function MessageCollectorManager() {
     }
   };
 
-  // Função para renderizar o conteúdo da mensagem com suporte a mídia
+  // Função para renderizar o conteúdo da mensagem com suporte a mídia, captions e mensagens citadas
   const renderMessageContent = (message, messageSearch) => {
     if (!message.text) return '[Mensagem vazia]';
     
-    // Verificar se é uma URL de mídia
-    const isMediaUrl = message.text.startsWith('http') && message.text.includes('/api/baileys/download/');
+    // Verificar se há uma URL de mídia no texto (pode estar combinada com caption)
+    const hasMediaUrl = message.text.includes('/api/baileys/download/');
+    const mediaUrlMatch = message.text.match(/(https?:\/\/[^\s]+\/api\/baileys\/download\/[^\s]+)/);
+    const mediaUrl = mediaUrlMatch ? mediaUrlMatch[1] : null;
     
-    if (isMediaUrl) {
+    // Separar caption do URL se ambos existirem
+    let caption = null;
+    let displayText = message.text;
+    
+    if (hasMediaUrl && mediaUrl) {
+      // Se o texto contém URL + caption, separar
+      const parts = message.text.split(mediaUrl);
+      if (parts[0] && parts[0].trim()) {
+        caption = parts[0].trim();
+        displayText = parts.join('').trim() || mediaUrl;
+      } else {
+        displayText = mediaUrl;
+      }
+    } else if (message.caption) {
+      // Se há caption separado
+      caption = message.caption;
+    }
+    
+    // Função para renderizar mensagem citada
+    const renderQuotedMessage = (quotedMsg) => {
+      if (!quotedMsg) return null;
+      
+      const quotedIcons = {
+        image: '🖼️',
+        video: '🎥',
+        audio: '🎵',
+        document: '📄',
+        sticker: '🏷️'
+      };
+      
+      return (
+        <div className="border-l-4 border-blue-300 bg-gray-50 pl-3 py-2 mb-2 rounded-r">
+          <div className="text-xs text-gray-500 mb-1">
+            {quotedMsg.participant ? `↪ ${quotedMsg.participant.split('@')[0]}` : '↪ Respondendo a:'}
+          </div>
+          <div className="text-sm text-gray-700 flex items-center space-x-1">
+            {quotedMsg.mediaType && (
+              <span className="text-xs">{quotedIcons[quotedMsg.mediaType] || '📎'}</span>
+            )}
+            <span className="truncate max-w-xs">
+              {quotedMsg.text || '[Mídia]'}
+            </span>
+          </div>
+        </div>
+      );
+    };
+    
+    // Função para aplicar destaque de busca no texto
+    const highlightText = (text) => {
+      if (messageSearch && text) {
+        return text.split(new RegExp(`(${messageSearch})`, 'gi')).map((part, i) => 
+          part.toLowerCase() === messageSearch.toLowerCase() ? 
+            <mark key={i} className="bg-yellow-200 rounded px-1">{part}</mark> : part
+        );
+      }
+      return text;
+    };
+    
+    if (hasMediaUrl && mediaUrl) {
       const mediaType = message.mediaType || 'unknown';
       const mediaIcons = {
         image: '🖼️',
@@ -856,36 +916,52 @@ export default function MessageCollectorManager() {
       
       return (
         <div className="space-y-2">
+          {/* Renderizar mensagem citada se existir */}
+          {message.quotedMessage && renderQuotedMessage(message.quotedMessage)}
+          
+          {/* Renderizar caption se existir */}
+          {caption && (
+            <div className="text-sm text-gray-800 mb-2 leading-relaxed">
+              {highlightText(caption)}
+            </div>
+          )}
+          
+          {/* Renderizar informações da mídia */}
           <div className="flex items-center space-x-2">
             <span className="text-base">{mediaIcons[mediaType] || '📎'}</span>
             <span className="text-sm text-gray-600 font-medium">
               {mediaTypeNames[mediaType] || 'Mídia'}
             </span>
           </div>
+          
+          {/* Link para visualizar mídia */}
           <a
-            href={message.text}
+            href={mediaUrl}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-flex items-center space-x-2 text-blue-600 hover:text-blue-800 underline text-sm break-all"
           >
             <span>Visualizar mídia</span>
             <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
             </svg>
           </a>
         </div>
       );
     }
     
-    // Renderizar texto normal com destaque de busca
-    if (messageSearch && message.text) {
-      return message.text.split(new RegExp(`(${messageSearch})`, 'gi')).map((part, i) => 
-        part.toLowerCase() === messageSearch.toLowerCase() ? 
-          <mark key={i} className="bg-yellow-200 rounded px-1">{part}</mark> : part
-      );
-    }
-    
-    return message.text;
+    // Renderizar mensagem de texto normal
+    return (
+      <div className="space-y-2">
+        {/* Renderizar mensagem citada se existir */}
+        {message.quotedMessage && renderQuotedMessage(message.quotedMessage)}
+        
+        {/* Renderizar texto da mensagem */}
+        <div className="text-sm text-gray-800 leading-relaxed">
+          {highlightText(displayText)}
+        </div>
+      </div>
+    );
   };
 
   const ThinkingIndicator = () => (

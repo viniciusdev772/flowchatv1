@@ -229,7 +229,50 @@ async function extractMessageData(message, sessionId, collectorConfig) {
     text: null,
     mediaUrl: null,
     mediaType: null,
-    hasMedia: false
+    hasMedia: false,
+    caption: null,
+    quotedMessage: null
+  };
+
+  // Função para extrair informações de mensagem citada
+  const extractQuotedMessageInfo = (contextInfo) => {
+    if (!contextInfo || !contextInfo.quotedMessage) return null;
+    
+    const quoted = contextInfo.quotedMessage;
+    let quotedInfo = {
+      id: contextInfo.stanzaId,
+      participant: contextInfo.participant,
+      text: null,
+      mediaType: null,
+      caption: null
+    };
+
+    // Extrair texto/tipo da mensagem citada
+    if (quoted.conversation) {
+      quotedInfo.text = quoted.conversation;
+    } else if (quoted.extendedTextMessage) {
+      quotedInfo.text = quoted.extendedTextMessage.text;
+    } else if (quoted.imageMessage) {
+      quotedInfo.mediaType = 'image';
+      quotedInfo.caption = quoted.imageMessage.caption || null;
+      quotedInfo.text = quotedInfo.caption || '[Imagem]';
+    } else if (quoted.videoMessage) {
+      quotedInfo.mediaType = 'video';
+      quotedInfo.caption = quoted.videoMessage.caption || null;
+      quotedInfo.text = quotedInfo.caption || '[Vídeo]';
+    } else if (quoted.audioMessage) {
+      quotedInfo.mediaType = 'audio';
+      quotedInfo.text = '[Áudio]';
+    } else if (quoted.documentMessage) {
+      quotedInfo.mediaType = 'document';
+      quotedInfo.caption = quoted.documentMessage.caption || null;
+      quotedInfo.text = quotedInfo.caption || `[Documento: ${quoted.documentMessage.fileName || 'arquivo'}]`;
+    } else if (quoted.stickerMessage) {
+      quotedInfo.mediaType = 'sticker';
+      quotedInfo.text = '[Figurinha]';
+    }
+
+    return quotedInfo;
   };
 
   // Extrair texto de diferentes tipos de mensagem
@@ -237,32 +280,62 @@ async function extractMessageData(message, sessionId, collectorConfig) {
     messageData.text = message.message.conversation;
   } else if (message.message.extendedTextMessage) {
     messageData.text = message.message.extendedTextMessage.text;
-  } else if (message.message.quotedMessage) {
-    // Tentar extrair texto de mensagem citada
-    const quotedText = extractTextFromMessage({ message: message.message.quotedMessage });
-    messageData.text = quotedText;
+    
+    // Verificar se há mensagem citada
+    if (message.message.extendedTextMessage.contextInfo) {
+      messageData.quotedMessage = extractQuotedMessageInfo(message.message.extendedTextMessage.contextInfo);
+    }
   } else if (message.message.imageMessage || message.message.videoMessage || 
              message.message.audioMessage || message.message.documentMessage || 
              message.message.stickerMessage) {
     // Mensagem com mídia - tentar fazer download
     messageData.hasMedia = true;
     
-    // Determinar tipo de mídia
+    // Determinar tipo de mídia e extrair caption
     if (message.message.imageMessage) {
       messageData.mediaType = 'image';
-      messageData.text = '[Imagem]';
+      messageData.caption = message.message.imageMessage.caption || null;
+      messageData.text = messageData.caption || '[Imagem]';
+      
+      // Verificar se há mensagem citada
+      if (message.message.imageMessage.contextInfo) {
+        messageData.quotedMessage = extractQuotedMessageInfo(message.message.imageMessage.contextInfo);
+      }
     } else if (message.message.videoMessage) {
       messageData.mediaType = 'video';
-      messageData.text = '[Vídeo]';
+      messageData.caption = message.message.videoMessage.caption || null;
+      messageData.text = messageData.caption || '[Vídeo]';
+      
+      // Verificar se há mensagem citada
+      if (message.message.videoMessage.contextInfo) {
+        messageData.quotedMessage = extractQuotedMessageInfo(message.message.videoMessage.contextInfo);
+      }
     } else if (message.message.audioMessage) {
       messageData.mediaType = 'audio';
       messageData.text = '[Áudio]';
+      
+      // Verificar se há mensagem citada
+      if (message.message.audioMessage.contextInfo) {
+        messageData.quotedMessage = extractQuotedMessageInfo(message.message.audioMessage.contextInfo);
+      }
     } else if (message.message.documentMessage) {
       messageData.mediaType = 'document';
-      messageData.text = '[Documento]';
+      messageData.caption = message.message.documentMessage.caption || null;
+      const fileName = message.message.documentMessage.fileName || 'arquivo';
+      messageData.text = messageData.caption || `[Documento: ${fileName}]`;
+      
+      // Verificar se há mensagem citada
+      if (message.message.documentMessage.contextInfo) {
+        messageData.quotedMessage = extractQuotedMessageInfo(message.message.documentMessage.contextInfo);
+      }
     } else if (message.message.stickerMessage) {
       messageData.mediaType = 'sticker';
       messageData.text = '[Figurinha]';
+      
+      // Verificar se há mensagem citada
+      if (message.message.stickerMessage.contextInfo) {
+        messageData.quotedMessage = extractQuotedMessageInfo(message.message.stickerMessage.contextInfo);
+      }
     }
 
     // Verificar se deve fazer download da mídia (padrão: sempre tentar, só pular se explicitamente false)
@@ -281,7 +354,12 @@ async function extractMessageData(message, sessionId, collectorConfig) {
           
           if (mediaResult && mediaResult.downloadUrl) {
             messageData.mediaUrl = mediaResult.downloadUrl;
-            messageData.text = mediaResult.downloadUrl; // Usar URL como texto para display
+            // Se há caption, mostrar caption + URL, senão só URL
+            if (messageData.caption) {
+              messageData.text = `${messageData.caption}\n${mediaResult.downloadUrl}`;
+            } else {
+              messageData.text = mediaResult.downloadUrl;
+            }
             logger.info(`✅ Download de ${messageData.mediaType} bem-sucedido: ${mediaResult.downloadUrl}`);
           } else if (mediaResult && mediaResult.error) {
             logger.warn(`⚠️  Erro no download de ${messageData.mediaType}: ${mediaResult.message || mediaResult.error}`);
@@ -296,7 +374,7 @@ async function extractMessageData(message, sessionId, collectorConfig) {
         messageData.text = `[${messageData.mediaType === 'image' ? 'Imagem' : messageData.mediaType === 'video' ? 'Vídeo' : messageData.mediaType === 'audio' ? 'Áudio' : messageData.mediaType === 'document' ? 'Documento' : messageData.mediaType === 'sticker' ? 'Figurinha' : 'Mídia'} - Erro]`;
       }
     }
-    // Se downloadMedia for false, manter apenas o placeholder [Tipo]
+    // Se downloadMedia for false, manter apenas o placeholder [Tipo] ou caption se existir
   }
 
   return messageData;
