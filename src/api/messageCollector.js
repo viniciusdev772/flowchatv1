@@ -879,14 +879,41 @@ async function generateAndSendSummary(collectorId, collector) {
     const customApiKey = user?.openaiApiKey || null;
     
     // Buscar token de API válido do usuário para autenticação interna
-    const userToken = await db.collection('tokens').findOne({ 
+    let userToken = await db.collection('api_tokens').findOne({ 
       userId: collector.userId,
-      isActive: true 
+      isActive: true,
+      $or: [
+        { expiresAt: null }, // Token sem expiração
+        { expiresAt: { $gt: new Date() } } // Token não expirado
+      ]
     });
     
     if (!userToken) {
-      logger.error(`Token de API não encontrado para usuário ${collector.userId}`);
-      throw new Error('Token de API não encontrado para o usuário');
+      logger.error(`Token de API ativo não encontrado para usuário ${collector.userId}`);
+      logger.info(`Gerando token automático para usuário ${collector.userId}...`);
+      
+      // Gerar token automático para resumos
+      const crypto = require('crypto');
+      const token = crypto.randomBytes(32).toString('hex');
+      const fullToken = `baileys_${token}`;
+      
+      const autoTokenRecord = {
+        userId: collector.userId,
+        name: 'Token Automático - Resumos',
+        token: fullToken,
+        expiresAt: null, // Sem expiração
+        createdAt: new Date(),
+        lastUsedAt: null,
+        isActive: true
+      };
+      
+      await db.collection('api_tokens').insertOne(autoTokenRecord);
+      logger.info(`✅ Token automático criado para usuário ${collector.userId}`);
+      
+      // Usar o token recém-criado
+      userToken = autoTokenRecord;
+    } else {
+      logger.info(`✅ Token encontrado para usuário ${collector.userId}: ${userToken.name}`);
     }
 
     // Gerar resumo usando a API de AI Summary
