@@ -1048,8 +1048,8 @@ Encerramento 🌟
           batchNumber: i + 1,
           totalBatches: batchesToProcess.length,
           customPrompt: i === 0 ? 
-            `Analise estas mensagens e crie um resumo parcial seguindo este template:\n\n${summaryTemplate}\n\nDados obrigatórios:\n- Nome do Grupo: ${collector.config?.name || collector.groupId || 'Grupo WhatsApp'}\n- Data: ${collector.startTime ? new Date(collector.startTime).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR')}\n\n${collector.config?.summaryConfig?.customInstructions ? `Instruções adicionais: ${collector.config.summaryConfig.customInstructions}\n\n` : ''}Este é o lote ${i + 1} de ${batchesToProcess.length}. Se for o primeiro lote, inclua estrutura completa. Se for lote subsequente, foque nos conteúdos específicos deste lote.` :
-            `Continue o resumo analisando este lote ${i + 1} de ${batchesToProcess.length}. Foque nos conteúdos específicos deste lote mantendo a estrutura do template.${collector.config?.summaryConfig?.customInstructions ? `\n\nInstruções adicionais: ${collector.config.summaryConfig.customInstructions}` : ''}`
+            `Analise estas mensagens e crie um resumo parcial seguindo este template:\n\n${summaryTemplate}\n\nDados obrigatórios:\n- Nome do Grupo: ${collector.config?.name || collector.groupId || 'Grupo WhatsApp'}\n- Data: ${collector.startTime ? new Date(collector.startTime).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR')}\n\nIMPORTANTE - Links e Arquivos:\n- NUNCA inclua links de download internos (que contêm /api/baileys/download/ ou /download/ + ID) na seção de Links Compartilhados\n- Substitua referências a arquivos baixados por "[Arquivo compartilhado]"\n- Na seção "🔗 Links Compartilhados" inclua APENAS links externos relevantes (sites, ferramentas, plataformas)\n- Ignore completamente links de download interno do sistema\n\n${collector.config?.summaryConfig?.customInstructions ? `Instruções adicionais: ${collector.config.summaryConfig.customInstructions}\n\n` : ''}Este é o lote ${i + 1} de ${batchesToProcess.length}. Se for o primeiro lote, inclua estrutura completa. Se for lote subsequente, foque nos conteúdos específicos deste lote.` :
+            `Continue o resumo analisando este lote ${i + 1} de ${batchesToProcess.length}. Foque nos conteúdos específicos deste lote mantendo a estrutura do template.\n\nIMPORTANTE - Links e Arquivos:\n- NUNCA inclua links de download internos na seção de Links Compartilhados\n- Inclua APENAS links externos relevantes\n${collector.config?.summaryConfig?.customInstructions ? `\n\nInstruções adicionais: ${collector.config.summaryConfig.customInstructions}` : ''}`
         };
         
         // Filtrar mensagens deste lote
@@ -1126,12 +1126,18 @@ DADOS OBRIGATÓRIOS PARA O TEMPLATE:
 ${collector.config?.summaryConfig?.customInstructions ? `INSTRUÇÕES ADICIONAIS: ${collector.config.summaryConfig.customInstructions}\n\n` : ''}Resumos parciais para consolidar:
 ${partialSummaries.map(ps => `--- Lote ${ps.batchNumber} (${ps.messageCount} mensagens) ---\n${ps.summary}`).join('\n\n')}
 
+IMPORTANTE - Links e Arquivos:
+- NUNCA inclua links de download internos (que contêm /api/baileys/download/ ou /download/ + ID) na seção de Links Compartilhados
+- Substitua referências a arquivos baixados por "[Arquivo compartilhado]" 
+- Na seção "🔗 Links Compartilhados" inclua APENAS links externos relevantes (sites, ferramentas, plataformas)
+- Ignore completamente links de download interno do sistema
+
 Instruções de consolidação:
 1. SUBSTITUA [Nome do Grupo] por: ${groupName}
 2. SUBSTITUA [Data] por: ${startDate}
 3. Consolide os top participantes somando suas mensagens
 4. Unifique os assuntos principais em categorias coerentes
-5. Combine todos os links compartilhados
+5. Combine APENAS links externos relevantes (ignore links de download internos)
 6. Organize temas por horário se possível
 7. Crie um resumo coeso e bem estruturado
 8. Use emojis conforme o template

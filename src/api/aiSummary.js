@@ -55,6 +55,22 @@ function processMessagesInBatches(messages, batchSize = 100) {
   return batches;
 }
 
+// Função para filtrar links de download internos do texto
+function filterInternalDownloadLinks(text) {
+  if (!text) return text;
+  
+  // Pattern para identificar links de download internos
+  // Matches URLs que contêm /api/baileys/download/ ou /download/ + ID
+  const internalDownloadPattern = /https?:\/\/[^\s]+\/api\/baileys\/download\/[^\s]+/gi;
+  const genericDownloadPattern = /https?:\/\/[^\s]+\/download\/[a-zA-Z0-9_]+/gi;
+  
+  // Remover links de download internos
+  let filteredText = text.replace(internalDownloadPattern, '[Arquivo compartilhado]');
+  filteredText = filteredText.replace(genericDownloadPattern, '[Arquivo compartilhado]');
+  
+  return filteredText;
+}
+
 // Função para formatar mensagens para o prompt
 function formatMessagesForPrompt(messages) {
   return messages
@@ -64,7 +80,11 @@ function formatMessagesForPrompt(messages) {
         minute: '2-digit',
       });
       const name = msg.pushName || 'Usuário';
-      return `[${time}] ${name}: ${msg.text}`;
+      
+      // Filtrar links de download internos do texto da mensagem
+      const filteredText = filterInternalDownloadLinks(msg.text);
+      
+      return `[${time}] ${name}: ${filteredText}`;
     })
     .join('\n');
 }
@@ -222,6 +242,12 @@ Encerramento 🌟
     // Adicionar contexto específico
     systemPrompt += `\n\nVocê receberá mensagens de um grupo do WhatsApp coletadas durante um período específico. 
     As mensagens estão no formato: [Hora] Nome: Mensagem
+    
+    IMPORTANTE - Links e Arquivos:
+    - NUNCA inclua links de download internos (que contêm /api/baileys/download/ ou /download/ + ID) na seção de Links Compartilhados
+    - Substitua referências a arquivos baixados por "[Arquivo compartilhado]" 
+    - Na seção "🔗 Links Compartilhados" inclua APENAS links externos relevantes (sites, ferramentas, plataformas)
+    - Ignore completamente links de download interno do sistema
     
     ${
       includeStats
