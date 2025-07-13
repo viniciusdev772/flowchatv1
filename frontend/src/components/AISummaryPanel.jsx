@@ -111,6 +111,13 @@ export default function AISummaryPanel({ collectedMessages, collectorId }) {
       return;
     }
 
+    // Obter chave OpenAI do localStorage
+    const openaiApiKey = localStorage.getItem('openai_api_key');
+    if (!openaiApiKey) {
+      alert('Chave OpenAI não configurada. Configure em AI Assistant > Configurações');
+      return;
+    }
+
     setIsGenerating(true);
     setStreamingContent('');
 
@@ -129,6 +136,7 @@ export default function AISummaryPanel({ collectedMessages, collectorId }) {
         credentials: 'include',
         body: JSON.stringify({
           collectorId,
+          customApiKey: openaiApiKey,
           ...summaryConfig
         })
       });
@@ -226,6 +234,13 @@ export default function AISummaryPanel({ collectedMessages, collectorId }) {
   const analyzeSentiment = async () => {
     if (!collectorId) return;
 
+    // Obter chave OpenAI do localStorage
+    const openaiApiKey = localStorage.getItem('openai_api_key');
+    if (!openaiApiKey) {
+      alert('Chave OpenAI não configurada. Configure em AI Assistant > Configurações');
+      return;
+    }
+
     setIsGenerating(true);
     try {
       const response = await fetch(`${apiUrl}/api/management/ai-summary/analyze-sentiment`, {
@@ -234,7 +249,7 @@ export default function AISummaryPanel({ collectedMessages, collectorId }) {
         credentials: 'include',
         body: JSON.stringify({ 
           collectorId,
-          customApiKey: summaryConfig.customApiKey 
+          customApiKey: openaiApiKey
         })
       });
 

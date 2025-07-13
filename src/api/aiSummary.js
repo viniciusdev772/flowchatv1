@@ -138,8 +138,33 @@ router.post('/summarize', (req, res, next) => {
       });
     }
 
+    // Buscar e validar chave OpenAI do usuário
+    let effectiveApiKey = customApiKey;
+    
+    if (!effectiveApiKey) {
+      // Buscar chave do usuário no banco
+      const user = await db.collection('users').findOne({ _id: req.user._id });
+      effectiveApiKey = user?.openaiApiKey;
+    }
+    
+    if (!effectiveApiKey) {
+      return res.status(400).json({
+        success: false,
+        message: 'Chave OpenAI não configurada. Configure sua chave em Configurações > API Keys',
+        needsApiKey: true
+      });
+    }
+    
+    // Salvar/atualizar chave no usuário se fornecida
+    if (customApiKey && customApiKey !== req.user.openaiApiKey) {
+      await db.collection('users').updateOne(
+        { _id: req.user._id },
+        { $set: { openaiApiKey: customApiKey, updatedAt: new Date() } }
+      );
+    }
+
     // Configurar OpenAI
-    const openai = getOpenAIClient(customApiKey);
+    const openai = getOpenAIClient(effectiveApiKey);
 
     // Template de resumo estruturado
     const summaryTemplate = `
@@ -511,7 +536,32 @@ router.post('/analyze-sentiment', authenticateToken, async (req, res) => {
       });
     }
 
-    const openai = getOpenAIClient(customApiKey);
+    // Buscar e validar chave OpenAI do usuário
+    let effectiveApiKey = customApiKey;
+    
+    if (!effectiveApiKey) {
+      // Buscar chave do usuário no banco
+      const user = await db.collection('users').findOne({ _id: req.user._id });
+      effectiveApiKey = user?.openaiApiKey;
+    }
+    
+    if (!effectiveApiKey) {
+      return res.status(400).json({
+        success: false,
+        message: 'Chave OpenAI não configurada. Configure sua chave em Configurações > API Keys',
+        needsApiKey: true
+      });
+    }
+    
+    // Salvar/atualizar chave no usuário se fornecida
+    if (customApiKey && customApiKey !== req.user.openaiApiKey) {
+      await db.collection('users').updateOne(
+        { _id: req.user._id },
+        { $set: { openaiApiKey: customApiKey, updatedAt: new Date() } }
+      );
+    }
+
+    const openai = getOpenAIClient(effectiveApiKey);
     const messages = collectedMessages;
     const formattedMessages = formatMessagesForPrompt(messages);
 
