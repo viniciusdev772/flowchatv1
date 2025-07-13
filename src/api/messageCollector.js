@@ -863,15 +863,205 @@ async function generateAndSendSummary(collectorId, collector) {
       customApiKey
     };
 
-    // Por enquanto, log da intenção
     logger.info(`📝 Gerando resumo automático para coletor ${collectorId} com ${messages.length} mensagens`);
     logger.info(`📋 Configuração do resumo: ${JSON.stringify(collector.config.summaryConfig)}`);
 
-    // Se configurado para enviar para o grupo, fazer isso aqui
-    if (collector.config.summaryConfig.sendToGroup) {
-      logger.info(`📨 Enviando resumo para o grupo ${collector.groupId}`);
-      // TODO: Implementar envio para o grupo via WhatsApp API
-      // Aqui você pode integrar com a API de envio de mensagens do Baileys
+    // Processar mensagens em lotes para respeitar limites de tokens da OpenAI
+    const BATCH_SIZE = 100; // Mensagens por lote (ajustável conforme necessário)
+    const DELAY_BETWEEN_CALLS = 60000; // 1 minuto entre chamadas para respeitar rate limit
+    const MAX_ITERATIONS = 10;
+    
+    const batches = [];
+    for (let i = 0; i < messages.length; i += BATCH_SIZE) {
+      batches.push(messages.slice(i, i + BATCH_SIZE));
+    }
+    
+    logger.info(`📊 Processando ${messages.length} mensagens em ${batches.length} lotes (máx: ${MAX_ITERATIONS})`);
+    
+    const batchesToProcess = batches.slice(0, MAX_ITERATIONS);
+    const partialSummaries = [];
+    
+    // Template de resumo para a IA seguir
+    const summaryTemplate = `
+Siga este formato exato para o resumo:
+
+Resumo do Grupo - [Nome do Grupo] 📆 - [Data]
+
+👥 Top 5 Participantes Ativos:
+1. [Nome] - [X] mensagens
+2. [Nome] - [X] mensagens
+3. [Nome] - [X] mensagens
+4. [Nome] - [X] mensagens
+5. [Nome] - [X] mensagens
+
+📌 Assunto Principal: 
+[Descrição geral dos temas mais discutidos]
+
+💡 Assuntos Relevantes:
+- [Categoria 1]:
+  - [Detalhes específicos]
+  - [Soluções ou discussões]
+- [Categoria 2]:
+  - [Detalhes específicos]
+  - [Atualizações ou recursos]
+
+🔗 Links Compartilhados:
+- [Descrição]: [URL]
+
+[Temas específicos com horários se aplicável]
+Tema: [Nome do Tema] ⏰ [Horário início] – [Horário fim]
+- Participantes: [Lista de nomes]
+- Resumo: [Descrição do que foi discutido]
+
+Destaques do Dia 🔍
+- Técnicos: [Pontos técnicos principais]
+- Inovação: [Novidades ou soluções]
+- Colaboração: [Aspectos de trabalho em equipe]
+
+Encerramento 🌟
+[Frase de fechamento sobre o dia]
+`;
+
+    try {
+      const fetch = require('node-fetch');
+      
+      // Processar cada lote
+      for (let i = 0; i < batchesToProcess.length; i++) {
+        const batch = batchesToProcess[i];
+        const batchSummaryData = {
+          ...summaryData,
+          batchNumber: i + 1,
+          totalBatches: batchesToProcess.length,
+          customPrompt: i === 0 ? 
+            `Analise estas mensagens e crie um resumo parcial seguindo este template:\n\n${summaryTemplate}\n\nEste é o lote ${i + 1} de ${batchesToProcess.length}. Se for o primeiro lote, inclua estrutura completa. Se for lote subsequente, foque nos conteúdos específicos deste lote.` :
+            `Continue o resumo analisando este lote ${i + 1} de ${batchesToProcess.length}. Foque nos conteúdos específicos deste lote mantendo a estrutura do template.`
+        };
+        
+        // Filtrar mensagens deste lote
+        const batchMessages = await db.collection('collectedMessages')
+          .find({ 
+            collectorId,
+            _id: { $in: batch.map(msg => msg._id) }
+          })
+          .sort({ collectedAt: 1 })
+          .toArray();
+          
+        if (batchMessages.length === 0) {
+          logger.warn(`⚠️ Lote ${i + 1} vazio, pulando...`);
+          continue;
+        }
+        
+        // Substituir mensagens no summaryData para este lote específico
+        batchSummaryData.messages = batchMessages;
+        
+        logger.info(`🔄 Processando lote ${i + 1}/${batchesToProcess.length} com ${batchMessages.length} mensagens...`);
+        
+        const response = await fetch(`http://localhost:${process.env.PORT || 3000}/api/management/ai-summary/summarize`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer baileys_${customApiKey}`
+          },
+          body: JSON.stringify(batchSummaryData)
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          const partialSummary = result.summary;
+          partialSummaries.push({
+            batchNumber: i + 1,
+            summary: partialSummary,
+            messageCount: batchMessages.length
+          });
+          
+          logger.info(`✅ Lote ${i + 1} processado: ${partialSummary.length} caracteres`);
+        } else {
+          const error = await response.text();
+          logger.error(`❌ Erro no lote ${i + 1}: ${response.status} - ${error}`);
+          // Continuar processando outros lotes mesmo se um falhar
+        }
+        
+        // Aguardar entre chamadas para respeitar rate limit (exceto no último lote)
+        if (i < batchesToProcess.length - 1) {
+          logger.info(`⏳ Aguardando ${DELAY_BETWEEN_CALLS/1000}s para próximo lote...`);
+          await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_CALLS));
+        }
+      }
+      
+      // Consolidar resumos parciais em um resumo final
+      if (partialSummaries.length > 0) {
+        logger.info(`🔄 Consolidando ${partialSummaries.length} resumos parciais...`);
+        
+        const consolidationPrompt = `
+Você recebeu ${partialSummaries.length} resumos parciais de um grupo do WhatsApp com total de ${messages.length} mensagens.
+
+IMPORTANTE: Crie um resumo final CONSOLIDADO seguindo exatamente este template:
+
+${summaryTemplate}
+
+Resumos parciais para consolidar:
+${partialSummaries.map(ps => `--- Lote ${ps.batchNumber} (${ps.messageCount} mensagens) ---\n${ps.summary}`).join('\n\n')}
+
+Instruções de consolidação:
+1. Mantenha EXATAMENTE o formato do template
+2. Consolide os top participantes somando suas mensagens
+3. Unifique os assuntos principais em categorias coerentes
+4. Combine todos os links compartilhados
+5. Organize temas por horário se possível
+6. Crie um resumo coeso e bem estruturado
+7. Use emojis conforme o template
+8. Total de mensagens: ${messages.length}
+`;
+
+        const finalResponse = await fetch(`http://localhost:${process.env.PORT || 3000}/api/management/ai-summary/summarize`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer baileys_${customApiKey}`
+          },
+          body: JSON.stringify({
+            collectorId,
+            customPrompt: consolidationPrompt,
+            maxTokens: 4000, // Mais tokens para o resumo final
+            includeStats: true,
+            customApiKey
+          })
+        });
+
+        if (finalResponse.ok) {
+          const finalResult = await finalResponse.json();
+          const finalSummary = finalResult.summary;
+          
+          logger.info(`✅ Resumo final consolidado: ${finalSummary.length} caracteres`);
+          
+          // Se configurado para enviar para o grupo, fazer isso aqui
+          if (collector.config.summaryConfig.sendToGroup && finalSummary) {
+            logger.info(`📨 Enviando resumo consolidado para o grupo ${collector.groupId}`);
+            
+            // Enviar mensagem usando a API do Baileys
+            try {
+              const whatsappSession = global.whatsappSessions?.get(collector.sessionId);
+              if (whatsappSession && whatsappSession.sock) {
+                const summaryMessage = `${finalSummary}\n\n_🤖 Gerado automaticamente pelo FlowChat AI_`;
+                await whatsappSession.sock.sendMessage(collector.groupId, { text: summaryMessage });
+                logger.info(`✅ Resumo consolidado enviado para o grupo ${collector.groupId}`);
+              } else {
+                logger.warn(`⚠️ Sessão WhatsApp não encontrada para ${collector.sessionId}`);
+              }
+            } catch (sendError) {
+              logger.error('Erro ao enviar resumo para o grupo:', sendError);
+            }
+          }
+        } else {
+          const error = await finalResponse.text();
+          logger.error(`❌ Erro na consolidação final: ${finalResponse.status} - ${error}`);
+        }
+      } else {
+        logger.warn('⚠️ Nenhum resumo parcial foi gerado com sucesso');
+      }
+      
+    } catch (apiError) {
+      logger.error('Erro ao processar resumos em lotes:', apiError);
     }
 
   } catch (error) {
