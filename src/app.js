@@ -1410,9 +1410,17 @@ async function getContactOrGroupInfo(jid, sock) {
 // Função para enviar webhook
 async function sendWebhook(sessionId, eventType, data) {
   try {
-    // Only process messages.upsert events
-    if (eventType !== 'messages.upsert') {
-      logger.debug(`Skipping webhook for event type: ${eventType} (only messages.upsert supported)`);
+    // Define supported events
+    const supportedEvents = [
+      'messages.upsert',
+      'messages.update', 
+      'messages.delete',
+      'group-participants.update',
+      'presence.update'
+    ];
+    
+    if (!supportedEvents.includes(eventType)) {
+      logger.debug(`Skipping webhook for unsupported event type: ${eventType}`);
       return;
     }
 
@@ -3083,6 +3091,65 @@ async function createWhatsAppSession(sessionId, userId = null) {
           await handleMessageParts(sock, message, sessionId);
         }
       }
+    });
+
+    // Handler para atualizações de mensagens (status de entrega, edições, etc.)
+    sock.ev.on('messages.update', async (messageUpdates) => {
+      for (const update of messageUpdates) {
+        logger.info(`Message update received for session ${sessionId}:`, update);
+        
+        const updateData = {
+          messageKey: update.key,
+          update: update.update || {},
+          timestamp: Date.now(),
+          sessionId: sessionId
+        };
+        
+        await sendWebhook(sessionId, 'messages.update', updateData);
+      }
+    });
+
+    // Handler para mensagens deletadas
+    sock.ev.on('messages.delete', async (deleteEvent) => {
+      logger.info(`Messages deleted for session ${sessionId}:`, deleteEvent);
+      
+      const deleteData = {
+        ...deleteEvent,
+        timestamp: Date.now(),
+        sessionId: sessionId
+      };
+      
+      await sendWebhook(sessionId, 'messages.delete', deleteData);
+    });
+
+    // Handler para mudanças de participantes em grupos
+    sock.ev.on('group-participants.update', async (groupUpdate) => {
+      logger.info(`Group participants update for session ${sessionId}:`, groupUpdate);
+      
+      const groupData = {
+        groupId: groupUpdate.id,
+        participants: groupUpdate.participants,
+        action: groupUpdate.action, // add, remove, promote, demote
+        author: groupUpdate.author,
+        timestamp: Date.now(),
+        sessionId: sessionId
+      };
+      
+      await sendWebhook(sessionId, 'group-participants.update', groupData);
+    });
+
+    // Handler para atualizações de presença (online, digitando, etc.)
+    sock.ev.on('presence.update', async (presenceUpdate) => {
+      logger.info(`Presence update for session ${sessionId}:`, presenceUpdate);
+      
+      const presenceData = {
+        chatId: presenceUpdate.id,
+        presences: presenceUpdate.presences,
+        timestamp: Date.now(),
+        sessionId: sessionId
+      };
+      
+      await sendWebhook(sessionId, 'presence.update', presenceData);
     });
 
     // Armazenar sessão
@@ -5040,7 +5107,7 @@ app.post(
         url: url,
         active: active !== undefined ? active : true,
         priority: priority || existingCount + 1,
-        events: events || ['messages.upsert'],
+        events: events || ['messages.upsert', 'messages.update', 'messages.delete', 'group-participants.update', 'presence.update'],
         createdAt: new Date(),
         updatedAt: new Date(),
       };

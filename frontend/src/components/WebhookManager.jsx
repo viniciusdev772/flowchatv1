@@ -12,7 +12,11 @@ import {
   ArrowPathIcon,
   ExclamationTriangleIcon,
   BoltIcon,
-  CogIcon
+  CogIcon,
+  ChatBubbleLeftRightIcon,
+  UserGroupIcon,
+  EyeIcon,
+  NoSymbolIcon
 } from '@heroicons/react/24/outline';
 import { Button } from './ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card';
@@ -28,12 +32,56 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingWebhook, setEditingWebhook] = useState(null);
+  // Available events configuration
+  const availableEvents = [
+    {
+      id: 'messages.upsert',
+      name: 'Mensagens Recebidas',
+      description: 'Novas mensagens recebidas/enviadas',
+      icon: ChatBubbleLeftRightIcon,
+      category: 'messages',
+      color: 'blue'
+    },
+    {
+      id: 'messages.update',
+      name: 'Atualizações de Mensagens',
+      description: 'Status de entrega, leitura e edições',
+      icon: ArrowPathIcon,
+      category: 'messages',
+      color: 'green'
+    },
+    {
+      id: 'messages.delete',
+      name: 'Mensagens Deletadas',
+      description: 'Quando mensagens são deletadas',
+      icon: NoSymbolIcon,
+      category: 'messages',
+      color: 'red'
+    },
+    {
+      id: 'group-participants.update',
+      name: 'Mudanças em Grupos',
+      description: 'Participantes adicionados/removidos/promovidos',
+      icon: UserGroupIcon,
+      category: 'groups',
+      color: 'purple'
+    },
+    {
+      id: 'presence.update',
+      name: 'Status de Presença',
+      description: 'Online, digitando, última vez visto',
+      icon: EyeIcon,
+      category: 'presence',
+      color: 'yellow'
+    }
+  ];
+
   const [webhookForm, setWebhookForm] = useState({
     name: '',
     url: '',
     active: true,
     priority: 1,
-    events: ['messages.upsert']
+    events: ['messages.upsert', 'messages.update', 'messages.delete', 'group-participants.update', 'presence.update']
   });
   const [testingWebhook, setTestingWebhook] = useState(null);
   const [testResults, setTestResults] = useState({});
@@ -276,7 +324,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
       url: '',
       active: true,
       priority: 1,
-      events: ['messages.upsert']
+      events: ['messages.upsert', 'messages.update', 'messages.delete', 'group-participants.update', 'presence.update']
     });
   };
 
@@ -287,7 +335,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
       url: webhook.url,
       active: webhook.active,
       priority: webhook.priority,
-      events: webhook.events || ['messages.upsert']
+      events: webhook.events || ['messages.upsert', 'messages.update', 'messages.delete', 'group-participants.update', 'presence.update']
     });
   };
 
@@ -304,6 +352,45 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
     return active 
       ? 'text-green-400 bg-green-500/20 border-green-500/30' 
       : 'text-gray-400 bg-gray-500/20 border-gray-500/30';
+  };
+
+  const getEventColor = (eventId) => {
+    const event = availableEvents.find(e => e.id === eventId);
+    if (!event) return 'text-gray-400 bg-gray-500/20 border-gray-500/30';
+    
+    const colors = {
+      blue: 'text-blue-400 bg-blue-500/20 border-blue-500/30',
+      green: 'text-green-400 bg-green-500/20 border-green-500/30',
+      red: 'text-red-400 bg-red-500/20 border-red-500/30',
+      purple: 'text-purple-400 bg-purple-500/20 border-purple-500/30',
+      yellow: 'text-yellow-400 bg-yellow-500/20 border-yellow-500/30'
+    };
+    
+    return colors[event.color] || 'text-gray-400 bg-gray-500/20 border-gray-500/30';
+  };
+
+  const getEventIcon = (eventId) => {
+    const event = availableEvents.find(e => e.id === eventId);
+    return event?.icon || CogIcon;
+  };
+
+  const getEventName = (eventId) => {
+    const event = availableEvents.find(e => e.id === eventId);
+    return event?.name || eventId;
+  };
+
+  const toggleEventSelection = (eventId) => {
+    setWebhookForm(prev => {
+      const newEvents = prev.events.includes(eventId)
+        ? prev.events.filter(id => id !== eventId)
+        : [...prev.events, eventId];
+      
+      // Ensure at least one event is selected
+      return {
+        ...prev,
+        events: newEvents.length > 0 ? newEvents : ['messages.upsert']
+      };
+    });
   };
 
   if (tokenLoading || loading) {
@@ -476,11 +563,19 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                       <div className="flex items-center">
                         <span className="font-medium w-16">Eventos:</span>
                         <div className="flex flex-wrap gap-1">
-                          {webhook.events.map((event, index) => (
-                            <span key={index} className="bg-blue-500/20 text-blue-400 px-2 py-1 rounded text-xs border border-blue-500/30">
-                              {event}
-                            </span>
-                          ))}
+                          {webhook.events.map((event, index) => {
+                            const EventIcon = getEventIcon(event);
+                            return (
+                              <span 
+                                key={index} 
+                                className={`px-2 py-1 rounded text-xs border flex items-center gap-1 ${getEventColor(event)}`}
+                                title={availableEvents.find(e => e.id === event)?.description || event}
+                              >
+                                <EventIcon className="h-3 w-3" />
+                                {getEventName(event)}
+                              </span>
+                            );
+                          })}
                         </div>
                       </div>
                       {testResults[webhook.id] && (
@@ -695,14 +790,72 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                     </label>
                   </div>
 
-                  <div className="bg-blue-500/10 p-4 rounded-xl border border-blue-500/20">
-                    <div className="flex items-center mb-2">
-                      <CogIcon className="h-5 w-5 text-blue-400 mr-2" />
-                      <span className="text-sm font-medium text-blue-300">Eventos Padrão</span>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-200 mb-3">
+                      Eventos para Escutar
+                    </label>
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      {availableEvents.map((event) => {
+                        const EventIcon = event.icon;
+                        const isSelected = webhookForm.events.includes(event.id);
+                        
+                        return (
+                          <motion.div
+                            key={event.id}
+                            className={`p-3 rounded-xl border cursor-pointer transition-all ${
+                              isSelected 
+                                ? 'bg-blue-500/20 border-blue-500/50' 
+                                : 'bg-gray-800/30 border-gray-600/30 hover:border-gray-500/50'
+                            }`}
+                            onClick={() => toggleEventSelection(event.id)}
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                          >
+                            <div className="flex items-start">
+                              <div className="flex items-center mr-3">
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={() => toggleEventSelection(event.id)}
+                                  className="rounded border-gray-500 text-blue-400 focus:ring-blue-500 bg-gray-700/50 transition-all"
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                              </div>
+                              <div className="flex-1">
+                                <div className="flex items-center mb-1">
+                                  <EventIcon className={`h-4 w-4 mr-2 ${
+                                    isSelected ? 'text-blue-400' : 'text-gray-400'
+                                  }`} />
+                                  <span className={`text-sm font-medium ${
+                                    isSelected ? 'text-blue-200' : 'text-gray-200'
+                                  }`}>
+                                    {event.name}
+                                  </span>
+                                  <span className={`ml-2 px-2 py-0.5 rounded text-xs ${
+                                    isSelected ? getEventColor(event.id) : 'text-gray-500 bg-gray-700/50'
+                                  }`}>
+                                    {event.category}
+                                  </span>
+                                </div>
+                                <p className={`text-xs ${
+                                  isSelected ? 'text-blue-300' : 'text-gray-400'
+                                }`}>
+                                  {event.description}
+                                </p>
+                              </div>
+                            </div>
+                          </motion.div>
+                        );
+                      })}
                     </div>
-                    <p className="text-xs text-blue-200">
-                      O evento 'messages.upsert' será configurado automaticamente para receber todas as mensagens.
-                    </p>
+                    <div className="mt-3 p-3 bg-yellow-500/10 rounded-xl border border-yellow-500/20">
+                      <div className="flex items-center">
+                        <ExclamationTriangleIcon className="h-4 w-4 text-yellow-400 mr-2" />
+                        <span className="text-xs text-yellow-300">
+                          Selecione pelo menos um evento. Mais eventos = mais webhooks disparados.
+                        </span>
+                      </div>
+                    </div>
                   </div>
                 </div>
 
