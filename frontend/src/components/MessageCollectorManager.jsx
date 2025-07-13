@@ -92,7 +92,9 @@ export default function MessageCollectorManager() {
     groupId: '',
     name: '',
     startHour: 6,
+    startMinute: 0,
     endHour: 22,
+    endMinute: 0,
     timezone: 'America/Sao_Paulo',
     scheduleType: 'daily', // daily, weekly, specific_days
     weekDays: [], // [0,1,2,3,4,5,6] - 0 = Sunday
@@ -381,14 +383,27 @@ export default function MessageCollectorManager() {
             groupId: '',
             name: '',
             startHour: 6,
+            startMinute: 0,
             endHour: 22,
+            endMinute: 0,
             timezone: 'America/Sao_Paulo',
             scheduleType: 'daily',
             weekDays: [],
             specificDates: [],
             duration: 'unlimited',
             durationDays: 7,
-            endDate: ''
+            endDate: '',
+            downloadMedia: true,
+            autoSummary: false,
+            summaryConfig: {
+              tone: 'professional',
+              style: 'bullet_points',
+              focus: 'general',
+              sendToGroup: false,
+              summaryTime: 'end',
+              customSummaryHour: 18,
+              topParticipants: 5
+            }
           });
           setGroupSearch('');
           setGroups([]);
@@ -1121,7 +1136,9 @@ export default function MessageCollectorManager() {
                             </div>
                             <div className="flex items-center space-x-1">
                               <span className="font-medium">Horário:</span> 
-                              <span>{collector.config.startHour}h - {collector.config.endHour}h</span>
+                              <span>
+                                {String(collector.config.startHour || 0).padStart(2, '0')}:{String(collector.config.startMinute || 0).padStart(2, '0')} - {String(collector.config.endHour || 0).padStart(2, '0')}:{String(collector.config.endMinute || 0).padStart(2, '0')}
+                              </span>
                             </div>
                           </div>
                           
@@ -1440,33 +1457,117 @@ export default function MessageCollectorManager() {
                     </div>
                   )}
 
-                  <div className="grid grid-cols-2 gap-4">
+                  {/* Configuração de Horário com Minutos */}
+                  <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Hora Início
+                      <label className="block text-sm font-medium text-gray-700 mb-3">
+                        <TimeIcon className="w-4 h-4 inline mr-1" />
+                        Horário de Funcionamento
                       </label>
-                      <input
-                        type="number"
-                        min="0"
-                        max="23"
-                        value={formData.startHour}
-                        onChange={(e) => setFormData(prev => ({ ...prev, startHour: parseInt(e.target.value) }))}
-                        className="w-full px-4 py-3 bg-white rounded-xl text-gray-800 focus:ring-2 focus:ring-blue-500 focus:outline-none border border-gray-200 transition-colors"
-                      />
-                    </div>
+                      
+                      <div className="grid grid-cols-2 gap-4">
+                        {/* Horário de Início */}
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-2">
+                            Início
+                          </label>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-1">Hora</label>
+                              <input
+                                type="number"
+                                min="0"
+                                max="23"
+                                value={formData.startHour}
+                                onChange={(e) => setFormData(prev => ({ ...prev, startHour: parseInt(e.target.value) || 0 }))}
+                                className="w-full px-3 py-2 bg-white rounded-lg text-gray-800 focus:ring-2 focus:ring-blue-500 focus:outline-none border border-gray-200 transition-colors text-sm"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-1">Min</label>
+                              <input
+                                type="number"
+                                min="0"
+                                max="59"
+                                step="5"
+                                value={formData.startMinute}
+                                onChange={(e) => setFormData(prev => ({ ...prev, startMinute: parseInt(e.target.value) || 0 }))}
+                                className="w-full px-3 py-2 bg-white rounded-lg text-gray-800 focus:ring-2 focus:ring-blue-500 focus:outline-none border border-gray-200 transition-colors text-sm"
+                              />
+                            </div>
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1 text-center">
+                            {String(formData.startHour).padStart(2, '0')}:{String(formData.startMinute).padStart(2, '0')}
+                          </div>
+                        </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Hora Fim
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        max="23"
-                        value={formData.endHour}
-                        onChange={(e) => setFormData(prev => ({ ...prev, endHour: parseInt(e.target.value) }))}
-                        className="w-full px-4 py-3 bg-white rounded-xl text-gray-800 focus:ring-2 focus:ring-blue-500 focus:outline-none border border-gray-200 transition-colors"
-                      />
+                        {/* Horário de Fim */}
+                        <div>
+                          <label className="block text-xs font-medium text-gray-600 mb-2">
+                            Fim
+                          </label>
+                          <div className="grid grid-cols-2 gap-2">
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-1">Hora</label>
+                              <input
+                                type="number"
+                                min="0"
+                                max="23"
+                                value={formData.endHour}
+                                onChange={(e) => setFormData(prev => ({ ...prev, endHour: parseInt(e.target.value) || 0 }))}
+                                className="w-full px-3 py-2 bg-white rounded-lg text-gray-800 focus:ring-2 focus:ring-blue-500 focus:outline-none border border-gray-200 transition-colors text-sm"
+                              />
+                            </div>
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-1">Min</label>
+                              <input
+                                type="number"
+                                min="0"
+                                max="59"
+                                step="5"
+                                value={formData.endMinute}
+                                onChange={(e) => setFormData(prev => ({ ...prev, endMinute: parseInt(e.target.value) || 0 }))}
+                                className="w-full px-3 py-2 bg-white rounded-lg text-gray-800 focus:ring-2 focus:ring-blue-500 focus:outline-none border border-gray-200 transition-colors text-sm"
+                              />
+                            </div>
+                          </div>
+                          <div className="text-xs text-gray-500 mt-1 text-center">
+                            {String(formData.endHour).padStart(2, '0')}:{String(formData.endMinute).padStart(2, '0')}
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Exemplos de Horários Comuns */}
+                      <div className="mt-3">
+                        <label className="block text-xs font-medium text-gray-600 mb-2">
+                          Horários Comuns:
+                        </label>
+                        <div className="flex flex-wrap gap-1">
+                          {[
+                            { label: "Comercial", start: {h: 9, m: 0}, end: {h: 18, m: 0} },
+                            { label: "Manhã", start: {h: 6, m: 0}, end: {h: 12, m: 0} },
+                            { label: "Tarde", start: {h: 12, m: 0}, end: {h: 18, m: 0} },
+                            { label: "Noite", start: {h: 18, m: 0}, end: {h: 23, m: 0} },
+                            { label: "30 min", start: {h: 14, m: 0}, end: {h: 14, m: 30} },
+                            { label: "1 hora", start: {h: 15, m: 0}, end: {h: 16, m: 0} }
+                          ].map((preset) => (
+                            <button
+                              key={preset.label}
+                              type="button"
+                              onClick={() => setFormData(prev => ({
+                                ...prev,
+                                startHour: preset.start.h,
+                                startMinute: preset.start.m,
+                                endHour: preset.end.h,
+                                endMinute: preset.end.m
+                              }))}
+                              className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
+                            >
+                              {preset.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
                     </div>
                   </div>
 

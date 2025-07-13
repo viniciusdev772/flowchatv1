@@ -18,8 +18,14 @@ async function createCollectorInDB(sessionId, groupId, userId, config) {
 
     const now = new Date();
     const currentHour = now.getHours();
-    const isActive =
-      currentHour >= config.startHour && currentHour < config.endHour;
+    const currentMinute = now.getMinutes();
+    
+    // Converter horários para minutos para comparação mais precisa
+    const currentTimeInMinutes = currentHour * 60 + currentMinute;
+    const startTimeInMinutes = (config.startHour || 0) * 60 + (config.startMinute || 0);
+    const endTimeInMinutes = (config.endHour || 0) * 60 + (config.endMinute || 0);
+    
+    const isActive = currentTimeInMinutes >= startTimeInMinutes && currentTimeInMinutes < endTimeInMinutes;
     const collectorId = uuidv4();
 
     await db.collection('messageCollectors').insertOne({
@@ -319,8 +325,8 @@ function setupCronJobs(collectorId, config) {
 
   switch (config.scheduleType) {
     case 'daily':
-      const startCron = `0 ${config.startHour} * * *`;
-      const stopCron = `0 ${config.endHour} * * *`;
+      const startCron = `${config.startMinute || 0} ${config.startHour || 0} * * *`;
+      const stopCron = `${config.endMinute || 0} ${config.endHour || 0} * * *`;
       
       jobs.push(cron.schedule(startCron, () => startCollection(collectorId, config), { scheduled: true, timezone }));
       jobs.push(cron.schedule(stopCron, () => stopCollection(collectorId, config), { scheduled: true, timezone }));
@@ -329,8 +335,8 @@ function setupCronJobs(collectorId, config) {
     case 'weekly':
       if (config.weekDays && config.weekDays.length > 0) {
         const daysStr = config.weekDays.join(',');
-        const startWeeklyCron = `0 ${config.startHour} * * ${daysStr}`;
-        const stopWeeklyCron = `0 ${config.endHour} * * ${daysStr}`;
+        const startWeeklyCron = `${config.startMinute || 0} ${config.startHour || 0} * * ${daysStr}`;
+        const stopWeeklyCron = `${config.endMinute || 0} ${config.endHour || 0} * * ${daysStr}`;
         
         jobs.push(cron.schedule(startWeeklyCron, () => startCollection(collectorId, config), { scheduled: true, timezone }));
         jobs.push(cron.schedule(stopWeeklyCron, () => stopCollection(collectorId, config), { scheduled: true, timezone }));
@@ -346,8 +352,8 @@ function setupCronJobs(collectorId, config) {
             const month = date.getMonth() + 1;
             const year = date.getFullYear();
             
-            const startSpecificCron = `0 ${config.startHour} ${day} ${month} *`;
-            const stopSpecificCron = `0 ${config.endHour} ${day} ${month} *`;
+            const startSpecificCron = `${config.startMinute || 0} ${config.startHour || 0} ${day} ${month} *`;
+            const stopSpecificCron = `${config.endMinute || 0} ${config.endHour || 0} ${day} ${month} *`;
             
             jobs.push(cron.schedule(startSpecificCron, () => startCollection(collectorId, config), { scheduled: true, timezone }));
             jobs.push(cron.schedule(stopSpecificCron, () => stopCollection(collectorId, config), { scheduled: true, timezone }));
@@ -393,7 +399,7 @@ async function startCollection(collectorId, config) {
     isActive: true,
     startTime: now,
   });
-  logger.info(`🕒 Cron: Iniciando coleta para ${collectorId} às ${config.startHour}h`);
+  logger.info(`🕒 Cron: Iniciando coleta para ${collectorId} às ${String(config.startHour || 0).padStart(2, '0')}:${String(config.startMinute || 0).padStart(2, '0')}`);
 }
 
 // Função auxiliar para parar coleta
@@ -415,7 +421,7 @@ async function stopCollection(collectorId, config) {
       endTime: new Date(),
     });
     
-    logger.info(`🕒 Cron: Parando coleta para ${collectorId} às ${config.endHour}h`);
+    logger.info(`🕒 Cron: Parando coleta para ${collectorId} às ${String(config.endHour || 0).padStart(2, '0')}:${String(config.endMinute || 0).padStart(2, '0')}`);
 
     // Marcar resumo automático como pendente para instruções adicionais
     if (collector.config?.autoSummary && collector.config?.summaryConfig?.summaryTime === 'end') {
@@ -483,7 +489,9 @@ router.post('/start', authenticateToken, async (req, res) => {
       sessionId, 
       groupId, 
       startHour, 
+      startMinute = 0,
       endHour, 
+      endMinute = 0,
       timezone, 
       name,
       scheduleType = 'daily',
@@ -546,7 +554,9 @@ router.post('/start', authenticateToken, async (req, res) => {
     const config = {
       name: name || `Coleta ${groupId}`,
       startHour,
+      startMinute,
       endHour,
+      endMinute,
       timezone: timezone || 'America/Sao_Paulo',
       scheduleType,
       weekDays: scheduleType === 'weekly' ? weekDays : [],
