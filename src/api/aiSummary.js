@@ -173,7 +173,11 @@ Encerramento 🌟
     // Obter prompt baseado no tom
     const promptConfig = SUMMARY_PROMPTS[tone] || SUMMARY_PROMPTS.professional;
 
-    let systemPrompt = customPrompt || `${promptConfig.system}\n\nIMPORTANTE: Siga exatamente este template estruturado:\n\n${summaryTemplate}`;
+    // Extrair informações do coletor para preencher o template
+    const groupName = collector.config?.name || collector.groupId || 'Grupo WhatsApp';
+    const startDate = collector.startTime ? new Date(collector.startTime).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR');
+    
+    let systemPrompt = customPrompt || `${promptConfig.system}\n\nIMPORTANTE: Siga exatamente este template estruturado, substituindo os placeholders:\n\n${summaryTemplate}\n\nDados do grupo:\n- Nome do Grupo: ${groupName}\n- Data da coleta: ${startDate}\n- Total de mensagens: ${messages.length}`;
 
     // Adicionar contexto específico
     systemPrompt += `\n\nVocê receberá mensagens de um grupo do WhatsApp coletadas durante um período específico. 

@@ -933,7 +933,7 @@ Encerramento 🌟
           batchNumber: i + 1,
           totalBatches: batchesToProcess.length,
           customPrompt: i === 0 ? 
-            `Analise estas mensagens e crie um resumo parcial seguindo este template:\n\n${summaryTemplate}\n\nEste é o lote ${i + 1} de ${batchesToProcess.length}. Se for o primeiro lote, inclua estrutura completa. Se for lote subsequente, foque nos conteúdos específicos deste lote.` :
+            `Analise estas mensagens e crie um resumo parcial seguindo este template:\n\n${summaryTemplate}\n\nDados obrigatórios:\n- Nome do Grupo: ${collector.config?.name || collector.groupId || 'Grupo WhatsApp'}\n- Data: ${collector.startTime ? new Date(collector.startTime).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR')}\n\nEste é o lote ${i + 1} de ${batchesToProcess.length}. Se for o primeiro lote, inclua estrutura completa. Se for lote subsequente, foque nos conteúdos específicos deste lote.` :
             `Continue o resumo analisando este lote ${i + 1} de ${batchesToProcess.length}. Foque nos conteúdos específicos deste lote mantendo a estrutura do template.`
         };
         
@@ -992,25 +992,34 @@ Encerramento 🌟
       if (partialSummaries.length > 0) {
         logger.info(`🔄 Consolidando ${partialSummaries.length} resumos parciais...`);
         
+        // Extrair informações do coletor para o template
+        const groupName = collector.config?.name || collector.groupId || 'Grupo WhatsApp';
+        const startDate = collector.startTime ? new Date(collector.startTime).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR');
+        
         const consolidationPrompt = `
 Você recebeu ${partialSummaries.length} resumos parciais de um grupo do WhatsApp com total de ${messages.length} mensagens.
 
-IMPORTANTE: Crie um resumo final CONSOLIDADO seguindo exatamente este template:
+IMPORTANTE: Crie um resumo final CONSOLIDADO seguindo exatamente este template, substituindo os placeholders:
 
 ${summaryTemplate}
+
+DADOS OBRIGATÓRIOS PARA O TEMPLATE:
+- Nome do Grupo: ${groupName}
+- Data da coleta: ${startDate}
+- Total de mensagens: ${messages.length}
 
 Resumos parciais para consolidar:
 ${partialSummaries.map(ps => `--- Lote ${ps.batchNumber} (${ps.messageCount} mensagens) ---\n${ps.summary}`).join('\n\n')}
 
 Instruções de consolidação:
-1. Mantenha EXATAMENTE o formato do template
-2. Consolide os top participantes somando suas mensagens
-3. Unifique os assuntos principais em categorias coerentes
-4. Combine todos os links compartilhados
-5. Organize temas por horário se possível
-6. Crie um resumo coeso e bem estruturado
-7. Use emojis conforme o template
-8. Total de mensagens: ${messages.length}
+1. SUBSTITUA [Nome do Grupo] por: ${groupName}
+2. SUBSTITUA [Data] por: ${startDate}
+3. Consolide os top participantes somando suas mensagens
+4. Unifique os assuntos principais em categorias coerentes
+5. Combine todos os links compartilhados
+6. Organize temas por horário se possível
+7. Crie um resumo coeso e bem estruturado
+8. Use emojis conforme o template
 `;
 
         const finalResponse = await fetch(`http://localhost:${process.env.PORT || 3000}/api/management/ai-summary/summarize`, {
