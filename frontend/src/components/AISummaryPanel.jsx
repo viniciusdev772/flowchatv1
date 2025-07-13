@@ -33,23 +33,59 @@ export default function AISummaryPanel({ collectedMessages, collectorId }) {
   // Summary configuration
   const [summaryConfig, setSummaryConfig] = useState({
     tone: 'professional',
+    style: 'bullet_points',
+    focus: 'general',
     maxTokens: 2000,
     includeStats: true,
+    includeTimestamps: false,
+    includeParticipants: true,
     customPrompt: '',
-    customApiKey: ''
+    customApiKey: '',
+    language: 'pt-BR',
+    length: 'medium'
   });
 
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
   const toneOptions = [
-    { value: 'professional', label: 'Profissional', description: 'Objetivo e focado em negócios' },
-    { value: 'casual', label: 'Casual', description: 'Amigável e descontraído' },
-    { value: 'analytical', label: 'Analítico', description: 'Detalhado com insights' },
-    { value: 'brief', label: 'Resumido', description: 'Apenas pontos principais' }
+    { value: 'professional', label: 'Profissional', description: 'Objetivo e focado em negócios', icon: '💼' },
+    { value: 'casual', label: 'Casual', description: 'Amigável e descontraído', icon: '😊' },
+    { value: 'analytical', label: 'Analítico', description: 'Detalhado com insights', icon: '📊' },
+    { value: 'brief', label: 'Resumido', description: 'Apenas pontos principais', icon: '⚡' },
+    { value: 'technical', label: 'Técnico', description: 'Foco em aspectos técnicos e dados', icon: '⚙️' },
+    { value: 'creative', label: 'Criativo', description: 'Narrativo e envolvente', icon: '🎨' },
+    { value: 'executive', label: 'Executivo', description: 'Para tomada de decisões', icon: '👔' },
+    { value: 'humorous', label: 'Bem-humorado', description: 'Tom leve e divertido', icon: '😄' }
+  ];
+
+  const styleOptions = [
+    { value: 'bullet_points', label: 'Tópicos', description: 'Lista organizada em bullet points', icon: '• ' },
+    { value: 'narrative', label: 'Narrativo', description: 'Texto corrido e fluido', icon: '📖' },
+    { value: 'report', label: 'Relatório', description: 'Formato de relatório estruturado', icon: '📋' },
+    { value: 'timeline', label: 'Cronológico', description: 'Organizado por ordem temporal', icon: '⏰' },
+    { value: 'categories', label: 'Por Categorias', description: 'Agrupado por temas', icon: '🗂️' },
+    { value: 'q_and_a', label: 'Perguntas e Respostas', description: 'Formato FAQ', icon: '❓' }
+  ];
+
+  const focusOptions = [
+    { value: 'general', label: 'Geral', description: 'Resumo completo da conversa', icon: '📝' },
+    { value: 'decisions', label: 'Decisões', description: 'Foco em decisões tomadas', icon: '✅' },
+    { value: 'problems', label: 'Problemas', description: 'Identificar questões e desafios', icon: '⚠️' },
+    { value: 'actions', label: 'Ações', description: 'Tarefas e próximos passos', icon: '🎯' },
+    { value: 'sentiment', label: 'Sentimentos', description: 'Análise emocional da conversa', icon: '💭' },
+    { value: 'keywords', label: 'Palavras-chave', description: 'Termos e conceitos importantes', icon: '🔑' }
   ];
 
   useEffect(() => {
     loadSummaries();
+    // Carregar API key do localStorage se disponível
+    const savedApiKey = localStorage.getItem('openai_api_key');
+    if (savedApiKey && !summaryConfig.customApiKey) {
+      setSummaryConfig(prev => ({
+        ...prev,
+        customApiKey: savedApiKey
+      }));
+    }
   }, [collectorId]);
 
   const loadSummaries = async () => {
@@ -867,19 +903,55 @@ export default function AISummaryPanel({ collectedMessages, collectorId }) {
                 Configurações do Resumo
               </h3>
 
-              <div className="space-y-4">
+              <div className="space-y-4 max-h-96 overflow-y-auto">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Tom do Resumo
+                    </label>
+                    <select
+                      value={summaryConfig.tone}
+                      onChange={(e) => setSummaryConfig(prev => ({ ...prev, tone: e.target.value }))}
+                      className="w-full px-4 py-3 bg-gray-50 rounded-xl text-gray-800 focus:ring-2 focus:ring-blue-500 focus:outline-none border border-gray-200 focus:bg-white transition-colors"
+                    >
+                      {toneOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.icon} {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Estilo de Formatação
+                    </label>
+                    <select
+                      value={summaryConfig.style}
+                      onChange={(e) => setSummaryConfig(prev => ({ ...prev, style: e.target.value }))}
+                      className="w-full px-4 py-3 bg-gray-50 rounded-xl text-gray-800 focus:ring-2 focus:ring-blue-500 focus:outline-none border border-gray-200 focus:bg-white transition-colors"
+                    >
+                      {styleOptions.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.icon} {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Tom do Resumo
+                    Foco do Resumo
                   </label>
                   <select
-                    value={summaryConfig.tone}
-                    onChange={(e) => setSummaryConfig(prev => ({ ...prev, tone: e.target.value }))}
+                    value={summaryConfig.focus}
+                    onChange={(e) => setSummaryConfig(prev => ({ ...prev, focus: e.target.value }))}
                     className="w-full px-4 py-3 bg-gray-50 rounded-xl text-gray-800 focus:ring-2 focus:ring-blue-500 focus:outline-none border border-gray-200 focus:bg-white transition-colors"
                   >
-                    {toneOptions.map((option) => (
+                    {focusOptions.map((option) => (
                       <option key={option.value} value={option.value}>
-                        {option.label} - {option.description}
+                        {option.icon} {option.label}
                       </option>
                     ))}
                   </select>
@@ -899,18 +971,64 @@ export default function AISummaryPanel({ collectedMessages, collectorId }) {
                   />
                 </div>
 
-                <div>
-                  <label className="flex items-center">
-                    <input
-                      type="checkbox"
-                      checked={summaryConfig.includeStats}
-                      onChange={(e) => setSummaryConfig(prev => ({ ...prev, includeStats: e.target.checked }))}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 bg-white"
-                    />
-                    <span className="ml-2 text-sm text-gray-700">
-                      Incluir estatísticas
-                    </span>
-                  </label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={summaryConfig.includeStats}
+                        onChange={(e) => setSummaryConfig(prev => ({ ...prev, includeStats: e.target.checked }))}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 bg-white"
+                      />
+                      <span className="ml-2 text-sm text-gray-700">
+                        Incluir estatísticas
+                      </span>
+                    </label>
+                  </div>
+
+                  <div>
+                    <label className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={summaryConfig.includeTimestamps}
+                        onChange={(e) => setSummaryConfig(prev => ({ ...prev, includeTimestamps: e.target.checked }))}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 bg-white"
+                      />
+                      <span className="ml-2 text-sm text-gray-700">
+                        Incluir horários
+                      </span>
+                    </label>
+                  </div>
+
+                  <div>
+                    <label className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={summaryConfig.includeParticipants}
+                        onChange={(e) => setSummaryConfig(prev => ({ ...prev, includeParticipants: e.target.checked }))}
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 bg-white"
+                      />
+                      <span className="ml-2 text-sm text-gray-700">
+                        Incluir participantes
+                      </span>
+                    </label>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Tamanho do Resumo
+                    </label>
+                    <select
+                      value={summaryConfig.length}
+                      onChange={(e) => setSummaryConfig(prev => ({ ...prev, length: e.target.value }))}
+                      className="w-full px-3 py-2 bg-gray-50 rounded-lg text-gray-800 focus:ring-2 focus:ring-blue-500 focus:outline-none border border-gray-200 focus:bg-white transition-colors text-sm"
+                    >
+                      <option value="short">Curto</option>
+                      <option value="medium">Médio</option>
+                      <option value="long">Longo</option>
+                      <option value="detailed">Detalhado</option>
+                    </select>
+                  </div>
                 </div>
 
                 <div>
@@ -927,17 +1045,21 @@ export default function AISummaryPanel({ collectedMessages, collectorId }) {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
-                    API Key OpenAI (Opcional)
+                    API Key OpenAI
                   </label>
                   <input
                     type="password"
                     value={summaryConfig.customApiKey}
-                    onChange={(e) => setSummaryConfig(prev => ({ ...prev, customApiKey: e.target.value }))}
+                    onChange={(e) => {
+                      setSummaryConfig(prev => ({ ...prev, customApiKey: e.target.value }));
+                      // Salvar no localStorage também
+                      localStorage.setItem('openai_api_key', e.target.value);
+                    }}
                     placeholder="sk-..."
                     className="w-full px-4 py-3 bg-gray-50 rounded-xl text-gray-800 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:outline-none border border-gray-200 focus:bg-white transition-colors"
                   />
                   <p className="text-gray-500 text-xs mt-1">
-                    Deixe vazio para usar a chave do servidor
+                    {summaryConfig.customApiKey ? '✅ Chave carregada do localStorage' : 'Sincronizada com o Chat IA'}
                   </p>
                 </div>
               </div>

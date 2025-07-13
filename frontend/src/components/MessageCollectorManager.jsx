@@ -82,7 +82,17 @@ export default function MessageCollectorManager() {
     duration: 'unlimited', // unlimited, days, until_date
     durationDays: 7,
     endDate: '',
-    downloadMedia: true // nova opção para baixar mídias automaticamente (padrão: habilitado)
+    downloadMedia: true, // nova opção para baixar mídias automaticamente (padrão: habilitado)
+    // Novas opções para resumo automático
+    autoSummary: false,
+    summaryConfig: {
+      tone: 'professional',
+      style: 'bullet_points',
+      focus: 'general',
+      sendToGroup: false,
+      summaryTime: 'end', // end, daily, custom
+      customSummaryHour: 18
+    }
   });
   
   const [groupSearch, setGroupSearch] = useState('');
@@ -1372,6 +1382,131 @@ export default function MessageCollectorManager() {
                       </div>
                     </div>
                   </div>
+                </div>
+
+                {/* Seção de Resumo Automático com IA */}
+                <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-4 rounded-xl border border-purple-200">
+                  <div className="flex items-start space-x-3 mb-3">
+                    <SparklesIcon className="w-5 h-5 text-purple-600 mt-0.5 flex-shrink-0" />
+                    <div className="flex-1">
+                      <label className="flex items-center space-x-3 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={formData.autoSummary}
+                          onChange={(e) => setFormData(prev => ({ ...prev, autoSummary: e.target.checked }))}
+                          className="rounded border-gray-300 text-purple-600 focus:ring-purple-500 w-5 h-5"
+                        />
+                        <div>
+                          <span className="text-purple-800 text-sm font-semibold">
+                            🤖 Resumo Automático com IA
+                          </span>
+                          <p className="text-purple-700 text-xs mt-1">
+                            Gera resumos inteligentes das conversas automaticamente
+                          </p>
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+
+                  {formData.autoSummary && (
+                    <div className="space-y-3 pt-3 border-t border-purple-200">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-medium text-purple-700 mb-1">
+                            Tom do Resumo
+                          </label>
+                          <select
+                            value={formData.summaryConfig.tone}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              summaryConfig: { ...prev.summaryConfig, tone: e.target.value }
+                            }))}
+                            className="w-full px-3 py-2 bg-white rounded-lg text-purple-800 focus:ring-2 focus:ring-purple-500 focus:outline-none border border-purple-200 transition-colors text-xs"
+                          >
+                            <option value="professional">💼 Profissional</option>
+                            <option value="casual">😊 Casual</option>
+                            <option value="analytical">📊 Analítico</option>
+                            <option value="brief">⚡ Resumido</option>
+                            <option value="executive">👔 Executivo</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-medium text-purple-700 mb-1">
+                            Estilo
+                          </label>
+                          <select
+                            value={formData.summaryConfig.style}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              summaryConfig: { ...prev.summaryConfig, style: e.target.value }
+                            }))}
+                            className="w-full px-3 py-2 bg-white rounded-lg text-purple-800 focus:ring-2 focus:ring-purple-500 focus:outline-none border border-purple-200 transition-colors text-xs"
+                          >
+                            <option value="bullet_points">📋 Tópicos</option>
+                            <option value="narrative">📖 Narrativo</option>
+                            <option value="report">📊 Relatório</option>
+                            <option value="timeline">⏰ Cronológico</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-medium text-purple-700 mb-1">
+                          Quando Gerar Resumo
+                        </label>
+                        <select
+                          value={formData.summaryConfig.summaryTime}
+                          onChange={(e) => setFormData(prev => ({
+                            ...prev,
+                            summaryConfig: { ...prev.summaryConfig, summaryTime: e.target.value }
+                          }))}
+                          className="w-full px-3 py-2 bg-white rounded-lg text-purple-800 focus:ring-2 focus:ring-purple-500 focus:outline-none border border-purple-200 transition-colors text-xs"
+                        >
+                          <option value="end">🏁 Ao encerrar coleta</option>
+                          <option value="daily">📅 Diariamente</option>
+                          <option value="custom">⏰ Horário personalizado</option>
+                        </select>
+                      </div>
+
+                      {formData.summaryConfig.summaryTime === 'custom' && (
+                        <div>
+                          <label className="block text-xs font-medium text-purple-700 mb-1">
+                            Horário do Resumo
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            max="23"
+                            value={formData.summaryConfig.customSummaryHour}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              summaryConfig: { ...prev.summaryConfig, customSummaryHour: parseInt(e.target.value) }
+                            }))}
+                            className="w-full px-3 py-2 bg-white rounded-lg text-purple-800 focus:ring-2 focus:ring-purple-500 focus:outline-none border border-purple-200 transition-colors text-xs"
+                          />
+                          <p className="text-purple-600 text-xs mt-1">Hora (0-23) para gerar resumo diário</p>
+                        </div>
+                      )}
+
+                      <div className="flex items-center space-x-3">
+                        <label className="flex items-center space-x-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={formData.summaryConfig.sendToGroup}
+                            onChange={(e) => setFormData(prev => ({
+                              ...prev,
+                              summaryConfig: { ...prev.summaryConfig, sendToGroup: e.target.checked }
+                            }))}
+                            className="rounded border-purple-300 text-purple-600 focus:ring-purple-500 w-4 h-4"
+                          />
+                          <span className="text-purple-700 text-xs font-medium">
+                            📨 Enviar resumo automaticamente para o grupo
+                          </span>
+                        </label>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 <div className="bg-gradient-to-r from-amber-50 to-orange-50 p-4 rounded-xl border border-amber-200">

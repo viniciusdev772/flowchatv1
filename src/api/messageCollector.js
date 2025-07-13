@@ -452,7 +452,10 @@ router.post('/start', authenticateToken, async (req, res) => {
       duration = 'unlimited',
       durationDays = 7,
       endDate = '',
-      downloadMedia = true
+      downloadMedia = true,
+      // Novas opções para resumo automático
+      autoSummary = false,
+      summaryConfig = {}
     } = req.body;
     const userId = req.user._id;
 
@@ -512,6 +515,16 @@ router.post('/start', authenticateToken, async (req, res) => {
       durationDays: duration === 'days' ? durationDays : null,
       endDate: duration === 'until_date' ? new Date(endDate) : null,
       downloadMedia: downloadMedia !== false, // padrão true, só false se explicitamente definido
+      // Configurações de resumo automático
+      autoSummary: autoSummary || false,
+      summaryConfig: {
+        tone: summaryConfig?.tone || 'professional',
+        style: summaryConfig?.style || 'bullet_points',
+        focus: summaryConfig?.focus || 'general',
+        sendToGroup: summaryConfig?.sendToGroup || false,
+        summaryTime: summaryConfig?.summaryTime || 'end',
+        customSummaryHour: summaryConfig?.customSummaryHour || 18
+      },
       createdAt: new Date(),
       userId: new ObjectId(userId),
     };
@@ -599,6 +612,16 @@ router.post('/stop', authenticateToken, async (req, res) => {
         isActive: false,
         endTime: new Date(),
       });
+
+      // Se tem resumo automático configurado para "ao encerrar", gerar agora
+      if (collector.config?.autoSummary && collector.config?.summaryConfig?.summaryTime === 'end') {
+        try {
+          await generateAndSendSummary(collectorId, collector);
+        } catch (summaryError) {
+          logger.error('Erro ao gerar resumo final:', summaryError);
+          // Não falhar a operação de parar o coletor por causa do resumo
+        }
+      }
     } catch (dbError) {
       logger.error('Erro ao parar coletor:', dbError);
       return res.status(500).json({
@@ -805,6 +828,55 @@ async function restoreCronJobs() {
     }
   } catch (error) {
     logger.error('Erro ao restaurar cron jobs:', error);
+  }
+}
+
+// Função para gerar e enviar resumo automaticamente
+async function generateAndSendSummary(collectorId, collector) {
+  try {
+    const db = database.getDb();
+    if (!db) return;
+
+    // Buscar mensagens coletadas
+    const messages = await db.collection('collectedMessages')
+      .find({ collectorId })
+      .sort({ collectedAt: 1 })
+      .toArray();
+
+    if (messages.length === 0) {
+      logger.info('Nenhuma mensagem para resumir');
+      return;
+    }
+
+    // Buscar chave API do usuário (pode estar no localStorage do frontend)
+    const user = await db.collection('users').findOne({ _id: collector.userId });
+    const customApiKey = user?.openaiApiKey || null;
+
+    // Gerar resumo usando a API de AI Summary
+    const summaryData = {
+      collectorId,
+      tone: collector.config.summaryConfig.tone,
+      style: collector.config.summaryConfig.style,
+      focus: collector.config.summaryConfig.focus,
+      maxTokens: 2000,
+      includeStats: true,
+      customApiKey
+    };
+
+    // Por enquanto, log da intenção
+    logger.info(`📝 Gerando resumo automático para coletor ${collectorId} com ${messages.length} mensagens`);
+    logger.info(`📋 Configuração do resumo: ${JSON.stringify(collector.config.summaryConfig)}`);
+
+    // Se configurado para enviar para o grupo, fazer isso aqui
+    if (collector.config.summaryConfig.sendToGroup) {
+      logger.info(`📨 Enviando resumo para o grupo ${collector.groupId}`);
+      // TODO: Implementar envio para o grupo via WhatsApp API
+      // Aqui você pode integrar com a API de envio de mensagens do Baileys
+    }
+
+  } catch (error) {
+    logger.error('Erro ao gerar resumo automático:', error);
+    throw error;
   }
 }
 
