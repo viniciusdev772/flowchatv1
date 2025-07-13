@@ -4,6 +4,7 @@ const { ObjectId } = require('mongodb');
 const database = require('../config/database');
 const logger = require('pino')();
 const { authenticateToken } = require('../middleware/auth');
+const apiTokenAuth = require('../middleware/apiTokenAuth');
 
 // Configuração do OpenAI
 const OpenAI = require('openai');
@@ -68,9 +69,20 @@ function formatMessagesForPrompt(messages) {
     .join('\n');
 }
 
-// POST /api/ai-summary/summarize
+// POST /api/ai-summary/summarize  
 // Criar resumo com IA das mensagens coletadas
-router.post('/summarize', authenticateToken, async (req, res) => {
+// Aceita tanto autenticação de sessão quanto API token
+router.post('/summarize', (req, res, next) => {
+  // Verificar se é uma chamada interna (com API token) ou externa (com sessão)
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer baileys_')) {
+    // Usar middleware de API token para chamadas internas
+    apiTokenAuth(req, res, next);
+  } else {
+    // Usar middleware de sessão para chamadas do frontend
+    authenticateToken(req, res, next);
+  }
+}, async (req, res) => {
   try {
     const {
       collectorId,
