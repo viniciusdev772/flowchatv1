@@ -874,9 +874,20 @@ async function generateAndSendSummary(collectorId, collector) {
       return;
     }
 
-    // Buscar chave API do usuário (pode estar no localStorage do frontend)
+    // Buscar chave API do usuário e token de autenticação
     const user = await db.collection('users').findOne({ _id: collector.userId });
     const customApiKey = user?.openaiApiKey || null;
+    
+    // Buscar token de API válido do usuário para autenticação interna
+    const userToken = await db.collection('tokens').findOne({ 
+      userId: collector.userId,
+      isActive: true 
+    });
+    
+    if (!userToken) {
+      logger.error(`Token de API não encontrado para usuário ${collector.userId}`);
+      throw new Error('Token de API não encontrado para o usuário');
+    }
 
     // Gerar resumo usando a API de AI Summary
     const summaryData = {
@@ -986,7 +997,7 @@ Encerramento 🌟
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer baileys_${customApiKey}`
+            'Authorization': `Bearer ${userToken.token}`
           },
           body: JSON.stringify(batchSummaryData)
         });
@@ -1052,7 +1063,7 @@ Instruções de consolidação:
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer baileys_${customApiKey}`
+            'Authorization': `Bearer ${userToken.token}`
           },
           body: JSON.stringify({
             collectorId,
