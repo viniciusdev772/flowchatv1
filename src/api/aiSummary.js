@@ -90,7 +90,7 @@ router.post('/summarize', authenticateToken, async (req, res) => {
       });
     }
 
-    // Buscar coletor primeiro para verificar permissões
+    // Buscar coletor primeiro para verificar permissões (permite status completed)
     const db = database.getDb();
     const collector = await db.collection('messageCollectors').findOne({
       _id: collectorId,
@@ -101,6 +101,14 @@ router.post('/summarize', authenticateToken, async (req, res) => {
       return res.status(404).json({
         success: false,
         message: 'Coletor não encontrado ou sem permissão',
+      });
+    }
+
+    // Permitir resumos para coletores ativos ou completados
+    if (!['active', 'completed'].includes(collector.status)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Coletor deve estar ativo ou completado para gerar resumo',
       });
     }
 
@@ -121,10 +129,51 @@ router.post('/summarize', authenticateToken, async (req, res) => {
     // Configurar OpenAI
     const openai = getOpenAIClient(customApiKey);
 
+    // Template de resumo estruturado
+    const summaryTemplate = `
+Siga este formato exato para o resumo:
+
+Resumo do Grupo - [Nome do Grupo] 📆 - [Data]
+
+👥 Top 5 Participantes Ativos:
+1. [Nome] - [X] mensagens
+2. [Nome] - [X] mensagens
+3. [Nome] - [X] mensagens
+4. [Nome] - [X] mensagens
+5. [Nome] - [X] mensagens
+
+📌 Assunto Principal: 
+[Descrição geral dos temas mais discutidos]
+
+💡 Assuntos Relevantes:
+- [Categoria 1]:
+  - [Detalhes específicos]
+  - [Soluções ou discussões]
+- [Categoria 2]:
+  - [Detalhes específicos]
+  - [Atualizações ou recursos]
+
+🔗 Links Compartilhados:
+- [Descrição]: [URL]
+
+[Temas específicos com horários se aplicável]
+Tema: [Nome do Tema] ⏰ [Horário início] – [Horário fim]
+- Participantes: [Lista de nomes]
+- Resumo: [Descrição do que foi discutido]
+
+Destaques do Dia 🔍
+- Técnicos: [Pontos técnicos principais]
+- Inovação: [Novidades ou soluções]
+- Colaboração: [Aspectos de trabalho em equipe]
+
+Encerramento 🌟
+[Frase de fechamento sobre o dia]
+`;
+
     // Obter prompt baseado no tom
     const promptConfig = SUMMARY_PROMPTS[tone] || SUMMARY_PROMPTS.professional;
 
-    let systemPrompt = customPrompt || promptConfig.system;
+    let systemPrompt = customPrompt || `${promptConfig.system}\n\nIMPORTANTE: Siga exatamente este template estruturado:\n\n${summaryTemplate}`;
 
     // Adicionar contexto específico
     systemPrompt += `\n\nVocê receberá mensagens de um grupo do WhatsApp coletadas durante um período específico. 
