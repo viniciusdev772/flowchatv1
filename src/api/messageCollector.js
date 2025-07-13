@@ -956,7 +956,7 @@ Encerramento 🌟
         
         logger.info(`🔄 Processando lote ${i + 1}/${batchesToProcess.length} com ${batchMessages.length} mensagens...`);
         
-        const response = await fetch(`http://localhost:${process.env.PORT || 3000}/api/management/ai-summary/summarize`, {
+        const response = await fetch(`${process.env.BASE_URL || `http://localhost:${process.env.PORT || 3000}`}/api/management/ai-summary/summarize`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -1022,7 +1022,7 @@ Instruções de consolidação:
 8. Use emojis conforme o template
 `;
 
-        const finalResponse = await fetch(`http://localhost:${process.env.PORT || 3000}/api/management/ai-summary/summarize`, {
+        const finalResponse = await fetch(`${process.env.BASE_URL || `http://localhost:${process.env.PORT || 3000}`}/api/management/ai-summary/summarize`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
