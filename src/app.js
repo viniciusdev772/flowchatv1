@@ -12,7 +12,7 @@ const path = require('path');
 const multer = require('multer');
 const cors = require('cors');
 const swaggerUi = require('swagger-ui-express');
-const { swaggerSpec, swaggerUiOptions } = require('./config/swagger');
+const { swaggerSpec, swaggerUiOptions, generateOpenAPIFile } = require('./config/swagger');
 const QRCode = require('qrcode');
 const crypto = require('crypto');
 const database = require('./config/database');
@@ -66,11 +66,61 @@ app.use('/api/baileys', (req, res, next) => {
   return apiTokenAuth(req, res, next);
 });
 
+// Rota para download do arquivo OpenAPI JSON
+app.get('/api-docs/openapi.json', (req, res) => {
+  try {
+    res.setHeader('Content-Type', 'application/json');
+    res.setHeader('Content-Disposition', 'attachment; filename="openapi.json"');
+    res.json(swaggerSpec);
+  } catch (error) {
+    res.status(500).json({ 
+      success: false, 
+      message: 'Erro ao gerar arquivo OpenAPI',
+      error: error.message 
+    });
+  }
+});
+
 // Documentação Swagger
 app.use(
   '/api-docs',
   swaggerUi.serve,
-  swaggerUi.setup(swaggerSpec, swaggerUiOptions)
+  swaggerUi.setup(swaggerSpec, {
+    ...swaggerUiOptions,
+    customCss: `
+      ${swaggerUiOptions.customCss}
+      .info .title::after {
+        content: " 📥";
+        margin-left: 10px;
+      }
+      .info .description::after {
+        content: "\\A\\A📥 Download OpenAPI JSON: ";
+        white-space: pre;
+        font-weight: bold;
+      }
+      .info .description::after + a {
+        color: #3b82f6;
+        text-decoration: underline;
+      }
+    `,
+    customJs: `
+      // Adicionar link de download na página
+      document.addEventListener('DOMContentLoaded', function() {
+        setTimeout(() => {
+          const description = document.querySelector('.info .description');
+          if (description) {
+            const downloadLink = document.createElement('a');
+            downloadLink.href = '/api-docs/openapi.json';
+            downloadLink.textContent = 'Baixar OpenAPI JSON';
+            downloadLink.style.color = '#3b82f6';
+            downloadLink.style.textDecoration = 'underline';
+            downloadLink.style.fontWeight = 'bold';
+            description.appendChild(downloadLink);
+          }
+        }, 1000);
+      });
+    `
+  })
 );
 
 // Rota raiz redireciona para documentação

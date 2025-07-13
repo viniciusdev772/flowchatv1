@@ -1,4 +1,6 @@
 const swaggerJsdoc = require('swagger-jsdoc');
+const fs = require('fs');
+const path = require('path');
 
 // Configuração do Swagger
 const swaggerOptions = {
@@ -203,6 +205,19 @@ const swaggerOptions = {
 
 // Gerar spec do Swagger
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
+
+// Função para gerar arquivo JSON da especificação OpenAPI
+const generateOpenAPIFile = () => {
+  try {
+    const outputPath = path.join(__dirname, '../../openapi.json');
+    fs.writeFileSync(outputPath, JSON.stringify(swaggerSpec, null, 2));
+    console.log(`✅ Arquivo OpenAPI gerado: ${outputPath}`);
+    return outputPath;
+  } catch (error) {
+    console.error('❌ Erro ao gerar arquivo OpenAPI:', error.message);
+    throw error;
+  }
+};
 
 // Configuração customizada do Swagger UI
 const swaggerUiOptions = {
@@ -4012,4 +4027,5 @@ const swaggerUiOptions = {
 module.exports = {
   swaggerSpec,
   swaggerUiOptions,
+  generateOpenAPIFile,
 };
