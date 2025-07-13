@@ -77,6 +77,15 @@ export default function MessageCollectorManager() {
   // Estados para menu de exportação
   const [showExportMenu, setShowExportMenu] = useState(false);
   
+  // Estados para resumo automático pendente
+  const [showPendingAutoSummaryModal, setShowPendingAutoSummaryModal] = useState(false);
+  const [pendingCollectorId, setPendingCollectorId] = useState(null);
+  const [pendingAutoSummaryOptions, setPendingAutoSummaryOptions] = useState({
+    customInstructions: '',
+    topParticipants: 5
+  });
+  const [isGeneratingPendingResume, setIsGeneratingPendingResume] = useState(false);
+  
   // Form states
   const [formData, setFormData] = useState({
     sessionId: '',
@@ -523,6 +532,62 @@ export default function MessageCollectorManager() {
       }
     } catch (error) {
       console.error('Erro ao carregar mensagens:', error);
+    }
+  };
+
+  // Função para lidar com resumo automático pendente
+  const handlePendingAutoSummary = (collectorId) => {
+    setPendingCollectorId(collectorId);
+    setShowPendingAutoSummaryModal(true);
+  };
+
+  // Função para gerar resumo automático pendente
+  const generatePendingAutoSummary = async () => {
+    if (!pendingCollectorId) return;
+
+    setIsGeneratingPendingResume(true);
+    try {
+      // Obter token OpenAI do localStorage se disponível
+      const openaiApiKey = localStorage.getItem('openai_api_key');
+      
+      const response = await fetch(`${apiUrl}/api/management/message-collector/generate-pending-summary`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          collectorId: pendingCollectorId,
+          customInstructions: pendingAutoSummaryOptions.customInstructions,
+          topParticipants: pendingAutoSummaryOptions.topParticipants,
+          customApiKey: openaiApiKey
+        })
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          // Fechar modal e atualizar lista
+          setShowPendingAutoSummaryModal(false);
+          setPendingCollectorId(null);
+          setPendingAutoSummaryOptions({ customInstructions: '', topParticipants: 5 });
+          
+          // Recarregar coletores para atualizar status
+          await loadCollectors();
+          
+          alert('Resumo automático gerado com sucesso!');
+        } else {
+          alert(`Erro: ${data.message}`);
+        }
+      } else {
+        const error = await response.text();
+        alert(`Erro: ${error}`);
+      }
+    } catch (error) {
+      console.error('Erro ao gerar resumo pendente:', error);
+      alert('Erro ao gerar resumo pendente');
+    } finally {
+      setIsGeneratingPendingResume(false);
     }
   };
 
@@ -1066,6 +1131,43 @@ export default function MessageCollectorManager() {
                               <span className="text-green-600 font-medium">
                                 {collector.totalMessages} mensagens coletadas
                               </span>
+                            </div>
+                          )}
+                          
+                          {/* Notificação de Resumo Automático Pendente */}
+                          {collector.hasPendingAutoSummary && (
+                            <div className="mt-2 p-2 bg-orange-50 border border-orange-200 rounded-lg">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-2">
+                                  <SparklesIcon className="w-4 h-4 text-orange-600" />
+                                  <span className="text-xs font-medium text-orange-700">
+                                    Resumo Automático Pendente
+                                  </span>
+                                </div>
+                                <motion.button
+                                  onClick={() => handlePendingAutoSummary(collector._id)}
+                                  className="px-2 py-1 bg-orange-100 text-orange-700 rounded text-xs font-medium hover:bg-orange-200 transition-colors"
+                                  whileHover={{ scale: 1.02 }}
+                                  whileTap={{ scale: 0.98 }}
+                                >
+                                  Configurar
+                                </motion.button>
+                              </div>
+                              <p className="text-xs text-orange-600 mt-1">
+                                Adicione instruções personalizadas para a IA gerar o resumo
+                              </p>
+                            </div>
+                          )}
+                          
+                          {/* Processando Resumo Automático */}
+                          {collector.isProcessingAutoSummary && (
+                            <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
+                              <div className="flex items-center space-x-2">
+                                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>
+                                <span className="text-xs font-medium text-blue-700">
+                                  Gerando resumo automático...
+                                </span>
+                              </div>
                             </div>
                           )}
                         </div>
@@ -2434,6 +2536,130 @@ export default function MessageCollectorManager() {
                 >
                   Cancelar
                 </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal de Configuração de Resumo Automático Pendente */}
+      <AnimatePresence>
+        {showPendingAutoSummaryModal && (
+          <motion.div
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowPendingAutoSummaryModal(false)}
+          >
+            <motion.div
+              className="bg-white rounded-xl max-w-md w-full overflow-hidden shadow-2xl border border-gray-200"
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-6">
+                {/* Ícone e Título */}
+                <div className="flex items-center justify-center w-16 h-16 bg-orange-100 rounded-full mx-auto mb-4">
+                  <SparklesIcon className="w-8 h-8 text-orange-600" />
+                </div>
+
+                <h3 className="text-xl font-bold text-gray-800 text-center mb-2">
+                  Configurar Resumo Automático
+                </h3>
+                <p className="text-gray-600 text-center mb-6 text-sm">
+                  Adicione instruções personalizadas para que a IA gere um resumo mais direcionado
+                </p>
+
+                <div className="space-y-4">
+                  {/* Instruções Personalizadas */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Instruções Adicionais (Opcional)
+                    </label>
+                    <textarea
+                      value={pendingAutoSummaryOptions.customInstructions}
+                      onChange={(e) => setPendingAutoSummaryOptions(prev => ({
+                        ...prev,
+                        customInstructions: e.target.value
+                      }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm resize-none"
+                      rows={3}
+                      placeholder="Ex: Foque nos aspectos técnicos, destaque decisões importantes, mencione próximos passos..."
+                    />
+                  </div>
+
+                  {/* Número de Participantes */}
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      <UserGroupIcon className="w-4 h-4 inline mr-1" />
+                      Top Participantes no Resumo
+                    </label>
+                    <select
+                      value={pendingAutoSummaryOptions.topParticipants}
+                      onChange={(e) => setPendingAutoSummaryOptions(prev => ({
+                        ...prev,
+                        topParticipants: parseInt(e.target.value)
+                      }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-orange-500 text-sm bg-white"
+                    >
+                      {[3,4,5,6,7,8,9,10,12,15,20].map(num => (
+                        <option key={num} value={num}>
+                          {num} participantes mais ativos
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  {/* Nota sobre API Key */}
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                    <div className="flex items-start space-x-2">
+                      <div className="w-4 h-4 bg-blue-500 rounded-full mt-0.5 flex-shrink-0"></div>
+                      <div className="text-sm text-blue-700">
+                        <strong>Chave OpenAI:</strong> Será usada a chave salva no navegador ou do seu perfil.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Botões de Ação */}
+              <div className="bg-gray-50 px-6 py-4 border-t border-gray-200">
+                <div className="flex gap-3">
+                  <motion.button
+                    onClick={generatePendingAutoSummary}
+                    disabled={isGeneratingPendingResume}
+                    className="flex-1 py-3 bg-orange-600 text-white rounded-xl hover:bg-orange-700 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                    whileHover={!isGeneratingPendingResume ? { scale: 1.02 } : {}}
+                    whileTap={!isGeneratingPendingResume ? { scale: 0.98 } : {}}
+                  >
+                    {isGeneratingPendingResume ? (
+                      <>
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                        Gerando Resumo...
+                      </>
+                    ) : (
+                      <>
+                        <SparklesIcon className="w-4 h-4 mr-2" />
+                        Gerar Resumo
+                      </>
+                    )}
+                  </motion.button>
+
+                  <motion.button
+                    onClick={() => {
+                      setShowPendingAutoSummaryModal(false);
+                      setPendingCollectorId(null);
+                    }}
+                    disabled={isGeneratingPendingResume}
+                    className="flex-1 py-3 bg-gray-100 rounded-xl text-gray-700 hover:bg-gray-200 font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    whileHover={!isGeneratingPendingResume ? { scale: 1.02 } : {}}
+                    whileTap={!isGeneratingPendingResume ? { scale: 0.98 } : {}}
+                  >
+                    Cancelar
+                  </motion.button>
+                </div>
               </div>
             </motion.div>
           </motion.div>

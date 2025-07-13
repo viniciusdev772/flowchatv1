@@ -417,13 +417,17 @@ async function stopCollection(collectorId, config) {
     
     logger.info(`🕒 Cron: Parando coleta para ${collectorId} às ${config.endHour}h`);
 
-    // Gerar resumo automático se configurado
+    // Marcar resumo automático como pendente para instruções adicionais
     if (collector.config?.autoSummary && collector.config?.summaryConfig?.summaryTime === 'end') {
       try {
-        await generateAndSendSummary(collectorId, collector);
-        logger.info(`📝 Resumo automático gerado para coletor ${collectorId}`);
+        // Atualizar status para indicar que há resumo pendente
+        await updateCollectorStatus(collectorId, {
+          pendingAutoSummary: true,
+          autoSummaryPendingSince: new Date()
+        });
+        logger.info(`📝 Resumo automático marcado como pendente para coletor ${collectorId} - aguardando instruções adicionais`);
       } catch (summaryError) {
-        logger.error('Erro ao gerar resumo automático:', summaryError);
+        logger.error('Erro ao marcar resumo automático pendente:', summaryError);
       }
     }
 
@@ -750,9 +754,17 @@ router.get('/list', authenticateToken, async (req, res) => {
       startTime: collector.startTime,
     }));
 
+    // Adicionar informações sobre resumos pendentes
+    const collectorsWithPendingInfo = collectors.map(collector => ({
+      ...collector,
+      hasPendingAutoSummary: !!collector.pendingAutoSummary,
+      autoSummaryPendingSince: collector.autoSummaryPendingSince || null,
+      isProcessingAutoSummary: !!collector.processingAutoSummary
+    }));
+
     res.json({
       success: true,
-      collectors,
+      collectors: collectorsWithPendingInfo,
       active: activeFormatted,
     });
   } catch (error) {
@@ -760,6 +772,129 @@ router.get('/list', authenticateToken, async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Erro interno do servidor',
+    });
+  }
+});
+
+// POST /api/message-collector/generate-pending-summary
+// Gerar resumo automático pendente com instruções adicionais
+router.post('/generate-pending-summary', authenticateToken, async (req, res) => {
+  try {
+    const { 
+      collectorId, 
+      customInstructions = '',
+      topParticipants = 5,
+      customApiKey = null 
+    } = req.body;
+    const userId = req.user._id;
+
+    if (!collectorId) {
+      return res.status(400).json({
+        success: false,
+        message: 'collectorId é obrigatório'
+      });
+    }
+
+    // Buscar coletor e verificar se tem resumo pendente
+    const db = database.getDb();
+    if (!db) {
+      return res.status(500).json({
+        success: false,
+        message: 'Banco de dados não disponível'
+      });
+    }
+
+    const collector = await db.collection('messageCollectors').findOne({ 
+      _id: collectorId,
+      userId: new ObjectId(userId),
+      pendingAutoSummary: true
+    });
+
+    if (!collector) {
+      return res.status(404).json({
+        success: false,
+        message: 'Coletor não encontrado ou sem resumo automático pendente'
+      });
+    }
+
+    // Verificar se o resumo não expirou (opcional - 24h limite)
+    const pendingSince = new Date(collector.autoSummaryPendingSince);
+    const hoursElapsed = (new Date() - pendingSince) / (1000 * 60 * 60);
+    
+    if (hoursElapsed > 24) {
+      await updateCollectorStatus(collectorId, {
+        pendingAutoSummary: false,
+        autoSummaryPendingSince: null
+      });
+      return res.status(400).json({
+        success: false,
+        message: 'Resumo automático expirou (24h limite)'
+      });
+    }
+
+    try {
+      // Criar configuração combinada com instruções do usuário
+      const enhancedSummaryConfig = {
+        ...collector.config.summaryConfig,
+        customInstructions: customInstructions || collector.config?.summaryConfig?.customInstructions || '',
+        topParticipants: Math.max(3, Math.min(20, parseInt(topParticipants) || collector.config?.summaryConfig?.topParticipants || 5)),
+        customApiKey: customApiKey || null
+      };
+      
+      // Atualizar coletor com nova configuração
+      const collectorWithEnhancedConfig = {
+        ...collector,
+        config: {
+          ...collector.config,
+          summaryConfig: enhancedSummaryConfig
+        }
+      };
+      
+      // Marcar como processando
+      await updateCollectorStatus(collectorId, {
+        pendingAutoSummary: false,
+        processingAutoSummary: true,
+        processingStartedAt: new Date()
+      });
+
+      // Gerar resumo com as instruções adicionais
+      await generateAndSendSummary(collectorId, collectorWithEnhancedConfig);
+      
+      // Marcar como concluído
+      await updateCollectorStatus(collectorId, {
+        processingAutoSummary: false,
+        autoSummaryCompletedAt: new Date()
+      });
+
+      logger.info(`📝 Resumo automático com instruções adicionais gerado para coletor ${collectorId}`);
+
+      res.json({
+        success: true,
+        message: 'Resumo automático gerado com sucesso',
+        config: enhancedSummaryConfig
+      });
+
+    } catch (summaryError) {
+      logger.error('Erro ao gerar resumo com instruções adicionais:', summaryError);
+      
+      // Reverter status em caso de erro
+      await updateCollectorStatus(collectorId, {
+        pendingAutoSummary: true,
+        processingAutoSummary: false
+      });
+
+      res.status(500).json({
+        success: false,
+        message: 'Erro ao gerar resumo automático',
+        error: summaryError.message
+      });
+    }
+
+  } catch (error) {
+    logger.error('Erro ao processar resumo pendente:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno do servidor'
     });
   }
 });
