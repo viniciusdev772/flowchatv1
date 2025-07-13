@@ -412,11 +412,22 @@ export default function MessageCollectorManager() {
     if (!collectorToStop) return;
     
     try {
+      // Obter chave OpenAI do localStorage se gerar resumo estiver ativado
+      let customApiKey = null;
+      if (stopOptions.generateSummary) {
+        customApiKey = localStorage.getItem('openai_api_key');
+        if (!customApiKey) {
+          alert('Chave OpenAI não configurada. Configure em AI Assistant > Configurações para gerar resumos.');
+          return;
+        }
+      }
+
       const requestBody = { 
         collectorId: collectorToStop.id,
         generateSummary: stopOptions.generateSummary,
         sendToGroup: stopOptions.sendToGroup,
-        summaryTone: stopOptions.summaryTone
+        summaryTone: stopOptions.summaryTone,
+        customApiKey: customApiKey // Enviar chave OpenAI se disponível
       };
       
       const response = await fetch(`${apiUrl}/api/management/message-collector/stop`, {

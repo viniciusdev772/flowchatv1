@@ -568,7 +568,8 @@ router.post('/stop', authenticateToken, async (req, res) => {
       collectorId, 
       generateSummary = false, 
       sendToGroup = false, 
-      summaryTone = 'professional' 
+      summaryTone = 'professional',
+      customApiKey = null 
     } = req.body;
     const userId = req.user._id;
 
@@ -626,7 +627,8 @@ router.post('/stop', authenticateToken, async (req, res) => {
         try {
           const summaryConfig = {
             tone: summaryTone,
-            sendToGroup: sendToGroup || collector.config?.summaryConfig?.sendToGroup || false
+            sendToGroup: sendToGroup || collector.config?.summaryConfig?.sendToGroup || false,
+            customApiKey: customApiKey // Usar chave do frontend se fornecida
           };
           
           // Temporariamente adicionar configuração do resumo manual
@@ -876,7 +878,14 @@ async function generateAndSendSummary(collectorId, collector) {
 
     // Buscar chave API do usuário e token de autenticação
     const user = await db.collection('users').findOne({ _id: collector.userId });
-    const customApiKey = user?.openaiApiKey || null;
+    let customApiKey = collector.config?.summaryConfig?.customApiKey || user?.openaiApiKey || null;
+    
+    if (!customApiKey) {
+      logger.warn(`⚠️ Usuário ${collector.userId} não tem chave OpenAI configurada - pulando geração de resumo`);
+      return; // Sair silenciosamente se não tem chave
+    }
+    
+    logger.info(`🔑 Usando chave OpenAI para resumo: ${customApiKey.substring(0, 10)}...`);
     
     // Buscar token de API válido do usuário para autenticação interna
     let userToken = await db.collection('api_tokens').findOne({ 
