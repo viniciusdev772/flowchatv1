@@ -564,7 +564,12 @@ router.post('/start', authenticateToken, async (req, res) => {
 // Parar coleta de mensagens
 router.post('/stop', authenticateToken, async (req, res) => {
   try {
-    const { collectorId } = req.body;
+    const { 
+      collectorId, 
+      generateSummary = false, 
+      sendToGroup = false, 
+      summaryTone = 'professional' 
+    } = req.body;
     const userId = req.user._id;
 
     // Buscar coletor pelo UUID
@@ -613,10 +618,31 @@ router.post('/stop', authenticateToken, async (req, res) => {
         endTime: new Date(),
       });
 
-      // Se tem resumo automático configurado para "ao encerrar", gerar agora
-      if (collector.config?.autoSummary && collector.config?.summaryConfig?.summaryTime === 'end') {
+      // Gerar resumo se solicitado pelo usuário OU se configurado automaticamente
+      const shouldGenerateSummary = generateSummary || 
+        (collector.config?.autoSummary && collector.config?.summaryConfig?.summaryTime === 'end');
+        
+      if (shouldGenerateSummary) {
         try {
-          await generateAndSendSummary(collectorId, collector);
+          const summaryConfig = {
+            tone: summaryTone,
+            sendToGroup: sendToGroup || collector.config?.summaryConfig?.sendToGroup || false
+          };
+          
+          // Temporariamente adicionar configuração do resumo manual
+          const collectorWithSummaryConfig = {
+            ...collector,
+            config: {
+              ...collector.config,
+              summaryConfig: {
+                ...collector.config?.summaryConfig,
+                ...summaryConfig
+              }
+            }
+          };
+          
+          await generateAndSendSummary(collectorId, collectorWithSummaryConfig);
+          logger.info(`📝 Resumo gerado ao parar coletor ${collectorId}`);
         } catch (summaryError) {
           logger.error('Erro ao gerar resumo final:', summaryError);
           // Não falhar a operação de parar o coletor por causa do resumo

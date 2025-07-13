@@ -45,6 +45,12 @@ export default function MessageCollectorManager() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [collectorToStop, setCollectorToStop] = useState(null);
+  const [showStopOptionsModal, setShowStopOptionsModal] = useState(false);
+  const [stopOptions, setStopOptions] = useState({
+    generateSummary: false,
+    sendToGroup: false,
+    summaryTone: 'professional'
+  });
   const [loading, setLoading] = useState(true);
   const [sessions, setSessions] = useState([]);
   const [groups, setGroups] = useState([]);
@@ -389,6 +395,16 @@ export default function MessageCollectorManager() {
 
   const handleStopCollector = (collector) => {
     setCollectorToStop(collector);
+    setStopOptions({
+      generateSummary: false,
+      sendToGroup: false,
+      summaryTone: 'professional'
+    });
+    setShowStopOptionsModal(true);
+  };
+
+  const proceedToConfirmation = () => {
+    setShowStopOptionsModal(false);
     setShowConfirmModal(true);
   };
 
@@ -396,18 +412,27 @@ export default function MessageCollectorManager() {
     if (!collectorToStop) return;
     
     try {
+      const requestBody = { 
+        collectorId: collectorToStop.id,
+        generateSummary: stopOptions.generateSummary,
+        sendToGroup: stopOptions.sendToGroup,
+        summaryTone: stopOptions.summaryTone
+      };
+      
       const response = await fetch(`${apiUrl}/api/management/message-collector/stop`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ collectorId: collectorToStop.id })
+        body: JSON.stringify(requestBody)
       });
 
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
           setShowConfirmModal(false);
+          setShowStopOptionsModal(false);
           setCollectorToStop(null);
+          setStopOptions({ generateSummary: false, sendToGroup: false, summaryTone: 'professional' });
           loadCollectors();
         } else {
           alert(`Erro: ${data.message}`);
@@ -2074,6 +2099,121 @@ export default function MessageCollectorManager() {
 
       {/* Modal de Confirmação para Parar Coletor */}
       <AnimatePresence>
+        {showStopOptionsModal && collectorToStop && (
+          <motion.div
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowStopOptionsModal(false)}
+          >
+            <motion.div
+              className="bg-white p-6 rounded-2xl max-w-md w-full shadow-2xl border border-gray-200"
+              initial={{ opacity: 0, scale: 0.8, y: 50 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.8, y: 50 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <h3 className="text-xl font-bold text-gray-900 mb-4">
+                ⚙️ Opções de Parada
+              </h3>
+              
+              <p className="text-gray-600 mb-6">
+                Configurar ações antes de parar o coletor "{collectorToStop.config?.name || collectorToStop.id}"
+              </p>
+
+              <div className="space-y-4 mb-6">
+                {/* Gerar Resumo */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="text-sm font-medium text-gray-700">
+                      🤖 Gerar Resumo
+                    </label>
+                    <p className="text-xs text-gray-500">
+                      Criar resumo das mensagens coletadas
+                    </p>
+                  </div>
+                  <label className="relative inline-flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={stopOptions.generateSummary}
+                      onChange={(e) => setStopOptions(prev => ({
+                        ...prev,
+                        generateSummary: e.target.checked
+                      }))}
+                      className="sr-only peer"
+                    />
+                    <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                  </label>
+                </div>
+
+                {/* Tom do Resumo */}
+                {stopOptions.generateSummary && (
+                  <div>
+                    <label className="text-sm font-medium text-gray-700 mb-2 block">
+                      🎨 Tom do Resumo
+                    </label>
+                    <select
+                      value={stopOptions.summaryTone}
+                      onChange={(e) => setStopOptions(prev => ({
+                        ...prev,
+                        summaryTone: e.target.value
+                      }))}
+                      className="w-full p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    >
+                      <option value="professional">💼 Profissional</option>
+                      <option value="casual">😊 Casual</option>
+                      <option value="analytical">📊 Analítico</option>
+                      <option value="brief">⚡ Breve</option>
+                    </select>
+                  </div>
+                )}
+
+                {/* Enviar para Grupo */}
+                {stopOptions.generateSummary && (
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <label className="text-sm font-medium text-gray-700">
+                        📤 Enviar para Grupo
+                      </label>
+                      <p className="text-xs text-gray-500">
+                        Enviar resumo automaticamente no grupo
+                      </p>
+                    </div>
+                    <label className="relative inline-flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={stopOptions.sendToGroup}
+                        onChange={(e) => setStopOptions(prev => ({
+                          ...prev,
+                          sendToGroup: e.target.checked
+                        }))}
+                        className="sr-only peer"
+                      />
+                      <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowStopOptionsModal(false)}
+                  className="flex-1 py-2 px-4 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={proceedToConfirmation}
+                  className="flex-1 py-2 px-4 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
+                >
+                  Continuar
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
         {showConfirmModal && collectorToStop && (
           <motion.div
             className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
