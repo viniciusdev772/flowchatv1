@@ -2218,6 +2218,94 @@ async function extractMessageData(message, sock = null) {
       pushName: message.pushName,
       isMe: message.key.fromMe,
     },
+
+    // Enhanced message metadata
+    metadata: {
+      fromMe: message.key.fromMe || false,
+      status: message.status || null,
+      broadcast: message.broadcast || false,
+      messageStubType: message.messageStubType || null,
+      messageStubParameters: message.messageStubParameters || null,
+      ephemeral: null,
+      viewOnce: false,
+      forwarded: false,
+      starred: false,
+      mentions: [],
+      urls: [],
+      deviceType: null,
+      userAgent: null,
+      reactions: [],
+      edited: false,
+      messageContextInfo: null,
+      caption: null,
+      mediaDetails: null,
+      locationData: null,
+      contactData: null,
+      contactsData: null,
+      pollData: null,
+      pollUpdateData: null,
+      reactionData: null,
+      protocolData: null,
+      unknownData: null
+    }
+  };
+
+  // Helper function to extract URLs from text
+  const extractUrls = (text) => {
+    if (!text) return [];
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    return text.match(urlRegex) || [];
+  };
+
+  // Helper function to extract mentions from text and contextInfo
+  const extractMentions = (text, contextInfo = null) => {
+    const mentions = [];
+    if (text) {
+      const mentionRegex = /@(\d+)/g;
+      let match;
+      while ((match = mentionRegex.exec(text)) !== null) {
+        mentions.push(match[1] + '@s.whatsapp.net');
+      }
+    }
+    if (contextInfo && contextInfo.mentionedJid) {
+      mentions.push(...contextInfo.mentionedJid);
+    }
+    return [...new Set(mentions)];
+  };
+
+  // Helper function to check if message is forwarded
+  const checkForwarded = (contextInfo) => {
+    return !!(contextInfo && (contextInfo.forwardingScore > 0 || contextInfo.isForwarded));
+  };
+
+  // Helper function to extract detailed media information
+  const extractMediaDetails = (mediaMsg, mediaType) => {
+    const details = {
+      fileLength: mediaMsg.fileLength || null,
+      mimetype: mediaMsg.mimetype || null,
+      fileSha256: mediaMsg.fileSha256 ? mediaMsg.fileSha256.toString('base64') : null,
+      fileEncSha256: mediaMsg.fileEncSha256 ? mediaMsg.fileEncSha256.toString('base64') : null,
+      mediaKey: mediaMsg.mediaKey ? mediaMsg.mediaKey.toString('base64') : null,
+      directPath: mediaMsg.directPath || null,
+      url: mediaMsg.url || null,
+      width: mediaMsg.width || null,
+      height: mediaMsg.height || null,
+      duration: mediaMsg.seconds || null
+    };
+    
+    // Type-specific fields
+    if (mediaType === 'audio') {
+      details.ptt = mediaMsg.ptt || false;
+      details.waveform = mediaMsg.waveform ? Array.from(mediaMsg.waveform) : null;
+    } else if (mediaType === 'document') {
+      details.fileName = mediaMsg.fileName || null;
+      details.title = mediaMsg.title || null;
+      details.pageCount = mediaMsg.pageCount || null;
+    } else if (mediaType === 'sticker') {
+      details.isAnimated = mediaMsg.isAnimated || false;
+    }
+    
+    return details;
   };
 
   // Helper function to extract quoted message from contextInfo (based on official Baileys WAProto)
@@ -2331,19 +2419,40 @@ async function extractMessageData(message, sock = null) {
     if (message.message.conversation) {
       messageData.messageType = 'text';
       messageData.content = message.message.conversation;
+      
+      // Extract URLs and mentions from simple text messages
+      messageData.metadata.urls = extractUrls(messageData.content);
+      messageData.metadata.mentions = extractMentions(messageData.content);
     } else if (message.message.extendedTextMessage) {
       messageData.messageType = 'text';
       messageData.content = message.message.extendedTextMessage.text;
 
-      // Extract quoted message if present
-      if (message.message.extendedTextMessage.contextInfo?.quotedMessage) {
-        messageData.quotedMessage = extractQuotedMessage(
-          message.message.extendedTextMessage.contextInfo
-        );
+      // Extract URLs and mentions
+      messageData.metadata.urls = extractUrls(messageData.content);
+      
+      // Extract contextInfo metadata
+      if (message.message.extendedTextMessage.contextInfo) {
+        const contextInfo = message.message.extendedTextMessage.contextInfo;
+        messageData.metadata.mentions = extractMentions(messageData.content, contextInfo);
+        messageData.metadata.forwarded = checkForwarded(contextInfo);
+        if (contextInfo.ephemeralExpiration) {
+          messageData.metadata.ephemeral = contextInfo.ephemeralExpiration;
+        }
+        
+        // Extract quoted message if present
+        if (contextInfo.quotedMessage) {
+          messageData.quotedMessage = extractQuotedMessage(contextInfo);
+        }
       }
     } else if (message.message.imageMessage) {
       messageData.messageType = 'image';
       messageData.content = message.message.imageMessage.caption || '';
+      messageData.metadata.caption = message.message.imageMessage.caption || null;
+      
+      // Extract URLs from caption
+      messageData.metadata.urls = extractUrls(messageData.content);
+      
+      // Enhanced media data
       messageData.mediaData = {
         mimetype: message.message.imageMessage.mimetype,
         fileSha256: message.message.imageMessage.fileSha256?.toString('base64'),
@@ -2351,12 +2460,23 @@ async function extractMessageData(message, sock = null) {
         width: message.message.imageMessage.width,
         height: message.message.imageMessage.height,
       };
+      
+      // Detailed media metadata
+      messageData.metadata.mediaDetails = extractMediaDetails(message.message.imageMessage, 'image');
 
-      // Extract quoted message if present
-      if (message.message.imageMessage.contextInfo?.quotedMessage) {
-        messageData.quotedMessage = extractQuotedMessage(
-          message.message.imageMessage.contextInfo
-        );
+      // Extract contextInfo metadata
+      if (message.message.imageMessage.contextInfo) {
+        const contextInfo = message.message.imageMessage.contextInfo;
+        messageData.metadata.mentions = extractMentions(messageData.content, contextInfo);
+        messageData.metadata.forwarded = checkForwarded(contextInfo);
+        if (contextInfo.ephemeralExpiration) {
+          messageData.metadata.ephemeral = contextInfo.ephemeralExpiration;
+        }
+        
+        // Extract quoted message if present
+        if (contextInfo.quotedMessage) {
+          messageData.quotedMessage = extractQuotedMessage(contextInfo);
+        }
       }
 
       // Baixar mídia automaticamente se sock foi fornecido
@@ -2375,6 +2495,11 @@ async function extractMessageData(message, sock = null) {
     } else if (message.message.videoMessage) {
       messageData.messageType = 'video';
       messageData.content = message.message.videoMessage.caption || '';
+      messageData.metadata.caption = message.message.videoMessage.caption || null;
+      
+      // Extract URLs from caption
+      messageData.metadata.urls = extractUrls(messageData.content);
+      
       messageData.mediaData = {
         mimetype: message.message.videoMessage.mimetype,
         fileSha256: message.message.videoMessage.fileSha256?.toString('base64'),
@@ -2383,12 +2508,23 @@ async function extractMessageData(message, sock = null) {
         height: message.message.videoMessage.height,
         seconds: message.message.videoMessage.seconds,
       };
+      
+      // Detailed media metadata
+      messageData.metadata.mediaDetails = extractMediaDetails(message.message.videoMessage, 'video');
 
-      // Extract quoted message if present
-      if (message.message.videoMessage.contextInfo?.quotedMessage) {
-        messageData.quotedMessage = extractQuotedMessage(
-          message.message.videoMessage.contextInfo
-        );
+      // Extract contextInfo metadata
+      if (message.message.videoMessage.contextInfo) {
+        const contextInfo = message.message.videoMessage.contextInfo;
+        messageData.metadata.mentions = extractMentions(messageData.content, contextInfo);
+        messageData.metadata.forwarded = checkForwarded(contextInfo);
+        if (contextInfo.ephemeralExpiration) {
+          messageData.metadata.ephemeral = contextInfo.ephemeralExpiration;
+        }
+        
+        // Extract quoted message if present
+        if (contextInfo.quotedMessage) {
+          messageData.quotedMessage = extractQuotedMessage(contextInfo);
+        }
       }
 
       // Baixar mídia automaticamente se sock foi fornecido
@@ -2406,6 +2542,8 @@ async function extractMessageData(message, sock = null) {
       }
     } else if (message.message.audioMessage) {
       messageData.messageType = 'audio';
+      messageData.content = '';
+      
       messageData.mediaData = {
         mimetype: message.message.audioMessage.mimetype,
         fileSha256: message.message.audioMessage.fileSha256?.toString('base64'),
@@ -2413,12 +2551,23 @@ async function extractMessageData(message, sock = null) {
         seconds: message.message.audioMessage.seconds,
         ptt: message.message.audioMessage.ptt || false,
       };
+      
+      // Detailed media metadata
+      messageData.metadata.mediaDetails = extractMediaDetails(message.message.audioMessage, 'audio');
 
-      // Extract quoted message if present
-      if (message.message.audioMessage.contextInfo?.quotedMessage) {
-        messageData.quotedMessage = extractQuotedMessage(
-          message.message.audioMessage.contextInfo
-        );
+      // Extract contextInfo metadata
+      if (message.message.audioMessage.contextInfo) {
+        const contextInfo = message.message.audioMessage.contextInfo;
+        messageData.metadata.mentions = extractMentions('', contextInfo);
+        messageData.metadata.forwarded = checkForwarded(contextInfo);
+        if (contextInfo.ephemeralExpiration) {
+          messageData.metadata.ephemeral = contextInfo.ephemeralExpiration;
+        }
+        
+        // Extract quoted message if present
+        if (contextInfo.quotedMessage) {
+          messageData.quotedMessage = extractQuotedMessage(contextInfo);
+        }
       }
 
       // Baixar mídia automaticamente se sock foi fornecido
@@ -2437,6 +2586,11 @@ async function extractMessageData(message, sock = null) {
     } else if (message.message.documentMessage) {
       messageData.messageType = 'document';
       messageData.content = message.message.documentMessage.caption || '';
+      messageData.metadata.caption = message.message.documentMessage.caption || null;
+      
+      // Extract URLs from caption
+      messageData.metadata.urls = extractUrls(messageData.content);
+      
       messageData.mediaData = {
         mimetype: message.message.documentMessage.mimetype,
         fileSha256:
@@ -2445,12 +2599,23 @@ async function extractMessageData(message, sock = null) {
         fileName: message.message.documentMessage.fileName,
         title: message.message.documentMessage.title,
       };
+      
+      // Detailed media metadata
+      messageData.metadata.mediaDetails = extractMediaDetails(message.message.documentMessage, 'document');
 
-      // Extract quoted message if present
-      if (message.message.documentMessage.contextInfo?.quotedMessage) {
-        messageData.quotedMessage = extractQuotedMessage(
-          message.message.documentMessage.contextInfo
-        );
+      // Extract contextInfo metadata
+      if (message.message.documentMessage.contextInfo) {
+        const contextInfo = message.message.documentMessage.contextInfo;
+        messageData.metadata.mentions = extractMentions(messageData.content, contextInfo);
+        messageData.metadata.forwarded = checkForwarded(contextInfo);
+        if (contextInfo.ephemeralExpiration) {
+          messageData.metadata.ephemeral = contextInfo.ephemeralExpiration;
+        }
+        
+        // Extract quoted message if present
+        if (contextInfo.quotedMessage) {
+          messageData.quotedMessage = extractQuotedMessage(contextInfo);
+        }
       }
 
       // Baixar mídia automaticamente se sock foi fornecido
@@ -2468,6 +2633,8 @@ async function extractMessageData(message, sock = null) {
       }
     } else if (message.message.stickerMessage) {
       messageData.messageType = 'sticker';
+      messageData.content = '';
+      
       messageData.mediaData = {
         mimetype: message.message.stickerMessage.mimetype,
         fileSha256:
@@ -2476,12 +2643,23 @@ async function extractMessageData(message, sock = null) {
         width: message.message.stickerMessage.width,
         height: message.message.stickerMessage.height,
       };
+      
+      // Detailed media metadata
+      messageData.metadata.mediaDetails = extractMediaDetails(message.message.stickerMessage, 'sticker');
 
-      // Extract quoted message if present
-      if (message.message.stickerMessage.contextInfo?.quotedMessage) {
-        messageData.quotedMessage = extractQuotedMessage(
-          message.message.stickerMessage.contextInfo
-        );
+      // Extract contextInfo metadata
+      if (message.message.stickerMessage.contextInfo) {
+        const contextInfo = message.message.stickerMessage.contextInfo;
+        messageData.metadata.mentions = extractMentions('', contextInfo);
+        messageData.metadata.forwarded = checkForwarded(contextInfo);
+        if (contextInfo.ephemeralExpiration) {
+          messageData.metadata.ephemeral = contextInfo.ephemeralExpiration;
+        }
+        
+        // Extract quoted message if present
+        if (contextInfo.quotedMessage) {
+          messageData.quotedMessage = extractQuotedMessage(contextInfo);
+        }
       }
 
       // Baixar mídia automaticamente se sock foi fornecido
@@ -2503,12 +2681,23 @@ async function extractMessageData(message, sock = null) {
         displayName: message.message.contactMessage.displayName,
         vcard: message.message.contactMessage.vcard,
       };
+      
+      // Store contact data in metadata
+      messageData.metadata.contactData = messageData.content;
 
-      // Extract quoted message if present
-      if (message.message.contactMessage.contextInfo?.quotedMessage) {
-        messageData.quotedMessage = extractQuotedMessage(
-          message.message.contactMessage.contextInfo
-        );
+      // Extract contextInfo metadata
+      if (message.message.contactMessage.contextInfo) {
+        const contextInfo = message.message.contactMessage.contextInfo;
+        messageData.metadata.mentions = extractMentions('', contextInfo);
+        messageData.metadata.forwarded = checkForwarded(contextInfo);
+        if (contextInfo.ephemeralExpiration) {
+          messageData.metadata.ephemeral = contextInfo.ephemeralExpiration;
+        }
+        
+        // Extract quoted message if present
+        if (contextInfo.quotedMessage) {
+          messageData.quotedMessage = extractQuotedMessage(contextInfo);
+        }
       }
     } else if (message.message.locationMessage) {
       messageData.messageType = 'location';
@@ -2518,12 +2707,23 @@ async function extractMessageData(message, sock = null) {
         name: message.message.locationMessage.name,
         address: message.message.locationMessage.address,
       };
+      
+      // Store location data in metadata
+      messageData.metadata.locationData = messageData.content;
 
-      // Extract quoted message if present
-      if (message.message.locationMessage.contextInfo?.quotedMessage) {
-        messageData.quotedMessage = extractQuotedMessage(
-          message.message.locationMessage.contextInfo
-        );
+      // Extract contextInfo metadata
+      if (message.message.locationMessage.contextInfo) {
+        const contextInfo = message.message.locationMessage.contextInfo;
+        messageData.metadata.mentions = extractMentions('', contextInfo);
+        messageData.metadata.forwarded = checkForwarded(contextInfo);
+        if (contextInfo.ephemeralExpiration) {
+          messageData.metadata.ephemeral = contextInfo.ephemeralExpiration;
+        }
+        
+        // Extract quoted message if present
+        if (contextInfo.quotedMessage) {
+          messageData.quotedMessage = extractQuotedMessage(contextInfo);
+        }
       }
     } else if (message.message.liveLocationMessage) {
       messageData.messageType = 'liveLocation';
@@ -2533,6 +2733,28 @@ async function extractMessageData(message, sock = null) {
         caption: message.message.liveLocationMessage.caption,
         sequenceNumber: message.message.liveLocationMessage.sequenceNumber,
       };
+      
+      // Store location data in metadata
+      messageData.metadata.locationData = messageData.content;
+      messageData.metadata.caption = message.message.liveLocationMessage.caption || null;
+      
+      // Extract URLs from caption
+      messageData.metadata.urls = extractUrls(messageData.content.caption || '');
+
+      // Extract contextInfo metadata
+      if (message.message.liveLocationMessage.contextInfo) {
+        const contextInfo = message.message.liveLocationMessage.contextInfo;
+        messageData.metadata.mentions = extractMentions(messageData.content.caption || '', contextInfo);
+        messageData.metadata.forwarded = checkForwarded(contextInfo);
+        if (contextInfo.ephemeralExpiration) {
+          messageData.metadata.ephemeral = contextInfo.ephemeralExpiration;
+        }
+        
+        // Extract quoted message if present
+        if (contextInfo.quotedMessage) {
+          messageData.quotedMessage = extractQuotedMessage(contextInfo);
+        }
+      }
     } else if (message.message.contactsArrayMessage) {
       messageData.messageType = 'contactsArray';
       messageData.content = {
@@ -2540,12 +2762,87 @@ async function extractMessageData(message, sock = null) {
         contactsCount:
           message.message.contactsArrayMessage.contacts?.length || 0,
       };
+      
+      // Store contacts data in metadata
+      messageData.metadata.contactsData = messageData.content;
+
+      // Extract contextInfo metadata
+      if (message.message.contactsArrayMessage.contextInfo) {
+        const contextInfo = message.message.contactsArrayMessage.contextInfo;
+        messageData.metadata.mentions = extractMentions('', contextInfo);
+        messageData.metadata.forwarded = checkForwarded(contextInfo);
+        if (contextInfo.ephemeralExpiration) {
+          messageData.metadata.ephemeral = contextInfo.ephemeralExpiration;
+        }
+        
+        // Extract quoted message if present
+        if (contextInfo.quotedMessage) {
+          messageData.quotedMessage = extractQuotedMessage(contextInfo);
+        }
+      }
+    } else if (message.message.pollCreationMessage) {
+      messageData.messageType = 'poll';
+      const pollMsg = message.message.pollCreationMessage;
+      messageData.content = {
+        name: pollMsg.name || null,
+        options: pollMsg.options?.map(opt => opt.optionName) || [],
+        selectableOptionsCount: pollMsg.selectableOptionsCount || 1
+      };
+      messageData.metadata.pollData = messageData.content;
+      
+      if (pollMsg.contextInfo) {
+        const contextInfo = pollMsg.contextInfo;
+        messageData.metadata.forwarded = checkForwarded(contextInfo);
+        if (contextInfo.quotedMessage) {
+          messageData.quotedMessage = extractQuotedMessage(contextInfo);
+        }
+      }
+    } else if (message.message.pollUpdateMessage) {
+      messageData.messageType = 'poll_update';
+      messageData.content = {
+        pollCreationMessageKey: message.message.pollUpdateMessage.pollCreationMessageKey || null,
+        vote: message.message.pollUpdateMessage.vote || null
+      };
+      messageData.metadata.pollUpdateData = messageData.content;
+    } else if (message.message.ephemeralMessage) {
+      // Handle ephemeral messages by extracting inner message
+      messageData.metadata.ephemeral = true;
+      const innerMessage = message.message.ephemeralMessage.message;
+      if (innerMessage) {
+        // Recursively process the inner message
+        const innerData = await extractMessageData({
+          ...message,
+          message: innerMessage
+        }, sock);
+        if (innerData) {
+          // Merge inner data with current data, preserving ephemeral flag
+          Object.assign(messageData, innerData);
+          messageData.metadata.ephemeral = true;
+        }
+      }
+    } else if (message.message.viewOnceMessage || message.message.viewOnceMessageV2) {
+      // Handle view once messages
+      messageData.metadata.viewOnce = true;
+      const viewOnceMsg = message.message.viewOnceMessage || message.message.viewOnceMessageV2;
+      if (viewOnceMsg.message) {
+        const innerData = await extractMessageData({
+          ...message,
+          message: viewOnceMsg.message
+        }, sock);
+        if (innerData) {
+          Object.assign(messageData, innerData);
+          messageData.metadata.viewOnce = true;
+        }
+      }
     } else if (message.message.reactionMessage) {
       messageData.messageType = 'reaction';
+      const reactionMsg = message.message.reactionMessage;
       messageData.content = {
-        text: message.message.reactionMessage.text,
-        targetMessageKey: message.message.reactionMessage.key,
+        text: reactionMsg.text || null,
+        targetMessageKey: reactionMsg.key || null,
+        senderTimestampMs: reactionMsg.senderTimestampMs || null
       };
+      messageData.metadata.reactionData = messageData.content;
     } else if (message.message.protocolMessage) {
       // Filtrar mensagens de protocolo (como mensagens deletadas, etc.)
       logger.debug(
@@ -2570,6 +2867,10 @@ async function extractMessageData(message, sock = null) {
 
       messageData.messageType = 'unknown';
       messageData.content = 'Tipo de mensagem não suportado';
+      messageData.metadata.unknownData = {
+        availableKeys: messageKeys,
+        rawMessage: message.message
+      };
     }
   }
 
