@@ -1415,8 +1415,7 @@ async function sendWebhook(sessionId, eventType, data) {
       'messages.upsert',
       'messages.update', 
       'messages.delete',
-      'group-participants.update',
-      'presence.update'
+      'group-participants.update'
     ];
     
     if (!supportedEvents.includes(eventType)) {
@@ -3138,19 +3137,6 @@ async function createWhatsAppSession(sessionId, userId = null) {
       await sendWebhook(sessionId, 'group-participants.update', groupData);
     });
 
-    // Handler para atualizações de presença (online, digitando, etc.)
-    sock.ev.on('presence.update', async (presenceUpdate) => {
-      logger.info(`Presence update for session ${sessionId}:`, presenceUpdate);
-      
-      const presenceData = {
-        chatId: presenceUpdate.id,
-        presences: presenceUpdate.presences,
-        timestamp: Date.now(),
-        sessionId: sessionId
-      };
-      
-      await sendWebhook(sessionId, 'presence.update', presenceData);
-    });
 
     // Armazenar sessão
     const sessionData = {
@@ -5107,7 +5093,7 @@ app.post(
         url: url,
         active: active !== undefined ? active : true,
         priority: priority || existingCount + 1,
-        events: events || ['messages.upsert', 'messages.update', 'messages.delete', 'group-participants.update', 'presence.update'],
+        events: events || ['messages.upsert', 'messages.update', 'messages.delete', 'group-participants.update'],
         createdAt: new Date(),
         updatedAt: new Date(),
       };

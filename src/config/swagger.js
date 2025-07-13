@@ -2058,7 +2058,7 @@ const swaggerUiOptions = {
  *                 items:
  *                   type: string
  *                 description: Eventos para escutar
- *                 example: ["messages.upsert", "messages.update", "messages.delete", "group-participants.update", "presence.update"]
+ *                 example: ["messages.upsert", "messages.update", "messages.delete", "group-participants.update"]
  *     responses:
  *       200:
  *         description: Webhook atualizado parcialmente com sucesso
@@ -2095,7 +2095,7 @@ const swaggerUiOptions = {
  *                       type: array
  *                       items:
  *                         type: string
- *                       example: ["messages.upsert", "messages.update", "messages.delete", "group-participants.update", "presence.update"]
+ *                       example: ["messages.upsert", "messages.update", "messages.delete", "group-participants.update"]
  *                     updatedAt:
  *                       type: string
  *                       format: date-time

@@ -15,7 +15,6 @@ import {
   CogIcon,
   ChatBubbleLeftRightIcon,
   UserGroupIcon,
-  EyeIcon,
   NoSymbolIcon
 } from '@heroicons/react/24/outline';
 import { Button } from './ui/button';
@@ -65,14 +64,6 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
       icon: UserGroupIcon,
       category: 'groups',
       color: 'purple'
-    },
-    {
-      id: 'presence.update',
-      name: 'Status de Presença',
-      description: 'Online, digitando, última vez visto',
-      icon: EyeIcon,
-      category: 'presence',
-      color: 'yellow'
     }
   ];
 
@@ -81,7 +72,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
     url: '',
     active: true,
     priority: 1,
-    events: ['messages.upsert', 'messages.update', 'messages.delete', 'group-participants.update', 'presence.update']
+    events: ['messages.upsert', 'messages.update', 'messages.delete', 'group-participants.update']
   });
   const [testingWebhook, setTestingWebhook] = useState(null);
   const [testResults, setTestResults] = useState({});
@@ -324,7 +315,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
       url: '',
       active: true,
       priority: 1,
-      events: ['messages.upsert', 'messages.update', 'messages.delete', 'group-participants.update', 'presence.update']
+      events: ['messages.upsert', 'messages.update', 'messages.delete', 'group-participants.update']
     });
   };
 
@@ -335,7 +326,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
       url: webhook.url,
       active: webhook.active,
       priority: webhook.priority,
-      events: webhook.events || ['messages.upsert', 'messages.update', 'messages.delete', 'group-participants.update', 'presence.update']
+      events: webhook.events || ['messages.upsert', 'messages.update', 'messages.delete', 'group-participants.update']
     });
   };
 
