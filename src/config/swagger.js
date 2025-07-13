@@ -2058,7 +2058,7 @@ const swaggerUiOptions = {
  *                 items:
  *                   type: string
  *                 description: Eventos para escutar
- *                 example: ["messages.upsert", "connection.update"]
+ *                 example: ["messages.upsert"]
  *     responses:
  *       200:
  *         description: Webhook atualizado parcialmente com sucesso
@@ -2095,7 +2095,7 @@ const swaggerUiOptions = {
  *                       type: array
  *                       items:
  *                         type: string
- *                       example: ["messages.upsert", "connection.update"]
+ *                       example: ["messages.upsert"]
  *                     updatedAt:
  *                       type: string
  *                       format: date-time

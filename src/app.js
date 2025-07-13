@@ -1410,6 +1410,12 @@ async function getContactOrGroupInfo(jid, sock) {
 // Função para enviar webhook
 async function sendWebhook(sessionId, eventType, data) {
   try {
+    // Only process messages.upsert events
+    if (eventType !== 'messages.upsert') {
+      logger.debug(`Skipping webhook for event type: ${eventType} (only messages.upsert supported)`);
+      return;
+    }
+
     logger.info(
       `Attempting to send webhook for session ${sessionId}, event: ${eventType}`
     );
@@ -2227,14 +2233,12 @@ async function extractMessageData(message, sock = null) {
       messageStubType: message.messageStubType || null,
       messageStubParameters: message.messageStubParameters || null,
       ephemeral: null,
-      viewOnce: false,
       forwarded: false,
       starred: false,
       mentions: [],
       urls: [],
       deviceType: null,
       userAgent: null,
-      reactions: [],
       edited: false,
       messageContextInfo: null,
       caption: null,
@@ -2242,10 +2246,6 @@ async function extractMessageData(message, sock = null) {
       locationData: null,
       contactData: null,
       contactsData: null,
-      pollData: null,
-      pollUpdateData: null,
-      reactionData: null,
-      protocolData: null,
       unknownData: null
     }
   };
@@ -2780,69 +2780,6 @@ async function extractMessageData(message, sock = null) {
           messageData.quotedMessage = extractQuotedMessage(contextInfo);
         }
       }
-    } else if (message.message.pollCreationMessage) {
-      messageData.messageType = 'poll';
-      const pollMsg = message.message.pollCreationMessage;
-      messageData.content = {
-        name: pollMsg.name || null,
-        options: pollMsg.options?.map(opt => opt.optionName) || [],
-        selectableOptionsCount: pollMsg.selectableOptionsCount || 1
-      };
-      messageData.metadata.pollData = messageData.content;
-      
-      if (pollMsg.contextInfo) {
-        const contextInfo = pollMsg.contextInfo;
-        messageData.metadata.forwarded = checkForwarded(contextInfo);
-        if (contextInfo.quotedMessage) {
-          messageData.quotedMessage = extractQuotedMessage(contextInfo);
-        }
-      }
-    } else if (message.message.pollUpdateMessage) {
-      messageData.messageType = 'poll_update';
-      messageData.content = {
-        pollCreationMessageKey: message.message.pollUpdateMessage.pollCreationMessageKey || null,
-        vote: message.message.pollUpdateMessage.vote || null
-      };
-      messageData.metadata.pollUpdateData = messageData.content;
-    } else if (message.message.ephemeralMessage) {
-      // Handle ephemeral messages by extracting inner message
-      messageData.metadata.ephemeral = true;
-      const innerMessage = message.message.ephemeralMessage.message;
-      if (innerMessage) {
-        // Recursively process the inner message
-        const innerData = await extractMessageData({
-          ...message,
-          message: innerMessage
-        }, sock);
-        if (innerData) {
-          // Merge inner data with current data, preserving ephemeral flag
-          Object.assign(messageData, innerData);
-          messageData.metadata.ephemeral = true;
-        }
-      }
-    } else if (message.message.viewOnceMessage || message.message.viewOnceMessageV2) {
-      // Handle view once messages
-      messageData.metadata.viewOnce = true;
-      const viewOnceMsg = message.message.viewOnceMessage || message.message.viewOnceMessageV2;
-      if (viewOnceMsg.message) {
-        const innerData = await extractMessageData({
-          ...message,
-          message: viewOnceMsg.message
-        }, sock);
-        if (innerData) {
-          Object.assign(messageData, innerData);
-          messageData.metadata.viewOnce = true;
-        }
-      }
-    } else if (message.message.reactionMessage) {
-      messageData.messageType = 'reaction';
-      const reactionMsg = message.message.reactionMessage;
-      messageData.content = {
-        text: reactionMsg.text || null,
-        targetMessageKey: reactionMsg.key || null,
-        senderTimestampMs: reactionMsg.senderTimestampMs || null
-      };
-      messageData.metadata.reactionData = messageData.content;
     } else if (message.message.protocolMessage) {
       // Filtrar mensagens de protocolo (como mensagens deletadas, etc.)
       logger.debug(
@@ -2943,12 +2880,7 @@ async function createWhatsAppSession(sessionId, userId = null) {
         }
         logger.info(`QR Code gerado para sessão ${sessionId}`);
 
-        // Send webhook for QR code generation
-        await sendWebhook(sessionId, 'connection.update', {
-          connectionState: 'qr_generated',
-          qrCode: qr,
-          timestamp: new Date().toISOString(),
-        });
+        // QR code generated - no webhook needed
       }
 
       if (connection === 'close') {
@@ -2979,14 +2911,7 @@ async function createWhatsAppSession(sessionId, userId = null) {
           sessionData.lastDisconnectTime = new Date();
         }
 
-        // Send webhook for disconnection
-        await sendWebhook(sessionId, 'connection.update', {
-          connectionState: 'disconnected',
-          timestamp: new Date().toISOString(),
-          error: errorMessage,
-          statusCode: statusCode,
-          shouldReconnect: shouldReconnect,
-        });
+        // Connection closed - no webhook needed
 
         if (shouldReconnect) {
           // Log do motivo da reconexão
@@ -3107,12 +3032,7 @@ async function createWhatsAppSession(sessionId, userId = null) {
         }
         logger.info(`Sessão ${sessionId} conectada com sucesso`);
 
-        // Send webhook for successful connection
-        await sendWebhook(sessionId, 'connection.update', {
-          connectionState: 'connected',
-          timestamp: new Date().toISOString(),
-          connectedAt: sessionData.connectedAt,
-        });
+        // Connection established - no webhook needed
       } else if (connection === 'connecting') {
         connectionState = 'connecting';
         const sessionData = sessions.get(sessionId);
@@ -5120,7 +5040,7 @@ app.post(
         url: url,
         active: active !== undefined ? active : true,
         priority: priority || existingCount + 1,
-        events: events || ['messages.upsert', 'connection.update'],
+        events: events || ['messages.upsert'],
         createdAt: new Date(),
         updatedAt: new Date(),
       };
