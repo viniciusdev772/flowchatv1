@@ -398,11 +398,47 @@ async function startCollection(collectorId, config) {
 
 // Função auxiliar para parar coleta
 async function stopCollection(collectorId, config) {
-  await updateCollectorStatus(collectorId, {
-    isActive: false,
-    endTime: new Date(),
-  });
-  logger.info(`🕒 Cron: Parando coleta para ${collectorId} às ${config.endHour}h`);
+  try {
+    const db = database.getDb();
+    if (!db) return;
+
+    // Buscar dados completos do coletor
+    const collector = await db.collection('messageCollectors').findOne({ _id: collectorId });
+    if (!collector) {
+      logger.warn(`Coletor ${collectorId} não encontrado ao parar`);
+      return;
+    }
+
+    await updateCollectorStatus(collectorId, {
+      status: 'completed',
+      isActive: false,
+      endTime: new Date(),
+    });
+    
+    logger.info(`🕒 Cron: Parando coleta para ${collectorId} às ${config.endHour}h`);
+
+    // Gerar resumo automático se configurado
+    if (collector.config?.autoSummary && collector.config?.summaryConfig?.summaryTime === 'end') {
+      try {
+        await generateAndSendSummary(collectorId, collector);
+        logger.info(`📝 Resumo automático gerado para coletor ${collectorId}`);
+      } catch (summaryError) {
+        logger.error('Erro ao gerar resumo automático:', summaryError);
+      }
+    }
+
+    // Reiniciar coletor diário se configurado
+    if (config.scheduleType === 'daily' && shouldRestartCollector(collector)) {
+      try {
+        await restartCollectorWithNewName(collector);
+      } catch (restartError) {
+        logger.error('Erro ao reiniciar coletor:', restartError);
+      }
+    }
+
+  } catch (error) {
+    logger.error(`Erro ao parar coletor ${collectorId}:`, error);
+  }
 }
 
 // Função auxiliar para verificar se o usuário possui a sessão (mesma lógica do app principal)
@@ -628,11 +664,11 @@ router.post('/stop', authenticateToken, async (req, res) => {
       if (shouldGenerateSummary) {
         try {
           const summaryConfig = {
-            tone: summaryTone,
+            tone: summaryTone || collector.config?.summaryConfig?.tone || 'professional',
             sendToGroup: sendToGroup || collector.config?.summaryConfig?.sendToGroup || false,
-            customInstructions: customInstructions,
-            topParticipants: Math.max(3, Math.min(20, parseInt(topParticipants) || 5)), // Validar entre 3-20
-            customApiKey: customApiKey // Usar chave do frontend se fornecida
+            customInstructions: customInstructions || collector.config?.summaryConfig?.customInstructions || '',
+            topParticipants: Math.max(3, Math.min(20, parseInt(topParticipants) || collector.config?.summaryConfig?.topParticipants || 5)),
+            customApiKey: customApiKey || null // Usar chave do frontend se fornecida
           };
           
           // Temporariamente adicionar configuração do resumo manual
@@ -1155,6 +1191,99 @@ Instruções de consolidação:
   } catch (error) {
     logger.error('Erro ao gerar resumo automático:', error);
     throw error;
+  }
+}
+
+// Função para verificar se um coletor deve ser reiniciado
+function shouldRestartCollector(collector) {
+  try {
+    const config = collector.config;
+    
+    // Só reinicia coletores diários
+    if (config.scheduleType !== 'daily') {
+      return false;
+    }
+    
+    // Verificar se está dentro da duração permitida
+    if (config.duration === 'days') {
+      const daysSinceStart = Math.floor((new Date() - new Date(collector.createdAt)) / (1000 * 60 * 60 * 24));
+      if (daysSinceStart >= config.durationDays) {
+        return false;
+      }
+    } else if (config.duration === 'until_date') {
+      if (new Date() >= new Date(config.endDate)) {
+        return false;
+      }
+    }
+    
+    return true;
+  } catch (error) {
+    logger.error('Erro ao verificar se deve reiniciar coletor:', error);
+    return false;
+  }
+}
+
+// Função para reiniciar coletor com novo nome
+async function restartCollectorWithNewName(collector) {
+  try {
+    const db = database.getDb();
+    if (!db) return;
+    
+    // Calcular o dia atual baseado na data de criação
+    const daysSinceStart = Math.floor((new Date() - new Date(collector.createdAt)) / (1000 * 60 * 60 * 24)) + 1;
+    
+    // Gerar novo nome criativo baseado no original
+    const originalName = collector.config.name;
+    let newName;
+    
+    if (daysSinceStart === 1) {
+      newName = `${originalName} - Dia 2`;
+    } else if (daysSinceStart < 7) {
+      newName = `${originalName} - Dia ${daysSinceStart + 1}`;
+    } else if (daysSinceStart < 14) {
+      const weekNumber = Math.ceil((daysSinceStart + 1) / 7);
+      newName = `${originalName} - Semana ${weekNumber}`;
+    } else if (daysSinceStart < 30) {
+      const weekNumber = Math.ceil((daysSinceStart + 1) / 7);
+      newName = `${originalName} - Semana ${weekNumber} 🔥`;
+    } else {
+      const monthNumber = Math.ceil((daysSinceStart + 1) / 30);
+      newName = `${originalName} - Mês ${monthNumber} 🚀`;
+    }
+    
+    // Criar novo coletor com mesmo config mas nome atualizado
+    const newConfig = {
+      ...collector.config,
+      name: newName
+    };
+    
+    const newCollectorId = await createCollectorInDB(
+      collector.sessionId,
+      collector.groupId,
+      collector.userId,
+      newConfig
+    );
+    
+    if (newCollectorId) {
+      // Configurar cron jobs para o novo coletor
+      setupCronJobs(newCollectorId, newConfig);
+      
+      logger.info(`🔄 Coletor reiniciado: ${collector._id} → ${newCollectorId} (${newName})`);
+      
+      // Log criativo baseado no tempo
+      if (daysSinceStart < 7) {
+        logger.info(`📅 Início do ${daysSinceStart + 1}º dia de coleta para ${newName}`);
+      } else if (daysSinceStart < 30) {
+        logger.info(`🗓️ Continuando a maratona de coleta com ${newName}`);
+      } else {
+        logger.info(`🏆 Coleta veterana! ${newName} continua a jornada`);
+      }
+    } else {
+      logger.error('Falha ao criar novo coletor para restart');
+    }
+    
+  } catch (error) {
+    logger.error('Erro ao reiniciar coletor com novo nome:', error);
   }
 }
 
