@@ -194,81 +194,120 @@ router.post('/:sessionId/lid/resolve', checkSessionOwnership, async (req, res) =
 
     // Tentar resolver o LID usando funcionalidades do Baileys
     try {
-      // Método 1: Usar onWhatsApp para verificar se o número existe
-      const decoded = jidDecode(lid);
-      if (!decoded) {
-        return res.status(400).json({
-          success: false,
-          message: 'LID inválido ou mal formado'
-        });
+      // Método 1: Usar onWhatsApp com o LID diretamente
+      logger.info(`🔍 Verificando LID ${lid} com onWhatsApp...`);
+      
+      let resolvedData = null;
+      let allOnWhatsAppData = [];
+
+      try {
+        // Primeiro, tentar verificar o LID diretamente
+        const lidResult = await sock.onWhatsApp(lid);
+        allOnWhatsAppData.push({ query: lid, result: lidResult });
+        
+        if (lidResult && lidResult.length > 0) {
+          for (const item of lidResult) {
+            if (item.exists && item.jid && item.jid !== lid) {
+              resolvedData = {
+                lid: lid,
+                pn: item.jid,
+                verified: true,
+                method: 'direct_lid_lookup'
+              };
+              logger.info(`✅ LID ${lid} resolvido diretamente para: ${item.jid}`);
+              break;
+            }
+          }
+        }
+      } catch (lidError) {
+        logger.warn(`⚠️ Erro ao verificar LID diretamente: ${lidError.message}`);
       }
 
-      // Extrair o número base do LID
-      const baseNumber = decoded.user;
-      
-      // Tentar diferentes formatos de número de telefone
-      const possibleNumbers = [
-        `${baseNumber}@s.whatsapp.net`,
-        `${baseNumber}@c.us`
-      ];
+      // Se não resolveu diretamente, tentar extrair o número e verificar formatos alternativos
+      if (!resolvedData) {
+        const decoded = jidDecode(lid);
+        if (!decoded) {
+          return res.status(400).json({
+            success: false,
+            message: 'LID inválido ou mal formado'
+          });
+        }
 
-      let resolvedNumber = null;
+        // Extrair o número base do LID
+        const baseNumber = decoded.user;
+        logger.info(`🔍 Testando número base ${baseNumber} em diferentes formatos...`);
+        
+        // Tentar diferentes formatos de número de telefone
+        const possibleNumbers = [
+          `${baseNumber}@s.whatsapp.net`,
+          `${baseNumber}@c.us`
+        ];
 
-      // Verificar cada possível número
-      for (const testNumber of possibleNumbers) {
-        try {
-          const exists = await sock.onWhatsApp(testNumber);
-          if (exists && exists.length > 0 && exists[0].exists) {
-            resolvedNumber = exists[0].jid;
-            logger.info(`✅ LID ${lid} resolvido para: ${resolvedNumber}`);
-            break;
+        // Verificar cada possível número
+        for (const testNumber of possibleNumbers) {
+          try {
+            const exists = await sock.onWhatsApp(testNumber);
+            allOnWhatsAppData.push({ query: testNumber, result: exists });
+            
+            if (exists && exists.length > 0) {
+              for (const item of exists) {
+                if (item.exists && item.jid) {
+                  resolvedData = {
+                    lid: lid,
+                    pn: item.jid,
+                    verified: true,
+                    method: 'base_number_lookup',
+                    baseNumber: baseNumber
+                  };
+                  logger.info(`✅ LID ${lid} resolvido via número base para: ${item.jid}`);
+                  break;
+                }
+              }
+            }
+            
+            if (resolvedData) break;
+          } catch (checkError) {
+            logger.warn(`⚠️ Erro ao verificar número ${testNumber}: ${checkError.message}`);
+            allOnWhatsAppData.push({ query: testNumber, error: checkError.message });
           }
-        } catch (checkError) {
-          logger.warn(`⚠️ Erro ao verificar número ${testNumber}: ${checkError.message}`);
         }
       }
 
-      // Se não conseguiu resolver diretamente, usar uma abordagem alternativa
-      if (!resolvedNumber) {
-        // Tentar usar o número base com @c.us (padrão para contatos)
-        resolvedNumber = `${baseNumber}@c.us`;
-        logger.info(`📱 Usando resolução padrão: ${lid} -> ${resolvedNumber}`);
+      // Se não conseguiu resolver, retornar erro
+      if (!resolvedData) {
+        logger.warn(`❌ Não foi possível resolver o LID ${lid}`);
+        
+        return res.status(404).json({
+          success: false,
+          message: 'LID não pôde ser resolvido para um número válido',
+          data: {
+            lid: lid,
+            onWhatsAppData: allOnWhatsAppData,
+            timestamp: new Date().toISOString()
+          }
+        });
       }
 
-      // Resposta de sucesso
+      // Resposta completa com todos os dados
       const response = {
-        lid: lid,
-        pn: resolvedNumber
+        lid: resolvedData.lid,
+        pn: resolvedData.pn,
+        verified: resolvedData.verified,
+        method: resolvedData.method,
+        onWhatsAppData: allOnWhatsAppData,
+        timestamp: new Date().toISOString()
       };
 
-      logger.info(`✅ LID resolvido com sucesso: ${JSON.stringify(response)}`);
+      logger.info(`✅ LID resolvido: ${JSON.stringify(response, null, 2)}`);
 
       return res.json({
         success: true,
-        message: 'LID resolvido com sucesso',
+        message: resolvedData.verified ? 'LID resolvido e verificado com sucesso' : 'LID resolvido com fallback',
         data: response
       });
 
     } catch (resolveError) {
       logger.error(`❌ Erro ao resolver LID ${lid}: ${resolveError.message}`);
-      
-      // Em caso de erro, tentar uma resolução básica
-      const decoded = jidDecode(lid);
-      if (decoded) {
-        const fallbackResponse = {
-          lid: lid,
-          pn: `${decoded.user}@c.us`
-        };
-
-        logger.info(`🔄 Usando resolução fallback: ${JSON.stringify(fallbackResponse)}`);
-
-        return res.json({
-          success: true,
-          message: 'LID resolvido com resolução fallback',
-          data: fallbackResponse
-        });
-      }
-
       throw resolveError;
     }
 
