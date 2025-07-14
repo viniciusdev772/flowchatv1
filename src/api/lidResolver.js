@@ -2,6 +2,23 @@ const express = require('express');
 const { jidDecode, areJidsSameUser } = require('@whiskeysockets/baileys');
 const logger = require('pino')({ level: 'info' });
 
+// Tentar importar USync com diferentes caminhos possíveis
+let USyncQuery, USyncUser;
+try {
+  // Método 1: Importação direta
+  const WAUSync = require('@whiskeysockets/baileys/lib/WAUSync');
+  USyncQuery = WAUSync.USyncQuery;
+  USyncUser = WAUSync.USyncUser;
+} catch (e1) {
+  try {
+    // Método 2: Importação por partes
+    USyncQuery = require('@whiskeysockets/baileys/lib/WAUSync/USyncQuery');
+    USyncUser = require('@whiskeysockets/baileys/lib/WAUSync/USyncUser');
+  } catch (e2) {
+    logger.warn('USync classes não disponíveis, usando apenas onWhatsApp');
+  }
+}
+
 const router = express.Router();
 
 /**
@@ -192,183 +209,342 @@ router.post('/:sessionId/lid/resolve', checkSessionOwnership, async (req, res) =
 
     logger.info(`🔍 Tentando resolver LID: ${lid} para sessão: ${sessionId}`);
 
-    // Método de debug: primeiro verificar todas as possibilidades e capturar tudo
+    // MÉTODO MÁXIMO: Implementar TODAS as estratégias de resolução LID disponíveis
     try {
-      logger.info(`🔍 Iniciando debug completo de LID: ${lid}`);
+      logger.info(`🚀 Iniciando resolução LID MÁXIMA: ${lid}`);
       
       let resolvedData = null;
       let allResolutionData = [];
       let debugInfo = {
         lidDecoded: null,
         sockMethods: [],
+        sockProperties: [],
+        usyncAvailable: !!USyncQuery,
         contactsAnalysis: null,
+        businessProfile: null,
         rawResults: []
       };
 
-      // Debug 1: Analisar estrutura do LID
+      // ANÁLISE 1: Estrutura do LID
       const decoded = jidDecode(lid);
       debugInfo.lidDecoded = decoded;
       
-      if (!decoded) {
+      if (!decoded || decoded.server !== 'lid') {
         return res.status(400).json({
           success: false,
-          message: 'LID inválido ou mal formado',
+          message: 'LID inválido - deve terminar com @lid',
           debug: debugInfo
         });
       }
 
       const baseNumber = decoded.user;
-      logger.info(`📋 LID decodificado: ${JSON.stringify(decoded)}`);
+      logger.info(`📋 LID analisado: ${JSON.stringify(decoded)}`);
 
-      // Debug 2: Verificar métodos disponíveis no socket
+      // ANÁLISE 2: Capacidades do Socket
       debugInfo.sockMethods = Object.getOwnPropertyNames(sock).filter(name => 
-        typeof sock[name] === 'function' && 
-        (name.includes('contact') || name.includes('whatsapp') || name.includes('sync') || name.includes('user'))
+        typeof sock[name] === 'function'
       );
-      logger.info(`🔧 Métodos disponíveis no socket: ${debugInfo.sockMethods.join(', ')}`);
+      debugInfo.sockProperties = Object.getOwnPropertyNames(sock).filter(name => 
+        typeof sock[name] !== 'function'
+      );
+      
+      logger.info(`🔧 Socket tem ${debugInfo.sockMethods.length} métodos e ${debugInfo.sockProperties.length} propriedades`);
 
-      // Método 1: onWhatsApp com LID direto - capturar tudo
-      try {
-        logger.info(`🔧 Método 1: onWhatsApp("${lid}")`);
-        
-        const lidResult = await sock.onWhatsApp(lid);
-        const rawData = {
-          method: 'onWhatsApp_lid_direct',
-          input: lid,
-          output: lidResult,
-          outputType: typeof lidResult,
-          isArray: Array.isArray(lidResult),
-          length: lidResult?.length
-        };
-        
-        debugInfo.rawResults.push(rawData);
-        allResolutionData.push(rawData);
-        
-        logger.info(`📊 Resultado bruto onWhatsApp(LID): ${JSON.stringify(lidResult, null, 2)}`);
-        
-        if (lidResult && Array.isArray(lidResult) && lidResult.length > 0) {
-          for (const item of lidResult) {
-            logger.info(`🔍 Analisando item: ${JSON.stringify(item)}`);
-            
-            // Aceitar qualquer JID válido, mesmo que seja igual ao LID
-            if (item.exists && item.jid) {
-              resolvedData = {
-                lid: lid,
-                pn: item.jid,
-                verified: true,
-                method: 'onWhatsApp_lid_direct',
-                rawItem: item
-              };
-              logger.info(`✅ LID ${lid} resolvido para: ${item.jid}`);
-              break;
+      // ESTRATÉGIA 1: onWhatsApp LID Direto
+      if (!resolvedData) {
+        try {
+          logger.info(`🎯 Estratégia 1: onWhatsApp LID direto`);
+          
+          const lidResult = await sock.onWhatsApp(lid);
+          const analysis = {
+            method: 'onWhatsApp_lid_direct',
+            input: lid,
+            output: lidResult,
+            success: false,
+            details: {
+              outputType: typeof lidResult,
+              isArray: Array.isArray(lidResult),
+              length: lidResult?.length,
+              hasResults: !!(lidResult && lidResult.length > 0)
+            }
+          };
+          
+          debugInfo.rawResults.push(analysis);
+          allResolutionData.push(analysis);
+          
+          if (lidResult && Array.isArray(lidResult) && lidResult.length > 0) {
+            for (const item of lidResult) {
+              logger.info(`🔍 Item encontrado: ${JSON.stringify(item)}`);
+              
+              if (item.exists && item.jid) {
+                resolvedData = {
+                  lid: lid,
+                  pn: item.jid,
+                  verified: true,
+                  method: 'onWhatsApp_lid_direct',
+                  lidFromResult: item.lid,
+                  rawItem: item
+                };
+                analysis.success = true;
+                logger.info(`✅ SUCESSO via onWhatsApp LID: ${item.jid}`);
+                break;
+              }
             }
           }
+        } catch (error) {
+          logger.error(`❌ Falha Estratégia 1: ${error.message}`);
+          allResolutionData.push({ 
+            method: 'onWhatsApp_lid_direct', 
+            error: error.message 
+          });
         }
-      } catch (lidError) {
-        logger.error(`❌ Erro onWhatsApp(LID): ${lidError.message}`);
-        allResolutionData.push({ 
-          method: 'onWhatsApp_lid_direct', 
-          error: lidError.message,
-          stack: lidError.stack
-        });
       }
 
-      // Método 2: onWhatsApp com número base em diferentes formatos
-      if (!resolvedData) {
-        const testNumbers = [
-          baseNumber,
-          `+${baseNumber}`,
-          `${baseNumber}@s.whatsapp.net`,
-          `${baseNumber}@c.us`,
-          `${baseNumber}@lid`
-        ];
+      // ESTRATÉGIA 2: USync Avançado (se disponível)
+      if (!resolvedData && USyncQuery && USyncUser && sock.executeUSyncQuery) {
+        try {
+          logger.info(`🎯 Estratégia 2: USync protocolo avançado`);
+          
+          const usyncQuery = new USyncQuery()
+            .withLIDProtocol()
+            .withContactProtocol()
+            .withStatusProtocol();
+          
+          // Múltiplas tentativas USync
+          const usyncAttempts = [
+            // Tentativa 1: Com LID + telefone
+            () => {
+              const query = new USyncQuery()
+                .withLIDProtocol()
+                .withContactProtocol();
+              query.withUser(
+                new USyncUser()
+                  .withLid(lid)
+                  .withPhone(`+${baseNumber}`)
+              );
+              return query;
+            },
+            // Tentativa 2: Só com LID  
+            () => {
+              const query = new USyncQuery().withLIDProtocol();
+              query.withUser(new USyncUser().withLid(lid));
+              return query;
+            },
+            // Tentativa 3: Só com telefone
+            () => {
+              const query = new USyncQuery()
+                .withContactProtocol()
+                .withLIDProtocol();
+              query.withUser(new USyncUser().withPhone(`+${baseNumber}`));
+              return query;
+            }
+          ];
+          
+          for (let i = 0; i < usyncAttempts.length && !resolvedData; i++) {
+            try {
+              logger.info(`🔧 USync tentativa ${i + 1}/3`);
+              
+              const query = usyncAttempts[i]();
+              const usyncResult = await sock.executeUSyncQuery(query);
+              
+              const analysis = {
+                method: `usync_attempt_${i + 1}`,
+                input: { lid, phone: `+${baseNumber}` },
+                output: usyncResult,
+                success: false
+              };
+              
+              allResolutionData.push(analysis);
+              
+              if (usyncResult && usyncResult.list && usyncResult.list.length > 0) {
+                for (const result of usyncResult.list) {
+                  logger.info(`🔍 USync resultado: ${JSON.stringify(result)}`);
+                  
+                  if (result.contact && result.id) {
+                    resolvedData = {
+                      lid: lid,
+                      pn: result.id,
+                      verified: true,
+                      method: `usync_attempt_${i + 1}`,
+                      lidFromResult: result.lid,
+                      contactExists: result.contact,
+                      rawResult: result
+                    };
+                    analysis.success = true;
+                    logger.info(`✅ SUCESSO via USync: ${result.id}`);
+                    break;
+                  }
+                }
+              }
+            } catch (usyncError) {
+              logger.warn(`⚠️ USync tentativa ${i + 1} falhou: ${usyncError.message}`);
+              allResolutionData.push({
+                method: `usync_attempt_${i + 1}`,
+                error: usyncError.message
+              });
+            }
+          }
+        } catch (error) {
+          logger.error(`❌ Falha Estratégia 2: ${error.message}`);
+        }
+      }
 
-        for (const testNumber of testNumbers) {
-          try {
-            logger.info(`🔧 Método 2: onWhatsApp("${testNumber}")`);
+      // ESTRATÉGIA 3: Variações de Formato
+      if (!resolvedData) {
+        try {
+          logger.info(`🎯 Estratégia 3: Variações de formato`);
+          
+          const phoneVariations = [
+            // Formatos básicos
+            baseNumber,
+            `+${baseNumber}`,
+            // Formatos WhatsApp
+            `${baseNumber}@s.whatsapp.net`,
+            `${baseNumber}@c.us`,
+            // Variações especiais
+            `${baseNumber}@lid`,
+            // Com códigos de país comuns se não tiver
+            baseNumber.length < 10 ? `55${baseNumber}` : null,
+            baseNumber.length < 10 ? `+55${baseNumber}` : null,
+          ].filter(Boolean);
+
+          for (const variation of phoneVariations) {
+            if (resolvedData) break;
             
-            const result = await sock.onWhatsApp(testNumber);
-            const rawData = {
-              method: 'onWhatsApp_variations',
-              input: testNumber,
-              output: result,
-              outputType: typeof result,
-              isArray: Array.isArray(result),
-              length: result?.length
+            try {
+              logger.info(`🔧 Testando: ${variation}`);
+              
+              const result = await sock.onWhatsApp(variation);
+              const analysis = {
+                method: 'phone_variations',
+                input: variation,
+                output: result,
+                success: false
+              };
+              
+              allResolutionData.push(analysis);
+              
+              if (result && Array.isArray(result) && result.length > 0) {
+                for (const item of result) {
+                  if (item.exists && item.jid) {
+                    resolvedData = {
+                      lid: lid,
+                      pn: item.jid,
+                      verified: true,
+                      method: 'phone_variations',
+                      testVariation: variation,
+                      lidFromResult: item.lid,
+                      rawItem: item
+                    };
+                    analysis.success = true;
+                    logger.info(`✅ SUCESSO via variação ${variation}: ${item.jid}`);
+                    break;
+                  }
+                }
+              }
+            } catch (error) {
+              allResolutionData.push({
+                method: 'phone_variations',
+                input: variation,
+                error: error.message
+              });
+            }
+          }
+        } catch (error) {
+          logger.error(`❌ Falha Estratégia 3: ${error.message}`);
+        }
+      }
+
+      // ESTRATÉGIA 4: Contact Store Local
+      if (!resolvedData) {
+        try {
+          logger.info(`🎯 Estratégia 4: Contact Store local`);
+          
+          if (sock.store && sock.store.contacts) {
+            const contacts = sock.store.contacts;
+            debugInfo.contactsAnalysis = {
+              totalContacts: Object.keys(contacts).length,
+              lidMatches: [],
+              phoneMatches: []
             };
             
-            debugInfo.rawResults.push(rawData);
-            allResolutionData.push(rawData);
-            
-            logger.info(`📊 Resultado onWhatsApp(${testNumber}): ${JSON.stringify(result, null, 2)}`);
-            
-            if (result && Array.isArray(result) && result.length > 0) {
-              for (const item of result) {
-                if (item.exists && item.jid) {
+            for (const [jid, contact] of Object.entries(contacts)) {
+              // Match exato por LID
+              if (contact.lid === lid) {
+                debugInfo.contactsAnalysis.lidMatches.push({ jid, contact });
+                if (!resolvedData) {
                   resolvedData = {
                     lid: lid,
-                    pn: item.jid,
+                    pn: jid,
                     verified: true,
-                    method: 'onWhatsApp_variations',
-                    testNumber: testNumber,
-                    rawItem: item
+                    method: 'contact_store_lid',
+                    contact: contact
                   };
-                  logger.info(`✅ Número ${testNumber} resolvido para: ${item.jid}`);
-                  break;
+                  logger.info(`✅ SUCESSO via Contact Store LID: ${jid}`);
+                }
+              }
+              
+              // Match por número base
+              if (jid.includes(baseNumber) || contact.id?.includes(baseNumber)) {
+                debugInfo.contactsAnalysis.phoneMatches.push({ jid, contact });
+                if (!resolvedData && contact.lid) {
+                  resolvedData = {
+                    lid: lid,
+                    pn: jid,
+                    verified: true,
+                    method: 'contact_store_phone',
+                    contact: contact
+                  };
+                  logger.info(`✅ SUCESSO via Contact Store Phone: ${jid}`);
                 }
               }
             }
             
-            if (resolvedData) break;
-          } catch (error) {
-            logger.error(`❌ Erro onWhatsApp(${testNumber}): ${error.message}`);
-            allResolutionData.push({ 
-              method: 'onWhatsApp_variations',
-              input: testNumber,
-              error: error.message 
+            allResolutionData.push({
+              method: 'contact_store_analysis',
+              totalContacts: debugInfo.contactsAnalysis.totalContacts,
+              lidMatches: debugInfo.contactsAnalysis.lidMatches.length,
+              phoneMatches: debugInfo.contactsAnalysis.phoneMatches.length,
+              success: !!resolvedData
             });
+          } else {
+            debugInfo.contactsAnalysis = { available: false, reason: 'No contact store' };
           }
+        } catch (error) {
+          logger.error(`❌ Falha Estratégia 4: ${error.message}`);
+          debugInfo.contactsAnalysis = { error: error.message };
         }
       }
 
-      // Método 3: Tentar buscar contatos se disponível
-      try {
-        if (sock.store && sock.store.contacts) {
-          logger.info(`🔧 Método 3: Análise de contatos locais`);
+      // ESTRATÉGIA 5: Business Profile (se aplicável)
+      if (!resolvedData && sock.getBusinessProfile) {
+        try {
+          logger.info(`🎯 Estratégia 5: Business Profile`);
           
-          const contacts = sock.store.contacts;
-          debugInfo.contactsAnalysis = {
-            totalContacts: Object.keys(contacts).length,
-            lidContacts: []
-          };
+          const businessResult = await sock.getBusinessProfile(lid);
+          debugInfo.businessProfile = businessResult;
           
-          // Procurar por contatos com LID
-          for (const [jid, contact] of Object.entries(contacts)) {
-            if (contact.lid && (contact.lid === lid || jid.includes(baseNumber))) {
-              debugInfo.contactsAnalysis.lidContacts.push({
-                jid,
-                contact: contact,
-                hasLid: !!contact.lid,
-                lidValue: contact.lid
-              });
-              
-              if (!resolvedData && contact.lid === lid) {
-                resolvedData = {
-                  lid: lid,
-                  pn: jid,
-                  verified: true,
-                  method: 'local_contacts',
-                  contact: contact
-                };
-              }
-            }
+          if (businessResult && businessResult.wid) {
+            resolvedData = {
+              lid: lid,
+              pn: businessResult.wid,
+              verified: true,
+              method: 'business_profile',
+              businessData: businessResult
+            };
+            logger.info(`✅ SUCESSO via Business Profile: ${businessResult.wid}`);
           }
           
-          logger.info(`📊 Análise de contatos: ${JSON.stringify(debugInfo.contactsAnalysis, null, 2)}`);
+          allResolutionData.push({
+            method: 'business_profile',
+            input: lid,
+            output: businessResult,
+            success: !!resolvedData
+          });
+        } catch (error) {
+          logger.error(`❌ Falha Estratégia 5: ${error.message}`);
+          debugInfo.businessProfile = { error: error.message };
         }
-      } catch (contactError) {
-        logger.error(`❌ Erro análise contatos: ${contactError.message}`);
-        debugInfo.contactsAnalysis = { error: contactError.message };
       }
 
       // Sempre retornar dados completos, mesmo se não resolveu
