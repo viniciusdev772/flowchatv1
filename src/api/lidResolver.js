@@ -1,6 +1,5 @@
 const express = require('express');
 const { jidDecode, areJidsSameUser } = require('@whiskeysockets/baileys');
-const { USyncQuery, USyncUser } = require('@whiskeysockets/baileys/lib/WAUSync');
 const logger = require('pino')({ level: 'info' });
 
 const router = express.Router();
@@ -193,191 +192,208 @@ router.post('/:sessionId/lid/resolve', checkSessionOwnership, async (req, res) =
 
     logger.info(`🔍 Tentando resolver LID: ${lid} para sessão: ${sessionId}`);
 
-    // Tentar resolver o LID usando protocolo USync avançado do Baileys
+    // Método de debug: primeiro verificar todas as possibilidades e capturar tudo
     try {
-      logger.info(`🔍 Iniciando resolução avançada de LID: ${lid}`);
+      logger.info(`🔍 Iniciando debug completo de LID: ${lid}`);
       
       let resolvedData = null;
       let allResolutionData = [];
+      let debugInfo = {
+        lidDecoded: null,
+        sockMethods: [],
+        contactsAnalysis: null,
+        rawResults: []
+      };
 
-      // Método 1: USync direto com LID usando protocolo nativo
-      try {
-        logger.info(`🔧 Tentativa 1: USync query direto com LID ${lid}`);
-        
-        // Extrair número base para USync query
-        const decoded = jidDecode(lid);
-        if (!decoded) {
-          return res.status(400).json({
-            success: false,
-            message: 'LID inválido ou mal formado'
-          });
-        }
-
-        const baseNumber = decoded.user;
-        const phone = `+${baseNumber.replace('+', '')}`;
-        
-        // Criar USync query com protocolos Contact e LID
-        const usyncQuery = new USyncQuery()
-          .withContactProtocol()
-          .withLIDProtocol()
-          .withUser(new USyncUser().withPhone(phone));
-
-        // Executar query USync
-        const usyncResults = await sock.executeUSyncQuery(usyncQuery);
-        allResolutionData.push({ 
-          method: 'usync_protocol', 
-          query: { phone, lid }, 
-          result: usyncResults 
+      // Debug 1: Analisar estrutura do LID
+      const decoded = jidDecode(lid);
+      debugInfo.lidDecoded = decoded;
+      
+      if (!decoded) {
+        return res.status(400).json({
+          success: false,
+          message: 'LID inválido ou mal formado',
+          debug: debugInfo
         });
+      }
 
-        if (usyncResults && usyncResults.list && usyncResults.list.length > 0) {
-          for (const result of usyncResults.list) {
-            if (result.contact && result.id && result.id !== lid) {
+      const baseNumber = decoded.user;
+      logger.info(`📋 LID decodificado: ${JSON.stringify(decoded)}`);
+
+      // Debug 2: Verificar métodos disponíveis no socket
+      debugInfo.sockMethods = Object.getOwnPropertyNames(sock).filter(name => 
+        typeof sock[name] === 'function' && 
+        (name.includes('contact') || name.includes('whatsapp') || name.includes('sync') || name.includes('user'))
+      );
+      logger.info(`🔧 Métodos disponíveis no socket: ${debugInfo.sockMethods.join(', ')}`);
+
+      // Método 1: onWhatsApp com LID direto - capturar tudo
+      try {
+        logger.info(`🔧 Método 1: onWhatsApp("${lid}")`);
+        
+        const lidResult = await sock.onWhatsApp(lid);
+        const rawData = {
+          method: 'onWhatsApp_lid_direct',
+          input: lid,
+          output: lidResult,
+          outputType: typeof lidResult,
+          isArray: Array.isArray(lidResult),
+          length: lidResult?.length
+        };
+        
+        debugInfo.rawResults.push(rawData);
+        allResolutionData.push(rawData);
+        
+        logger.info(`📊 Resultado bruto onWhatsApp(LID): ${JSON.stringify(lidResult, null, 2)}`);
+        
+        if (lidResult && Array.isArray(lidResult) && lidResult.length > 0) {
+          for (const item of lidResult) {
+            logger.info(`🔍 Analisando item: ${JSON.stringify(item)}`);
+            
+            // Aceitar qualquer JID válido, mesmo que seja igual ao LID
+            if (item.exists && item.jid) {
               resolvedData = {
                 lid: lid,
-                pn: result.id,
+                pn: item.jid,
                 verified: true,
-                method: 'usync_protocol',
-                lidFromResult: result.lid || null,
-                contactExists: result.contact
+                method: 'onWhatsApp_lid_direct',
+                rawItem: item
               };
-              logger.info(`✅ LID ${lid} resolvido via USync para: ${result.id}`);
+              logger.info(`✅ LID ${lid} resolvido para: ${item.jid}`);
               break;
             }
           }
         }
-      } catch (usyncError) {
-        logger.warn(`⚠️ Erro no USync query: ${usyncError.message}`);
+      } catch (lidError) {
+        logger.error(`❌ Erro onWhatsApp(LID): ${lidError.message}`);
         allResolutionData.push({ 
-          method: 'usync_protocol', 
-          error: usyncError.message 
+          method: 'onWhatsApp_lid_direct', 
+          error: lidError.message,
+          stack: lidError.stack
         });
       }
 
-      // Método 2: onWhatsApp com LID diretamente 
+      // Método 2: onWhatsApp com número base em diferentes formatos
       if (!resolvedData) {
-        try {
-          logger.info(`🔧 Tentativa 2: onWhatsApp direto com LID ${lid}`);
-          
-          const lidResult = await sock.onWhatsApp(lid);
-          allResolutionData.push({ 
-            method: 'onwhatsapp_lid_direct', 
-            query: lid, 
-            result: lidResult 
-          });
-          
-          if (lidResult && lidResult.length > 0) {
-            for (const item of lidResult) {
-              if (item.exists && item.jid && item.jid !== lid) {
-                resolvedData = {
-                  lid: lid,
-                  pn: item.jid,
-                  verified: true,
-                  method: 'onwhatsapp_lid_direct',
-                  lidFromResult: item.lid || null
-                };
-                logger.info(`✅ LID ${lid} resolvido via onWhatsApp direto para: ${item.jid}`);
-                break;
-              }
-            }
-          }
-        } catch (lidError) {
-          logger.warn(`⚠️ Erro no onWhatsApp LID direto: ${lidError.message}`);
-          allResolutionData.push({ 
-            method: 'onwhatsapp_lid_direct', 
-            error: lidError.message 
-          });
-        }
-      }
-
-      // Método 3: onWhatsApp com números baseados no LID
-      if (!resolvedData) {
-        const decoded = jidDecode(lid);
-        const baseNumber = decoded.user;
-        logger.info(`🔧 Tentativa 3: onWhatsApp com número base ${baseNumber}`);
-        
-        // Tentar diferentes formatos de número de telefone
-        const possibleNumbers = [
+        const testNumbers = [
+          baseNumber,
           `+${baseNumber}`,
           `${baseNumber}@s.whatsapp.net`,
-          `${baseNumber}@c.us`
+          `${baseNumber}@c.us`,
+          `${baseNumber}@lid`
         ];
 
-        for (const testNumber of possibleNumbers) {
+        for (const testNumber of testNumbers) {
           try {
-            const exists = await sock.onWhatsApp(testNumber);
-            allResolutionData.push({ 
-              method: 'onwhatsapp_base_number', 
-              query: testNumber, 
-              result: exists 
-            });
+            logger.info(`🔧 Método 2: onWhatsApp("${testNumber}")`);
             
-            if (exists && exists.length > 0) {
-              for (const item of exists) {
+            const result = await sock.onWhatsApp(testNumber);
+            const rawData = {
+              method: 'onWhatsApp_variations',
+              input: testNumber,
+              output: result,
+              outputType: typeof result,
+              isArray: Array.isArray(result),
+              length: result?.length
+            };
+            
+            debugInfo.rawResults.push(rawData);
+            allResolutionData.push(rawData);
+            
+            logger.info(`📊 Resultado onWhatsApp(${testNumber}): ${JSON.stringify(result, null, 2)}`);
+            
+            if (result && Array.isArray(result) && result.length > 0) {
+              for (const item of result) {
                 if (item.exists && item.jid) {
                   resolvedData = {
                     lid: lid,
                     pn: item.jid,
                     verified: true,
-                    method: 'onwhatsapp_base_number',
-                    baseNumber: baseNumber,
+                    method: 'onWhatsApp_variations',
                     testNumber: testNumber,
-                    lidFromResult: item.lid || null
+                    rawItem: item
                   };
-                  logger.info(`✅ LID ${lid} resolvido via número base ${testNumber} para: ${item.jid}`);
+                  logger.info(`✅ Número ${testNumber} resolvido para: ${item.jid}`);
                   break;
                 }
               }
             }
             
             if (resolvedData) break;
-          } catch (checkError) {
-            logger.warn(`⚠️ Erro ao verificar número ${testNumber}: ${checkError.message}`);
+          } catch (error) {
+            logger.error(`❌ Erro onWhatsApp(${testNumber}): ${error.message}`);
             allResolutionData.push({ 
-              method: 'onwhatsapp_base_number', 
-              query: testNumber, 
-              error: checkError.message 
+              method: 'onWhatsApp_variations',
+              input: testNumber,
+              error: error.message 
             });
           }
         }
       }
 
-      // Se não conseguiu resolver, retornar erro
-      if (!resolvedData) {
-        logger.warn(`❌ Não foi possível resolver o LID ${lid}`);
-        
-        return res.status(404).json({
-          success: false,
-          message: 'LID não pôde ser resolvido para um número válido',
-          data: {
-            lid: lid,
-            resolutionAttempts: allResolutionData,
-            timestamp: new Date().toISOString()
+      // Método 3: Tentar buscar contatos se disponível
+      try {
+        if (sock.store && sock.store.contacts) {
+          logger.info(`🔧 Método 3: Análise de contatos locais`);
+          
+          const contacts = sock.store.contacts;
+          debugInfo.contactsAnalysis = {
+            totalContacts: Object.keys(contacts).length,
+            lidContacts: []
+          };
+          
+          // Procurar por contatos com LID
+          for (const [jid, contact] of Object.entries(contacts)) {
+            if (contact.lid && (contact.lid === lid || jid.includes(baseNumber))) {
+              debugInfo.contactsAnalysis.lidContacts.push({
+                jid,
+                contact: contact,
+                hasLid: !!contact.lid,
+                lidValue: contact.lid
+              });
+              
+              if (!resolvedData && contact.lid === lid) {
+                resolvedData = {
+                  lid: lid,
+                  pn: jid,
+                  verified: true,
+                  method: 'local_contacts',
+                  contact: contact
+                };
+              }
+            }
           }
-        });
+          
+          logger.info(`📊 Análise de contatos: ${JSON.stringify(debugInfo.contactsAnalysis, null, 2)}`);
+        }
+      } catch (contactError) {
+        logger.error(`❌ Erro análise contatos: ${contactError.message}`);
+        debugInfo.contactsAnalysis = { error: contactError.message };
       }
 
-      // Resposta completa com todos os dados
+      // Sempre retornar dados completos, mesmo se não resolveu
       const response = {
-        lid: resolvedData.lid,
-        pn: resolvedData.pn,
-        verified: resolvedData.verified,
-        method: resolvedData.method,
-        lidFromResult: resolvedData.lidFromResult,
-        contactExists: resolvedData.contactExists,
-        baseNumber: resolvedData.baseNumber,
-        testNumber: resolvedData.testNumber,
+        success: !!resolvedData,
+        message: resolvedData 
+          ? `LID resolvido via ${resolvedData.method}` 
+          : 'LID não foi resolvido, mas dados de debug estão disponíveis',
+        data: resolvedData ? {
+          lid: resolvedData.lid,
+          pn: resolvedData.pn,
+          verified: resolvedData.verified,
+          method: resolvedData.method,
+          rawItem: resolvedData.rawItem,
+          testNumber: resolvedData.testNumber,
+          contact: resolvedData.contact
+        } : null,
+        debug: debugInfo,
         resolutionAttempts: allResolutionData,
         timestamp: new Date().toISOString()
       };
 
-      logger.info(`✅ LID resolvido: ${JSON.stringify(response, null, 2)}`);
+      logger.info(`📋 Resultado completo: ${JSON.stringify(response, null, 2)}`);
 
-      return res.json({
-        success: true,
-        message: resolvedData.verified ? 'LID resolvido e verificado com sucesso' : 'LID resolvido com fallback',
-        data: response
-      });
+      return res.status(resolvedData ? 200 : 404).json(response);
 
     } catch (resolveError) {
       logger.error(`❌ Erro ao resolver LID ${lid}: ${resolveError.message}`);
