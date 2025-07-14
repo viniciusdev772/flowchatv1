@@ -6,7 +6,7 @@ const router = express.Router();
 
 /**
  * @swagger
- * /api/baileys/lid/resolve:
+ * /api/baileys/session/{sessionId}/lid/resolve:
  *   post:
  *     tags:
  *       - Sessões
@@ -14,6 +14,14 @@ const router = express.Router();
  *     description: Converte um LID (Local Identifier) para número de telefone WhatsApp
  *     security:
  *       - ApiKeyAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID da sessão ativa do WhatsApp
+ *         example: "686191ff31d679b27dcf47e5_92133798"
  *     requestBody:
  *       required: true
  *       content:
@@ -21,13 +29,8 @@ const router = express.Router();
  *           schema:
  *             type: object
  *             required:
- *               - sessionId
  *               - lid
  *             properties:
- *               sessionId:
- *                 type: string
- *                 description: ID da sessão ativa do WhatsApp
- *                 example: "minha-sessao-1"
  *               lid:
  *                 type: string
  *                 description: LID a ser resolvido (deve terminar com @lid)
@@ -98,9 +101,43 @@ const router = express.Router();
  *                   type: string
  *                   example: "Detalhes do erro"
  */
-router.post('/resolve', async (req, res) => {
+// Importar middleware de verificação de sessão
+const checkSessionOwnership = (req, res, next) => {
+  const { sessionId } = req.params;
+  const userId = req.user?.id || req.user?._id;
+
+  if (!userId) {
+    return res.status(401).json({
+      success: false,
+      message: 'Usuário não autenticado',
+    });
+  }
+
+  if (!sessionId) {
+    return res.status(400).json({
+      success: false,
+      message: 'sessionId é obrigatório',
+    });
+  }
+
+  // Verificar se a sessão pertence ao usuário
+  const uniqueSessionId = `${userId}_${sessionId}`;
+  const session = global.whatsappSessions?.[uniqueSessionId];
+
+  if (!session) {
+    return res.status(404).json({
+      success: false,
+      message: 'Sessão não encontrada ou não pertence ao usuário',
+    });
+  }
+
+  next();
+};
+
+router.post('/:sessionId/lid/resolve', checkSessionOwnership, async (req, res) => {
   try {
-    const { sessionId, lid } = req.body;
+    const { sessionId } = req.params;
+    const { lid } = req.body;
 
     // Validar parâmetros obrigatórios
     if (!sessionId || !lid) {

@@ -6069,7 +6069,7 @@ app.get('/api/baileys/info', (req, res) => {
         'Processar mensagem com agente',
 
       // LID Resolver
-      'POST /api/baileys/lid/resolve': 'Resolver LID para número de telefone',
+      'POST /api/baileys/session/:sessionId/lid/resolve': 'Resolver LID para número de telefone',
 
       // Informações
       'GET /api/baileys/info': 'Informações da API',
@@ -6086,7 +6086,7 @@ app.use('/api/baileys/agents', aiAgentsRouter);
 
 // Usar rotas de LID resolver
 const lidResolverRouter = require('./api/lidResolver');
-app.use('/api/baileys/lid', lidResolverRouter);
+app.use('/api/baileys/session', lidResolverRouter);
 
 // APIs movidas para /api/management para usar autenticação consistente
 
