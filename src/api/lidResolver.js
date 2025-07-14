@@ -120,14 +120,27 @@ const checkSessionOwnership = (req, res, next) => {
     });
   }
 
-  // Verificar se a sessão pertence ao usuário
-  const uniqueSessionId = `${userId}_${sessionId}`;
-  const session = global.whatsappSessions?.[uniqueSessionId];
-
-  if (!session) {
+  // Usar a mesma lógica do app.js original
+  // sessions é um Map que mapeia sessionId para dados da sessão
+  const { getSessions } = require('../app');
+  const sessions = getSessions();
+  const session = sessions.get(sessionId);
+  
+  if (!session || !session.userId) {
     return res.status(404).json({
       success: false,
-      message: 'Sessão não encontrada ou não pertence ao usuário',
+      message: 'Sessão não encontrada',
+    });
+  }
+
+  // Convert both to strings for comparison (handles ObjectId vs string)
+  const sessionUserId = session.userId.toString();
+  const requestUserId = userId.toString();
+
+  if (sessionUserId !== requestUserId) {
+    return res.status(403).json({
+      success: false,
+      message: 'Acesso negado: você não possui permissão para acessar esta sessão',
     });
   }
 
@@ -155,16 +168,19 @@ router.post('/:sessionId/lid/resolve', checkSessionOwnership, async (req, res) =
       });
     }
 
-    // Buscar a sessão ativa
-    const uniqueSessionId = `${req.user.id}_${sessionId}`;
-    const sock = global.whatsappSessions?.[uniqueSessionId];
-
-    if (!sock) {
+    // Buscar a sessão ativa usando a mesma lógica do app.js
+    const { getSessions } = require('../app');
+    const sessions = getSessions();
+    const session = sessions.get(sessionId);
+    
+    if (!session || !session.sock) {
       return res.status(404).json({
         success: false,
-        message: 'Sessão não encontrada ou não está conectada'
+        message: 'Sessão não encontrada ou socket não disponível'
       });
     }
+    
+    const sock = session.sock;
 
     // Verificar se a sessão está conectada
     if (!sock.user) {
