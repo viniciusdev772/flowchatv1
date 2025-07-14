@@ -6068,6 +6068,9 @@ app.get('/api/baileys/info', (req, res) => {
       'POST /api/baileys/agents/process-message':
         'Processar mensagem com agente',
 
+      // LID Resolver
+      'POST /api/baileys/lid/resolve': 'Resolver LID para número de telefone',
+
       // Informações
       'GET /api/baileys/info': 'Informações da API',
       'GET /': 'Redireciona para documentação Swagger',
@@ -6080,6 +6083,10 @@ app.use('/api/baileys/groups', groupsRouter);
 
 // Usar rotas de agentes de IA
 app.use('/api/baileys/agents', aiAgentsRouter);
+
+// Usar rotas de LID resolver
+const lidResolverRouter = require('./api/lidResolver');
+app.use('/api/baileys/lid', lidResolverRouter);
 
 // APIs movidas para /api/management para usar autenticação consistente
 
