@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
   LinkIcon,
   PlusIcon,
@@ -79,17 +78,6 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
   const [token, setToken] = useState('');
   const [tokenLoading, setTokenLoading] = useState(true);
 
-  // Performance mode - consistent with Dashboard
-  const [performanceMode] = useState(() => {
-    const isLowEnd = navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4;
-    const isSlowConnection = navigator.connection && 
-      (navigator.connection.effectiveType === 'slow-2g' || 
-       navigator.connection.effectiveType === '2g' || 
-       navigator.connection.effectiveType === '3g');
-    const isOldBrowser = !CSS.supports('backdrop-filter', 'blur(1px)');
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    return isLowEnd || isSlowConnection || isOldBrowser || isMobile;
-  });
 
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -427,23 +415,9 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
 
   return (
     <>
-      <motion.div 
-        className="fixed inset-0 z-50"
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-      >
+      <div className="fixed inset-0 z-50">
         <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
-        <motion.div
-          initial={{ opacity: 0, scale: 0.9, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 10 }}
-          transition={{ 
-            duration: 0.4, 
-            ease: [0.16, 1, 0.3, 1],
-            scale: { type: "spring", damping: 20, stiffness: 300 }
-          }}
+        <div
           className="relative h-full bg-gray-900/95 backdrop-blur-xl border border-gray-700/50 overflow-y-auto"
           style={{
             borderRadius: '20px',
@@ -462,30 +436,20 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
               </div>
             </div>
             <div className="flex items-center gap-3">
-              <motion.button
+              <button
                 onClick={() => setShowCreateModal(true)}
                 disabled={webhooks.length >= 3}
                 className="flex items-center px-4 py-2 bg-blue-500/20 text-blue-400 rounded-xl hover:bg-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 border border-blue-500/30"
-                whileHover={performanceMode ? {} : { scale: 1.05 }}
-                whileTap={performanceMode ? {} : { scale: 0.95 }}
               >
                 <PlusIcon className="h-5 w-5 mr-2" />
                 Novo Webhook
-              </motion.button>
-              <motion.button
+              </button>
+              <button
                 onClick={onClose}
                 className="relative w-10 h-10 rounded-full bg-red-500/20 hover:bg-red-500/30 transition-all duration-200 flex items-center justify-center group border border-red-500/30"
-                whileHover={{ 
-                  scale: 1.1,
-                  transition: { type: "spring", damping: 8, stiffness: 400 }
-                }}
-                whileTap={{ 
-                  scale: 0.9,
-                  transition: { type: "spring", damping: 12, stiffness: 600 }
-                }}
               >
                 <XCircleIcon className="h-5 w-5 text-red-400" />
-              </motion.button>
+              </button>
             </div>
           </div>
         </div>
@@ -496,39 +460,23 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
           {/* Webhooks List */}
           <div className="space-y-4">
             {webhooks.length === 0 ? (
-              <motion.div 
-                className="text-center py-12"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2 }}
-              >
+              <div className="text-center py-12">
                 <LinkIcon className="h-16 w-16 text-gray-500 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-white mb-2">Nenhum webhook configurado</h3>
                 <p className="text-gray-400 mb-6">Configure webhooks para receber eventos em tempo real</p>
-                <motion.button
+                <button
                   onClick={() => setShowCreateModal(true)}
                   className="inline-flex items-center px-6 py-3 bg-blue-500/20 text-blue-400 rounded-xl hover:bg-blue-500/30 transition-all duration-200 border border-blue-500/30"
-                  whileHover={performanceMode ? {} : { scale: 1.05 }}
-                  whileTap={performanceMode ? {} : { scale: 0.95 }}
                 >
                   <PlusIcon className="h-5 w-5 mr-2" />
                   Criar Primeiro Webhook
-                </motion.button>
-              </motion.div>
+                </button>
+              </div>
             ) : (
               webhooks.map((webhook, index) => (
-                <motion.div
+                <div
                   key={webhook.id}
-                  layout
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  transition={{ 
-                    delay: index * 0.1,
-                    duration: 0.3,
-                    ease: [0.16, 1, 0.3, 1]
-                  }}
-                  className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50 hover:border-gray-600/50 transition-all duration-300 hover:scale-[1.01] shadow-lg"
+                  className="bg-gray-800/50 backdrop-blur-sm rounded-xl p-6 border border-gray-700/50 hover:border-gray-600/50 transition-all duration-300 shadow-lg"
                 >
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
@@ -586,22 +534,20 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                   </div>
 
                   <div className="flex items-center gap-2 ml-4">
-                    <motion.button
+                    <button
                       onClick={() => testWebhook(webhook.id)}
                       disabled={testingWebhook === webhook.id}
                       className="p-2 text-purple-400 hover:bg-purple-500/20 rounded-xl transition-colors disabled:opacity-50 border border-purple-500/30"
                       title="Testar webhook"
-                      whileHover={performanceMode ? {} : { scale: 1.1 }}
-                      whileTap={performanceMode ? {} : { scale: 0.9 }}
                     >
                       {testingWebhook === webhook.id ? (
                         <ArrowPathIcon className="h-5 w-5 animate-spin" />
                       ) : (
                         <BoltIcon className="h-5 w-5" />
                       )}
-                    </motion.button>
+                    </button>
                     
-                    <motion.button
+                    <button
                       onClick={() => toggleWebhook(webhook.id)}
                       className={`p-2 rounded-xl transition-colors border ${
                         webhook.active 
@@ -609,69 +555,50 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                           : 'text-green-400 hover:bg-green-500/20 border-green-500/30'
                       }`}
                       title={webhook.active ? 'Desativar' : 'Ativar'}
-                      whileHover={performanceMode ? {} : { scale: 1.1 }}
-                      whileTap={performanceMode ? {} : { scale: 0.9 }}
                     >
                       {webhook.active ? <PauseIcon className="h-5 w-5" /> : <PlayIcon className="h-5 w-5" />}
-                    </motion.button>
+                    </button>
                     
-                    <motion.button
+                    <button
                       onClick={() => startEdit(webhook)}
                       className="p-2 text-blue-400 hover:bg-blue-500/20 rounded-xl transition-colors border border-blue-500/30"
                       title="Editar"
-                      whileHover={performanceMode ? {} : { scale: 1.1 }}
-                      whileTap={performanceMode ? {} : { scale: 0.9 }}
                     >
                       <PencilIcon className="h-5 w-5" />
-                    </motion.button>
+                    </button>
                     
-                    <motion.button
+                    <button
                       onClick={() => deleteWebhook(webhook.id)}
                       className="p-2 text-red-400 hover:bg-red-500/20 rounded-xl transition-colors border border-red-500/30"
                       title="Remover"
-                      whileHover={performanceMode ? {} : { scale: 1.1 }}
-                      whileTap={performanceMode ? {} : { scale: 0.9 }}
                     >
                       <TrashIcon className="h-5 w-5" />
-                    </motion.button>
+                    </button>
                   </div>
                 </div>
-              </motion.div>
+              </div>
             ))
           )}
           </div>
 
           {/* Footer Info */}
           {webhooks.length > 0 && (
-            <motion.div 
-              className="mt-6 p-4 bg-yellow-500/10 rounded-xl border border-yellow-500/30"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
-            >
+            <div className="mt-6 p-4 bg-yellow-500/10 rounded-xl border border-yellow-500/30">
               <div className="flex items-center">
                 <ExclamationTriangleIcon className="h-5 w-5 text-yellow-400 mr-2" />
                 <span className="text-sm text-yellow-300">
                   Máximo de 3 webhooks por sessão. {3 - webhooks.length} restante(s).
                 </span>
               </div>
-            </motion.div>
+            </div>
           )}
         </div>
-        </motion.div>
-      </motion.div>
+        </div>
+      </div>
 
       {/* Create/Edit Modal */}
-      <AnimatePresence mode="wait">
       {(showCreateModal || editingWebhook) && (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ 
-            duration: 0.2,
-            ease: [0.16, 1, 0.3, 1]
-          }}
+        <div
           className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[60]"
           onClick={() => {
             setShowCreateModal(false);
@@ -679,48 +606,9 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
             resetForm();
           }}
         >
-          <motion.div
-            initial={{ 
-              opacity: 0, 
-              scale: 0.8, 
-              y: 50,
-              rotateX: -15 
-            }}
-            animate={{ 
-              opacity: 1, 
-              scale: 1, 
-              y: 0,
-              rotateX: 0
-            }}
-            exit={{ 
-              opacity: 0, 
-              scale: 0.85,
-              y: 30,
-              rotateX: 10,
-              transition: {
-                duration: 0.25,
-                ease: [0.4, 0, 1, 1],
-                scale: { 
-                  type: "spring", 
-                  damping: 25, 
-                  stiffness: 400,
-                  mass: 0.8
-                }
-              }
-            }}
-            transition={{ 
-              duration: 0.4, 
-              ease: [0.16, 1, 0.3, 1],
-              scale: { 
-                type: "spring", 
-                damping: 18, 
-                stiffness: 300,
-                mass: 0.9
-              }
-            }}
-            className="bg-gray-900/95 backdrop-blur-xl border border-gray-700/50 p-8 max-w-md w-full mx-4 rounded-2xl shadow-2xl"
+          <div
+            className="bg-gray-900/95 backdrop-blur-xl border border-gray-700/50 p-8 max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl"
             onClick={(e) => e.stopPropagation()}
-            style={{ perspective: 1000 }}
           >
                 <h3 className="text-xl font-bold text-white mb-6">
                   {editingWebhook ? 'Editar Webhook' : 'Novo Webhook'}
@@ -785,13 +673,13 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                     <label className="block text-sm font-medium text-gray-200 mb-3">
                       Eventos para Escutar
                     </label>
-                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                    <div className="space-y-2 max-h-40 overflow-y-auto">
                       {availableEvents.map((event) => {
                         const EventIcon = event.icon;
                         const isSelected = webhookForm.events.includes(event.id);
                         
                         return (
-                          <motion.div
+                          <div
                             key={event.id}
                             className={`p-3 rounded-xl border cursor-pointer transition-all ${
                               isSelected 
@@ -799,8 +687,6 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                                 : 'bg-gray-800/30 border-gray-600/30 hover:border-gray-500/50'
                             }`}
                             onClick={() => toggleEventSelection(event.id)}
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
                           >
                             <div className="flex items-start">
                               <div className="flex items-center mr-3">
@@ -835,7 +721,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                                 </p>
                               </div>
                             </div>
-                          </motion.div>
+                          </div>
                         );
                       })}
                     </div>
@@ -851,7 +737,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                 </div>
 
                 <div className="flex gap-3 mt-8">
-                  <motion.button
+                  <button
                     onClick={() => {
                       if (editingWebhook) {
                         updateWebhook(editingWebhook);
@@ -861,40 +747,23 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                     }}
                     disabled={!webhookForm.url}
                     className="flex-1 py-3 bg-blue-500/20 text-blue-400 rounded-xl hover:bg-blue-500/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 border border-blue-500/30 font-medium"
-                    whileHover={{ 
-                      scale: 1.05,
-                      transition: { type: "spring", damping: 10, stiffness: 400 }
-                    }}
-                    whileTap={{ 
-                      scale: 0.95,
-                      transition: { type: "spring", damping: 15, stiffness: 600 }
-                    }}
                   >
                     {editingWebhook ? 'Atualizar' : 'Criar'}
-                  </motion.button>
-                  <motion.button
+                  </button>
+                  <button
                     onClick={() => {
                       setShowCreateModal(false);
                       setEditingWebhook(null);
                       resetForm();
                     }}
                     className="flex-1 py-3 bg-gray-700/50 rounded-xl text-gray-300 hover:text-white hover:bg-gray-600/50 transition-all duration-200 border border-gray-600/50 font-medium"
-                    whileHover={{ 
-                      scale: 1.05,
-                      transition: { type: "spring", damping: 10, stiffness: 400 }
-                    }}
-                    whileTap={{ 
-                      scale: 0.95,
-                      transition: { type: "spring", damping: 15, stiffness: 600 }
-                    }}
                   >
                     Cancelar
-                  </motion.button>
+                  </button>
                 </div>
-              </motion.div>
-            </motion.div>
+              </div>
+            </div>
           )}
-        </AnimatePresence>
     </>
   );
   }
