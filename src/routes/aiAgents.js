@@ -1062,8 +1062,20 @@ class AIAgent {
         );
         return { shouldReply: false };
       } else if (finalIsGroup) {
+        // For groups, check if agent was mentioned or if replying to agent's message
+        const isReplyingToAgent = messageData.quotedMessage ? 
+          await this.isQuotedMessageFromAgent(messageData.quotedMessage.id, chatInfo.id) : false;
+        const isAgentMentioned = this.isAgentMentioned(messageText);
+        
+        if (!isReplyingToAgent && !isAgentMentioned) {
+          console.log(
+            `🔇 Agent ${this.id} SKIPPING group message from ${chatJid} - not mentioned and not replying to agent`
+          );
+          return { shouldReply: false };
+        }
+        
         console.log(
-          `✅ Agent ${this.id} PROCESSING group message from ${chatJid} (replyToGroups: true)`
+          `✅ Agent ${this.id} PROCESSING group message from ${chatJid} - mentioned: ${isAgentMentioned}, replying to agent: ${isReplyingToAgent}`
         );
       }
 
@@ -1128,6 +1140,14 @@ class AIAgent {
 
       // Save to MongoDB instead of memory
       await this.saveConversationEntry(conversationEntry);
+      
+      // Detect and save user preferences from this message
+      await this.detectAndSaveUserPreferences(
+        messageText, 
+        conversationEntry.chat.id, 
+        senderInfo.id, 
+        senderInfo.pushName
+      );
 
       // Generate AI response with rich context
       const response = await this.generateResponse(
@@ -1292,7 +1312,12 @@ Regras:
    - O que você disse anteriormente (mostrado entre aspas)
    - A resposta atual do usuário
    - Como a resposta se relaciona com sua mensagem anterior
-   - Se há ambiguidade, pedidos de esclarecimento, concordância/discordância, etc.`;
+   - Se há ambiguidade, pedidos de esclarecimento, concordância/discordância, etc.
+7. PREFERÊNCIAS DO USUÁRIO: Quando você vir "[👤 PREFERÊNCIAS DO USUÁRIO:]", use essas informações para personalizar sua resposta:
+   - Use sempre o nome preferido do usuário quando se dirigir a ele
+   - Considere os interesses mencionados nas suas respostas
+   - Adapte seu estilo de comunicação conforme preferido
+   - LEMBRE-SE: Se o usuário especificou um nome preferido, SEMPRE use esse nome, não o nome do WhatsApp`;
 
       const messageText =
         messageData.content || messageData.text || messageData.body || '';
@@ -1305,10 +1330,13 @@ Regras:
       // Prepare messages array for OpenAI API
       const messages = [{ role: 'system', content: systemPrompt }];
 
-      // Load conversation history from MongoDB for context (reduced to 3 messages to save tokens)
+      // Load user preferences for this chat
+      const userPreferences = await this.loadUserPreferences(conversationEntry.chat.id, senderInfo.id);
+      
+      // Load conversation history from MongoDB for context (increased to 10 for better context)
       const recentHistory = await this.loadConversationHistory(
         conversationEntry.chat.id,
-        3
+        10
       );
       console.log(
         `📚 Loaded ${recentHistory.length} previous messages for context from chat ${conversationEntry.chat.id}`
@@ -1358,9 +1386,28 @@ Regras:
       console.log(`🎯 Estimated context tokens: ~${totalTokensEstimate}`);
 
       // Add current message with sender context and quoted message info
+      const effectiveSenderName = userPreferences?.preferredName || senderName;
       let currentMessageContent = isGroup
-        ? `${messageText} (enviado por ${senderName})`
+        ? `${messageText} (enviado por ${effectiveSenderName})`
         : messageText;
+      
+      // Add user preferences context if available
+      if (userPreferences && Object.keys(userPreferences).length > 0) {
+        const preferencesText = [];
+        if (userPreferences.preferredName && userPreferences.preferredName !== senderName) {
+          preferencesText.push(`Nome preferido: ${userPreferences.preferredName}`);
+        }
+        if (userPreferences.interests && userPreferences.interests.length > 0) {
+          preferencesText.push(`Interesses: ${userPreferences.interests.join(', ')}`);
+        }
+        if (userPreferences.communicationStyle) {
+          preferencesText.push(`Estilo de comunicação: ${userPreferences.communicationStyle}`);
+        }
+        
+        if (preferencesText.length > 0) {
+          currentMessageContent += `\n\n[👤 PREFERÊNCIAS DO USUÁRIO: ${preferencesText.join(' | ')}]`;
+        }
+      }
       
       // Add quoted message context if available - check if user is replying to agent's message
       if (messageData.quotedMessage) {
@@ -2569,6 +2616,41 @@ Regras:
   }
 
   // MongoDB conversation persistence methods with automatic summarization
+  // Check if the agent name is mentioned in the message
+  isAgentMentioned(messageText) {
+    if (!messageText || typeof messageText !== 'string') {
+      return false;
+    }
+    
+    const text = messageText.toLowerCase();
+    const agentName = this.name.toLowerCase();
+    
+    // Check for exact name match (case insensitive)
+    if (text.includes(agentName)) {
+      return true;
+    }
+    
+    // Check for variations and common mention patterns
+    const mentionPatterns = [
+      `@${agentName}`,
+      `${agentName}:`,
+      `${agentName},`,
+      `${agentName}.`,
+      `${agentName}!`,
+      `${agentName}?`,
+      // Also check for first word of agent name
+      agentName.split(' ')[0]
+    ];
+    
+    for (const pattern of mentionPatterns) {
+      if (text.includes(pattern.toLowerCase())) {
+        return true;
+      }
+    }
+    
+    return false;
+  }
+
   // Check if a quoted message was sent by this agent
   async isQuotedMessageFromAgent(quotedMessageId, chatId) {
     try {
@@ -2923,6 +3005,138 @@ Regras:
     } catch (error) {
       console.error('Error loading conversation history:', error);
       return [];
+    }
+  }
+
+  // Load user preferences for personalized interactions
+  async loadUserPreferences(chatId, userId) {
+    try {
+      const db = database.getDb();
+      if (!db) {
+        return null;
+      }
+
+      const preferences = await db
+        .collection('ai_agent_user_preferences')
+        .findOne({
+          agentId: this.id,
+          chatId: chatId,
+          userId: userId,
+          expiresAt: { $gt: new Date() }
+        });
+
+      if (preferences) {
+        console.log(`👤 Loaded user preferences for ${userId} in chat ${chatId}:`, {
+          preferredName: preferences.preferredName,
+          interests: preferences.interests?.length || 0,
+          communicationStyle: preferences.communicationStyle
+        });
+      }
+
+      return preferences;
+    } catch (error) {
+      console.error('Error loading user preferences:', error);
+      return null;
+    }
+  }
+
+  // Save or update user preferences
+  async saveUserPreferences(chatId, userId, preferences) {
+    try {
+      const db = database.getDb();
+      if (!db) {
+        console.warn('Database not available, cannot save user preferences');
+        return;
+      }
+
+      const now = new Date();
+      const expiresAt = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000); // 90 days
+
+      await db.collection('ai_agent_user_preferences').updateOne(
+        {
+          agentId: this.id,
+          chatId: chatId,
+          userId: userId
+        },
+        {
+          $set: {
+            ...preferences,
+            updatedAt: now,
+            expiresAt: expiresAt
+          },
+          $setOnInsert: {
+            agentId: this.id,
+            chatId: chatId,
+            userId: userId,
+            createdAt: now
+          }
+        },
+        { upsert: true }
+      );
+
+      console.log(`💾 Saved user preferences for ${userId} in chat ${chatId}:`, preferences);
+    } catch (error) {
+      console.error('Error saving user preferences:', error);
+    }
+  }
+
+  // Detect and save user preferences from conversations
+  async detectAndSaveUserPreferences(messageText, chatId, userId, senderName) {
+    if (!messageText || typeof messageText !== 'string') {
+      return;
+    }
+
+    const text = messageText.toLowerCase();
+    const updates = {};
+
+    // Detect preferred name changes
+    const namePatterns = [
+      /me chame de (.+?)(?:\.|,|$|\s)/i,
+      /meu nome (?:é|eh) (.+?)(?:\.|,|$|\s)/i,
+      /pode me chamar de (.+?)(?:\.|,|$|\s)/i,
+      /prefiro que me chame de (.+?)(?:\.|,|$|\s)/i,
+      /sou (?:o|a) (.+?)(?:\.|,|$|\s)/i
+    ];
+
+    for (const pattern of namePatterns) {
+      const match = messageText.match(pattern);
+      if (match && match[1]) {
+        const preferredName = match[1].trim();
+        if (preferredName && preferredName !== senderName) {
+          updates.preferredName = preferredName;
+          console.log(`📝 Detected preferred name change: ${senderName} → ${preferredName}`);
+          break;
+        }
+      }
+    }
+
+    // Detect interests (simple patterns)
+    const interestPatterns = [
+      /gosto de (.+?)(?:\.|,|$)/i,
+      /meu interesse (?:é|eh) (.+?)(?:\.|,|$)/i,
+      /sou interessado em (.+?)(?:\.|,|$)/i,
+      /adoro (.+?)(?:\.|,|$)/i
+    ];
+
+    for (const pattern of interestPatterns) {
+      const match = messageText.match(pattern);
+      if (match && match[1]) {
+        const interest = match[1].trim();
+        if (interest) {
+          // Load existing preferences to merge interests
+          const existingPrefs = await this.loadUserPreferences(chatId, userId);
+          const currentInterests = existingPrefs?.interests || [];
+          if (!currentInterests.includes(interest)) {
+            updates.interests = [...currentInterests, interest];
+            console.log(`📝 Detected new interest: ${interest}`);
+          }
+        }
+      }
+    }
+
+    // Save updates if any were detected
+    if (Object.keys(updates).length > 0) {
+      await this.saveUserPreferences(chatId, userId, updates);
     }
   }
 
