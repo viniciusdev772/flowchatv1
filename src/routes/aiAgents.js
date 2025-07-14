@@ -1287,7 +1287,12 @@ Regras:
         isGroup
           ? 'Em grupos, seja respeitoso com todos'
           : 'Mantenha conversa natural'
-      }`;
+      }
+6. CONTEXTO DE RESPOSTAS: Quando você vir "[🤖 CONTEXTO IMPORTANTE:]", significa que o usuário está respondendo diretamente a uma sua mensagem anterior. Analise cuidadosamente:
+   - O que você disse anteriormente (mostrado entre aspas)
+   - A resposta atual do usuário
+   - Como a resposta se relaciona com sua mensagem anterior
+   - Se há ambiguidade, pedidos de esclarecimento, concordância/discordância, etc.`;
 
       const messageText =
         messageData.content || messageData.text || messageData.body || '';
@@ -1371,7 +1376,7 @@ Regras:
         );
         
         if (isReplyingToAgent) {
-          currentMessageContent += `\n\n[🤖 USUÁRIO RESPONDENDO À MINHA MENSAGEM: "${quotedText}"]`;
+          currentMessageContent += `\n\n[🤖 CONTEXTO IMPORTANTE: O usuário está respondendo à minha mensagem anterior: "${quotedText}". Esta é uma resposta direta à minha resposta anterior, então devo considerar esse contexto para entender melhor o que o usuário quer dizer.]`;
           console.log(`🎯 Agent ${this.id} detected user replying to agent's message: ${quotedText.substring(0, 50)}...`);
         } else {
           currentMessageContent += `\n\n[Respondendo à mensagem de ${quotedSender}: "${quotedText}"]`;
