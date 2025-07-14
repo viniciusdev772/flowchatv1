@@ -1331,7 +1331,9 @@ Regras:
       const messages = [{ role: 'system', content: systemPrompt }];
 
       // Load user preferences for this chat
-      const userPreferences = await this.loadUserPreferences(conversationEntry.chat.id, senderInfo.id);
+      const senderId = conversationEntry.sender?.id;
+      const userPreferences = senderId ? 
+        await this.loadUserPreferences(conversationEntry.chat.id, senderId) : null;
       
       // Load conversation history from MongoDB for context (increased to 10 for better context)
       const recentHistory = await this.loadConversationHistory(
@@ -3012,7 +3014,7 @@ Regras:
   async loadUserPreferences(chatId, userId) {
     try {
       const db = database.getDb();
-      if (!db) {
+      if (!db || !userId || !chatId) {
         return null;
       }
 
@@ -3044,8 +3046,8 @@ Regras:
   async saveUserPreferences(chatId, userId, preferences) {
     try {
       const db = database.getDb();
-      if (!db) {
-        console.warn('Database not available, cannot save user preferences');
+      if (!db || !userId || !chatId) {
+        console.warn('Database not available or missing parameters, cannot save user preferences');
         return;
       }
 
@@ -3082,7 +3084,7 @@ Regras:
 
   // Detect and save user preferences from conversations
   async detectAndSaveUserPreferences(messageText, chatId, userId, senderName) {
-    if (!messageText || typeof messageText !== 'string') {
+    if (!messageText || typeof messageText !== 'string' || !userId || !chatId) {
       return;
     }
 
