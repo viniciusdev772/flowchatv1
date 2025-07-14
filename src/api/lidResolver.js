@@ -1,5 +1,6 @@
 const express = require('express');
 const { jidDecode, areJidsSameUser } = require('@whiskeysockets/baileys');
+const { USyncQuery, USyncUser } = require('@whiskeysockets/baileys/lib/WAUSync');
 const logger = require('pino')({ level: 'info' });
 
 const router = express.Router();
@@ -192,39 +193,18 @@ router.post('/:sessionId/lid/resolve', checkSessionOwnership, async (req, res) =
 
     logger.info(`🔍 Tentando resolver LID: ${lid} para sessão: ${sessionId}`);
 
-    // Tentar resolver o LID usando funcionalidades do Baileys
+    // Tentar resolver o LID usando protocolo USync avançado do Baileys
     try {
-      // Método 1: Usar onWhatsApp com o LID diretamente
-      logger.info(`🔍 Verificando LID ${lid} com onWhatsApp...`);
+      logger.info(`🔍 Iniciando resolução avançada de LID: ${lid}`);
       
       let resolvedData = null;
-      let allOnWhatsAppData = [];
+      let allResolutionData = [];
 
+      // Método 1: USync direto com LID usando protocolo nativo
       try {
-        // Primeiro, tentar verificar o LID diretamente
-        const lidResult = await sock.onWhatsApp(lid);
-        allOnWhatsAppData.push({ query: lid, result: lidResult });
+        logger.info(`🔧 Tentativa 1: USync query direto com LID ${lid}`);
         
-        if (lidResult && lidResult.length > 0) {
-          for (const item of lidResult) {
-            if (item.exists && item.jid && item.jid !== lid) {
-              resolvedData = {
-                lid: lid,
-                pn: item.jid,
-                verified: true,
-                method: 'direct_lid_lookup'
-              };
-              logger.info(`✅ LID ${lid} resolvido diretamente para: ${item.jid}`);
-              break;
-            }
-          }
-        }
-      } catch (lidError) {
-        logger.warn(`⚠️ Erro ao verificar LID diretamente: ${lidError.message}`);
-      }
-
-      // Se não resolveu diretamente, tentar extrair o número e verificar formatos alternativos
-      if (!resolvedData) {
+        // Extrair número base para USync query
         const decoded = jidDecode(lid);
         if (!decoded) {
           return res.status(400).json({
@@ -233,21 +213,104 @@ router.post('/:sessionId/lid/resolve', checkSessionOwnership, async (req, res) =
           });
         }
 
-        // Extrair o número base do LID
         const baseNumber = decoded.user;
-        logger.info(`🔍 Testando número base ${baseNumber} em diferentes formatos...`);
+        const phone = `+${baseNumber.replace('+', '')}`;
+        
+        // Criar USync query com protocolos Contact e LID
+        const usyncQuery = new USyncQuery()
+          .withContactProtocol()
+          .withLIDProtocol()
+          .withUser(new USyncUser().withPhone(phone));
+
+        // Executar query USync
+        const usyncResults = await sock.executeUSyncQuery(usyncQuery);
+        allResolutionData.push({ 
+          method: 'usync_protocol', 
+          query: { phone, lid }, 
+          result: usyncResults 
+        });
+
+        if (usyncResults && usyncResults.list && usyncResults.list.length > 0) {
+          for (const result of usyncResults.list) {
+            if (result.contact && result.id && result.id !== lid) {
+              resolvedData = {
+                lid: lid,
+                pn: result.id,
+                verified: true,
+                method: 'usync_protocol',
+                lidFromResult: result.lid || null,
+                contactExists: result.contact
+              };
+              logger.info(`✅ LID ${lid} resolvido via USync para: ${result.id}`);
+              break;
+            }
+          }
+        }
+      } catch (usyncError) {
+        logger.warn(`⚠️ Erro no USync query: ${usyncError.message}`);
+        allResolutionData.push({ 
+          method: 'usync_protocol', 
+          error: usyncError.message 
+        });
+      }
+
+      // Método 2: onWhatsApp com LID diretamente 
+      if (!resolvedData) {
+        try {
+          logger.info(`🔧 Tentativa 2: onWhatsApp direto com LID ${lid}`);
+          
+          const lidResult = await sock.onWhatsApp(lid);
+          allResolutionData.push({ 
+            method: 'onwhatsapp_lid_direct', 
+            query: lid, 
+            result: lidResult 
+          });
+          
+          if (lidResult && lidResult.length > 0) {
+            for (const item of lidResult) {
+              if (item.exists && item.jid && item.jid !== lid) {
+                resolvedData = {
+                  lid: lid,
+                  pn: item.jid,
+                  verified: true,
+                  method: 'onwhatsapp_lid_direct',
+                  lidFromResult: item.lid || null
+                };
+                logger.info(`✅ LID ${lid} resolvido via onWhatsApp direto para: ${item.jid}`);
+                break;
+              }
+            }
+          }
+        } catch (lidError) {
+          logger.warn(`⚠️ Erro no onWhatsApp LID direto: ${lidError.message}`);
+          allResolutionData.push({ 
+            method: 'onwhatsapp_lid_direct', 
+            error: lidError.message 
+          });
+        }
+      }
+
+      // Método 3: onWhatsApp com números baseados no LID
+      if (!resolvedData) {
+        const decoded = jidDecode(lid);
+        const baseNumber = decoded.user;
+        logger.info(`🔧 Tentativa 3: onWhatsApp com número base ${baseNumber}`);
         
         // Tentar diferentes formatos de número de telefone
         const possibleNumbers = [
+          `+${baseNumber}`,
           `${baseNumber}@s.whatsapp.net`,
           `${baseNumber}@c.us`
         ];
 
-        // Verificar cada possível número
         for (const testNumber of possibleNumbers) {
           try {
             const exists = await sock.onWhatsApp(testNumber);
-            allOnWhatsAppData.push({ query: testNumber, result: exists });
+            allResolutionData.push({ 
+              method: 'onwhatsapp_base_number', 
+              query: testNumber, 
+              result: exists 
+            });
             
             if (exists && exists.length > 0) {
               for (const item of exists) {
@@ -256,10 +319,12 @@ router.post('/:sessionId/lid/resolve', checkSessionOwnership, async (req, res) =
                     lid: lid,
                     pn: item.jid,
                     verified: true,
-                    method: 'base_number_lookup',
-                    baseNumber: baseNumber
+                    method: 'onwhatsapp_base_number',
+                    baseNumber: baseNumber,
+                    testNumber: testNumber,
+                    lidFromResult: item.lid || null
                   };
-                  logger.info(`✅ LID ${lid} resolvido via número base para: ${item.jid}`);
+                  logger.info(`✅ LID ${lid} resolvido via número base ${testNumber} para: ${item.jid}`);
                   break;
                 }
               }
@@ -268,7 +333,11 @@ router.post('/:sessionId/lid/resolve', checkSessionOwnership, async (req, res) =
             if (resolvedData) break;
           } catch (checkError) {
             logger.warn(`⚠️ Erro ao verificar número ${testNumber}: ${checkError.message}`);
-            allOnWhatsAppData.push({ query: testNumber, error: checkError.message });
+            allResolutionData.push({ 
+              method: 'onwhatsapp_base_number', 
+              query: testNumber, 
+              error: checkError.message 
+            });
           }
         }
       }
@@ -282,7 +351,7 @@ router.post('/:sessionId/lid/resolve', checkSessionOwnership, async (req, res) =
           message: 'LID não pôde ser resolvido para um número válido',
           data: {
             lid: lid,
-            onWhatsAppData: allOnWhatsAppData,
+            resolutionAttempts: allResolutionData,
             timestamp: new Date().toISOString()
           }
         });
@@ -294,7 +363,11 @@ router.post('/:sessionId/lid/resolve', checkSessionOwnership, async (req, res) =
         pn: resolvedData.pn,
         verified: resolvedData.verified,
         method: resolvedData.method,
-        onWhatsAppData: allOnWhatsAppData,
+        lidFromResult: resolvedData.lidFromResult,
+        contactExists: resolvedData.contactExists,
+        baseNumber: resolvedData.baseNumber,
+        testNumber: resolvedData.testNumber,
+        resolutionAttempts: allResolutionData,
         timestamp: new Date().toISOString()
       };
 
