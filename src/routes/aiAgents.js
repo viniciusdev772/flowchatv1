@@ -1115,6 +1115,7 @@ class AIAgent {
         },
         messageType: messageData.messageType || 'text',
         hasQuotedMessage: !!messageData.quotedMessage,
+        quotedMessage: messageData.quotedMessage || null,
         // Additional context for better conversation continuity
         isMultiPart: messageData.isMultiPart || false,
         partCount: messageData.partCount || 1,
@@ -1351,10 +1352,31 @@ Regras:
 
       console.log(`🎯 Estimated context tokens: ~${totalTokensEstimate}`);
 
-      // Add current message with sender context
-      const currentMessageContent = isGroup
+      // Add current message with sender context and quoted message info
+      let currentMessageContent = isGroup
         ? `${messageText} (enviado por ${senderName})`
         : messageText;
+      
+      // Add quoted message context if available - check if user is replying to agent's message
+      if (messageData.quotedMessage) {
+        const quotedText = messageData.quotedMessage.text || '[Mensagem não textual]';
+        const quotedSender = messageData.quotedMessage.participant 
+          ? messageData.quotedMessage.participant.split('@')[0] 
+          : 'Usuário';
+        
+        // Check if the quoted message is from this agent by looking at conversation history
+        const isReplyingToAgent = await this.isQuotedMessageFromAgent(
+          messageData.quotedMessage.id, 
+          conversationEntry.chat.id
+        );
+        
+        if (isReplyingToAgent) {
+          currentMessageContent += `\n\n[🤖 USUÁRIO RESPONDENDO À MINHA MENSAGEM: "${quotedText}"]`;
+          console.log(`🎯 Agent ${this.id} detected user replying to agent's message: ${quotedText.substring(0, 50)}...`);
+        } else {
+          currentMessageContent += `\n\n[Respondendo à mensagem de ${quotedSender}: "${quotedText}"]`;
+        }
+      }
       
       // Enhance message with search context if it contains search-worthy terms
       let enhancedMessage;
@@ -2542,6 +2564,74 @@ Regras:
   }
 
   // MongoDB conversation persistence methods with automatic summarization
+  // Check if a quoted message was sent by this agent
+  async isQuotedMessageFromAgent(quotedMessageId, chatId) {
+    try {
+      const db = database.getDb();
+      if (!db || !quotedMessageId) {
+        return false;
+      }
+
+      // Look for the quoted message in the agent's conversation history
+      // Check by sentMessageId (the actual WhatsApp message ID)
+      const agentMessage = await db.collection('ai_agent_conversations').findOne({
+        agentId: this.id,
+        'chat.id': chatId,
+        type: 'assistant',
+        sentMessageId: quotedMessageId,
+        expiresAt: { $gt: new Date() } // Make sure it's not expired
+      });
+
+      const isFromAgent = !!agentMessage;
+      
+      if (isFromAgent) {
+        console.log(`✅ Agent ${this.id} confirmed: quoted message ${quotedMessageId} was sent by this agent`);
+      }
+
+      return isFromAgent;
+    } catch (error) {
+      console.error('Error checking if quoted message is from agent:', error);
+      return false;
+    }
+  }
+
+  // Update conversation entry with the actual WhatsApp message ID after sending
+  async updateConversationEntryWithMessageId(inResponseTo, sentMessageId, chatId) {
+    try {
+      const db = database.getDb();
+      if (!db) {
+        console.warn('Database not available, cannot update conversation entry with message ID');
+        return;
+      }
+
+      // Find the most recent assistant message for this agent and chat that was in response to the given message
+      const updateResult = await db.collection('ai_agent_conversations').updateOne(
+        {
+          agentId: this.id,
+          'chat.id': chatId,
+          type: 'assistant',
+          inResponseTo: inResponseTo,
+          sentMessageId: { $exists: false } // Only update if not already set
+        },
+        {
+          $set: {
+            sentMessageId: sentMessageId,
+            updatedAt: new Date()
+          }
+        },
+        { sort: { createdAt: -1 } } // Get the most recent one
+      );
+
+      if (updateResult.modifiedCount > 0) {
+        console.log(`✅ Updated conversation entry with sent message ID: ${sentMessageId}`);
+      } else {
+        console.log(`⚠️ No conversation entry found to update with message ID: ${sentMessageId}`);
+      }
+    } catch (error) {
+      console.error('Error updating conversation entry with message ID:', error);
+    }
+  }
+
   async saveConversationEntry(conversationEntry) {
     try {
       const db = database.getDb();
@@ -3607,7 +3697,7 @@ async function processWhatsAppMessage(whatsappClient, messageData, sessionId) {
           );
         }
 
-        await whatsappClient.sendMessage(
+        const sentMessage = await whatsappClient.sendMessage(
           chatId,
           { text: result.response },
           replyOptions
@@ -3615,6 +3705,20 @@ async function processWhatsAppMessage(whatsappClient, messageData, sessionId) {
 
         // Update presence to available
         await whatsappClient.sendPresenceUpdate('available');
+
+        // Update the conversation entry with the sent message ID for future reference
+        if (sentMessage && sentMessage.key && sentMessage.key.id) {
+          try {
+            await agent.updateConversationEntryWithMessageId(
+              result.replyToMessageId,
+              sentMessage.key.id,
+              chatId
+            );
+            console.log(`💾 Agent message ID saved: ${sentMessage.key.id}`);
+          } catch (updateError) {
+            console.error('Error updating conversation entry with message ID:', updateError);
+          }
+        }
 
         console.log(
           `AI response sent to ${chatId} (${
