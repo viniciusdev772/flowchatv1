@@ -1072,32 +1072,32 @@ class AIAgent {
         return { shouldReply: false };
       } else if (finalIsGroup) {
         // For groups, check if agent was mentioned or if replying to agent's message
-        console.log(`🔍 Checking group message conditions for agent ${this.id}:`);
-        console.log(`📝 Message text: "${messageText}"`);
-        console.log(`💬 Has quoted message: ${!!messageData.quotedMessage}`);
+        console.log(`🔍 Verificando condições do grupo para agente ${this.id}:`);
+        console.log(`📝 Texto da mensagem: "${messageText}"`);
+        console.log(`💬 Tem mensagem citada: ${!!messageData.quotedMessage}`);
         
         if (messageData.quotedMessage) {
-          console.log(`📋 Quoted message ID: ${messageData.quotedMessage.id}`);
-          console.log(`👤 Quoted message participant: ${messageData.quotedMessage.participant}`);
-          console.log(`💭 Quoted message text: "${messageData.quotedMessage.text || messageData.quotedMessage.content}"`);
+          console.log(`📋 ID da mensagem citada: ${messageData.quotedMessage.id}`);
+          console.log(`👤 Participante da mensagem citada: ${messageData.quotedMessage.participant}`);
+          console.log(`💭 Texto da mensagem citada: "${messageData.quotedMessage.text || messageData.quotedMessage.content}"`);
         }
         
         const isReplyingToAgent = messageData.quotedMessage ? 
           await this.isQuotedMessageFromAgent(messageData.quotedMessage.id, chatInfo.id) : false;
         const isAgentMentioned = this.isAgentMentioned(messageText);
         
-        console.log(`🤖 Is replying to agent: ${isReplyingToAgent}`);
-        console.log(`📢 Is agent mentioned: ${isAgentMentioned}`);
+        console.log(`🤖 Respondendo ao agente: ${isReplyingToAgent}`);
+        console.log(`📢 Agente mencionado: ${isAgentMentioned}`);
         
         if (!isReplyingToAgent && !isAgentMentioned) {
           console.log(
-            `🔇 Agent ${this.id} SKIPPING group message from ${chatJid} - not mentioned and not replying to agent`
+            `🔇 Agente ${this.id} IGNORANDO mensagem do grupo ${chatJid} - não mencionado e não respondendo ao agente`
           );
           return { shouldReply: false };
         }
         
         console.log(
-          `✅ Agent ${this.id} PROCESSING group message from ${chatJid} - mentioned: ${isAgentMentioned}, replying to agent: ${isReplyingToAgent}`
+          `✅ Agente ${this.id} PROCESSANDO mensagem do grupo ${chatJid} - mencionado: ${isAgentMentioned}, respondendo ao agente: ${isReplyingToAgent}`
         );
       }
 
