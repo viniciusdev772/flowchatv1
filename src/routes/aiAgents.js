@@ -2696,85 +2696,34 @@ Regras:
     try {
       const db = database.getDb();
       if (!db || !quotedMessageId) {
-        console.log(`❌ DB unavailable or no quotedMessageId: db=${!!db}, quotedMessageId=${quotedMessageId}`);
         return false;
       }
 
-      console.log(`🔍 Searching for quoted message from agent ${this.id}:`);
-      console.log(`📋 Quoted message ID: ${quotedMessageId}`);
-      console.log(`💬 Chat ID: ${chatId}`);
+      // Try multiple search strategies to find the quoted message
+      const queries = [
+        { sentMessageId: quotedMessageId },
+        { messageId: quotedMessageId },
+        { inResponseTo: quotedMessageId },
+        { _id: quotedMessageId }
+      ];
 
-      // Look for the quoted message in the agent's conversation history
-      // Check by sentMessageId (the actual WhatsApp message ID)
-      const query = {
-        agentId: this.id,
-        'chat.id': chatId,
-        type: 'assistant',
-        sentMessageId: quotedMessageId,
-        expiresAt: { $gt: new Date() } // Make sure it's not expired
-      };
-      
-      console.log(`🔎 Database query:`, JSON.stringify(query, null, 2));
-      
-      const agentMessage = await db.collection('ai_agent_conversations').findOne(query);
-      console.log(`📄 Database result:`, agentMessage ? 'FOUND' : 'NOT_FOUND');
-      
-      if (agentMessage) {
-        console.log(`✅ Found agent message: sentMessageId=${agentMessage.sentMessageId}, content="${agentMessage.content?.substring(0, 100)}..."`);
-      }
-
-      // If not found by sentMessageId, also try to find by inResponseTo (in case update failed)
-      if (!agentMessage) {
-        console.log(`🔄 Trying alternative search by inResponseTo...`);
-        const alternativeQuery = {
+      for (const extraQuery of queries) {
+        const query = {
           agentId: this.id,
           'chat.id': chatId,
           type: 'assistant',
-          expiresAt: { $gt: new Date() }
+          expiresAt: { $gt: new Date() },
+          ...extraQuery
         };
-        
-        const allAgentMessages = await db.collection('ai_agent_conversations')
-          .find(alternativeQuery)
-          .sort({ createdAt: -1 })
-          .limit(10)
-          .toArray();
-          
-        console.log(`📊 Found ${allAgentMessages.length} recent agent messages in this chat`);
-        allAgentMessages.forEach((msg, index) => {
-          console.log(`📝 Message ${index + 1}: sentMessageId=${msg.sentMessageId}, inResponseTo=${msg.inResponseTo}, content="${msg.content?.substring(0, 50)}..."`);
-        });
-        
-        // Also check if the quotedMessageId exists anywhere in sentMessageId or inResponseTo
-        console.log(`🔍 Looking for quotedMessageId ${quotedMessageId} in any field...`);
-        const anyMatch = allAgentMessages.find(msg => 
-          msg.sentMessageId === quotedMessageId || 
-          msg.inResponseTo === quotedMessageId ||
-          msg._id === quotedMessageId
-        );
-        
-        if (anyMatch) {
-          console.log(`🎯 MATCH FOUND in different field:`, {
-            sentMessageId: anyMatch.sentMessageId,
-            inResponseTo: anyMatch.inResponseTo,
-            _id: anyMatch._id,
-            content: anyMatch.content?.substring(0, 50)
-          });
-        } else {
-          console.log(`❌ No match found for ${quotedMessageId} in any field`);
+
+        const agentMessage = await db.collection('ai_agent_conversations').findOne(query);
+        if (agentMessage) {
+          return true;
         }
       }
 
-      const isFromAgent = !!agentMessage;
-      
-      if (isFromAgent) {
-        console.log(`✅ Agent ${this.id} confirmed: quoted message ${quotedMessageId} was sent by this agent`);
-      } else {
-        console.log(`❌ Agent ${this.id} confirmed: quoted message ${quotedMessageId} was NOT sent by this agent`);
-      }
-
-      return isFromAgent;
+      return false;
     } catch (error) {
-      console.error('Error checking if quoted message is from agent:', error);
       return false;
     }
   }
@@ -2784,41 +2733,18 @@ Regras:
     try {
       const db = database.getDb();
       if (!db) {
-        console.warn('Database not available, cannot update conversation entry with message ID');
         return;
       }
 
-      console.log(`💾 Updating conversation entry with message ID:`);
-      console.log(`📋 inResponseTo: ${inResponseTo}`);
-      console.log(`📝 sentMessageId: ${sentMessageId}`);
-      console.log(`💬 chatId: ${chatId}`);
-      console.log(`🤖 agentId: ${this.id}`);
-
-      // First, let's see what entries exist for this conversation
-      const existingEntries = await db.collection('ai_agent_conversations').find({
-        agentId: this.id,
-        'chat.id': chatId,
-        type: 'assistant',
-        inResponseTo: inResponseTo
-      }).sort({ createdAt: -1 }).limit(3).toArray();
-
-      console.log(`📊 Found ${existingEntries.length} assistant entries for inResponseTo ${inResponseTo}`);
-      existingEntries.forEach((entry, index) => {
-        console.log(`📄 Entry ${index + 1}: _id=${entry._id}, sentMessageId=${entry.sentMessageId}, content="${entry.content?.substring(0, 50)}..."`);
-      });
-
-      // Find the most recent assistant message for this agent and chat that was in response to the given message
       const updateQuery = {
         agentId: this.id,
         'chat.id': chatId,
         type: 'assistant',
         inResponseTo: inResponseTo,
-        sentMessageId: { $exists: false } // Only update if not already set
+        sentMessageId: { $exists: false }
       };
 
-      console.log(`🔎 Update query:`, JSON.stringify(updateQuery, null, 2));
-
-      const updateResult = await db.collection('ai_agent_conversations').updateOne(
+      await db.collection('ai_agent_conversations').findOneAndUpdate(
         updateQuery,
         {
           $set: {
@@ -2826,31 +2752,13 @@ Regras:
             updatedAt: new Date()
           }
         },
-        { sort: { createdAt: -1 } } // Get the most recent one
-      );
-
-      console.log(`📝 Update result: matched=${updateResult.matchedCount}, modified=${updateResult.modifiedCount}`);
-
-      if (updateResult.modifiedCount > 0) {
-        console.log(`✅ Updated conversation entry with sent message ID: ${sentMessageId}`);
-      } else {
-        console.log(`⚠️ No conversation entry found to update with message ID: ${sentMessageId}`);
-        
-        // Try to find any recent assistant message and show what we have
-        const recentAssistantMessage = await db.collection('ai_agent_conversations').findOne({
-          agentId: this.id,
-          'chat.id': chatId,
-          type: 'assistant'
-        }, { sort: { createdAt: -1 } });
-        
-        if (recentAssistantMessage) {
-          console.log(`🔍 Most recent assistant message: inResponseTo=${recentAssistantMessage.inResponseTo}, sentMessageId=${recentAssistantMessage.sentMessageId}`);
-        } else {
-          console.log(`❌ No assistant messages found for this agent in this chat`);
+        { 
+          sort: { createdAt: -1 },
+          returnDocument: 'after'
         }
-      }
+      );
     } catch (error) {
-      console.error('Error updating conversation entry with message ID:', error);
+      // Silent fail
     }
   }
 

@@ -3392,47 +3392,13 @@ async function processCompleteMessage(
         // Check if agent was mentioned in the message
         const isAgentMentioned = activeAgent.isAgentMentioned(messageText);
 
-        logger.info(
-          `🔍 Verificando condições do grupo para agente ${activeAgent.id}:`
-        );
-        logger.info(`📝 Texto da mensagem: "${messageText}"`);
-        logger.info(`💬 Tem mensagem citada: ${!!contextInfo?.quotedMessage}`);
-        if (contextInfo?.quotedMessage) {
-          logger.info(`📋 ID da mensagem citada: ${contextInfo.stanzaId}`);
-          logger.info(`👤 Participante da mensagem citada: ${contextInfo.participant}`);
-        }
-        logger.info(`🤖 Respondendo ao agente: ${isReplyingToAgent}`);
-        logger.info(`📢 Agente mencionado: ${isAgentMentioned}`);
 
         // Skip if agent wasn't mentioned and user isn't replying to agent
         if (!isReplyingToAgent && !isAgentMentioned) {
-          logger.info(
-            `🔇 Agente ${activeAgent.id} IGNORANDO mensagem do grupo ${jid} - não mencionado e não respondendo ao agente`
-          );
           return; // Exit early, don't process group messages when not mentioned
         }
-
-        logger.info(
-          `✅ Agent ${activeAgent.id} PROCESSING group message from ${jid} - mencionado: ${isAgentMentioned}, respondendo ao agente: ${isReplyingToAgent}`
-        );
-      } else {
-        logger.info(
-          `✅ Agent ${activeAgent.id} PROCESSING private message from ${jid}`
-        );
       }
       try {
-        logger.info(
-          `Processing message with AI agent ${activeAgent.id} for session ${sessionId}`
-        );
-        
-        // Debug: Log message structure to see what's available
-        console.log(`📱 Estrutura da mensagem:`, JSON.stringify({
-          conversation: message.message?.conversation,
-          extendedTextMessage: !!message.message?.extendedTextMessage,
-          hasContextInfo: !!message.message?.extendedTextMessage?.contextInfo,
-          hasQuotedMessage: !!message.message?.extendedTextMessage?.contextInfo?.quotedMessage
-        }, null, 2));
-
         // Process message with AI agent - extract quotedMessage using messageCollector approach
         const messageData = {
           content: messageText,
@@ -3548,9 +3514,6 @@ async function processCompleteMessage(
               sentMessage.key.id,
               jid
             );
-            logger.info(
-              `💾 AI agent ${activeAgent.id} message tracked: ${sentMessage.key.id}`
-            );
           }
 
           logger.info(
@@ -3594,9 +3557,6 @@ async function processCompleteMessage(
             messageData.messageId,
             fallbackSentMessage.key.id,
             jid
-          );
-          logger.info(
-            `💾 AI agent ${activeAgent.id} fallback message tracked: ${fallbackSentMessage.key.id}`
           );
         }
       }
