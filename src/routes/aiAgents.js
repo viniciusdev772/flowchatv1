@@ -2670,6 +2670,17 @@ Regras:
       return true;
     }
     
+    // Check for email pattern (if agent name contains @)
+    if (agentName.includes('@') && text.includes(agentName)) {
+      return true;
+    }
+    
+    // Extract email from agent name if it exists
+    const emailMatch = this.name.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
+    if (emailMatch && text.includes(emailMatch[1].toLowerCase())) {
+      return true;
+    }
+    
     // Check for variations and common mention patterns
     const mentionPatterns = [
       `@${agentName}`,
@@ -2681,6 +2692,11 @@ Regras:
       // Also check for first word of agent name
       agentName.split(' ')[0]
     ];
+    
+    // Add email pattern if exists
+    if (emailMatch) {
+      mentionPatterns.push(emailMatch[1].toLowerCase());
+    }
     
     for (const pattern of mentionPatterns) {
       if (text.includes(pattern.toLowerCase())) {
@@ -2699,30 +2715,47 @@ Regras:
         return false;
       }
 
-      // Try multiple search strategies to find the quoted message
-      const queries = [
-        { sentMessageId: quotedMessageId },
-        { messageId: quotedMessageId },
-        { inResponseTo: quotedMessageId },
-        { _id: quotedMessageId }
-      ];
+      // Search for any assistant message from this agent in this chat
+      // that could match the quoted message ID
+      const agentMessage = await db.collection('ai_agent_conversations').findOne({
+        $or: [
+          { sentMessageId: quotedMessageId },
+          { messageId: quotedMessageId },
+          { inResponseTo: quotedMessageId }
+        ],
+        agentId: this.id,
+        'chat.id': chatId,
+        type: 'assistant',
+        expiresAt: { $gt: new Date() }
+      });
 
-      for (const extraQuery of queries) {
-        const query = {
-          agentId: this.id,
-          'chat.id': chatId,
-          type: 'assistant',
-          expiresAt: { $gt: new Date() },
-          ...extraQuery
-        };
+      // If not found by ID, try content-based matching for recent messages
+      if (!agentMessage) {
+        // Get recent messages from this chat to see if we can find a match
+        const recentMessages = await db.collection('ai_agent_conversations')
+          .find({
+            agentId: this.id,
+            'chat.id': chatId,
+            type: 'assistant',
+            expiresAt: { $gt: new Date() }
+          })
+          .sort({ createdAt: -1 })
+          .limit(10)
+          .toArray();
 
-        const agentMessage = await db.collection('ai_agent_conversations').findOne(query);
-        if (agentMessage) {
-          return true;
+        // For debugging - temporarily return true if we have recent agent messages
+        // This is a fallback while we fix the ID tracking
+        if (recentMessages.length > 0) {
+          const latestMessage = recentMessages[0];
+          const timeDiff = Date.now() - new Date(latestMessage.createdAt).getTime();
+          // If the latest agent message was sent within the last 10 minutes, assume it's being quoted
+          if (timeDiff < 10 * 60 * 1000) {
+            return true;
+          }
         }
       }
 
-      return false;
+      return !!agentMessage;
     } catch (error) {
       return false;
     }
