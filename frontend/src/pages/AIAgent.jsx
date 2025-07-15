@@ -57,6 +57,8 @@ export default function AIAgent() {
     learningEnabled: true,
     autoReply: true,
     replyToGroups: true,
+    customSystemPrompt: '',
+    useCustomPersonality: false,
   })
 
   const personalities = [
@@ -83,6 +85,24 @@ export default function AIAgent() {
       name: 'Analítico', 
       desc: 'Lógico e detalhado',
       icon: '📊'
+    },
+    { 
+      id: 'casual', 
+      name: 'Casual', 
+      desc: 'Descontraído e informal',
+      icon: '😎'
+    },
+    { 
+      id: 'empathetic', 
+      name: 'Empático', 
+      desc: 'Compreensivo e sensível',
+      icon: '❤️'
+    },
+    { 
+      id: 'custom', 
+      name: 'Personalizado', 
+      desc: 'Defina sua própria personalidade',
+      icon: '🎭'
     },
   ]
 
@@ -147,6 +167,10 @@ export default function AIAgent() {
         errors.apiKey = 'Chave da API é obrigatória'
       } else if (!formData.apiKey.startsWith('sk-')) {
         errors.apiKey = 'Chave deve começar com "sk-"'
+      }
+      
+      if (formData.personality === 'custom' && !formData.customSystemPrompt.trim()) {
+        errors.customSystemPrompt = 'System prompt personalizado é obrigatório'
       }
     }
     
@@ -267,7 +291,7 @@ export default function AIAgent() {
           name: formData.name,
           description: formData.description,
           model: formData.model,
-          personality: formData.personality,
+          personality: formData.personality === 'custom' ? 'professional' : formData.personality,
           specialization: formData.specialization,
           creativity: formData.creativity,
           learningEnabled: formData.learningEnabled,
@@ -276,6 +300,7 @@ export default function AIAgent() {
           replyToGroups: formData.replyToGroups,
           openaiApiKey: formData.apiKey,
           tools: ['web_search'],
+          customSystemPrompt: formData.personality === 'custom' ? formData.customSystemPrompt : undefined,
         }),
       })
 
@@ -304,6 +329,8 @@ export default function AIAgent() {
         learningEnabled: true,
         autoReply: true,
         replyToGroups: true,
+        customSystemPrompt: '',
+        useCustomPersonality: false,
       })
       setCurrentStep(1)
     } catch (err) {
@@ -322,7 +349,8 @@ export default function AIAgent() {
   const canProceed = () => {
     switch (currentStep) {
       case 1: return formData.sessionId && !validationErrors.sessionId
-      case 2: return formData.name.trim() && formData.apiKey.trim() && !validationErrors.name && !validationErrors.apiKey
+      case 2: return formData.name.trim() && formData.apiKey.trim() && !validationErrors.name && !validationErrors.apiKey && 
+        (formData.personality !== 'custom' || (formData.customSystemPrompt.trim() && !validationErrors.customSystemPrompt))
       case 3: return true
       default: return false
     }
@@ -656,6 +684,55 @@ export default function AIAgent() {
                                 </div>
                               ))}
                             </div>
+                            
+                            {/* Custom System Prompt */}
+                            {formData.personality === 'custom' && (
+                              <div className="space-y-3 p-4 border rounded-lg bg-muted/30">
+                                <Label htmlFor="customSystemPrompt" className="text-sm md:text-base font-medium flex items-center gap-2">
+                                  <Sparkles className="h-4 w-4" />
+                                  System Prompt Personalizado
+                                </Label>
+                                <Textarea
+                                  id="customSystemPrompt"
+                                  placeholder="Defina como seu agente deve se comportar...
+
+Exemplo:
+Você é {agentName}, um assistente especializado em marketing digital. 
+Sempre se dirija ao usuário como {userName}.
+Mantenha um tom {communicationStyle} e seja {responseMode}.
+
+Variáveis disponíveis:
+- {agentName}: Nome do agente
+- {userName}: Nome do usuário  
+- {context}: Contexto da conversa
+- {communicationStyle}: Estilo de comunicação
+- {responseMode}: Modo de resposta"
+                                  value={formData.customSystemPrompt}
+                                  onChange={(e) => {
+                                    setFormData(prev => ({ ...prev, customSystemPrompt: e.target.value }))
+                                    setValidationErrors(prev => ({ ...prev, customSystemPrompt: undefined }))
+                                  }}
+                                  rows={8}
+                                  className={`resize-none text-sm md:text-base ${validationErrors.customSystemPrompt ? 'border-destructive' : ''}`}
+                                />
+                                {validationErrors.customSystemPrompt && (
+                                  <p className="text-xs md:text-sm text-destructive flex items-center gap-1">
+                                    <AlertCircle className="h-3 w-3 md:h-4 md:w-4" />
+                                    {validationErrors.customSystemPrompt}
+                                  </p>
+                                )}
+                                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                                  <p className="text-xs text-blue-800 font-medium mb-2">💡 Dicas para um bom System Prompt:</p>
+                                  <ul className="text-xs text-blue-700 space-y-1">
+                                    <li>• Defina claramente o papel e especialização do agente</li>
+                                    <li>• Use as variáveis disponíveis para personalização</li>
+                                    <li>• Especifique o tom e estilo de comunicação desejado</li>
+                                    <li>• Inclua instruções específicas sobre como responder</li>
+                                    <li>• Seja específico mas não muito restritivo</li>
+                                  </ul>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </CardContent>
                       </Card>

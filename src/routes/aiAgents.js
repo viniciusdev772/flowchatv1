@@ -40,6 +40,13 @@ const createAgentSchema = z.object({
     .array(z.string())
     .default(['web_search', 'web_scrape', 'html_analysis']),
   replyToGroups: z.boolean().default(true), // Nova opção para responder grupos
+  customSystemPrompt: z.string().optional(), // System prompt personalizado
+  userBehaviors: z.record(z.object({
+    preferredName: z.string().optional(),
+    communicationStyle: z.string().optional(),
+    specialInstructions: z.string().optional(),
+    responseMode: z.enum(['normal', 'brief', 'detailed', 'casual', 'formal']).optional(),
+  })).optional(), // Comportamentos específicos por usuário
 });
 
 // Web Search Tool - now implemented directly in OpenAI SDK calls
@@ -989,6 +996,8 @@ class AIAgent {
     this.createdAt = config.createdAt || new Date().toISOString();
     this.updatedAt = new Date().toISOString();
     this.messageCount = config.messageCount || 0;
+    this.customSystemPrompt = config.customSystemPrompt || null;
+    this.userBehaviors = config.userBehaviors || {};
     // conversationHistory removed - now using MongoDB only for persistent history
   }
 
@@ -1063,9 +1072,22 @@ class AIAgent {
         return { shouldReply: false };
       } else if (finalIsGroup) {
         // For groups, check if agent was mentioned or if replying to agent's message
+        console.log(`🔍 Checking group message conditions for agent ${this.id}:`);
+        console.log(`📝 Message text: "${messageText}"`);
+        console.log(`💬 Has quoted message: ${!!messageData.quotedMessage}`);
+        
+        if (messageData.quotedMessage) {
+          console.log(`📋 Quoted message ID: ${messageData.quotedMessage.id}`);
+          console.log(`👤 Quoted message participant: ${messageData.quotedMessage.participant}`);
+          console.log(`💭 Quoted message text: "${messageData.quotedMessage.text}"`);
+        }
+        
         const isReplyingToAgent = messageData.quotedMessage ? 
           await this.isQuotedMessageFromAgent(messageData.quotedMessage.id, chatInfo.id) : false;
         const isAgentMentioned = this.isAgentMentioned(messageText);
+        
+        console.log(`🤖 Is replying to agent: ${isReplyingToAgent}`);
+        console.log(`📢 Is agent mentioned: ${isAgentMentioned}`);
         
         if (!isReplyingToAgent && !isAgentMentioned) {
           console.log(
@@ -1275,12 +1297,65 @@ class AIAgent {
         ? `\nContexto: Você está em um grupo "${chatName}". A mensagem foi enviada por ${senderName}.${multiPartInfo}`
         : `\nContexto: Você está em uma conversa privada com ${senderName}.${multiPartInfo}`;
 
-      const systemPrompt = `${personalityPrompts[this.personality]} ${
-        specializationPrompts[this.specialization]
-      }
+      // Get user-specific behavior if configured
+      const userBehavior = this.userBehaviors[conversationEntry.sender.id] || {};
+      
+      let systemPrompt;
+      
+      if (this.customSystemPrompt) {
+        // Use custom system prompt if available
+        systemPrompt = this.customSystemPrompt;
+        
+        // Replace placeholders in custom prompt
+        systemPrompt = systemPrompt
+          .replace('{agentName}', this.name)
+          .replace('{userName}', userBehavior.preferredName || senderName)
+          .replace('{context}', contextInfo)
+          .replace('{communicationStyle}', userBehavior.communicationStyle || 'natural')
+          .replace('{responseMode}', userBehavior.responseMode || 'normal');
+          
+        // Add user-specific instructions if available
+        if (userBehavior.specialInstructions) {
+          systemPrompt += `\n\nINSTRUÇÕES ESPECIAIS PARA ${userBehavior.preferredName || senderName}: ${userBehavior.specialInstructions}`;
+        }
+      } else {
+        // Use default personality-based prompt
+        systemPrompt = `${personalityPrompts[this.personality]} ${
+          specializationPrompts[this.specialization]
+        }
 
 Nome: ${this.name}
-${contextInfo}
+${contextInfo}`;
+        
+        // Add user behavior context if available
+        if (Object.keys(userBehavior).length > 0) {
+          const behaviorContext = [];
+          if (userBehavior.preferredName) {
+            behaviorContext.push(`Chame este usuário de: ${userBehavior.preferredName}`);
+          }
+          if (userBehavior.communicationStyle) {
+            behaviorContext.push(`Estilo de comunicação preferido: ${userBehavior.communicationStyle}`);
+          }
+          if (userBehavior.responseMode) {
+            const responseModes = {
+              brief: 'Seja conciso e direto',
+              detailed: 'Forneça respostas detalhadas e completas', 
+              casual: 'Use linguagem informal e descontraída',
+              formal: 'Mantenha um tom profissional e formal'
+            };
+            behaviorContext.push(responseModes[userBehavior.responseMode] || 'Responda normalmente');
+          }
+          if (userBehavior.specialInstructions) {
+            behaviorContext.push(`Instruções especiais: ${userBehavior.specialInstructions}`);
+          }
+          
+          if (behaviorContext.length > 0) {
+            systemPrompt += `\n\n🎯 CONFIGURAÇÕES ESPECÍFICAS PARA ESTE USUÁRIO:\n${behaviorContext.join('\n')}`;
+          }
+        }
+      }
+      
+      systemPrompt += `
 
 FERRAMENTAS DISPONÍVEIS - Use automaticamente quando necessário:
 
@@ -2658,23 +2733,57 @@ Regras:
     try {
       const db = database.getDb();
       if (!db || !quotedMessageId) {
+        console.log(`❌ DB unavailable or no quotedMessageId: db=${!!db}, quotedMessageId=${quotedMessageId}`);
         return false;
       }
 
+      console.log(`🔍 Searching for quoted message from agent ${this.id}:`);
+      console.log(`📋 Quoted message ID: ${quotedMessageId}`);
+      console.log(`💬 Chat ID: ${chatId}`);
+
       // Look for the quoted message in the agent's conversation history
       // Check by sentMessageId (the actual WhatsApp message ID)
-      const agentMessage = await db.collection('ai_agent_conversations').findOne({
+      const query = {
         agentId: this.id,
         'chat.id': chatId,
         type: 'assistant',
         sentMessageId: quotedMessageId,
         expiresAt: { $gt: new Date() } // Make sure it's not expired
-      });
+      };
+      
+      console.log(`🔎 Database query:`, JSON.stringify(query, null, 2));
+      
+      const agentMessage = await db.collection('ai_agent_conversations').findOne(query);
+      console.log(`📄 Database result:`, agentMessage ? 'FOUND' : 'NOT_FOUND');
+
+      // If not found by sentMessageId, also try to find by inResponseTo (in case update failed)
+      if (!agentMessage) {
+        console.log(`🔄 Trying alternative search by inResponseTo...`);
+        const alternativeQuery = {
+          agentId: this.id,
+          'chat.id': chatId,
+          type: 'assistant',
+          expiresAt: { $gt: new Date() }
+        };
+        
+        const allAgentMessages = await db.collection('ai_agent_conversations')
+          .find(alternativeQuery)
+          .sort({ createdAt: -1 })
+          .limit(10)
+          .toArray();
+          
+        console.log(`📊 Found ${allAgentMessages.length} recent agent messages in this chat`);
+        allAgentMessages.forEach((msg, index) => {
+          console.log(`📝 Message ${index + 1}: sentMessageId=${msg.sentMessageId}, inResponseTo=${msg.inResponseTo}, content="${msg.content?.substring(0, 50)}..."`);
+        });
+      }
 
       const isFromAgent = !!agentMessage;
       
       if (isFromAgent) {
         console.log(`✅ Agent ${this.id} confirmed: quoted message ${quotedMessageId} was sent by this agent`);
+      } else {
+        console.log(`❌ Agent ${this.id} confirmed: quoted message ${quotedMessageId} was NOT sent by this agent`);
       }
 
       return isFromAgent;
@@ -2693,15 +2802,38 @@ Regras:
         return;
       }
 
+      console.log(`💾 Updating conversation entry with message ID:`);
+      console.log(`📋 inResponseTo: ${inResponseTo}`);
+      console.log(`📝 sentMessageId: ${sentMessageId}`);
+      console.log(`💬 chatId: ${chatId}`);
+      console.log(`🤖 agentId: ${this.id}`);
+
+      // First, let's see what entries exist for this conversation
+      const existingEntries = await db.collection('ai_agent_conversations').find({
+        agentId: this.id,
+        'chat.id': chatId,
+        type: 'assistant',
+        inResponseTo: inResponseTo
+      }).sort({ createdAt: -1 }).limit(3).toArray();
+
+      console.log(`📊 Found ${existingEntries.length} assistant entries for inResponseTo ${inResponseTo}`);
+      existingEntries.forEach((entry, index) => {
+        console.log(`📄 Entry ${index + 1}: _id=${entry._id}, sentMessageId=${entry.sentMessageId}, content="${entry.content?.substring(0, 50)}..."`);
+      });
+
       // Find the most recent assistant message for this agent and chat that was in response to the given message
+      const updateQuery = {
+        agentId: this.id,
+        'chat.id': chatId,
+        type: 'assistant',
+        inResponseTo: inResponseTo,
+        sentMessageId: { $exists: false } // Only update if not already set
+      };
+
+      console.log(`🔎 Update query:`, JSON.stringify(updateQuery, null, 2));
+
       const updateResult = await db.collection('ai_agent_conversations').updateOne(
-        {
-          agentId: this.id,
-          'chat.id': chatId,
-          type: 'assistant',
-          inResponseTo: inResponseTo,
-          sentMessageId: { $exists: false } // Only update if not already set
-        },
+        updateQuery,
         {
           $set: {
             sentMessageId: sentMessageId,
@@ -2711,10 +2843,25 @@ Regras:
         { sort: { createdAt: -1 } } // Get the most recent one
       );
 
+      console.log(`📝 Update result: matched=${updateResult.matchedCount}, modified=${updateResult.modifiedCount}`);
+
       if (updateResult.modifiedCount > 0) {
         console.log(`✅ Updated conversation entry with sent message ID: ${sentMessageId}`);
       } else {
         console.log(`⚠️ No conversation entry found to update with message ID: ${sentMessageId}`);
+        
+        // Try to find any recent assistant message and show what we have
+        const recentAssistantMessage = await db.collection('ai_agent_conversations').findOne({
+          agentId: this.id,
+          'chat.id': chatId,
+          type: 'assistant'
+        }, { sort: { createdAt: -1 } });
+        
+        if (recentAssistantMessage) {
+          console.log(`🔍 Most recent assistant message: inResponseTo=${recentAssistantMessage.inResponseTo}, sentMessageId=${recentAssistantMessage.sentMessageId}`);
+        } else {
+          console.log(`❌ No assistant messages found for this agent in this chat`);
+        }
       }
     } catch (error) {
       console.error('Error updating conversation entry with message ID:', error);
@@ -3082,6 +3229,44 @@ Regras:
     }
   }
 
+  // Update user behavior for this agent
+  async updateUserBehavior(userId, behavior) {
+    try {
+      if (!userId || !behavior) return;
+      
+      this.userBehaviors[userId] = {
+        ...this.userBehaviors[userId],
+        ...behavior,
+        updatedAt: new Date().toISOString()
+      };
+      
+      // Save to database
+      await this.save();
+      
+      console.log(`👤 Updated user behavior for ${userId}:`, behavior);
+    } catch (error) {
+      console.error('Error updating user behavior:', error);
+    }
+  }
+
+  // Get user behavior for this agent
+  getUserBehavior(userId) {
+    return this.userBehaviors[userId] || {};
+  }
+
+  // Remove user behavior
+  async removeUserBehavior(userId) {
+    try {
+      if (this.userBehaviors[userId]) {
+        delete this.userBehaviors[userId];
+        await this.save();
+        console.log(`🗑️ Removed user behavior for ${userId}`);
+      }
+    } catch (error) {
+      console.error('Error removing user behavior:', error);
+    }
+  }
+
   // Detect and save user preferences from conversations
   async detectAndSaveUserPreferences(messageText, chatId, userId, senderName) {
     if (!messageText || typeof messageText !== 'string' || !userId || !chatId) {
@@ -3139,6 +3324,49 @@ Regras:
     // Save updates if any were detected
     if (Object.keys(updates).length > 0) {
       await this.saveUserPreferences(chatId, userId, updates);
+    }
+    
+    // Also detect behavior changes for this agent
+    const behaviorUpdates = {};
+    
+    // Detect communication style preferences
+    if (text.includes('seja mais formal') || text.includes('fale formal')) {
+      behaviorUpdates.communicationStyle = 'formal';
+      behaviorUpdates.responseMode = 'formal';
+    } else if (text.includes('seja mais casual') || text.includes('fale casual') || text.includes('seja mais descontraído')) {
+      behaviorUpdates.communicationStyle = 'casual';
+      behaviorUpdates.responseMode = 'casual';
+    } else if (text.includes('seja mais detalhado') || text.includes('explique melhor') || text.includes('mais completo')) {
+      behaviorUpdates.responseMode = 'detailed';
+    } else if (text.includes('seja mais breve') || text.includes('mais curto') || text.includes('respostas curtas')) {
+      behaviorUpdates.responseMode = 'brief';
+    }
+    
+    // Detect special instructions
+    const instructionPatterns = [
+      /sempre (.+?) quando eu falar/i,
+      /nunca (.+?) comigo/i,
+      /lembre-se (?:de|que) (.+?)(?:\.|,|$)/i,
+      /importante: (.+?)(?:\.|,|$)/i
+    ];
+    
+    for (const pattern of instructionPatterns) {
+      const match = messageText.match(pattern);
+      if (match && match[1]) {
+        const instruction = match[1].trim();
+        if (instruction) {
+          const currentInstructions = this.getUserBehavior(userId).specialInstructions || '';
+          behaviorUpdates.specialInstructions = currentInstructions ? 
+            `${currentInstructions}; ${instruction}` : instruction;
+          console.log(`📝 Detected special instruction: ${instruction}`);
+          break;
+        }
+      }
+    }
+    
+    // Save behavior updates if any
+    if (Object.keys(behaviorUpdates).length > 0) {
+      await this.updateUserBehavior(userId, behaviorUpdates);
     }
   }
 
