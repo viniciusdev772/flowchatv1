@@ -1077,6 +1077,7 @@ class AIAgent {
         console.log(`💬 Has quoted message: ${!!messageData.quotedMessage}`);
         
         if (messageData.quotedMessage) {
+          console.log(`📋 Full quotedMessage structure:`, JSON.stringify(messageData.quotedMessage, null, 2));
           console.log(`📋 Quoted message ID: ${messageData.quotedMessage.messageId || messageData.quotedMessage.id}`);
           console.log(`👤 Quoted message participant: ${messageData.quotedMessage.participant}`);
           console.log(`💭 Quoted message text: "${messageData.quotedMessage.text || messageData.quotedMessage.content}"`);
@@ -2755,6 +2756,10 @@ Regras:
       
       const agentMessage = await db.collection('ai_agent_conversations').findOne(query);
       console.log(`📄 Database result:`, agentMessage ? 'FOUND' : 'NOT_FOUND');
+      
+      if (agentMessage) {
+        console.log(`✅ Found agent message: sentMessageId=${agentMessage.sentMessageId}, content="${agentMessage.content?.substring(0, 100)}..."`);
+      }
 
       // If not found by sentMessageId, also try to find by inResponseTo (in case update failed)
       if (!agentMessage) {
@@ -2776,6 +2781,25 @@ Regras:
         allAgentMessages.forEach((msg, index) => {
           console.log(`📝 Message ${index + 1}: sentMessageId=${msg.sentMessageId}, inResponseTo=${msg.inResponseTo}, content="${msg.content?.substring(0, 50)}..."`);
         });
+        
+        // Also check if the quotedMessageId exists anywhere in sentMessageId or inResponseTo
+        console.log(`🔍 Looking for quotedMessageId ${quotedMessageId} in any field...`);
+        const anyMatch = allAgentMessages.find(msg => 
+          msg.sentMessageId === quotedMessageId || 
+          msg.inResponseTo === quotedMessageId ||
+          msg._id === quotedMessageId
+        );
+        
+        if (anyMatch) {
+          console.log(`🎯 MATCH FOUND in different field:`, {
+            sentMessageId: anyMatch.sentMessageId,
+            inResponseTo: anyMatch.inResponseTo,
+            _id: anyMatch._id,
+            content: anyMatch.content?.substring(0, 50)
+          });
+        } else {
+          console.log(`❌ No match found for ${quotedMessageId} in any field`);
+        }
       }
 
       const isFromAgent = !!agentMessage;
