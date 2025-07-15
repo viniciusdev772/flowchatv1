@@ -3379,6 +3379,14 @@ async function processCompleteMessage(
         logger.info(
           `Processing message with AI agent ${activeAgent.id} for session ${sessionId}`
         );
+        
+        // Debug: Log message structure to see what's available
+        console.log(`📱 Estrutura da mensagem:`, JSON.stringify({
+          conversation: message.message?.conversation,
+          extendedTextMessage: !!message.message?.extendedTextMessage,
+          hasContextInfo: !!message.message?.extendedTextMessage?.contextInfo,
+          hasQuotedMessage: !!message.message?.extendedTextMessage?.contextInfo?.quotedMessage
+        }, null, 2));
 
         // Process message with AI agent - extract quotedMessage using messageCollector approach
         const messageData = {
