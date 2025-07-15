@@ -21,6 +21,15 @@ jobs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v3
       
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+        cache-dependency-path: |
+          package-lock.json
+          frontend/package-lock.json
+      
     - name: Log in to Docker Hub
       if: github.event_name != 'pull_request'
       uses: docker/login-action@v3
@@ -44,16 +53,22 @@ jobs:
           org.opencontainers.image.description=FlowChat API - Fluxo inteligente de mensagens WhatsApp com multi-sessões e automação segura
           org.opencontainers.image.vendor=FlowChat
     
-    - name: Set up Node.js cache
+    - name: Cache Docker layers
       uses: actions/cache@v4
       with:
-        path: |
-          ~/.npm
-          node_modules
-          frontend/node_modules
-        key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+        path: /tmp/.buildx-cache
+        key: ${{ runner.os }}-buildx-${{ github.sha }}
         restore-keys: |
-          ${{ runner.os }}-node-
+          ${{ runner.os }}-buildx-
+    
+    - name: Clean up old caches
+      run: |
+        # Remove old GitHub Actions cache entries (keep only last 10)
+        gh api repos/${{ github.repository }}/actions/caches \
+          --jq '.actions_caches[10:] | .[].id' \
+          | xargs -I {} gh api --method DELETE repos/${{ github.repository }}/actions/caches/{} || true
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     
     - name: Build and push Docker image
       uses: docker/build-push-action@v5
@@ -64,7 +79,16 @@ jobs:
         push: ${{ github.event_name != 'pull_request' }}
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+        cache-from: |
+          type=gha
+          type=local,src=/tmp/.buildx-cache
+        cache-to: |
+          type=gha,mode=max
+          type=local,dest=/tmp/.buildx-cache-new,mode=max
         build-args: |
           BUILDKIT_INLINE_CACHE=1
+    
+    - name: Move cache
+      run: |
+        rm -rf /tmp/.buildx-cache
+        mv /tmp/.buildx-cache-new /tmp/.buildx-cache
