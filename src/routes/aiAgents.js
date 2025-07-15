@@ -1077,14 +1077,13 @@ class AIAgent {
         console.log(`💬 Has quoted message: ${!!messageData.quotedMessage}`);
         
         if (messageData.quotedMessage) {
-          console.log(`📋 Full quotedMessage structure:`, JSON.stringify(messageData.quotedMessage, null, 2));
-          console.log(`📋 Quoted message ID: ${messageData.quotedMessage.messageId || messageData.quotedMessage.id}`);
+          console.log(`📋 Quoted message ID: ${messageData.quotedMessage.id}`);
           console.log(`👤 Quoted message participant: ${messageData.quotedMessage.participant}`);
           console.log(`💭 Quoted message text: "${messageData.quotedMessage.text || messageData.quotedMessage.content}"`);
         }
         
         const isReplyingToAgent = messageData.quotedMessage ? 
-          await this.isQuotedMessageFromAgent(messageData.quotedMessage.messageId || messageData.quotedMessage.id, chatInfo.id) : false;
+          await this.isQuotedMessageFromAgent(messageData.quotedMessage.id, chatInfo.id) : false;
         const isAgentMentioned = this.isAgentMentioned(messageText);
         
         console.log(`🤖 Is replying to agent: ${isReplyingToAgent}`);
@@ -1496,7 +1495,7 @@ Regras:
         
         // Check if the quoted message is from this agent by looking at conversation history
         const isReplyingToAgent = await this.isQuotedMessageFromAgent(
-          messageData.quotedMessage.messageId || messageData.quotedMessage.id, 
+          messageData.quotedMessage.id, 
           conversationEntry.chat.id
         );
         

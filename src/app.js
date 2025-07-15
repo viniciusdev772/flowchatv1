@@ -2407,10 +2407,12 @@ async function extractMessageData(message, sock = null) {
     }
 
     return {
-      messageId: contextInfo.stanzaId,
+      id: contextInfo.stanzaId,          // Consistent field name
+      messageId: contextInfo.stanzaId,   // Keep for backward compatibility
       participant: contextInfo.participant,
       remoteJid: contextInfo.remoteJid,
       content: quotedContent,
+      text: quotedContent,               // Alias for content
       messageType: quotedType,
       mediaData: quotedMediaData,
       fromMe: contextInfo.participant === message.key.remoteJid,
