@@ -3402,19 +3402,31 @@ async function processCompleteMessage(
           quotedMessage: null
         };
 
-        // Extract quotedMessage using messageCollector logic
+        // Extract quotedMessage from any message type that has contextInfo
+        let contextInfo = null;
         if (message.message.extendedTextMessage?.contextInfo) {
-          const contextInfo = message.message.extendedTextMessage.contextInfo;
-          if (contextInfo.quotedMessage) {
-            const quoted = contextInfo.quotedMessage;
-            messageData.quotedMessage = {
-              id: contextInfo.stanzaId,
-              participant: contextInfo.participant,
-              text: quoted.conversation || quoted.extendedTextMessage?.text || '[Mensagem não textual]',
-              mediaType: null,
-              caption: null
-            };
-          }
+          contextInfo = message.message.extendedTextMessage.contextInfo;
+        } else if (message.message.imageMessage?.contextInfo) {
+          contextInfo = message.message.imageMessage.contextInfo;
+        } else if (message.message.videoMessage?.contextInfo) {
+          contextInfo = message.message.videoMessage.contextInfo;
+        } else if (message.message.audioMessage?.contextInfo) {
+          contextInfo = message.message.audioMessage.contextInfo;
+        } else if (message.message.documentMessage?.contextInfo) {
+          contextInfo = message.message.documentMessage.contextInfo;
+        } else if (message.message.stickerMessage?.contextInfo) {
+          contextInfo = message.message.stickerMessage.contextInfo;
+        }
+
+        if (contextInfo?.quotedMessage) {
+          const quoted = contextInfo.quotedMessage;
+          messageData.quotedMessage = {
+            id: contextInfo.stanzaId,
+            participant: contextInfo.participant,
+            text: quoted.conversation || quoted.extendedTextMessage?.text || '[Mensagem não textual]',
+            mediaType: null,
+            caption: null
+          };
         }
         messageData.isMultiPart = allMessageParts.length > 1;
         messageData.partCount = allMessageParts.length;
