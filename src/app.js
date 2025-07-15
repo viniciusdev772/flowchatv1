@@ -3365,10 +3365,55 @@ async function processCompleteMessage(
         return; // Exit early, don't process group messages when disabled
       }
 
-      // Debug log for group message processing
+      // For group messages, check if agent was mentioned or if replying to agent's message
       if (isGroupMessage) {
+        // Extract quotedMessage first to check if user is replying to agent
+        let contextInfo = null;
+        if (message.message.extendedTextMessage?.contextInfo) {
+          contextInfo = message.message.extendedTextMessage.contextInfo;
+        } else if (message.message.imageMessage?.contextInfo) {
+          contextInfo = message.message.imageMessage.contextInfo;
+        } else if (message.message.videoMessage?.contextInfo) {
+          contextInfo = message.message.videoMessage.contextInfo;
+        } else if (message.message.audioMessage?.contextInfo) {
+          contextInfo = message.message.audioMessage.contextInfo;
+        } else if (message.message.documentMessage?.contextInfo) {
+          contextInfo = message.message.documentMessage.contextInfo;
+        } else if (message.message.stickerMessage?.contextInfo) {
+          contextInfo = message.message.stickerMessage.contextInfo;
+        }
+
+        // Check if user is replying to agent's message
+        let isReplyingToAgent = false;
+        if (contextInfo?.quotedMessage && contextInfo.stanzaId) {
+          isReplyingToAgent = await activeAgent.isQuotedMessageFromAgent(contextInfo.stanzaId, jid);
+        }
+
+        // Check if agent was mentioned in the message
+        const isAgentMentioned = activeAgent.isAgentMentioned(messageText);
+
         logger.info(
-          `✅ Agent ${activeAgent.id} PROCESSING group message from ${jid} (replyToGroups: ${activeAgent.replyToGroups})`
+          `🔍 Verificando condições do grupo para agente ${activeAgent.id}:`
+        );
+        logger.info(`📝 Texto da mensagem: "${messageText}"`);
+        logger.info(`💬 Tem mensagem citada: ${!!contextInfo?.quotedMessage}`);
+        if (contextInfo?.quotedMessage) {
+          logger.info(`📋 ID da mensagem citada: ${contextInfo.stanzaId}`);
+          logger.info(`👤 Participante da mensagem citada: ${contextInfo.participant}`);
+        }
+        logger.info(`🤖 Respondendo ao agente: ${isReplyingToAgent}`);
+        logger.info(`📢 Agente mencionado: ${isAgentMentioned}`);
+
+        // Skip if agent wasn't mentioned and user isn't replying to agent
+        if (!isReplyingToAgent && !isAgentMentioned) {
+          logger.info(
+            `🔇 Agente ${activeAgent.id} IGNORANDO mensagem do grupo ${jid} - não mencionado e não respondendo ao agente`
+          );
+          return; // Exit early, don't process group messages when not mentioned
+        }
+
+        logger.info(
+          `✅ Agent ${activeAgent.id} PROCESSING group message from ${jid} - mencionado: ${isAgentMentioned}, respondendo ao agente: ${isReplyingToAgent}`
         );
       } else {
         logger.info(
@@ -3483,7 +3528,7 @@ async function processCompleteMessage(
             );
           }
 
-          await sock.sendMessage(
+          const sentMessage = await sock.sendMessage(
             jid,
             {
               text: aiResult.response,
@@ -3495,6 +3540,18 @@ async function processCompleteMessage(
 
           // Update presence to available
           await sock.sendPresenceUpdate('available');
+
+          // Track the sent message ID for future quoted message detection
+          if (sentMessage && sentMessage.key && sentMessage.key.id) {
+            await activeAgent.updateConversationEntryWithMessageId(
+              messageData.messageId,
+              sentMessage.key.id,
+              jid
+            );
+            logger.info(
+              `💾 AI agent ${activeAgent.id} message tracked: ${sentMessage.key.id}`
+            );
+          }
 
           logger.info(
             `AI agent ${
@@ -3525,11 +3582,23 @@ async function processCompleteMessage(
           await sock.readMessages(messageKeys);
         }
 
-        await sock.sendMessage(
+        const fallbackSentMessage = await sock.sendMessage(
           jid,
           { text: fallbackResponse },
           { quoted: quotedMessage }
         );
+
+        // Track the fallback message ID too
+        if (fallbackSentMessage && fallbackSentMessage.key && fallbackSentMessage.key.id) {
+          await activeAgent.updateConversationEntryWithMessageId(
+            messageData.messageId,
+            fallbackSentMessage.key.id,
+            jid
+          );
+          logger.info(
+            `💾 AI agent ${activeAgent.id} fallback message tracked: ${fallbackSentMessage.key.id}`
+          );
+        }
       }
     } else {
       // Original simple auto-reply logic (only if no AI agent is active)

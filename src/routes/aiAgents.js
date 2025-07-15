@@ -1061,45 +1061,8 @@ class AIAgent {
       // Use verificação mais rigorosa
       const finalIsGroup = isGroup || isRealGroup;
 
-      // Skip if agent doesn't want to reply to groups and this is a group message
-      if (finalIsGroup && !this.replyToGroups) {
-        console.log(
-          `🚫 Agent ${this.id} SKIPPING group message from ${chatJid} (replyToGroups: false)`
-        );
-        console.log(
-          `Group verification in processMessage: messageData.isGroup=${isGroup}, baileys.isJidGroup=${isRealGroup}, final=${finalIsGroup}`
-        );
-        return { shouldReply: false };
-      } else if (finalIsGroup) {
-        // For groups, check if agent was mentioned or if replying to agent's message
-        console.log(`🔍 Verificando condições do grupo para agente ${this.id}:`);
-        console.log(`📝 Texto da mensagem: "${messageText}"`);
-        console.log(`💬 Tem mensagem citada: ${!!messageData.quotedMessage}`);
-        
-        if (messageData.quotedMessage) {
-          console.log(`📋 ID da mensagem citada: ${messageData.quotedMessage.id}`);
-          console.log(`👤 Participante da mensagem citada: ${messageData.quotedMessage.participant}`);
-          console.log(`💭 Texto da mensagem citada: "${messageData.quotedMessage.text || messageData.quotedMessage.content}"`);
-        }
-        
-        const isReplyingToAgent = messageData.quotedMessage ? 
-          await this.isQuotedMessageFromAgent(messageData.quotedMessage.id, chatInfo.id) : false;
-        const isAgentMentioned = this.isAgentMentioned(messageText);
-        
-        console.log(`🤖 Respondendo ao agente: ${isReplyingToAgent}`);
-        console.log(`📢 Agente mencionado: ${isAgentMentioned}`);
-        
-        if (!isReplyingToAgent && !isAgentMentioned) {
-          console.log(
-            `🔇 Agente ${this.id} IGNORANDO mensagem do grupo ${chatJid} - não mencionado e não respondendo ao agente`
-          );
-          return { shouldReply: false };
-        }
-        
-        console.log(
-          `✅ Agente ${this.id} PROCESSANDO mensagem do grupo ${chatJid} - mencionado: ${isAgentMentioned}, respondendo ao agente: ${isReplyingToAgent}`
-        );
-      }
+      // Note: Group mention checking is now handled in app.js before calling processMessage
+      // This method only gets called when the agent should reply (either private message or mentioned in group)
 
       // Marcar mensagem(ns) como lida se cliente WhatsApp estiver disponível
       if (whatsappClient && this.autoReply) {
