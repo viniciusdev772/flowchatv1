@@ -1077,13 +1077,13 @@ class AIAgent {
         console.log(`💬 Has quoted message: ${!!messageData.quotedMessage}`);
         
         if (messageData.quotedMessage) {
-          console.log(`📋 Quoted message ID: ${messageData.quotedMessage.id}`);
+          console.log(`📋 Quoted message ID: ${messageData.quotedMessage.messageId || messageData.quotedMessage.id}`);
           console.log(`👤 Quoted message participant: ${messageData.quotedMessage.participant}`);
-          console.log(`💭 Quoted message text: "${messageData.quotedMessage.text}"`);
+          console.log(`💭 Quoted message text: "${messageData.quotedMessage.text || messageData.quotedMessage.content}"`);
         }
         
         const isReplyingToAgent = messageData.quotedMessage ? 
-          await this.isQuotedMessageFromAgent(messageData.quotedMessage.id, chatInfo.id) : false;
+          await this.isQuotedMessageFromAgent(messageData.quotedMessage.messageId || messageData.quotedMessage.id, chatInfo.id) : false;
         const isAgentMentioned = this.isAgentMentioned(messageText);
         
         console.log(`🤖 Is replying to agent: ${isReplyingToAgent}`);
@@ -1488,14 +1488,14 @@ Regras:
       
       // Add quoted message context if available - check if user is replying to agent's message
       if (messageData.quotedMessage) {
-        const quotedText = messageData.quotedMessage.text || '[Mensagem não textual]';
+        const quotedText = messageData.quotedMessage.text || messageData.quotedMessage.content || '[Mensagem não textual]';
         const quotedSender = messageData.quotedMessage.participant 
           ? messageData.quotedMessage.participant.split('@')[0] 
           : 'Usuário';
         
         // Check if the quoted message is from this agent by looking at conversation history
         const isReplyingToAgent = await this.isQuotedMessageFromAgent(
-          messageData.quotedMessage.id, 
+          messageData.quotedMessage.messageId || messageData.quotedMessage.id, 
           conversationEntry.chat.id
         );
         

@@ -3378,30 +3378,16 @@ async function processCompleteMessage(
           `Processing message with AI agent ${activeAgent.id} for session ${sessionId}`
         );
 
-        // Process message with AI agent
-        const messageData = {
-          content: messageText,
-          text: messageText,
-          body: messageText,
-          messageId: message.key.id,
-          timestamp: new Date().toISOString(),
-          messageType: 'text',
-          sender: {
-            id: message.key.participant || message.key.remoteJid,
-            pushName: message.pushName || 'Usuário',
-            isMe: message.key.fromMe,
-          },
-          chat: {
-            id: jid,
-            isGroup: isGroupMessage,
-            type: isGroupMessage ? 'group' : 'private',
-            name: isGroupMessage ? 'Grupo' : 'Contato',
-          },
-          // Adicionar informações sobre mensagens múltiplas
-          isMultiPart: allMessageParts.length > 1,
-          partCount: allMessageParts.length,
-          allMessageKeys: allMessageParts.map((part) => part.messageKey),
-        };
+        // Process message with AI agent - use full extractMessageData for complete data including quotedMessage
+        const messageData = await extractMessageData(message, sock);
+        
+        // Ensure backward compatibility by adding multi-part info and simplified text fields
+        messageData.content = messageData.content || messageText;
+        messageData.text = messageData.content;
+        messageData.body = messageData.content;
+        messageData.isMultiPart = allMessageParts.length > 1;
+        messageData.partCount = allMessageParts.length;
+        messageData.allMessageKeys = allMessageParts.map((part) => part.messageKey);
 
         const aiResult = await activeAgent.processMessage(messageData, sock);
 
