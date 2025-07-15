@@ -3386,7 +3386,9 @@ async function processCompleteMessage(
         // Check if user is replying to agent's message
         let isReplyingToAgent = false;
         if (contextInfo?.quotedMessage && contextInfo.stanzaId) {
+          console.log(`🔍 Group message has quoted message - checking if replying to agent. Quoted ID: ${contextInfo.stanzaId}, Chat: ${jid}`);
           isReplyingToAgent = await activeAgent.isQuotedMessageFromAgent(contextInfo.stanzaId, jid);
+          console.log(`📊 isReplyingToAgent result: ${isReplyingToAgent}`);
         }
 
         // Check if agent was mentioned in the message
@@ -3438,14 +3440,7 @@ async function processCompleteMessage(
         }
 
         if (contextInfo?.quotedMessage) {
-          const quoted = contextInfo.quotedMessage;
-          messageData.quotedMessage = {
-            id: contextInfo.stanzaId,
-            participant: contextInfo.participant,
-            text: quoted.conversation || quoted.extendedTextMessage?.text || '[Mensagem não textual]',
-            mediaType: null,
-            caption: null
-          };
+          messageData.quotedMessage = extractQuotedMessage(contextInfo);
         }
         messageData.isMultiPart = allMessageParts.length > 1;
         messageData.partCount = allMessageParts.length;

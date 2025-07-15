@@ -2729,9 +2729,14 @@ Regras:
         expiresAt: { $gt: new Date() }
       });
 
-      // If not found by ID, try content-based matching for recent messages
-      if (!agentMessage) {
-        // Get recent messages from this chat to see if we can find a match
+      // Enhanced debugging - log what we found
+      if (agentMessage) {
+        console.log(`✅ Agent ${this.id} found exact match for quoted message ID: ${quotedMessageId}`);
+        return true;
+      } else {
+        console.log(`❌ Agent ${this.id} could NOT find match for quoted message ID: ${quotedMessageId} in chat: ${chatId}`);
+        
+        // Debug: Show recent agent messages for context
         const recentMessages = await db.collection('ai_agent_conversations')
           .find({
             agentId: this.id,
@@ -2740,22 +2745,20 @@ Regras:
             expiresAt: { $gt: new Date() }
           })
           .sort({ createdAt: -1 })
-          .limit(10)
+          .limit(3)
           .toArray();
-
-        // For debugging - temporarily return true if we have recent agent messages
-        // This is a fallback while we fix the ID tracking
+          
         if (recentMessages.length > 0) {
-          const latestMessage = recentMessages[0];
-          const timeDiff = Date.now() - new Date(latestMessage.createdAt).getTime();
-          // If the latest agent message was sent within the last 10 minutes, assume it's being quoted
-          if (timeDiff < 10 * 60 * 1000) {
-            return true;
-          }
+          console.log(`🔍 Recent agent messages in this chat:`);
+          recentMessages.forEach((msg, idx) => {
+            console.log(`  ${idx + 1}. sentMessageId: ${msg.sentMessageId || 'NOT_SET'}, messageId: ${msg.messageId || 'NOT_SET'}, inResponseTo: ${msg.inResponseTo || 'NOT_SET'}`);
+          });
+        } else {
+          console.log(`📭 No recent agent messages found in chat: ${chatId}`);
         }
+        
+        return false;
       }
-
-      return !!agentMessage;
     } catch (error) {
       return false;
     }
