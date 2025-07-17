@@ -3800,6 +3800,7 @@ app.get('/api/baileys/sessions', (req, res) => {
         ([id, session]) =>
           session.userId && session.userId.toString() === userId.toString()
       )
+      
       .map(([id, session]) => ({
         sessionId: id,
         isConnected: session.isConnected,
