@@ -207,374 +207,334 @@ router.post('/:sessionId/lid/resolve', checkSessionOwnership, async (req, res) =
       });
     }
 
-    logger.info(`🔍 Tentando resolver LID: ${lid} para sessão: ${sessionId}`);
+    logger.info(`🔍 Resolvendo LID: ${lid} para sessão: ${sessionId}`);
+    logger.info(`📱 Sessão user: ${JSON.stringify(sock.user)}`);
 
-    // MÉTODO MÁXIMO: Implementar TODAS as estratégias de resolução LID disponíveis
+    // ESTRATÉGIA PRINCIPAL: Verificar se é o próprio LID da sessão
+    if (sock.user.lid === lid) {
+      logger.info(`✅ LID é da própria sessão conectada`);
+      return res.status(200).json({
+        success: true,
+        message: 'LID resolvido - é da própria sessão',
+        data: {
+          lid: lid,
+          pn: sock.user.id,
+          verified: true,
+          method: 'own_session_lid',
+          sessionUser: sock.user
+        }
+      });
+    }
+
+    // Decodificar o LID para extrair o número base
+    const decoded = jidDecode(lid);
+    if (!decoded || decoded.server !== 'lid') {
+      return res.status(400).json({
+        success: false,
+        message: 'LID inválido - deve terminar com @lid'
+      });
+    }
+
+    const baseNumber = decoded.user;
+    logger.info(`📋 Número base extraído do LID: ${baseNumber}`);
+
+    let resolvedData = null;
+    let allAttempts = [];
+
+    // ESTRATÉGIA 1: onWhatsApp com o LID direto
     try {
-      logger.info(`🚀 Iniciando resolução LID MÁXIMA: ${lid}`);
+      logger.info(`🎯 Tentativa 1: onWhatsApp com LID direto`);
+      const result = await sock.onWhatsApp(lid);
       
-      let resolvedData = null;
-      let allResolutionData = [];
-      let debugInfo = {
-        lidDecoded: null,
-        sockMethods: [],
-        sockProperties: [],
-        usyncAvailable: !!USyncQuery,
-        contactsAnalysis: null,
-        businessProfile: null,
-        rawResults: []
-      };
+      allAttempts.push({
+        method: 'onWhatsApp_lid_direct',
+        input: lid,
+        result: result,
+        success: false
+      });
 
-      // ANÁLISE 1: Estrutura do LID
-      const decoded = jidDecode(lid);
-      debugInfo.lidDecoded = decoded;
-      
-      if (!decoded || decoded.server !== 'lid') {
-        return res.status(400).json({
-          success: false,
-          message: 'LID inválido - deve terminar com @lid',
-          debug: debugInfo
-        });
-      }
-
-      const baseNumber = decoded.user;
-      logger.info(`📋 LID analisado: ${JSON.stringify(decoded)}`);
-
-      // ANÁLISE 2: Capacidades do Socket
-      debugInfo.sockMethods = Object.getOwnPropertyNames(sock).filter(name => 
-        typeof sock[name] === 'function'
-      );
-      debugInfo.sockProperties = Object.getOwnPropertyNames(sock).filter(name => 
-        typeof sock[name] !== 'function'
-      );
-      
-      logger.info(`🔧 Socket tem ${debugInfo.sockMethods.length} métodos e ${debugInfo.sockProperties.length} propriedades`);
-
-      // ESTRATÉGIA 1: onWhatsApp LID Direto
-      if (!resolvedData) {
-        try {
-          logger.info(`🎯 Estratégia 1: onWhatsApp LID direto`);
-          
-          const lidResult = await sock.onWhatsApp(lid);
-          const analysis = {
-            method: 'onWhatsApp_lid_direct',
-            input: lid,
-            output: lidResult,
-            success: false,
-            details: {
-              outputType: typeof lidResult,
-              isArray: Array.isArray(lidResult),
-              length: lidResult?.length,
-              hasResults: !!(lidResult && lidResult.length > 0)
-            }
-          };
-          
-          debugInfo.rawResults.push(analysis);
-          allResolutionData.push(analysis);
-          
-          if (lidResult && Array.isArray(lidResult) && lidResult.length > 0) {
-            for (const item of lidResult) {
-              logger.info(`🔍 Item encontrado: ${JSON.stringify(item)}`);
-              
-              if (item.exists && item.jid) {
-                resolvedData = {
-                  lid: lid,
-                  pn: item.jid,
-                  verified: true,
-                  method: 'onWhatsApp_lid_direct',
-                  lidFromResult: item.lid,
-                  rawItem: item
-                };
-                analysis.success = true;
-                logger.info(`✅ SUCESSO via onWhatsApp LID: ${item.jid}`);
-                break;
-              }
-            }
-          }
-        } catch (error) {
-          logger.error(`❌ Falha Estratégia 1: ${error.message}`);
-          allResolutionData.push({ 
-            method: 'onWhatsApp_lid_direct', 
-            error: error.message 
-          });
-        }
-      }
-
-      // ESTRATÉGIA 2: USync Avançado (se disponível)
-      if (!resolvedData && USyncQuery && USyncUser && sock.executeUSyncQuery) {
-        try {
-          logger.info(`🎯 Estratégia 2: USync protocolo avançado`);
-          
-          const usyncQuery = new USyncQuery()
-            .withLIDProtocol()
-            .withContactProtocol()
-            .withStatusProtocol();
-          
-          // Múltiplas tentativas USync
-          const usyncAttempts = [
-            // Tentativa 1: Com LID + telefone
-            () => {
-              const query = new USyncQuery()
-                .withLIDProtocol()
-                .withContactProtocol();
-              query.withUser(
-                new USyncUser()
-                  .withLid(lid)
-                  .withPhone(`+${baseNumber}`)
-              );
-              return query;
-            },
-            // Tentativa 2: Só com LID  
-            () => {
-              const query = new USyncQuery().withLIDProtocol();
-              query.withUser(new USyncUser().withLid(lid));
-              return query;
-            },
-            // Tentativa 3: Só com telefone
-            () => {
-              const query = new USyncQuery()
-                .withContactProtocol()
-                .withLIDProtocol();
-              query.withUser(new USyncUser().withPhone(`+${baseNumber}`));
-              return query;
-            }
-          ];
-          
-          for (let i = 0; i < usyncAttempts.length && !resolvedData; i++) {
-            try {
-              logger.info(`🔧 USync tentativa ${i + 1}/3`);
-              
-              const query = usyncAttempts[i]();
-              const usyncResult = await sock.executeUSyncQuery(query);
-              
-              const analysis = {
-                method: `usync_attempt_${i + 1}`,
-                input: { lid, phone: `+${baseNumber}` },
-                output: usyncResult,
-                success: false
-              };
-              
-              allResolutionData.push(analysis);
-              
-              if (usyncResult && usyncResult.list && usyncResult.list.length > 0) {
-                for (const result of usyncResult.list) {
-                  logger.info(`🔍 USync resultado: ${JSON.stringify(result)}`);
-                  
-                  if (result.contact && result.id) {
-                    resolvedData = {
-                      lid: lid,
-                      pn: result.id,
-                      verified: true,
-                      method: `usync_attempt_${i + 1}`,
-                      lidFromResult: result.lid,
-                      contactExists: result.contact,
-                      rawResult: result
-                    };
-                    analysis.success = true;
-                    logger.info(`✅ SUCESSO via USync: ${result.id}`);
-                    break;
-                  }
-                }
-              }
-            } catch (usyncError) {
-              logger.warn(`⚠️ USync tentativa ${i + 1} falhou: ${usyncError.message}`);
-              allResolutionData.push({
-                method: `usync_attempt_${i + 1}`,
-                error: usyncError.message
-              });
-            }
-          }
-        } catch (error) {
-          logger.error(`❌ Falha Estratégia 2: ${error.message}`);
-        }
-      }
-
-      // ESTRATÉGIA 3: Variações de Formato
-      if (!resolvedData) {
-        try {
-          logger.info(`🎯 Estratégia 3: Variações de formato`);
-          
-          const phoneVariations = [
-            // Formatos básicos
-            baseNumber,
-            `+${baseNumber}`,
-            // Formatos WhatsApp
-            `${baseNumber}@s.whatsapp.net`,
-            `${baseNumber}@c.us`,
-            // Variações especiais
-            `${baseNumber}@lid`,
-            // Com códigos de país comuns se não tiver
-            baseNumber.length < 10 ? `55${baseNumber}` : null,
-            baseNumber.length < 10 ? `+55${baseNumber}` : null,
-          ].filter(Boolean);
-
-          for (const variation of phoneVariations) {
-            if (resolvedData) break;
-            
-            try {
-              logger.info(`🔧 Testando: ${variation}`);
-              
-              const result = await sock.onWhatsApp(variation);
-              const analysis = {
-                method: 'phone_variations',
-                input: variation,
-                output: result,
-                success: false
-              };
-              
-              allResolutionData.push(analysis);
-              
-              if (result && Array.isArray(result) && result.length > 0) {
-                for (const item of result) {
-                  if (item.exists && item.jid) {
-                    resolvedData = {
-                      lid: lid,
-                      pn: item.jid,
-                      verified: true,
-                      method: 'phone_variations',
-                      testVariation: variation,
-                      lidFromResult: item.lid,
-                      rawItem: item
-                    };
-                    analysis.success = true;
-                    logger.info(`✅ SUCESSO via variação ${variation}: ${item.jid}`);
-                    break;
-                  }
-                }
-              }
-            } catch (error) {
-              allResolutionData.push({
-                method: 'phone_variations',
-                input: variation,
-                error: error.message
-              });
-            }
-          }
-        } catch (error) {
-          logger.error(`❌ Falha Estratégia 3: ${error.message}`);
-        }
-      }
-
-      // ESTRATÉGIA 4: Contact Store Local
-      if (!resolvedData) {
-        try {
-          logger.info(`🎯 Estratégia 4: Contact Store local`);
-          
-          if (sock.store && sock.store.contacts) {
-            const contacts = sock.store.contacts;
-            debugInfo.contactsAnalysis = {
-              totalContacts: Object.keys(contacts).length,
-              lidMatches: [],
-              phoneMatches: []
-            };
-            
-            for (const [jid, contact] of Object.entries(contacts)) {
-              // Match exato por LID
-              if (contact.lid === lid) {
-                debugInfo.contactsAnalysis.lidMatches.push({ jid, contact });
-                if (!resolvedData) {
-                  resolvedData = {
-                    lid: lid,
-                    pn: jid,
-                    verified: true,
-                    method: 'contact_store_lid',
-                    contact: contact
-                  };
-                  logger.info(`✅ SUCESSO via Contact Store LID: ${jid}`);
-                }
-              }
-              
-              // Match por número base
-              if (jid.includes(baseNumber) || contact.id?.includes(baseNumber)) {
-                debugInfo.contactsAnalysis.phoneMatches.push({ jid, contact });
-                if (!resolvedData && contact.lid) {
-                  resolvedData = {
-                    lid: lid,
-                    pn: jid,
-                    verified: true,
-                    method: 'contact_store_phone',
-                    contact: contact
-                  };
-                  logger.info(`✅ SUCESSO via Contact Store Phone: ${jid}`);
-                }
-              }
-            }
-            
-            allResolutionData.push({
-              method: 'contact_store_analysis',
-              totalContacts: debugInfo.contactsAnalysis.totalContacts,
-              lidMatches: debugInfo.contactsAnalysis.lidMatches.length,
-              phoneMatches: debugInfo.contactsAnalysis.phoneMatches.length,
-              success: !!resolvedData
-            });
-          } else {
-            debugInfo.contactsAnalysis = { available: false, reason: 'No contact store' };
-          }
-        } catch (error) {
-          logger.error(`❌ Falha Estratégia 4: ${error.message}`);
-          debugInfo.contactsAnalysis = { error: error.message };
-        }
-      }
-
-      // ESTRATÉGIA 5: Business Profile (se aplicável)
-      if (!resolvedData && sock.getBusinessProfile) {
-        try {
-          logger.info(`🎯 Estratégia 5: Business Profile`);
-          
-          const businessResult = await sock.getBusinessProfile(lid);
-          debugInfo.businessProfile = businessResult;
-          
-          if (businessResult && businessResult.wid) {
+      if (result && Array.isArray(result) && result.length > 0) {
+        for (const item of result) {
+          if (item.exists && item.jid) {
             resolvedData = {
               lid: lid,
-              pn: businessResult.wid,
-              verified: true,
-              method: 'business_profile',
-              businessData: businessResult
+              pn: item.jid,
+              verified: item.exists,
+              method: 'onWhatsApp_lid_direct',
+              rawResult: item
             };
-            logger.info(`✅ SUCESSO via Business Profile: ${businessResult.wid}`);
+            allAttempts[allAttempts.length - 1].success = true;
+            logger.info(`✅ SUCESSO via onWhatsApp LID: ${item.jid}`);
+            break;
           }
-          
-          allResolutionData.push({
-            method: 'business_profile',
-            input: lid,
-            output: businessResult,
-            success: !!resolvedData
-          });
-        } catch (error) {
-          logger.error(`❌ Falha Estratégia 5: ${error.message}`);
-          debugInfo.businessProfile = { error: error.message };
         }
       }
-
-      // Sempre retornar dados completos, mesmo se não resolveu
-      const response = {
-        success: !!resolvedData,
-        message: resolvedData 
-          ? `LID resolvido via ${resolvedData.method}` 
-          : 'LID não foi resolvido, mas dados de debug estão disponíveis',
-        data: resolvedData ? {
-          lid: resolvedData.lid,
-          pn: resolvedData.pn,
-          verified: resolvedData.verified,
-          method: resolvedData.method,
-          rawItem: resolvedData.rawItem,
-          testNumber: resolvedData.testNumber,
-          contact: resolvedData.contact
-        } : null,
-        debug: debugInfo,
-        resolutionAttempts: allResolutionData,
-        timestamp: new Date().toISOString()
-      };
-
-      logger.info(`📋 Resultado completo: ${JSON.stringify(response, null, 2)}`);
-
-      return res.status(resolvedData ? 200 : 404).json(response);
-
-    } catch (resolveError) {
-      logger.error(`❌ Erro ao resolver LID ${lid}: ${resolveError.message}`);
-      throw resolveError;
+    } catch (error) {
+      logger.error(`❌ Erro onWhatsApp LID: ${error.message}`);
+      allAttempts.push({
+        method: 'onWhatsApp_lid_direct',
+        error: error.message
+      });
     }
+
+    // ESTRATÉGIA 2: Buscar no contact store por LID
+    if (!resolvedData && sock.store && sock.store.contacts) {
+      try {
+        logger.info(`🎯 Tentativa 2: Contact Store por LID`);
+        const contacts = sock.store.contacts;
+        
+        for (const [jid, contact] of Object.entries(contacts)) {
+          if (contact.lid === lid) {
+            resolvedData = {
+              lid: lid,
+              pn: jid,
+              verified: true,
+              method: 'contact_store_lid',
+              contact: contact
+            };
+            
+            allAttempts.push({
+              method: 'contact_store_lid',
+              jid: jid,
+              contact: contact,
+              success: true
+            });
+            
+            logger.info(`✅ SUCESSO via Contact Store LID: ${jid}`);
+            break;
+          }
+        }
+        
+        if (!resolvedData) {
+          allAttempts.push({
+            method: 'contact_store_lid',
+            totalContacts: Object.keys(contacts).length,
+            success: false
+          });
+        }
+      } catch (error) {
+        logger.error(`❌ Erro Contact Store: ${error.message}`);
+        allAttempts.push({
+          method: 'contact_store_lid',
+          error: error.message
+        });
+      }
+    }
+
+    // ESTRATÉGIA 3: onWhatsApp com variações do número (modo WAHA-style)
+    if (!resolvedData) {
+      // Implementar múltiplas variações como WAHA faz
+      const phoneVariations = [
+        baseNumber,
+        `+${baseNumber}`,
+        `${baseNumber}@c.us`,
+        `${baseNumber}@s.whatsapp.net`
+      ];
+
+      // Também testar com códigos de país comuns se o número for muito curto
+      if (baseNumber.length < 13) {
+        phoneVariations.push(
+          `55${baseNumber}`, // Brasil
+          `+55${baseNumber}`,
+          `55${baseNumber}@c.us`,
+          `55${baseNumber}@s.whatsapp.net`,
+          `1${baseNumber}`, // EUA/Canadá
+          `+1${baseNumber}`,
+          `1${baseNumber}@c.us`,
+          `1${baseNumber}@s.whatsapp.net`
+        );
+      }
+
+      for (const variation of phoneVariations) {
+        if (resolvedData) break;
+        
+        try {
+          logger.info(`🎯 Tentativa 3: onWhatsApp com ${variation}`);
+          const result = await sock.onWhatsApp(variation);
+          
+          allAttempts.push({
+            method: 'onWhatsApp_phone_variation',
+            input: variation,
+            result: result,
+            success: false
+          });
+
+          if (result && Array.isArray(result) && result.length > 0) {
+            for (const item of result) {
+              // Aceitar qualquer match válido, não apenas LID exato
+              if (item.exists && item.jid) {
+                // Se tem LID e combina, é match perfeito
+                if (item.lid === lid) {
+                  resolvedData = {
+                    lid: lid,
+                    pn: item.jid,
+                    verified: item.exists,
+                    method: 'onWhatsApp_phone_variation_perfect',
+                    phoneVariation: variation,
+                    rawResult: item
+                  };
+                  allAttempts[allAttempts.length - 1].success = true;
+                  logger.info(`✅ SUCESSO PERFEITO via variação ${variation}: ${item.jid} com LID ${item.lid}`);
+                  break;
+                }
+                // Se não tem LID mas número base combina, é match parcial
+                else if (!resolvedData && variation.includes(baseNumber)) {
+                  resolvedData = {
+                    lid: lid,
+                    pn: item.jid,
+                    verified: item.exists,
+                    method: 'onWhatsApp_phone_variation_partial',
+                    phoneVariation: variation,
+                    confidence: 'medium',
+                    note: 'Número encontrado mas LID não confirmado',
+                    rawResult: item
+                  };
+                  allAttempts[allAttempts.length - 1].success = true;
+                  logger.info(`🟡 SUCESSO PARCIAL via variação ${variation}: ${item.jid}`);
+                }
+              }
+            }
+          }
+        } catch (error) {
+          logger.error(`❌ Erro variação ${variation}: ${error.message}`);
+          allAttempts.push({
+            method: 'onWhatsApp_phone_variation',
+            input: variation,
+            error: error.message
+          });
+        }
+      }
+    }
+
+    // ESTRATÉGIA 4: Buscar no contact store por número base
+    if (!resolvedData && sock.store && sock.store.contacts) {
+      try {
+        logger.info(`🎯 Tentativa 4: Contact Store por número base`);
+        const contacts = sock.store.contacts;
+        
+        for (const [jid, contact] of Object.entries(contacts)) {
+          if (jid.includes(baseNumber) && contact.lid === lid) {
+            resolvedData = {
+              lid: lid,
+              pn: jid,
+              verified: true,
+              method: 'contact_store_phone',
+              contact: contact
+            };
+            
+            allAttempts.push({
+              method: 'contact_store_phone',
+              jid: jid,
+              contact: contact,
+              success: true
+            });
+            
+            logger.info(`✅ SUCESSO via Contact Store Phone: ${jid}`);
+            break;
+          }
+        }
+        
+        if (!resolvedData) {
+          allAttempts.push({
+            method: 'contact_store_phone',
+            baseNumber: baseNumber,
+            success: false
+          });
+        }
+      } catch (error) {
+        logger.error(`❌ Erro Contact Store Phone: ${error.message}`);
+        allAttempts.push({
+          method: 'contact_store_phone',
+          error: error.message
+        });
+      }
+    }
+
+    // ESTRATÉGIA 5: Buscar em grupos (como WAHA faz - "refresh groups to populate LID mappings")
+    if (!resolvedData && sock.store && sock.store.groupMetadata) {
+      try {
+        logger.info(`🎯 Tentativa 5: Group Store LID mapping`);
+        const groups = sock.store.groupMetadata;
+        let foundInGroups = false;
+        
+        for (const [groupId, group] of Object.entries(groups)) {
+          if (resolvedData) break;
+          
+          if (group.participants) {
+            for (const participant of group.participants) {
+              // Procurar por LID match nos participantes
+              if (participant.lid === lid) {
+                resolvedData = {
+                  lid: lid,
+                  pn: participant.id,
+                  verified: true,
+                  method: 'group_participant_lid',
+                  groupId: groupId,
+                  groupSubject: group.subject,
+                  participant: participant
+                };
+                foundInGroups = true;
+                logger.info(`✅ SUCESSO via Group LID: ${participant.id} no grupo ${group.subject}`);
+                break;
+              }
+              // Procurar por match de número base
+              else if (participant.id && participant.id.includes(baseNumber)) {
+                if (!resolvedData) { // Só usar se não tiver algo melhor
+                  resolvedData = {
+                    lid: lid,
+                    pn: participant.id,
+                    verified: true,
+                    method: 'group_participant_phone',
+                    confidence: 'medium',
+                    note: 'Encontrado por número base em grupo, LID não confirmado',
+                    groupId: groupId,
+                    groupSubject: group.subject,
+                    participant: participant
+                  };
+                  foundInGroups = true;
+                  logger.info(`🟡 SUCESSO PARCIAL via Group Phone: ${participant.id} no grupo ${group.subject}`);
+                }
+              }
+            }
+          }
+        }
+        
+        allAttempts.push({
+          method: 'group_store_search',
+          totalGroups: Object.keys(groups).length,
+          foundInGroups: foundInGroups,
+          success: !!resolvedData
+        });
+        
+      } catch (error) {
+        logger.error(`❌ Erro Group Store: ${error.message}`);
+        allAttempts.push({
+          method: 'group_store_search',
+          error: error.message
+        });
+      }
+    }
+
+    // Preparar resposta
+    const response = {
+      success: !!resolvedData,
+      message: resolvedData 
+        ? `LID resolvido via ${resolvedData.method}` 
+        : 'LID não pôde ser resolvido',
+      data: resolvedData,
+      sessionInfo: {
+        sessionId: sessionId,
+        sessionUser: sock.user,
+        isOwnLid: sock.user.lid === lid
+      },
+      attempts: allAttempts,
+      timestamp: new Date().toISOString()
+    };
+
+    const statusCode = resolvedData ? 200 : 404;
+    logger.info(`📋 LID Resolution ${resolvedData ? 'SUCESSO' : 'FALHOU'}: ${JSON.stringify(response.data || 'Nenhum resultado')}`);
+
+    return res.status(statusCode).json(response);
 
   } catch (error) {
     logger.error(`❌ Erro no endpoint de resolução LID: ${error.message}`);
@@ -582,7 +542,8 @@ router.post('/:sessionId/lid/resolve', checkSessionOwnership, async (req, res) =
     return res.status(500).json({
       success: false,
       message: 'Erro interno do servidor',
-      error: error.message
+      error: error.message,
+      timestamp: new Date().toISOString()
     });
   }
 });
