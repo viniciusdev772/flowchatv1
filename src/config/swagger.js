@@ -2119,57 +2119,6 @@ const swaggerUiOptions = {
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/ApiResponse'
- *   delete:
- *     tags:
- *       - Webhooks
- *     summary: "Deletar webhook"
- *     description: |
- *       Remove um webhook específico da sessão.
- *
- *       **Armazenamento:** Remove webhook do banco de dados MongoDB.
- *     security:
- *       - ApiTokenAuth: []
- *     parameters:
- *       - in: path
- *         name: sessionId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID da sessão
- *         example: "minha-sessao-1"
- *       - in: path
- *         name: webhookId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID do webhook
- *         example: "webhook-123-456"
- *     responses:
- *       200:
- *         description: Webhook deletado com sucesso
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Webhook deletado com sucesso"
- *                 webhookId:
- *                   type: string
- *                   example: "webhook-123-456"
- *                 sessionId:
- *                   type: string
- *                   example: "minha-sessao-1"
- *       404:
- *         description: Sessão ou webhook não encontrado
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
  */
 
 /**

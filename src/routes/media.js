@@ -1,7 +1,7 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs').promises;
-const { checkSessionOwnership } = require('../middleware/auth');
+const { authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
 
@@ -33,7 +33,7 @@ const router = express.Router();
  *                       mediaCount:
  *                         type: number
  */
-router.get('/sessions', checkSessionOwnership, async (req, res) => {
+router.get('/sessions', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
     const downloadsDir = path.join(process.cwd(), 'downloads');
@@ -133,7 +133,7 @@ router.get('/sessions', checkSessionOwnership, async (req, res) => {
  *                       previewUrl:
  *                         type: string
  */
-router.get('/session/:sessionId', checkSessionOwnership, async (req, res) => {
+router.get('/session/:sessionId', authenticateToken, async (req, res) => {
   try {
     const { sessionId } = req.params;
     const userId = req.user.id;
@@ -241,7 +241,7 @@ router.get('/session/:sessionId', checkSessionOwnership, async (req, res) => {
  *               type: string
  *               format: binary
  */
-router.get('/download/:sessionId/:filename', checkSessionOwnership, async (req, res) => {
+router.get('/download/:sessionId/:filename', authenticateToken, async (req, res) => {
   try {
     const { sessionId, filename } = req.params;
     const userId = req.user.id;
@@ -327,7 +327,7 @@ router.get('/download/:sessionId/:filename', checkSessionOwnership, async (req, 
  *               type: string
  *               format: binary
  */
-router.get('/preview/:sessionId/:filename', checkSessionOwnership, async (req, res) => {
+router.get('/preview/:sessionId/:filename', authenticateToken, async (req, res) => {
   try {
     const { sessionId, filename } = req.params;
     const userId = req.user.id;
