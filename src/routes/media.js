@@ -123,16 +123,20 @@ router.get('/session/:sessionId', authenticateToken, async (req, res) => {
         console.warn('Uploads directory not accessible:', error.message);
       }
     } else {
-      // Verify user owns this session
-      const session = await db.collection(SESSIONS_COLLECTION).findOne({
-        sessionId: sessionId,
-        userId: userId
-      });
-      
-      if (!session) {
+      // Verify user owns this session using in-memory sessions (same as /api/baileys/sessions)
+      const sessions = global.whatsappSessions;
+      if (!sessions || !sessions.has(sessionId)) {
+        return res.status(404).json({
+          success: false,
+          message: 'Session not found'
+        });
+      }
+
+      const sessionData = sessions.get(sessionId);
+      if (!sessionData.userId || sessionData.userId.toString() !== userId.toString()) {
         return res.status(403).json({
           success: false,
-          message: 'Session not found or access denied'
+          message: 'Access denied: you do not own this session'
         });
       }
       
@@ -259,19 +263,25 @@ router.get('/download/:sessionId/:filename', authenticateToken, async (req, res)
         });
       }
     } else {
-      // Verify user owns this session and get file metadata from MongoDB
-      if (db) {
-        const session = await db.collection(SESSIONS_COLLECTION).findOne({
-          sessionId: sessionId,
-          userId: userId
+      // Verify user owns this session using in-memory sessions (same as /api/baileys/sessions)
+      const sessions = global.whatsappSessions;
+      if (!sessions || !sessions.has(sessionId)) {
+        return res.status(404).json({
+          success: false,
+          message: 'Session not found'
         });
-        
-        if (!session) {
-          return res.status(403).json({
-            success: false,
-            message: 'Session not found or access denied'
-          });
-        }
+      }
+
+      const sessionData = sessions.get(sessionId);
+      if (!sessionData.userId || sessionData.userId.toString() !== userId.toString()) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied: you do not own this session'
+        });
+      }
+
+      // Get file metadata from MongoDB if available
+      if (db) {
         
         // Find the media file in MongoDB
         const mediaFile = await db.collection(DOWNLOADS_COLLECTION).findOne({
@@ -407,19 +417,25 @@ router.get('/preview/:sessionId/:filename', authenticateToken, async (req, res) 
         });
       }
     } else {
-      // Verify user owns this session and get file metadata
-      if (db) {
-        const session = await db.collection(SESSIONS_COLLECTION).findOne({
-          sessionId: sessionId,
-          userId: userId
+      // Verify user owns this session using in-memory sessions (same as /api/baileys/sessions)
+      const sessions = global.whatsappSessions;
+      if (!sessions || !sessions.has(sessionId)) {
+        return res.status(404).json({
+          success: false,
+          message: 'Session not found'
         });
-        
-        if (!session) {
-          return res.status(403).json({
-            success: false,
-            message: 'Session not found or access denied'
-          });
-        }
+      }
+
+      const sessionData = sessions.get(sessionId);
+      if (!sessionData.userId || sessionData.userId.toString() !== userId.toString()) {
+        return res.status(403).json({
+          success: false,
+          message: 'Access denied: you do not own this session'
+        });
+      }
+
+      // Get file metadata from MongoDB if available
+      if (db) {
         
         // Find the media file in MongoDB
         const mediaFile = await db.collection(DOWNLOADS_COLLECTION).findOne({
