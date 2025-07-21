@@ -26,6 +26,10 @@ const swaggerOptions = {
         description: 'Envio e controle de mensagens',
       },
       {
+        name: 'Contacts',
+        description: 'Gerenciamento de contatos do WhatsApp',
+      },
+      {
         name: 'Grupos',
         description: 'Gerenciamento de grupos do WhatsApp',
       },
@@ -40,7 +44,7 @@ const swaggerOptions = {
     ],
     components: {
       securitySchemes: {
-        ApiKeyAuth: {
+        ApiTokenAuth: {
           type: 'http',
           scheme: 'bearer',
           bearerFormat: 'Token',
@@ -366,7 +370,7 @@ const swaggerUiOptions = {
  *     summary: Criar nova sessão do WhatsApp
  *     description: Cria uma nova sessão do WhatsApp e retorna QR code para autenticação
  *     security:
- *       - ApiKeyAuth: []
+ *       - ApiTokenAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -410,7 +414,7 @@ const swaggerUiOptions = {
  *     summary: Regenerar QR Code da sessão
  *     description: Regenera o QR code para uma sessão existente que não está conectada
  *     security:
- *       - ApiKeyAuth: []
+ *       - ApiTokenAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -449,7 +453,7 @@ const swaggerUiOptions = {
  *     summary: Obter status da sessão
  *     description: Retorna informações detalhadas sobre o status de uma sessão específica
  *     security:
- *       - ApiKeyAuth: []
+ *       - ApiTokenAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -519,7 +523,7 @@ const swaggerUiOptions = {
  *     summary: Listar todas as sessões
  *     description: Retorna uma lista com todas as sessões ativas e seus status
  *     security:
- *       - ApiKeyAuth: []
+ *       - ApiTokenAuth: []
  *     responses:
  *       200:
  *         description: Lista de sessões obtida com sucesso
@@ -549,7 +553,7 @@ const swaggerUiOptions = {
  *     summary: Limpar sessões órfãs
  *     description: Remove sessões que não estão associadas a nenhum usuário (userId null)
  *     security:
- *       - ApiKeyAuth: []
+ *       - ApiTokenAuth: []
  *     responses:
  *       200:
  *         description: Limpeza de sessões órfãs concluída
@@ -579,7 +583,7 @@ const swaggerUiOptions = {
  *     summary: Enviar mensagem de texto
  *     description: Envia uma mensagem de texto para um número específico com comportamento humano simulado
  *     security:
- *       - ApiKeyAuth: []
+ *       - ApiTokenAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -677,7 +681,7 @@ const swaggerUiOptions = {
  *       - Isso permite adicionar contexto às mensagens de voz mantendo a funcionalidade nativa do WhatsApp
  *       - A resposta é enviada automaticamente após a mensagem de voz
  *     security:
- *       - ApiKeyAuth: []
+ *       - ApiTokenAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -795,7 +799,7 @@ const swaggerUiOptions = {
  *     summary: Responder uma mensagem específica
  *     description: Envia uma resposta citando uma mensagem específica pelo seu ID
  *     security:
- *       - ApiKeyAuth: []
+ *       - ApiTokenAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -876,7 +880,7 @@ const swaggerUiOptions = {
  *       - Verifica se o bot faz parte do grupo antes de enviar
  *       - Retorna informações detalhadas sobre o grupo e participantes
  *     security:
- *       - ApiKeyAuth: []
+ *       - ApiTokenAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -1023,7 +1027,7 @@ const swaggerUiOptions = {
  *       - Delays emocionais baseados no conteúdo
  *       - Tempos proporcionais ao tamanho da mensagem
  *     security:
- *       - ApiKeyAuth: []
+ *       - ApiTokenAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -1179,7 +1183,7 @@ const swaggerUiOptions = {
  *     summary: Controlar status de digitação
  *     description: Ativa ou desativa o indicador de "digitando" para um chat específico
  *     security:
- *       - ApiKeyAuth: []
+ *       - ApiTokenAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -1230,7 +1234,7 @@ const swaggerUiOptions = {
  *     summary: Marcar mensagem como lida
  *     description: Marca uma mensagem específica como lida (visualizada)
  *     security:
- *       - ApiKeyAuth: []
+ *       - ApiTokenAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -1282,7 +1286,7 @@ const swaggerUiOptions = {
  *     summary: Listar mensagens armazenadas
  *     description: Retorna o histórico de mensagens armazenadas para uma sessão
  *     security:
- *       - ApiKeyAuth: []
+ *       - ApiTokenAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -1348,7 +1352,7 @@ const swaggerUiOptions = {
  *     summary: Baixar mídia de uma mensagem
  *     description: Baixa o arquivo de mídia de uma mensagem específica e salva no servidor
  *     security:
- *       - ApiKeyAuth: []
+ *       - ApiTokenAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -1474,7 +1478,7 @@ const swaggerUiOptions = {
  *       }
  *       ```
  *     security:
- *       - ApiKeyAuth: []
+ *       - ApiTokenAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -1536,7 +1540,7 @@ const swaggerUiOptions = {
  *
  *       **Armazenamento:** Busca webhook no banco de dados MongoDB.
  *     security:
- *       - ApiKeyAuth: []
+ *       - ApiTokenAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -1575,7 +1579,7 @@ const swaggerUiOptions = {
  *
  *       **Armazenamento:** Remove webhook do banco de dados MongoDB.
  *     security:
- *       - ApiKeyAuth: []
+ *       - ApiTokenAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -1624,7 +1628,7 @@ const swaggerUiOptions = {
  *
  *       **Armazenamento:** Busca webhooks no banco de dados MongoDB.
  *     security:
- *       - ApiKeyAuth: []
+ *       - ApiTokenAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -1696,7 +1700,7 @@ const swaggerUiOptions = {
  *
  *       **Armazenamento:** Salva webhook no banco de dados MongoDB.
  *     security:
- *       - ApiKeyAuth: []
+ *       - ApiTokenAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -1808,7 +1812,7 @@ const swaggerUiOptions = {
  *
  *       **Armazenamento:** Busca webhook no banco de dados MongoDB.
  *     security:
- *       - ApiKeyAuth: []
+ *       - ApiTokenAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -1879,7 +1883,7 @@ const swaggerUiOptions = {
  *
  *       **Armazenamento:** Atualiza webhook no banco de dados MongoDB.
  *     security:
- *       - ApiKeyAuth: []
+ *       - ApiTokenAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -1961,7 +1965,7 @@ const swaggerUiOptions = {
  *
  *       **Armazenamento:** Remove webhook do banco de dados MongoDB.
  *     security:
- *       - ApiKeyAuth: []
+ *       - ApiTokenAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -2011,7 +2015,7 @@ const swaggerUiOptions = {
  *
  *       **Armazenamento:** Atualiza webhook no banco de dados MongoDB.
  *     security:
- *       - ApiKeyAuth: []
+ *       - ApiTokenAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -2124,7 +2128,7 @@ const swaggerUiOptions = {
  *
  *       **Armazenamento:** Remove webhook do banco de dados MongoDB.
  *     security:
- *       - ApiKeyAuth: []
+ *       - ApiTokenAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -2180,7 +2184,7 @@ const swaggerUiOptions = {
  *
  *       **Armazenamento:** Atualiza webhook no banco de dados MongoDB.
  *     security:
- *       - ApiKeyAuth: []
+ *       - ApiTokenAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -2234,7 +2238,7 @@ const swaggerUiOptions = {
  *
  *       **Armazenamento:** Busca webhook no banco de dados MongoDB.
  *     security:
- *       - ApiKeyAuth: []
+ *       - ApiTokenAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -2308,7 +2312,7 @@ const swaggerUiOptions = {
  *     summary: Deletar sessão
  *     description: Remove uma sessão do WhatsApp e fecha todas as conexões associadas
  *     security:
- *       - ApiKeyAuth: []
+ *       - ApiTokenAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -2348,7 +2352,7 @@ const swaggerUiOptions = {
  *     summary: Informações da API
  *     description: Retorna informações detalhadas sobre a API, features disponíveis e endpoints
  *     security:
- *       - ApiKeyAuth: []
+ *       - ApiTokenAuth: []
  *     responses:
  *       200:
  *         description: Informações da API
@@ -2405,7 +2409,7 @@ const swaggerUiOptions = {
  *     summary: Criar novo agente de IA
  *     description: Cria um novo agente de IA para resposta automática
  *     security:
- *       - ApiKeyAuth: []
+ *       - ApiTokenAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -2451,7 +2455,7 @@ const swaggerUiOptions = {
  *     summary: Listar agentes de IA
  *     description: Lista todos os agentes de IA
  *     security:
- *       - ApiKeyAuth: []
+ *       - ApiTokenAuth: []
  *     responses:
  *       200:
  *         description: Lista de agentes
@@ -2478,7 +2482,7 @@ const swaggerUiOptions = {
  *     summary: Obter agente de IA
  *     description: Obtém informações de um agente específico
  *     security:
- *       - ApiKeyAuth: []
+ *       - ApiTokenAuth: []
  *     parameters:
  *       - in: path
  *         name: agentId
@@ -2499,7 +2503,7 @@ const swaggerUiOptions = {
  *     summary: Deletar agente de IA
  *     description: Remove um agente de IA
  *     security:
- *       - ApiKeyAuth: []
+ *       - ApiTokenAuth: []
  *     parameters:
  *       - in: path
  *         name: agentId
@@ -2525,7 +2529,7 @@ const swaggerUiOptions = {
  *     summary: Atualizar chave API do agente
  *     description: Atualiza a chave API do OpenAI do agente
  *     security:
- *       - ApiKeyAuth: []
+ *       - ApiTokenAuth: []
  *     parameters:
  *       - in: path
  *         name: agentId
@@ -2564,7 +2568,7 @@ const swaggerUiOptions = {
  *     summary: Atualizar configurações do agente
  *     description: Atualiza as configurações do agente de IA
  *     security:
- *       - ApiKeyAuth: []
+ *       - ApiTokenAuth: []
  *     parameters:
  *       - in: path
  *         name: agentId
@@ -2609,7 +2613,7 @@ const swaggerUiOptions = {
  *     summary: Ativar agente de IA
  *     description: Ativa um agente de IA
  *     security:
- *       - ApiKeyAuth: []
+ *       - ApiTokenAuth: []
  *     parameters:
  *       - in: path
  *         name: agentId
@@ -2635,7 +2639,7 @@ const swaggerUiOptions = {
  *     summary: Desativar agente de IA
  *     description: Desativa um agente de IA
  *     security:
- *       - ApiKeyAuth: []
+ *       - ApiTokenAuth: []
  *     parameters:
  *       - in: path
  *         name: agentId
@@ -2661,7 +2665,7 @@ const swaggerUiOptions = {
  *     summary: Processar mensagem com IA
  *     description: Processa uma mensagem através do agente de IA
  *     security:
- *       - ApiKeyAuth: []
+ *       - ApiTokenAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -2702,7 +2706,7 @@ const swaggerUiOptions = {
  *     summary: Obter histórico de conversas
  *     description: Obtém o histórico de conversas do agente
  *     security:
- *       - ApiKeyAuth: []
+ *       - ApiTokenAuth: []
  *     parameters:
  *       - in: path
  *         name: agentId
@@ -2729,7 +2733,7 @@ const swaggerUiOptions = {
  *     summary: Deletar histórico de conversas
  *     description: Remove o histórico de conversas do agente
  *     security:
- *       - ApiKeyAuth: []
+ *       - ApiTokenAuth: []
  *     parameters:
  *       - in: path
  *         name: agentId
@@ -2761,7 +2765,7 @@ const swaggerUiOptions = {
  *     summary: Obter estatísticas do agente
  *     description: Obtém estatísticas de uso do agente
  *     security:
- *       - ApiKeyAuth: []
+ *       - ApiTokenAuth: []
  *     parameters:
  *       - in: path
  *         name: agentId
@@ -2803,7 +2807,7 @@ const swaggerUiOptions = {
  *     summary: Testar busca de agentes
  *     description: Testa a funcionalidade de busca de agentes
  *     security:
- *       - ApiKeyAuth: []
+ *       - ApiTokenAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -2835,7 +2839,7 @@ const swaggerUiOptions = {
  *     summary: Download de arquivo gerado pelo agente
  *     description: Faz download de arquivo gerado pelo agente de IA
  *     security:
- *       - ApiKeyAuth: []
+ *       - ApiTokenAuth: []
  *     parameters:
  *       - in: path
  *         name: fileName
@@ -2869,7 +2873,7 @@ const swaggerUiOptions = {
  *     summary: Criar novo grupo
  *     description: Cria um novo grupo do WhatsApp com os participantes especificados
  *     security:
- *       - ApiKeyAuth: []
+ *       - ApiTokenAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -2959,7 +2963,7 @@ const swaggerUiOptions = {
  *     summary: Obter informações do grupo
  *     description: Retorna informações detalhadas sobre um grupo específico
  *     security:
- *       - ApiKeyAuth: []
+ *       - ApiTokenAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -3005,7 +3009,7 @@ const swaggerUiOptions = {
  *     summary: Adicionar participantes ao grupo
  *     description: Adiciona novos participantes a um grupo existente
  *     security:
- *       - ApiKeyAuth: []
+ *       - ApiTokenAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -3074,7 +3078,7 @@ const swaggerUiOptions = {
  *     summary: Remover participantes do grupo
  *     description: Remove participantes de um grupo existente
  *     security:
- *       - ApiKeyAuth: []
+ *       - ApiTokenAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -3143,7 +3147,7 @@ const swaggerUiOptions = {
  *     summary: Promover participantes a admin
  *     description: Promove participantes do grupo para administradores
  *     security:
- *       - ApiKeyAuth: []
+ *       - ApiTokenAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -3212,7 +3216,7 @@ const swaggerUiOptions = {
  *     summary: Despromover admins
  *     description: Remove privilégios de administrador de participantes do grupo
  *     security:
- *       - ApiKeyAuth: []
+ *       - ApiTokenAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -3281,7 +3285,7 @@ const swaggerUiOptions = {
  *     summary: Atualizar nome do grupo
  *     description: Altera o nome/assunto do grupo
  *     security:
- *       - ApiKeyAuth: []
+ *       - ApiTokenAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -3344,7 +3348,7 @@ const swaggerUiOptions = {
  *     summary: Atualizar descrição do grupo
  *     description: Altera a descrição do grupo
  *     security:
- *       - ApiKeyAuth: []
+ *       - ApiTokenAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -3406,7 +3410,7 @@ const swaggerUiOptions = {
  *     summary: Configurar permissões do grupo
  *     description: Configura quem pode enviar mensagens e editar informações do grupo
  *     security:
- *       - ApiKeyAuth: []
+ *       - ApiTokenAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -3475,7 +3479,7 @@ const swaggerUiOptions = {
  *     summary: Sair do grupo
  *     description: Remove a sessão atual do grupo especificado
  *     security:
- *       - ApiKeyAuth: []
+ *       - ApiTokenAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -3522,7 +3526,7 @@ const swaggerUiOptions = {
  *     summary: Listar grupos
  *     description: Retorna uma lista de todos os grupos da sessão
  *     security:
- *       - ApiKeyAuth: []
+ *       - ApiTokenAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -3582,7 +3586,7 @@ const swaggerUiOptions = {
  *     summary: Obter código de convite do grupo
  *     description: Retorna o código de convite do grupo para compartilhar
  *     security:
- *       - ApiKeyAuth: []
+ *       - ApiTokenAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -3632,7 +3636,7 @@ const swaggerUiOptions = {
  *     summary: Revogar código de convite do grupo
  *     description: Revoga o código de convite atual do grupo e gera um novo
  *     security:
- *       - ApiKeyAuth: []
+ *       - ApiTokenAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -3685,7 +3689,7 @@ const swaggerUiOptions = {
  *     summary: Obter mensagens do grupo
  *     description: Obtém o histórico de mensagens de um grupo específico
  *     security:
- *       - ApiKeyAuth: []
+ *       - ApiTokenAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -3786,7 +3790,7 @@ const swaggerUiOptions = {
  *     summary: Buscar mensagens em todos os grupos
  *     description: Busca mensagens em todos os grupos de uma sessão
  *     security:
- *       - ApiKeyAuth: []
+ *       - ApiTokenAuth: []
  *     parameters:
  *       - in: path
  *         name: sessionId
@@ -3943,7 +3947,7 @@ const swaggerUiOptions = {
  *     summary: Listar downloads disponíveis
  *     description: Lista todos os downloads disponíveis com informações detalhadas
  *     security:
- *       - ApiKeyAuth: []
+ *       - ApiTokenAuth: []
  *     parameters:
  *       - in: query
  *         name: sessionId
@@ -4022,6 +4026,394 @@ const swaggerUiOptions = {
  *           application/json:
  *             schema:
  *               $ref: '#/components/schemas/ApiResponse'
+ */
+
+/**
+ * @swagger
+ * /api/baileys/session/{sessionId}/contacts/check:
+ *   post:
+ *     tags:
+ *       - Contacts
+ *     summary: Verificar números no WhatsApp
+ *     description: Verifica se os números de telefone fornecidos estão registrados no WhatsApp
+ *     security:
+ *       - ApiTokenAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID da sessão ativa
+ *         example: "minha-sessao-1"
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - numbers
+ *             properties:
+ *               numbers:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: Array de números de telefone para verificar
+ *                 example: ["5511999999999", "5511888888888"]
+ *     responses:
+ *       200:
+ *         description: Verificação realizada com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Números verificados com sucesso"
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       jid:
+ *                         type: string
+ *                         example: "5511999999999@s.whatsapp.net"
+ *                       exists:
+ *                         type: boolean
+ *                         example: true
+ *       400:
+ *         description: Dados inválidos
+ *       404:
+ *         description: Sessão não encontrada
+ *       500:
+ *         description: Erro interno do servidor
+ */
+
+/**
+ * @swagger
+ * /api/baileys/session/{sessionId}/contacts/info:
+ *   post:
+ *     tags:
+ *       - Contacts
+ *     summary: Obter informações de contatos
+ *     description: Obtém informações detalhadas dos contatos especificados
+ *     security:
+ *       - ApiTokenAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID da sessão ativa
+ *         example: "minha-sessao-1"
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - contacts
+ *             properties:
+ *               contacts:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: Array de JIDs dos contatos
+ *                 example: ["5511999999999@s.whatsapp.net"]
+ *     responses:
+ *       200:
+ *         description: Informações obtidas com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Informações dos contatos obtidas com sucesso"
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       id:
+ *                         type: string
+ *                         example: "5511999999999@s.whatsapp.net"
+ *                       name:
+ *                         type: string
+ *                         example: "João Silva"
+ *                       notify:
+ *                         type: string
+ *                         example: "João"
+ *                       verifiedName:
+ *                         type: string
+ *                         example: "João Silva"
+ *       400:
+ *         description: Dados inválidos
+ *       404:
+ *         description: Sessão não encontrada
+ *       500:
+ *         description: Erro interno do servidor
+ */
+
+/**
+ * @swagger
+ * /api/baileys/session/{sessionId}/contacts/profile:
+ *   get:
+ *     tags:
+ *       - Contacts
+ *     summary: Obter foto de perfil
+ *     description: Obtém a URL da foto de perfil de um contato
+ *     security:
+ *       - ApiTokenAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID da sessão ativa
+ *         example: "minha-sessao-1"
+ *       - in: query
+ *         name: jid
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: JID do contato
+ *         example: "5511999999999@s.whatsapp.net"
+ *       - in: query
+ *         name: type
+ *         required: false
+ *         schema:
+ *           type: string
+ *           enum: ["image", "preview"]
+ *         description: Tipo da imagem (image para alta resolução, preview para baixa)
+ *         example: "image"
+ *     responses:
+ *       200:
+ *         description: Foto de perfil obtida com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Foto de perfil obtida com sucesso"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                       example: "5511999999999@s.whatsapp.net"
+ *                     url:
+ *                       type: string
+ *                       example: "https://pps.whatsapp.net/v/t61.24694-24/..."
+ *                     tag:
+ *                       type: string
+ *                       example: "1234567890"
+ *       400:
+ *         description: Dados inválidos
+ *       404:
+ *         description: Sessão ou contato não encontrado
+ *       500:
+ *         description: Erro interno do servidor
+ */
+
+/**
+ * @swagger
+ * /api/baileys/session/{sessionId}/contacts/status:
+ *   get:
+ *     tags:
+ *       - Contacts
+ *     summary: Obter status do contato
+ *     description: Obtém o status/sobre do contato especificado
+ *     security:
+ *       - ApiTokenAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID da sessão ativa
+ *         example: "minha-sessao-1"
+ *       - in: query
+ *         name: jid
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: JID do contato
+ *         example: "5511999999999@s.whatsapp.net"
+ *     responses:
+ *       200:
+ *         description: Status obtido com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Status do contato obtido com sucesso"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     status:
+ *                       type: string
+ *                       example: "Disponível"
+ *                     setAt:
+ *                       type: string
+ *                       format: date-time
+ *                       example: "2023-12-01T10:00:00Z"
+ *       400:
+ *         description: Dados inválidos
+ *       404:
+ *         description: Sessão ou contato não encontrado
+ *       500:
+ *         description: Erro interno do servidor
+ */
+
+/**
+ * @swagger
+ * /api/baileys/session/{sessionId}/contacts/block:
+ *   post:
+ *     tags:
+ *       - Contacts
+ *     summary: Bloquear contatos
+ *     description: Bloqueia uma lista de contatos especificados
+ *     security:
+ *       - ApiTokenAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID da sessão ativa
+ *         example: "minha-sessao-1"
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - contacts
+ *             properties:
+ *               contacts:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: Array de JIDs dos contatos para bloquear
+ *                 example: ["5511999999999@s.whatsapp.net", "5511888888888@s.whatsapp.net"]
+ *     responses:
+ *       200:
+ *         description: Contatos bloqueados com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Contatos bloqueados com sucesso"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     blocked:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                       example: ["5511999999999@s.whatsapp.net"]
+ *       400:
+ *         description: Dados inválidos
+ *       404:
+ *         description: Sessão não encontrada
+ *       500:
+ *         description: Erro interno do servidor
+ */
+
+/**
+ * @swagger
+ * /api/baileys/session/{sessionId}/contacts/unblock:
+ *   post:
+ *     tags:
+ *       - Contacts
+ *     summary: Desbloquear contatos
+ *     description: Desbloqueia uma lista de contatos especificados
+ *     security:
+ *       - ApiTokenAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: ID da sessão ativa
+ *         example: "minha-sessao-1"
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - contacts
+ *             properties:
+ *               contacts:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: Array de JIDs dos contatos para desbloquear
+ *                 example: ["5511999999999@s.whatsapp.net", "5511888888888@s.whatsapp.net"]
+ *     responses:
+ *       200:
+ *         description: Contatos desbloqueados com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Contatos desbloqueados com sucesso"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     unblocked:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                       example: ["5511999999999@s.whatsapp.net"]
+ *       400:
+ *         description: Dados inválidos
+ *       404:
+ *         description: Sessão não encontrada
+ *       500:
+ *         description: Erro interno do servidor
  */
 
 module.exports = {

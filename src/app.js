@@ -6019,6 +6019,637 @@ app.delete(
   }
 );
 
+/**
+ * @swagger
+ * /api/baileys/session/{sessionId}/contacts/check:
+ *   post:
+ *     tags:
+ *       - Contacts
+ *     summary: Check if phone numbers are on WhatsApp
+ *     description: Verify if phone numbers exist on WhatsApp platform
+ *     security:
+ *       - ApiTokenAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Session ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - numbers
+ *             properties:
+ *               numbers:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: Phone numbers to check (with country code)
+ *                 example: ["+5511999999999", "+5511888888888"]
+ *     responses:
+ *       200:
+ *         description: Contact verification results
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 results:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       jid:
+ *                         type: string
+ *                         description: WhatsApp JID
+ *                       exists:
+ *                         type: boolean
+ *                         description: Whether the number exists on WhatsApp
+ *                       number:
+ *                         type: string
+ *                         description: Original phone number
+ */
+app.post(
+  '/api/baileys/session/:sessionId/contacts/check',
+  apiTokenAuth,
+  async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      const { numbers } = req.body;
+
+      if (!numbers || !Array.isArray(numbers) || numbers.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Numbers array is required and cannot be empty',
+        });
+      }
+
+      const session = whatsappSessions[sessionId];
+      if (!session || !session.sock) {
+        return res.status(404).json({
+          success: false,
+          message: 'Session not found or not connected',
+        });
+      }
+
+      // Remove duplicates and format numbers
+      const uniqueNumbers = [...new Set(numbers)];
+      const formattedNumbers = uniqueNumbers.map(num => {
+        // Remove any non-digit characters except +
+        const cleaned = num.replace(/[^\d+]/g, '');
+        // Ensure it starts with + if it doesn't
+        return cleaned.startsWith('+') ? cleaned : `+${cleaned}`;
+      });
+
+      const results = await session.sock.onWhatsApp(...formattedNumbers);
+
+      res.json({
+        success: true,
+        results: results.map(result => ({
+          jid: result.jid,
+          exists: result.exists,
+          number: result.jid ? result.jid.replace('@s.whatsapp.net', '') : null,
+        })),
+      });
+    } catch (error) {
+      console.error('Error checking contacts:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error checking contacts',
+        error: error.message,
+      });
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /api/baileys/session/{sessionId}/contacts/info:
+ *   post:
+ *     tags:
+ *       - Contacts
+ *     summary: Get contact information
+ *     description: Get detailed information about contacts or groups
+ *     security:
+ *       - ApiTokenAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Session ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - jids
+ *             properties:
+ *               jids:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: WhatsApp JIDs to get info for
+ *                 example: ["5511999999999@s.whatsapp.net", "120363012345678901@g.us"]
+ *     responses:
+ *       200:
+ *         description: Contact information
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 contacts:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       jid:
+ *                         type: string
+ *                         description: WhatsApp JID
+ *                       type:
+ *                         type: string
+ *                         enum: [contact, group]
+ *                       name:
+ *                         type: string
+ *                         description: Contact or group name
+ *                       exists:
+ *                         type: boolean
+ *                         description: Whether the contact exists
+ *                       isGroup:
+ *                         type: boolean
+ *                         description: Whether this is a group
+ */
+app.post(
+  '/api/baileys/session/:sessionId/contacts/info',
+  apiTokenAuth,
+  async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      const { jids } = req.body;
+
+      if (!jids || !Array.isArray(jids) || jids.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'JIDs array is required and cannot be empty',
+        });
+      }
+
+      const session = whatsappSessions[sessionId];
+      if (!session || !session.sock) {
+        return res.status(404).json({
+          success: false,
+          message: 'Session not found or not connected',
+        });
+      }
+
+      const contacts = [];
+      
+      for (const jid of jids) {
+        try {
+          const contactInfo = await getContactOrGroupInfo(jid, session.sock);
+          contacts.push({
+            jid,
+            ...contactInfo,
+          });
+        } catch (error) {
+          contacts.push({
+            jid,
+            type: 'unknown',
+            name: null,
+            exists: false,
+            error: error.message,
+          });
+        }
+      }
+
+      res.json({
+        success: true,
+        contacts,
+      });
+    } catch (error) {
+      console.error('Error getting contact info:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error getting contact information',
+        error: error.message,
+      });
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /api/baileys/session/{sessionId}/contacts/profile:
+ *   get:
+ *     tags:
+ *       - Contacts
+ *     summary: Get contact profile picture
+ *     description: Get profile picture URL for a contact
+ *     security:
+ *       - ApiTokenAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Session ID
+ *       - in: query
+ *         name: jid
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: WhatsApp JID
+ *         example: "5511999999999@s.whatsapp.net"
+ *       - in: query
+ *         name: type
+ *         schema:
+ *           type: string
+ *           enum: [image, preview]
+ *           default: image
+ *         description: Type of profile picture
+ *     responses:
+ *       200:
+ *         description: Profile picture information
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 profilePicture:
+ *                   type: object
+ *                   properties:
+ *                     url:
+ *                       type: string
+ *                       description: Profile picture URL
+ *                     id:
+ *                       type: string
+ *                       description: Picture ID
+ *                     type:
+ *                       type: string
+ *                       description: Picture type
+ */
+app.get(
+  '/api/baileys/session/:sessionId/contacts/profile',
+  apiTokenAuth,
+  async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      const { jid, type = 'image' } = req.query;
+
+      if (!jid) {
+        return res.status(400).json({
+          success: false,
+          message: 'JID parameter is required',
+        });
+      }
+
+      const session = whatsappSessions[sessionId];
+      if (!session || !session.sock) {
+        return res.status(404).json({
+          success: false,
+          message: 'Session not found or not connected',
+        });
+      }
+
+      const profilePic = await session.sock.profilePictureUrl(jid, type);
+
+      if (!profilePic) {
+        return res.status(404).json({
+          success: false,
+          message: 'Profile picture not found',
+        });
+      }
+
+      res.json({
+        success: true,
+        profilePicture: {
+          url: profilePic,
+          jid,
+          type,
+        },
+      });
+    } catch (error) {
+      console.error('Error getting profile picture:', error);
+      
+      if (error.message?.includes('not-authorized')) {
+        return res.status(403).json({
+          success: false,
+          message: 'Not authorized to view this profile picture',
+        });
+      }
+
+      res.status(500).json({
+        success: false,
+        message: 'Error getting profile picture',
+        error: error.message,
+      });
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /api/baileys/session/{sessionId}/contacts/status:
+ *   get:
+ *     tags:
+ *       - Contacts
+ *     summary: Get contact status/about
+ *     description: Get the status message (about) of a contact
+ *     security:
+ *       - ApiTokenAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Session ID
+ *       - in: query
+ *         name: jid
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: WhatsApp JID
+ *         example: "5511999999999@s.whatsapp.net"
+ *     responses:
+ *       200:
+ *         description: Contact status information
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 status:
+ *                   type: object
+ *                   properties:
+ *                     jid:
+ *                       type: string
+ *                       description: WhatsApp JID
+ *                     status:
+ *                       type: string
+ *                       description: Status message
+ *                     setAt:
+ *                       type: number
+ *                       description: Timestamp when status was set
+ */
+app.get(
+  '/api/baileys/session/:sessionId/contacts/status',
+  apiTokenAuth,
+  async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      const { jid } = req.query;
+
+      if (!jid) {
+        return res.status(400).json({
+          success: false,
+          message: 'JID parameter is required',
+        });
+      }
+
+      const session = whatsappSessions[sessionId];
+      if (!session || !session.sock) {
+        return res.status(404).json({
+          success: false,
+          message: 'Session not found or not connected',
+        });
+      }
+
+      const status = await session.sock.fetchStatus(jid);
+
+      res.json({
+        success: true,
+        status: {
+          jid,
+          status: status?.status || null,
+          setAt: status?.setAt || null,
+        },
+      });
+    } catch (error) {
+      console.error('Error getting contact status:', error);
+      
+      if (error.message?.includes('not-authorized')) {
+        return res.status(403).json({
+          success: false,
+          message: 'Not authorized to view this contact status',
+        });
+      }
+
+      res.status(500).json({
+        success: false,
+        message: 'Error getting contact status',
+        error: error.message,
+      });
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /api/baileys/session/{sessionId}/contacts/block:
+ *   post:
+ *     tags:
+ *       - Contacts
+ *     summary: Block contacts
+ *     description: Block one or more contacts
+ *     security:
+ *       - ApiTokenAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Session ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - jids
+ *             properties:
+ *               jids:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: WhatsApp JIDs to block
+ *                 example: ["5511999999999@s.whatsapp.net"]
+ *     responses:
+ *       200:
+ *         description: Block operation result
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Contacts blocked successfully"
+ *                 blockedContacts:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ */
+app.post(
+  '/api/baileys/session/:sessionId/contacts/block',
+  apiTokenAuth,
+  async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      const { jids } = req.body;
+
+      if (!jids || !Array.isArray(jids) || jids.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'JIDs array is required and cannot be empty',
+        });
+      }
+
+      const session = whatsappSessions[sessionId];
+      if (!session || !session.sock) {
+        return res.status(404).json({
+          success: false,
+          message: 'Session not found or not connected',
+        });
+      }
+
+      await session.sock.updateBlockStatus(jids, 'block');
+
+      res.json({
+        success: true,
+        message: 'Contacts blocked successfully',
+        blockedContacts: jids,
+      });
+    } catch (error) {
+      console.error('Error blocking contacts:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error blocking contacts',
+        error: error.message,
+      });
+    }
+  }
+);
+
+/**
+ * @swagger
+ * /api/baileys/session/{sessionId}/contacts/unblock:
+ *   post:
+ *     tags:
+ *       - Contacts
+ *     summary: Unblock contacts
+ *     description: Unblock one or more contacts
+ *     security:
+ *       - ApiTokenAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Session ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - jids
+ *             properties:
+ *               jids:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: WhatsApp JIDs to unblock
+ *                 example: ["5511999999999@s.whatsapp.net"]
+ *     responses:
+ *       200:
+ *         description: Unblock operation result
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Contacts unblocked successfully"
+ *                 unblockedContacts:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ */
+app.post(
+  '/api/baileys/session/:sessionId/contacts/unblock',
+  apiTokenAuth,
+  async (req, res) => {
+    try {
+      const { sessionId } = req.params;
+      const { jids } = req.body;
+
+      if (!jids || !Array.isArray(jids) || jids.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'JIDs array is required and cannot be empty',
+        });
+      }
+
+      const session = whatsappSessions[sessionId];
+      if (!session || !session.sock) {
+        return res.status(404).json({
+          success: false,
+          message: 'Session not found or not connected',
+        });
+      }
+
+      await session.sock.updateBlockStatus(jids, 'unblock');
+
+      res.json({
+        success: true,
+        message: 'Contacts unblocked successfully',
+        unblockedContacts: jids,
+      });
+    } catch (error) {
+      console.error('Error unblocking contacts:', error);
+      res.status(500).json({
+        success: false,
+        message: 'Error unblocking contacts',
+        error: error.message,
+      });
+    }
+  }
+);
+
 app.get('/api/baileys/info', (req, res) => {
   res.json({
     name: 'Baileys Multi-Session API',
@@ -6041,6 +6672,10 @@ app.get('/api/baileys/info', (req, res) => {
       'Sistema de webhooks em tempo real',
       'Respostas enriquecidas com metadados',
       'Download de mídia funcional',
+      'Gerenciamento completo de contatos',
+      'Verificação de números no WhatsApp',
+      'Foto de perfil e status de contatos',
+      'Bloqueio e desbloqueio de contatos',
       'Código limpo sem imports desnecessários',
     ],
     activeSessions: sessions.size,
@@ -6095,6 +6730,14 @@ app.get('/api/baileys/info', (req, res) => {
         'Ativar/desativar webhook',
       'POST /api/baileys/session/:id/webhooks/:webhookId/test':
         'Testar webhook',
+
+      // Contatos
+      'POST /api/baileys/session/:id/contacts/check': 'Verificar números no WhatsApp',
+      'POST /api/baileys/session/:id/contacts/info': 'Obter informações de contatos',
+      'GET /api/baileys/session/:id/contacts/profile': 'Obter foto de perfil',
+      'GET /api/baileys/session/:id/contacts/status': 'Obter status do contato',
+      'POST /api/baileys/session/:id/contacts/block': 'Bloquear contatos',
+      'POST /api/baileys/session/:id/contacts/unblock': 'Desbloquear contatos',
 
       // Grupos
       'POST /api/baileys/groups/:sessionId/create': 'Criar novo grupo',
