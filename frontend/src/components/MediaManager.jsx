@@ -7,6 +7,11 @@ import {
   MusicalNoteIcon,
   PhotoIcon,
   XMarkIcon,
+  WifiIcon,
+  SignalIcon,
+  ClockIcon,
+  CheckCircleIcon,
+  ExclamationCircleIcon,
 } from '@heroicons/react/24/outline';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
@@ -179,6 +184,51 @@ export default function MediaManager({ onClose }) {
     }
   };
 
+  const getSessionStatusIcon = (session) => {
+    if (session.sessionId === 'uploads') {
+      return <FolderIcon className="w-4 h-4" />;
+    }
+    
+    switch (session.connectionState) {
+      case 'connected':
+      case true:
+        return <CheckCircleIcon className="w-4 h-4 text-green-400" />;
+      case 'connecting':
+      case 'qr_generated':
+        return <ClockIcon className="w-4 h-4 text-yellow-400 animate-pulse" />;
+      case 'disconnected':
+      case false:
+        return <ExclamationCircleIcon className="w-4 h-4 text-red-400" />;
+      default:
+        return <SignalIcon className="w-4 h-4 text-gray-400" />;
+    }
+  };
+
+  const getSessionStatusColor = (session) => {
+    if (session.sessionId === 'uploads') {
+      return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
+    }
+    
+    if (session.isConnected === true || session.connectionState === 'connected') {
+      return 'bg-green-500/20 text-green-400 border-green-500/30';
+    } else if (session.connectionState === 'connecting' || session.connectionState === 'qr_generated') {
+      return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
+    } else {
+      return 'bg-red-500/20 text-red-400 border-red-500/30';
+    }
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return 'N/A';
+    return new Date(dateString).toLocaleString('pt-BR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -271,27 +321,58 @@ export default function MediaManager({ onClose }) {
                 <motion.button
                   key={session.sessionId}
                   onClick={() => handleSessionSelect(session.sessionId)}
-                  className={`w-full flex items-center justify-between p-3 rounded-lg transition-all ${
+                  className={`w-full p-3 rounded-lg transition-all border ${
                     selectedSession === session.sessionId
-                      ? 'bg-gradient-to-r from-blue-500/20 to-purple-500/20 border border-blue-500/30'
-                      : 'hover:bg-white/5 border border-transparent'
+                      ? 'bg-gradient-to-r from-blue-500/20 to-purple-500/20 border-blue-500/30'
+                      : 'hover:bg-white/5 border-transparent hover:border-white/10'
                   }`}
                   whileHover={performanceMode ? {} : { scale: 1.01 }}
                   whileTap={performanceMode ? {} : { scale: 0.99 }}
                 >
-                  <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
-                      <FolderIcon className="w-4 h-4 text-foreground" />
-                    </div>
-                    <div className="text-left">
-                      <div className="font-medium text-foreground text-sm">
-                        {session.sessionId === 'uploads' ? 'Uploads' : session.sessionId}
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
+                        {session.sessionId === 'uploads' ? 
+                          <FolderIcon className="w-4 h-4 text-foreground" /> :
+                          <WifiIcon className="w-4 h-4 text-foreground" />
+                        }
+                      </div>
+                      <div className="text-left">
+                        <div className="font-medium text-foreground text-sm">
+                          {session.sessionName || session.sessionId}
+                        </div>
+                        {session.sessionId !== 'uploads' && (
+                          <div className={`flex items-center space-x-1 text-xs ${getSessionStatusColor(session).replace('bg-', '').replace('/20', '').replace('border-', '').replace('/30', '')}`}>
+                            {getSessionStatusIcon(session)}
+                            <span>
+                              {session.isConnected === true ? 'Conectado' : 
+                               session.connectionState === 'connecting' ? 'Conectando' :
+                               session.connectionState === 'qr_generated' ? 'QR Gerado' : 'Desconectado'}
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
+                    <Badge className={`${getTypeColor('image')} text-xs`}>
+                      {session.mediaCount}
+                    </Badge>
                   </div>
-                  <Badge className={`${getTypeColor('image')} text-xs`}>
-                    {session.mediaCount}
-                  </Badge>
+                  
+                  {/* Session info */}
+                  <div className="text-xs text-muted-foreground space-y-1">
+                    {session.latestMediaAt && (
+                      <div className="flex items-center space-x-1">
+                        <ClockIcon className="w-3 h-3" />
+                        <span>Último arquivo: {formatDate(session.latestMediaAt)}</span>
+                      </div>
+                    )}
+                    {session.lastActivity && session.sessionId !== 'uploads' && (
+                      <div className="flex items-center space-x-1">
+                        <SignalIcon className="w-3 h-3" />
+                        <span>Atividade: {formatDate(session.lastActivity)}</span>
+                      </div>
+                    )}
+                  </div>
                 </motion.button>
               ))}
             </div>
@@ -308,9 +389,17 @@ export default function MediaManager({ onClose }) {
           {selectedSession ? (
             <>
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-xl font-semibold text-foreground">
-                  Mídia da Sessão: {selectedSession === 'uploads' ? 'Uploads' : selectedSession}
-                </h2>
+                <div>
+                  <h2 className="text-xl font-semibold text-foreground">
+                    {sessions.find(s => s.sessionId === selectedSession)?.sessionName || selectedSession}
+                  </h2>
+                  <div className="flex items-center space-x-4 text-sm text-muted-foreground mt-1">
+                    <span>{media.length} arquivos</span>
+                    {media.length > 0 && (
+                      <span>{formatFileSize(media.reduce((sum, file) => sum + (file.size || 0), 0))}</span>
+                    )}
+                  </div>
+                </div>
                 <Button
                   onClick={() => loadSessionMedia(selectedSession)}
                   disabled={mediaLoading}
@@ -356,17 +445,37 @@ export default function MediaManager({ onClose }) {
                         </div>
 
                         <div className="mb-3">
-                          <h4 className="font-medium text-foreground text-sm mb-1 truncate" title={mediaFile.filename}>
-                            {mediaFile.filename}
+                          <h4 className="font-medium text-foreground text-sm mb-1 truncate" title={mediaFile.originalFileName || mediaFile.filename}>
+                            {mediaFile.originalFileName || mediaFile.filename}
                           </h4>
-                          <div className="flex items-center justify-between text-xs text-muted-foreground">
-                            <span>{formatFileSize(mediaFile.size)}</span>
-                            <span>{new Date(mediaFile.createdAt).toLocaleDateString('pt-BR')}</span>
+                          <div className="space-y-1 text-xs text-muted-foreground">
+                            <div className="flex items-center justify-between">
+                              <span>{formatFileSize(mediaFile.size)}</span>
+                              <span>{formatDate(mediaFile.createdAt)}</span>
+                            </div>
+                            {mediaFile.source === 'whatsapp' && (
+                              <div className="flex items-center justify-between">
+                                <span className="text-blue-400">WhatsApp</span>
+                                {mediaFile.isPtt && (
+                                  <span className="text-green-400">Áudio PTT</span>
+                                )}
+                              </div>
+                            )}
+                            {mediaFile.mimetype && mediaFile.mimetype !== 'unknown' && (
+                              <div className="text-gray-400 truncate" title={mediaFile.mimetype}>
+                                {mediaFile.mimetype}
+                              </div>
+                            )}
+                            {!mediaFile.fileExists && (
+                              <div className="text-red-400 text-xs">
+                                ⚠ Arquivo não encontrado
+                              </div>
+                            )}
                           </div>
                         </div>
 
                         <div className="flex items-center space-x-2">
-                          {mediaFile.type === 'image' && (
+                          {mediaFile.type === 'image' && mediaFile.fileExists !== false && (
                             <Button
                               onClick={() => handlePreview(mediaFile)}
                               size="sm"
@@ -380,10 +489,15 @@ export default function MediaManager({ onClose }) {
                           <Button
                             onClick={() => handleDownload(mediaFile)}
                             size="sm"
-                            className="flex-1 text-xs bg-primary text-primary-foreground hover:bg-primary/90"
+                            disabled={mediaFile.fileExists === false}
+                            className={`flex-1 text-xs ${
+                              mediaFile.fileExists === false
+                                ? 'bg-gray-500 text-gray-300 cursor-not-allowed'
+                                : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                            }`}
                           >
                             <ArrowDownTrayIcon className="w-3 h-3 mr-1" />
-                            Baixar
+                            {mediaFile.fileExists === false ? 'Indisponível' : 'Baixar'}
                           </Button>
                         </div>
                       </motion.div>

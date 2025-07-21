@@ -2,8 +2,13 @@ const express = require('express');
 const path = require('path');
 const fs = require('fs').promises;
 const { authenticateToken } = require('../middleware/auth');
+const database = require('../config/database');
 
 const router = express.Router();
+
+// Collections
+const DOWNLOADS_COLLECTION = 'downloaded_files';
+const SESSIONS_COLLECTION = 'whatsapp_sessions';
 
 /**
  * @swagger
@@ -35,56 +40,109 @@ const router = express.Router();
  */
 router.get('/sessions', authenticateToken, async (req, res) => {
   try {
-    const userId = req.user.id;
-    const downloadsDir = path.join(process.cwd(), 'downloads');
-    const uploadsDir = path.join(process.cwd(), 'uploads');
+    const userId = req.user.id || req.user._id?.toString();
+    const db = database.getDb();
     
-    const sessionsWithMedia = new Map();
-    
-    // Check downloads directory for session-based media
-    try {
-      const downloadFiles = await fs.readdir(downloadsDir, { withFileTypes: true });
-      for (const file of downloadFiles) {
-        if (file.isFile() && !file.name.startsWith('.')) {
-          // Extract session info from filename (assuming format contains session info)
-          const sessionMatch = file.name.match(/^([^_]+)_/);
-          const sessionId = sessionMatch ? sessionMatch[1] : 'general';
-          
-          if (!sessionsWithMedia.has(sessionId)) {
-            sessionsWithMedia.set(sessionId, { sessionId, mediaCount: 0 });
-          }
-          sessionsWithMedia.get(sessionId).mediaCount++;
-        }
-      }
-    } catch (error) {
-      console.warn('Downloads directory not accessible:', error.message);
+    if (!db) {
+      return res.status(500).json({
+        success: false,
+        message: 'Database not available'
+      });
     }
     
-    // Check uploads directory for general media
-    try {
-      const uploadFiles = await fs.readdir(uploadsDir, { withFileTypes: true });
-      for (const file of uploadFiles) {
-        if (file.isFile() && !file.name.startsWith('.')) {
-          const sessionId = 'uploads';
-          if (!sessionsWithMedia.has(sessionId)) {
-            sessionsWithMedia.set(sessionId, { sessionId, mediaCount: 0 });
-          }
-          sessionsWithMedia.get(sessionId).mediaCount++;
+    // Get user's WhatsApp sessions and media counts
+    const pipeline = [
+      // First get all user's sessions
+      {
+        $match: { userId: userId }
+      },
+      // Lookup media files for each session
+      {
+        $lookup: {
+          from: DOWNLOADS_COLLECTION,
+          localField: 'sessionId',
+          foreignField: 'sessionId',
+          as: 'mediaFiles'
         }
+      },
+      // Count media files and format response
+      {
+        $project: {
+          sessionId: 1,
+          sessionName: { $ifNull: ['$sessionName', '$sessionId'] },
+          isConnected: 1,
+          connectionState: 1,
+          createdAt: 1,
+          lastActivity: '$updatedAt',
+          mediaCount: { $size: '$mediaFiles' },
+          // Get latest media file timestamp
+          latestMediaAt: {
+            $max: '$mediaFiles.createdAt'
+          }
+        }
+      },
+      // Only include sessions with media or show all sessions
+      {
+        $match: {
+          $or: [
+            { mediaCount: { $gt: 0 } },
+            { sessionId: { $exists: true } }
+          ]
+        }
+      },
+      // Sort by latest activity
+      {
+        $sort: { latestMediaAt: -1, lastActivity: -1 }
       }
+    ];
+    
+    const sessionsWithMedia = await db.collection(SESSIONS_COLLECTION)
+      .aggregate(pipeline)
+      .toArray();
+    
+    // Also check uploads directory for general uploads
+    const uploadsDir = path.join(process.cwd(), 'uploads');
+    let uploadCount = 0;
+    try {
+      const uploadFiles = await fs.readdir(uploadsDir);
+      uploadCount = uploadFiles.filter(file => !file.startsWith('.')).length;
     } catch (error) {
       console.warn('Uploads directory not accessible:', error.message);
     }
     
+    // Add uploads session if there are any uploads
+    if (uploadCount > 0) {
+      sessionsWithMedia.push({
+        sessionId: 'uploads',
+        sessionName: 'Uploads Gerais',
+        isConnected: null,
+        connectionState: 'static',
+        mediaCount: uploadCount,
+        createdAt: new Date(),
+        lastActivity: new Date(),
+        latestMediaAt: new Date()
+      });
+    }
+    
     res.json({
       success: true,
-      sessions: Array.from(sessionsWithMedia.values())
+      sessions: sessionsWithMedia.map(session => ({
+        sessionId: session.sessionId,
+        sessionName: session.sessionName,
+        mediaCount: session.mediaCount,
+        isConnected: session.isConnected,
+        connectionState: session.connectionState,
+        lastActivity: session.lastActivity,
+        latestMediaAt: session.latestMediaAt
+      }))
     });
+    
   } catch (error) {
     console.error('Error listing media sessions:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to list media sessions'
+      message: 'Failed to list media sessions',
+      error: error.message
     });
   }
 });
@@ -136,79 +194,141 @@ router.get('/sessions', authenticateToken, async (req, res) => {
 router.get('/session/:sessionId', authenticateToken, async (req, res) => {
   try {
     const { sessionId } = req.params;
-    const userId = req.user.id;
-    const media = [];
+    const userId = req.user.id || req.user._id?.toString();
+    const db = database.getDb();
     
-    const getFileType = (filename) => {
-      const ext = path.extname(filename).toLowerCase();
-      if (['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext)) return 'image';
-      if (['.mp4', '.avi', '.mov', '.wmv', '.webm'].includes(ext)) return 'video';
-      if (['.mp3', '.wav', '.m4a', '.ogg', '.opus'].includes(ext)) return 'audio';
-      if (['.pdf'].includes(ext)) return 'pdf';
-      if (['.doc', '.docx'].includes(ext)) return 'document';
+    if (!db) {
+      return res.status(500).json({
+        success: false,
+        message: 'Database not available'
+      });
+    }
+    
+    const getFileType = (mimetype, filename) => {
+      if (!mimetype) {
+        // Fallback to extension-based detection
+        const ext = path.extname(filename).toLowerCase();
+        if (['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext)) return 'image';
+        if (['.mp4', '.avi', '.mov', '.wmv', '.webm'].includes(ext)) return 'video';
+        if (['.mp3', '.wav', '.m4a', '.ogg', '.opus'].includes(ext)) return 'audio';
+        if (['.pdf'].includes(ext)) return 'pdf';
+        if (['.doc', '.docx'].includes(ext)) return 'document';
+        return 'other';
+      }
+      
+      if (mimetype.startsWith('image/')) return 'image';
+      if (mimetype.startsWith('video/')) return 'video';
+      if (mimetype.startsWith('audio/')) return 'audio';
+      if (mimetype === 'application/pdf') return 'pdf';
+      if (mimetype.includes('document') || mimetype.includes('word')) return 'document';
       return 'other';
     };
     
-    const processDirectory = async (dirPath, urlPrefix) => {
+    let media = [];
+    
+    if (sessionId === 'uploads') {
+      // Handle uploads directory
+      const uploadsDir = path.join(process.cwd(), 'uploads');
       try {
-        const files = await fs.readdir(dirPath, { withFileTypes: true });
+        const uploadFiles = await fs.readdir(uploadsDir, { withFileTypes: true });
         
-        for (const file of files) {
+        for (const file of uploadFiles) {
           if (file.isFile() && !file.name.startsWith('.')) {
-            // For downloads, filter by sessionId prefix
-            if (dirPath.includes('downloads')) {
-              const sessionMatch = file.name.match(/^([^_]+)_/);
-              const fileSessionId = sessionMatch ? sessionMatch[1] : 'general';
-              if (fileSessionId !== sessionId && sessionId !== 'general') {
-                continue;
-              }
-            }
-            
-            // For uploads, only show if sessionId is 'uploads'
-            if (dirPath.includes('uploads') && sessionId !== 'uploads') {
-              continue;
-            }
-            
-            const filePath = path.join(dirPath, file.name);
+            const filePath = path.join(uploadsDir, file.name);
             const stats = await fs.stat(filePath);
-            const fileType = getFileType(file.name);
+            const fileType = getFileType(null, file.name);
             
             media.push({
+              id: `upload_${file.name}`,
               filename: file.name,
+              originalFileName: file.name,
               type: fileType,
+              mimetype: 'unknown',
               size: stats.size,
               createdAt: stats.birthtime.toISOString(),
-              downloadUrl: `${urlPrefix}/${encodeURIComponent(file.name)}`,
-              previewUrl: fileType === 'image' ? `${urlPrefix}/${encodeURIComponent(file.name)}` : null
+              downloadUrl: `/api/management/media/download/uploads/${encodeURIComponent(file.name)}`,
+              previewUrl: fileType === 'image' ? `/api/management/media/preview/uploads/${encodeURIComponent(file.name)}` : null,
+              sessionId: 'uploads',
+              source: 'uploads'
             });
           }
         }
       } catch (error) {
-        console.warn(`Directory ${dirPath} not accessible:`, error.message);
+        console.warn('Uploads directory not accessible:', error.message);
       }
-    };
-    
-    // Process downloads directory
-    const downloadsDir = path.join(process.cwd(), 'downloads');
-    await processDirectory(downloadsDir, '/downloads');
-    
-    // Process uploads directory
-    const uploadsDir = path.join(process.cwd(), 'uploads');
-    await processDirectory(uploadsDir, '/uploads');
-    
-    // Sort by creation date (newest first)
-    media.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    } else {
+      // Verify user owns this session
+      const session = await db.collection(SESSIONS_COLLECTION).findOne({
+        sessionId: sessionId,
+        userId: userId
+      });
+      
+      if (!session) {
+        return res.status(403).json({
+          success: false,
+          message: 'Session not found or access denied'
+        });
+      }
+      
+      // Get media files from MongoDB for this session
+      const mediaFiles = await db.collection(DOWNLOADS_COLLECTION)
+        .find({ sessionId: sessionId })
+        .sort({ createdAt: -1 })
+        .toArray();
+      
+      // Process each media file
+      for (const mediaFile of mediaFiles) {
+        const fileType = getFileType(mediaFile.mimetype, mediaFile.originalFileName);
+        
+        // Check if file still exists on disk
+        const filePath = mediaFile.filePath;
+        let fileExists = true;
+        let actualSize = mediaFile.size;
+        
+        try {
+          const stats = await fs.stat(filePath);
+          actualSize = stats.size;
+        } catch (error) {
+          fileExists = false;
+          console.warn(`File not found on disk: ${filePath}`);
+        }
+        
+        media.push({
+          id: mediaFile.downloadId,
+          filename: mediaFile.safeFileName || mediaFile.originalFileName,
+          originalFileName: mediaFile.originalFileName,
+          type: fileType,
+          mimetype: mediaFile.mimetype,
+          size: actualSize,
+          createdAt: mediaFile.createdAt.toISOString(),
+          uploadedAt: mediaFile.uploadedAt ? mediaFile.uploadedAt.toISOString() : null,
+          downloadUrl: `/api/management/media/download/${sessionId}/${encodeURIComponent(mediaFile.safeFileName || mediaFile.originalFileName)}`,
+          previewUrl: fileType === 'image' ? `/api/management/media/preview/${sessionId}/${encodeURIComponent(mediaFile.safeFileName || mediaFile.originalFileName)}` : null,
+          sessionId: sessionId,
+          messageId: mediaFile.messageId,
+          messageType: mediaFile.messageType,
+          isPtt: mediaFile.isPtt || false,
+          fileExists: fileExists,
+          source: 'whatsapp'
+        });
+      }
+    }
     
     res.json({
       success: true,
       sessionId,
-      media
+      sessionName: sessionId === 'uploads' ? 'Uploads Gerais' : sessionId,
+      media,
+      totalFiles: media.length,
+      totalSize: media.reduce((sum, file) => sum + (file.size || 0), 0)
     });
+    
   } catch (error) {
     console.error('Error listing session media:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to list session media'
+      message: 'Failed to list session media',
+      error: error.message
     });
   }
 });
@@ -244,7 +364,8 @@ router.get('/session/:sessionId', authenticateToken, async (req, res) => {
 router.get('/download/:sessionId/:filename', authenticateToken, async (req, res) => {
   try {
     const { sessionId, filename } = req.params;
-    const userId = req.user.id;
+    const userId = req.user.id || req.user._id?.toString();
+    const db = database.getDb();
     
     // Validate filename to prevent directory traversal
     if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
@@ -255,24 +376,85 @@ router.get('/download/:sessionId/:filename', authenticateToken, async (req, res)
     }
     
     let filePath = null;
+    let originalFileName = filename;
+    let mimetype = 'application/octet-stream';
     
-    // Check in downloads directory first
-    const downloadsPath = path.join(process.cwd(), 'downloads', filename);
-    try {
-      await fs.access(downloadsPath);
-      filePath = downloadsPath;
-    } catch (error) {
-      // File not found in downloads
-    }
-    
-    // Check in uploads directory if not found in downloads
-    if (!filePath && sessionId === 'uploads') {
+    if (sessionId === 'uploads') {
+      // Handle uploads directory
       const uploadsPath = path.join(process.cwd(), 'uploads', filename);
       try {
         await fs.access(uploadsPath);
         filePath = uploadsPath;
+        originalFileName = filename;
       } catch (error) {
-        // File not found in uploads
+        return res.status(404).json({
+          success: false,
+          message: 'File not found in uploads'
+        });
+      }
+    } else {
+      // Verify user owns this session and get file metadata from MongoDB
+      if (db) {
+        const session = await db.collection(SESSIONS_COLLECTION).findOne({
+          sessionId: sessionId,
+          userId: userId
+        });
+        
+        if (!session) {
+          return res.status(403).json({
+            success: false,
+            message: 'Session not found or access denied'
+          });
+        }
+        
+        // Find the media file in MongoDB
+        const mediaFile = await db.collection(DOWNLOADS_COLLECTION).findOne({
+          sessionId: sessionId,
+          $or: [
+            { safeFileName: filename },
+            { originalFileName: filename }
+          ]
+        });
+        
+        if (mediaFile) {
+          filePath = mediaFile.filePath;
+          originalFileName = mediaFile.originalFileName || filename;
+          mimetype = mediaFile.mimetype || 'application/octet-stream';
+          
+          // Check if file still exists
+          try {
+            await fs.access(filePath);
+          } catch (error) {
+            return res.status(404).json({
+              success: false,
+              message: 'File not found on disk'
+            });
+          }
+        } else {
+          // Fallback to directory search
+          const downloadsPath = path.join(process.cwd(), 'downloads', filename);
+          try {
+            await fs.access(downloadsPath);
+            filePath = downloadsPath;
+          } catch (error) {
+            return res.status(404).json({
+              success: false,
+              message: 'File not found'
+            });
+          }
+        }
+      } else {
+        // Fallback when database is not available
+        const downloadsPath = path.join(process.cwd(), 'downloads', filename);
+        try {
+          await fs.access(downloadsPath);
+          filePath = downloadsPath;
+        } catch (error) {
+          return res.status(404).json({
+            success: false,
+            message: 'File not found'
+          });
+        }
       }
     }
     
@@ -284,7 +466,8 @@ router.get('/download/:sessionId/:filename', authenticateToken, async (req, res)
     }
     
     // Set appropriate headers
-    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Disposition', `attachment; filename="${originalFileName}"`);
+    res.setHeader('Content-Type', mimetype);
     
     // Stream the file
     const fileStream = require('fs').createReadStream(filePath);
@@ -294,7 +477,8 @@ router.get('/download/:sessionId/:filename', authenticateToken, async (req, res)
     console.error('Error downloading media:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to download media'
+      message: 'Failed to download media',
+      error: error.message
     });
   }
 });
@@ -330,7 +514,8 @@ router.get('/download/:sessionId/:filename', authenticateToken, async (req, res)
 router.get('/preview/:sessionId/:filename', authenticateToken, async (req, res) => {
   try {
     const { sessionId, filename } = req.params;
-    const userId = req.user.id;
+    const userId = req.user.id || req.user._id?.toString();
+    const db = database.getDb();
     
     // Validate filename to prevent directory traversal
     if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
@@ -341,24 +526,82 @@ router.get('/preview/:sessionId/:filename', authenticateToken, async (req, res) 
     }
     
     let filePath = null;
+    let mimetype = 'application/octet-stream';
     
-    // Check in downloads directory first
-    const downloadsPath = path.join(process.cwd(), 'downloads', filename);
-    try {
-      await fs.access(downloadsPath);
-      filePath = downloadsPath;
-    } catch (error) {
-      // File not found in downloads
-    }
-    
-    // Check in uploads directory if not found in downloads
-    if (!filePath && sessionId === 'uploads') {
+    if (sessionId === 'uploads') {
+      // Handle uploads directory
       const uploadsPath = path.join(process.cwd(), 'uploads', filename);
       try {
         await fs.access(uploadsPath);
         filePath = uploadsPath;
       } catch (error) {
-        // File not found in uploads
+        return res.status(404).json({
+          success: false,
+          message: 'File not found in uploads'
+        });
+      }
+    } else {
+      // Verify user owns this session and get file metadata
+      if (db) {
+        const session = await db.collection(SESSIONS_COLLECTION).findOne({
+          sessionId: sessionId,
+          userId: userId
+        });
+        
+        if (!session) {
+          return res.status(403).json({
+            success: false,
+            message: 'Session not found or access denied'
+          });
+        }
+        
+        // Find the media file in MongoDB
+        const mediaFile = await db.collection(DOWNLOADS_COLLECTION).findOne({
+          sessionId: sessionId,
+          $or: [
+            { safeFileName: filename },
+            { originalFileName: filename }
+          ]
+        });
+        
+        if (mediaFile) {
+          filePath = mediaFile.filePath;
+          mimetype = mediaFile.mimetype || 'application/octet-stream';
+          
+          // Check if file still exists
+          try {
+            await fs.access(filePath);
+          } catch (error) {
+            return res.status(404).json({
+              success: false,
+              message: 'File not found on disk'
+            });
+          }
+        } else {
+          // Fallback to directory search
+          const downloadsPath = path.join(process.cwd(), 'downloads', filename);
+          try {
+            await fs.access(downloadsPath);
+            filePath = downloadsPath;
+          } catch (error) {
+            return res.status(404).json({
+              success: false,
+              message: 'File not found'
+            });
+          }
+        }
+      } else {
+        // Fallback when database is not available
+        const downloadsPath = path.join(process.cwd(), 'downloads', filename);
+        try {
+          await fs.access(downloadsPath);
+          filePath = downloadsPath;
+        } catch (error) {
+          return res.status(404).json({
+            success: false,
+            message: 'File not found'
+          });
+        }
       }
     }
     
@@ -369,24 +612,36 @@ router.get('/preview/:sessionId/:filename', authenticateToken, async (req, res) 
       });
     }
     
-    // Get file extension for content type
-    const ext = path.extname(filename).toLowerCase();
-    let contentType = 'application/octet-stream';
+    // Determine content type
+    let contentType = mimetype;
+    if (!contentType || contentType === 'application/octet-stream') {
+      // Fallback to extension-based detection
+      const ext = path.extname(filename).toLowerCase();
+      switch (ext) {
+        case '.jpg':
+        case '.jpeg':
+          contentType = 'image/jpeg';
+          break;
+        case '.png':
+          contentType = 'image/png';
+          break;
+        case '.gif':
+          contentType = 'image/gif';
+          break;
+        case '.webp':
+          contentType = 'image/webp';
+          break;
+        default:
+          contentType = 'application/octet-stream';
+      }
+    }
     
-    switch (ext) {
-      case '.jpg':
-      case '.jpeg':
-        contentType = 'image/jpeg';
-        break;
-      case '.png':
-        contentType = 'image/png';
-        break;
-      case '.gif':
-        contentType = 'image/gif';
-        break;
-      case '.webp':
-        contentType = 'image/webp';
-        break;
+    // Only allow preview for image files
+    if (!contentType.startsWith('image/')) {
+      return res.status(400).json({
+        success: false,
+        message: 'Preview is only available for image files'
+      });
     }
     
     res.setHeader('Content-Type', contentType);
@@ -400,7 +655,8 @@ router.get('/preview/:sessionId/:filename', authenticateToken, async (req, res) 
     console.error('Error previewing media:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to preview media'
+      message: 'Failed to preview media',
+      error: error.message
     });
   }
 });
