@@ -6437,14 +6437,15 @@ app.get(
         });
       }
 
-      const status = await session.sock.fetchStatus(jid);
+      // fetchStatus aceita múltiplos JIDs como parâmetros separados
+      const [statusResult] = await session.sock.fetchStatus(jid);
 
       res.json({
         success: true,
-        status: {
+        data: {
           jid,
-          status: status?.status || null,
-          setAt: status?.setAt || null,
+          status: statusResult?.status || null,
+          setAt: statusResult?.setAt || null,
         },
       });
     } catch (error) {
@@ -6540,12 +6541,27 @@ app.post(
         });
       }
 
-      await session.sock.updateBlockStatus(contacts, 'block');
+      // Baileys updateBlockStatus aceita apenas um JID por vez
+      const blockedContacts = [];
+      const failedContacts = [];
+
+      for (const jid of contacts) {
+        try {
+          await session.sock.updateBlockStatus(jid, 'block');
+          blockedContacts.push(jid);
+        } catch (error) {
+          console.error(`Erro ao bloquear ${jid}:`, error);
+          failedContacts.push({ jid, error: error.message });
+        }
+      }
 
       res.json({
         success: true,
-        message: 'Contacts blocked successfully',
-        blockedContacts: contacts,
+        message: `${blockedContacts.length} contatos bloqueados com sucesso`,
+        data: {
+          blocked: blockedContacts,
+          failed: failedContacts
+        }
       });
     } catch (error) {
       console.error('Error blocking contacts:', error);
@@ -6632,12 +6648,27 @@ app.post(
         });
       }
 
-      await session.sock.updateBlockStatus(contacts, 'unblock');
+      // Baileys updateBlockStatus aceita apenas um JID por vez
+      const unblockedContacts = [];
+      const failedContacts = [];
+
+      for (const jid of contacts) {
+        try {
+          await session.sock.updateBlockStatus(jid, 'unblock');
+          unblockedContacts.push(jid);
+        } catch (error) {
+          console.error(`Erro ao desbloquear ${jid}:`, error);
+          failedContacts.push({ jid, error: error.message });
+        }
+      }
 
       res.json({
         success: true,
-        message: 'Contacts unblocked successfully',
-        unblockedContacts: contacts,
+        message: `${unblockedContacts.length} contatos desbloqueados com sucesso`,
+        data: {
+          unblocked: unblockedContacts,
+          failed: failedContacts
+        }
       });
     } catch (error) {
       console.error('Error unblocking contacts:', error);
