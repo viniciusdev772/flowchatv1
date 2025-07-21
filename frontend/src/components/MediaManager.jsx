@@ -54,7 +54,9 @@ export default function MediaManager({ onClose }) {
   const loadSessions = async () => {
     try {
       setLoading(true);
-      const response = await fetch(`${apiUrl}/api/management/media/sessions`, {
+      
+      // First get API token list for Baileys API
+      const tokenListResponse = await fetch(`${apiUrl}/api/management/tokens/list`, {
         method: 'GET',
         credentials: 'include',
         headers: {
@@ -62,14 +64,137 @@ export default function MediaManager({ onClose }) {
         },
       });
 
-      if (response.ok) {
-        const result = await response.json();
-        if (result.success) {
-          setSessions(result.sessions || []);
-          // Auto-select first session if available
-          if (result.sessions && result.sessions.length > 0) {
-            setSelectedSession(result.sessions[0].sessionId);
-            loadSessionMedia(result.sessions[0].sessionId);
+      if (!tokenListResponse.ok) {
+        throw new Error('Failed to get API token list');
+      }
+
+      const tokenListResult = await tokenListResponse.json();
+      if (!tokenListResult.success || !tokenListResult.tokens || tokenListResult.tokens.length === 0) {
+        throw new Error('No API tokens available');
+      }
+
+      // Get the full token from the first available token
+      const firstToken = tokenListResult.tokens[0];
+      const tokenResponse = await fetch(`${apiUrl}/api/management/tokens/${firstToken._id}/full`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!tokenResponse.ok) {
+        throw new Error('Failed to get full API token');
+      }
+
+      const tokenResult = await tokenResponse.json();
+      if (!tokenResult.success || !tokenResult.token) {
+        throw new Error('No full token received');
+      }
+
+      // Get sessions from baileys API using Bearer token
+      const sessionsResponse = await fetch(`${apiUrl}/api/baileys/sessions`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${tokenResult.token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (sessionsResponse.ok) {
+        const sessionsResult = await sessionsResponse.json();
+        if (sessionsResult.success) {
+          // Transform baileys sessions to include media counts
+          const sessionsWithMedia = [];
+          
+          for (const session of sessionsResult.sessions || []) {
+            // Get media count for each session
+            try {
+              const mediaResponse = await fetch(`${apiUrl}/api/management/media/session/${session.sessionId}`, {
+                method: 'GET',
+                credentials: 'include',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+              });
+              
+              if (mediaResponse.ok) {
+                const mediaResult = await mediaResponse.json();
+                if (mediaResult.success) {
+                  sessionsWithMedia.push({
+                    sessionId: session.sessionId,
+                    sessionName: session.sessionId,
+                    isConnected: session.isConnected,
+                    connectionState: session.connectionState,
+                    createdAt: session.createdAt,
+                    lastActivity: session.connectedAt,
+                    mediaCount: mediaResult.totalFiles || 0,
+                    latestMediaAt: mediaResult.media && mediaResult.media.length > 0 ? 
+                      mediaResult.media[0].createdAt : null
+                  });
+                }
+              }
+            } catch (mediaError) {
+              console.warn(`Error getting media for session ${session.sessionId}:`, mediaError);
+              // Add session even without media count
+              sessionsWithMedia.push({
+                sessionId: session.sessionId,
+                sessionName: session.sessionId,
+                isConnected: session.isConnected,
+                connectionState: session.connectionState,
+                createdAt: session.createdAt,
+                lastActivity: session.connectedAt,
+                mediaCount: 0,
+                latestMediaAt: null
+              });
+            }
+          }
+          
+          // Add uploads session if needed (check if there are uploads)
+          try {
+            const uploadsResponse = await fetch(`${apiUrl}/api/management/media/session/uploads`, {
+              method: 'GET',
+              credentials: 'include',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+            });
+            
+            if (uploadsResponse.ok) {
+              const uploadsResult = await uploadsResponse.json();
+              if (uploadsResult.success && uploadsResult.totalFiles > 0) {
+                sessionsWithMedia.push({
+                  sessionId: 'uploads',
+                  sessionName: 'Uploads Gerais',
+                  isConnected: null,
+                  connectionState: 'static',
+                  mediaCount: uploadsResult.totalFiles,
+                  createdAt: new Date().toISOString(),
+                  lastActivity: new Date().toISOString(),
+                  latestMediaAt: uploadsResult.media && uploadsResult.media.length > 0 ? 
+                    uploadsResult.media[0].createdAt : new Date().toISOString()
+                });
+              }
+            }
+          } catch (uploadsError) {
+            console.warn('Error checking uploads:', uploadsError);
+          }
+          
+          // Sort by media count and latest activity
+          sessionsWithMedia.sort((a, b) => {
+            if (a.mediaCount !== b.mediaCount) {
+              return b.mediaCount - a.mediaCount; // More media first
+            }
+            return new Date(b.latestMediaAt || 0) - new Date(a.latestMediaAt || 0);
+          });
+          
+          setSessions(sessionsWithMedia);
+          
+          // Auto-select first session with media
+          const sessionWithMedia = sessionsWithMedia.find(s => s.mediaCount > 0);
+          if (sessionWithMedia) {
+            setSelectedSession(sessionWithMedia.sessionId);
+            loadSessionMedia(sessionWithMedia.sessionId);
           }
         }
       }
