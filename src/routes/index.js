@@ -3,6 +3,7 @@ const authRoutes = require('./auth');
 const tokenRoutes = require('./tokens');
 const sessionRoutes = require('./sessions');
 const aiRoutes = require('./ai');
+const mediaRoutes = require('./media');
 const messageCollectorRoutes = require('../api/messageCollector');
 const aiSummaryRoutes = require('../api/aiSummary');
 
@@ -26,6 +27,9 @@ router.use('/tokens', tokenRoutes);
 
 // Session routes
 router.use('/sessions', sessionRoutes);
+
+// Media routes
+router.use('/media', mediaRoutes);
 
 // AI Assistant routes
 router.use('/ai', aiRoutes);
@@ -64,6 +68,12 @@ router.get('/info', (req, res) => {
         sessions: {
           createWithToken: 'POST /api/management/sessions/create-with-token',
           list: 'GET /api/management/sessions/list'
+        },
+        media: {
+          sessions: 'GET /api/management/media/sessions',
+          sessionMedia: 'GET /api/management/media/session/:sessionId',
+          download: 'GET /api/management/media/download/:sessionId/:filename',
+          preview: 'GET /api/management/media/preview/:sessionId/:filename'
         },
         ai: {
           chat: 'POST /api/management/ai/chat',
