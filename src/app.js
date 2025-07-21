@@ -6200,12 +6200,12 @@ app.post(
   async (req, res) => {
     try {
       const { sessionId } = req.params;
-      const { jids } = req.body;
+      const { contacts } = req.body;
 
-      if (!jids || !Array.isArray(jids) || jids.length === 0) {
+      if (!contacts || !Array.isArray(contacts) || contacts.length === 0) {
         return res.status(400).json({
           success: false,
-          message: 'JIDs array is required and cannot be empty',
+          message: 'Contacts array is required and cannot be empty',
         });
       }
 
@@ -6217,17 +6217,17 @@ app.post(
         });
       }
 
-      const contacts = [];
+      const contactsInfo = [];
       
-      for (const jid of jids) {
+      for (const jid of contacts) {
         try {
           const contactInfo = await getContactOrGroupInfo(jid, session.sock);
-          contacts.push({
+          contactsInfo.push({
             jid,
             ...contactInfo,
           });
         } catch (error) {
-          contacts.push({
+          contactsInfo.push({
             jid,
             type: 'unknown',
             name: null,
@@ -6239,7 +6239,7 @@ app.post(
 
       res.json({
         success: true,
-        contacts,
+        contacts: contactsInfo,
       });
     } catch (error) {
       console.error('Error getting contact info:', error);
@@ -6523,12 +6523,12 @@ app.post(
   async (req, res) => {
     try {
       const { sessionId } = req.params;
-      const { jids } = req.body;
+      const { contacts } = req.body;
 
-      if (!jids || !Array.isArray(jids) || jids.length === 0) {
+      if (!contacts || !Array.isArray(contacts) || contacts.length === 0) {
         return res.status(400).json({
           success: false,
-          message: 'JIDs array is required and cannot be empty',
+          message: 'Contacts array is required and cannot be empty',
         });
       }
 
@@ -6540,12 +6540,12 @@ app.post(
         });
       }
 
-      await session.sock.updateBlockStatus(jids, 'block');
+      await session.sock.updateBlockStatus(contacts, 'block');
 
       res.json({
         success: true,
         message: 'Contacts blocked successfully',
-        blockedContacts: jids,
+        blockedContacts: contacts,
       });
     } catch (error) {
       console.error('Error blocking contacts:', error);
@@ -6615,12 +6615,12 @@ app.post(
   async (req, res) => {
     try {
       const { sessionId } = req.params;
-      const { jids } = req.body;
+      const { contacts } = req.body;
 
-      if (!jids || !Array.isArray(jids) || jids.length === 0) {
+      if (!contacts || !Array.isArray(contacts) || contacts.length === 0) {
         return res.status(400).json({
           success: false,
-          message: 'JIDs array is required and cannot be empty',
+          message: 'Contacts array is required and cannot be empty',
         });
       }
 
@@ -6632,12 +6632,12 @@ app.post(
         });
       }
 
-      await session.sock.updateBlockStatus(jids, 'unblock');
+      await session.sock.updateBlockStatus(contacts, 'unblock');
 
       res.json({
         success: true,
         message: 'Contacts unblocked successfully',
-        unblockedContacts: jids,
+        unblockedContacts: contacts,
       });
     } catch (error) {
       console.error('Error unblocking contacts:', error);
