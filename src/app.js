@@ -6079,7 +6079,7 @@ app.delete(
  */
 app.post(
   '/api/baileys/session/:sessionId/contacts/check',
-  apiTokenAuth,
+  checkSessionOwnership,
   async (req, res) => {
     try {
       const { sessionId } = req.params;
@@ -6092,11 +6092,11 @@ app.post(
         });
       }
 
-      const session = whatsappSessions[sessionId];
-      if (!session || !session.sock) {
-        return res.status(404).json({
+      const session = sessions.get(sessionId);
+      if (!session || !session.isConnected) {
+        return res.status(400).json({
           success: false,
-          message: 'Session not found or not connected',
+          message: 'Sessão não encontrada ou não conectada',
         });
       }
 
@@ -6196,7 +6196,7 @@ app.post(
  */
 app.post(
   '/api/baileys/session/:sessionId/contacts/info',
-  apiTokenAuth,
+  checkSessionOwnership,
   async (req, res) => {
     try {
       const { sessionId } = req.params;
@@ -6209,11 +6209,11 @@ app.post(
         });
       }
 
-      const session = whatsappSessions[sessionId];
-      if (!session || !session.sock) {
-        return res.status(404).json({
+      const session = sessions.get(sessionId);
+      if (!session || !session.isConnected) {
+        return res.status(400).json({
           success: false,
-          message: 'Session not found or not connected',
+          message: 'Sessão não encontrada ou não conectada',
         });
       }
 
@@ -6309,7 +6309,7 @@ app.post(
  */
 app.get(
   '/api/baileys/session/:sessionId/contacts/profile',
-  apiTokenAuth,
+  checkSessionOwnership,
   async (req, res) => {
     try {
       const { sessionId } = req.params;
@@ -6322,11 +6322,11 @@ app.get(
         });
       }
 
-      const session = whatsappSessions[sessionId];
-      if (!session || !session.sock) {
-        return res.status(404).json({
+      const session = sessions.get(sessionId);
+      if (!session || !session.isConnected) {
+        return res.status(400).json({
           success: false,
-          message: 'Session not found or not connected',
+          message: 'Sessão não encontrada ou não conectada',
         });
       }
 
@@ -6416,7 +6416,7 @@ app.get(
  */
 app.get(
   '/api/baileys/session/:sessionId/contacts/status',
-  apiTokenAuth,
+  checkSessionOwnership,
   async (req, res) => {
     try {
       const { sessionId } = req.params;
@@ -6429,11 +6429,11 @@ app.get(
         });
       }
 
-      const session = whatsappSessions[sessionId];
-      if (!session || !session.sock) {
-        return res.status(404).json({
+      const session = sessions.get(sessionId);
+      if (!session || !session.isConnected) {
+        return res.status(400).json({
           success: false,
-          message: 'Session not found or not connected',
+          message: 'Sessão não encontrada ou não conectada',
         });
       }
 
@@ -6519,7 +6519,7 @@ app.get(
  */
 app.post(
   '/api/baileys/session/:sessionId/contacts/block',
-  apiTokenAuth,
+  checkSessionOwnership,
   async (req, res) => {
     try {
       const { sessionId } = req.params;
@@ -6532,11 +6532,11 @@ app.post(
         });
       }
 
-      const session = whatsappSessions[sessionId];
-      if (!session || !session.sock) {
-        return res.status(404).json({
+      const session = sessions.get(sessionId);
+      if (!session || !session.isConnected) {
+        return res.status(400).json({
           success: false,
-          message: 'Session not found or not connected',
+          message: 'Sessão não encontrada ou não conectada',
         });
       }
 
@@ -6611,7 +6611,7 @@ app.post(
  */
 app.post(
   '/api/baileys/session/:sessionId/contacts/unblock',
-  apiTokenAuth,
+  checkSessionOwnership,
   async (req, res) => {
     try {
       const { sessionId } = req.params;
@@ -6624,11 +6624,11 @@ app.post(
         });
       }
 
-      const session = whatsappSessions[sessionId];
-      if (!session || !session.sock) {
-        return res.status(404).json({
+      const session = sessions.get(sessionId);
+      if (!session || !session.isConnected) {
+        return res.status(400).json({
           success: false,
-          message: 'Session not found or not connected',
+          message: 'Sessão não encontrada ou não conectada',
         });
       }
 
