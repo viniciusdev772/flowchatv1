@@ -1,23 +1,29 @@
 import {
   ArrowDownTrayIcon,
+  CheckCircleIcon,
+  ClockIcon,
   DocumentIcon,
+  ExclamationCircleIcon,
   EyeIcon,
   FilmIcon,
   FolderIcon,
   MusicalNoteIcon,
   PhotoIcon,
-  XMarkIcon,
-  WifiIcon,
   SignalIcon,
-  ClockIcon,
-  CheckCircleIcon,
-  ExclamationCircleIcon,
+  WifiIcon,
+  XMarkIcon,
 } from '@heroicons/react/24/outline';
-import { AnimatePresence, motion } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
-import { Button } from './ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
 import { Badge } from './ui/badge';
+import { Button } from './ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from './ui/dialog';
 
 export default function MediaManager({ onClose }) {
   const [sessions, setSessions] = useState([]);
@@ -54,34 +60,44 @@ export default function MediaManager({ onClose }) {
   const loadSessions = async () => {
     try {
       setLoading(true);
-      
+
       // First get API token list for Baileys API
-      const tokenListResponse = await fetch(`${apiUrl}/api/management/tokens/list`, {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+      const tokenListResponse = await fetch(
+        `${apiUrl}/api/management/tokens/list`,
+        {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
 
       if (!tokenListResponse.ok) {
         throw new Error('Failed to get API token list');
       }
 
       const tokenListResult = await tokenListResponse.json();
-      if (!tokenListResult.success || !tokenListResult.tokens || tokenListResult.tokens.length === 0) {
+      if (
+        !tokenListResult.success ||
+        !tokenListResult.tokens ||
+        tokenListResult.tokens.length === 0
+      ) {
         throw new Error('No API tokens available');
       }
 
       // Get the full token from the first available token
       const firstToken = tokenListResult.tokens[0];
-      const tokenResponse = await fetch(`${apiUrl}/api/management/tokens/${firstToken._id}/full`, {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+      const tokenResponse = await fetch(
+        `${apiUrl}/api/management/tokens/${firstToken._id}/full`,
+        {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
 
       if (!tokenResponse.ok) {
         throw new Error('Failed to get full API token');
@@ -96,7 +112,7 @@ export default function MediaManager({ onClose }) {
       const sessionsResponse = await fetch(`${apiUrl}/api/baileys/sessions`, {
         method: 'GET',
         headers: {
-          'Authorization': `Bearer ${tokenResult.token}`,
+          Authorization: `Bearer ${tokenResult.token}`,
           'Content-Type': 'application/json',
         },
       });
@@ -106,18 +122,21 @@ export default function MediaManager({ onClose }) {
         if (sessionsResult.success) {
           // Transform baileys sessions to include media counts
           const sessionsWithMedia = [];
-          
+
           for (const session of sessionsResult.sessions || []) {
             // Get media count for each session
             try {
-              const mediaResponse = await fetch(`${apiUrl}/api/management/media/session/${session.sessionId}`, {
-                method: 'GET',
-                credentials: 'include',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-              });
-              
+              const mediaResponse = await fetch(
+                `${apiUrl}/api/management/media/session/${session.sessionId}`,
+                {
+                  method: 'GET',
+                  credentials: 'include',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                }
+              );
+
               if (mediaResponse.ok) {
                 const mediaResult = await mediaResponse.json();
                 if (mediaResult.success) {
@@ -129,13 +148,18 @@ export default function MediaManager({ onClose }) {
                     createdAt: session.createdAt,
                     lastActivity: session.connectedAt,
                     mediaCount: mediaResult.totalFiles || 0,
-                    latestMediaAt: mediaResult.media && mediaResult.media.length > 0 ? 
-                      mediaResult.media[0].createdAt : null
+                    latestMediaAt:
+                      mediaResult.media && mediaResult.media.length > 0
+                        ? mediaResult.media[0].createdAt
+                        : null,
                   });
                 }
               }
             } catch (mediaError) {
-              console.warn(`Error getting media for session ${session.sessionId}:`, mediaError);
+              console.warn(
+                `Error getting media for session ${session.sessionId}:`,
+                mediaError
+              );
               // Add session even without media count
               sessionsWithMedia.push({
                 sessionId: session.sessionId,
@@ -145,21 +169,24 @@ export default function MediaManager({ onClose }) {
                 createdAt: session.createdAt,
                 lastActivity: session.connectedAt,
                 mediaCount: 0,
-                latestMediaAt: null
+                latestMediaAt: null,
               });
             }
           }
-          
+
           // Add uploads session if needed (check if there are uploads)
           try {
-            const uploadsResponse = await fetch(`${apiUrl}/api/management/media/session/uploads`, {
-              method: 'GET',
-              credentials: 'include',
-              headers: {
-                'Content-Type': 'application/json',
-              },
-            });
-            
+            const uploadsResponse = await fetch(
+              `${apiUrl}/api/management/media/session/uploads`,
+              {
+                method: 'GET',
+                credentials: 'include',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+              }
+            );
+
             if (uploadsResponse.ok) {
               const uploadsResult = await uploadsResponse.json();
               if (uploadsResult.success && uploadsResult.totalFiles > 0) {
@@ -171,27 +198,33 @@ export default function MediaManager({ onClose }) {
                   mediaCount: uploadsResult.totalFiles,
                   createdAt: new Date().toISOString(),
                   lastActivity: new Date().toISOString(),
-                  latestMediaAt: uploadsResult.media && uploadsResult.media.length > 0 ? 
-                    uploadsResult.media[0].createdAt : new Date().toISOString()
+                  latestMediaAt:
+                    uploadsResult.media && uploadsResult.media.length > 0
+                      ? uploadsResult.media[0].createdAt
+                      : new Date().toISOString(),
                 });
               }
             }
           } catch (uploadsError) {
             console.warn('Error checking uploads:', uploadsError);
           }
-          
+
           // Sort by media count and latest activity
           sessionsWithMedia.sort((a, b) => {
             if (a.mediaCount !== b.mediaCount) {
               return b.mediaCount - a.mediaCount; // More media first
             }
-            return new Date(b.latestMediaAt || 0) - new Date(a.latestMediaAt || 0);
+            return (
+              new Date(b.latestMediaAt || 0) - new Date(a.latestMediaAt || 0)
+            );
           });
-          
+
           setSessions(sessionsWithMedia);
-          
+
           // Auto-select first session with media
-          const sessionWithMedia = sessionsWithMedia.find(s => s.mediaCount > 0);
+          const sessionWithMedia = sessionsWithMedia.find(
+            (s) => s.mediaCount > 0
+          );
           if (sessionWithMedia) {
             setSelectedSession(sessionWithMedia.sessionId);
             loadSessionMedia(sessionWithMedia.sessionId);
@@ -208,13 +241,16 @@ export default function MediaManager({ onClose }) {
   const loadSessionMedia = async (sessionId) => {
     try {
       setMediaLoading(true);
-      const response = await fetch(`${apiUrl}/api/management/media/session/${sessionId}`, {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
+      const response = await fetch(
+        `${apiUrl}/api/management/media/session/${sessionId}`,
+        {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
 
       if (response.ok) {
         const result = await response.json();
@@ -237,7 +273,9 @@ export default function MediaManager({ onClose }) {
   const handleDownload = async (mediaFile) => {
     try {
       const response = await fetch(
-        `${apiUrl}/api/management/media/download/${selectedSession}/${encodeURIComponent(mediaFile.filename)}`,
+        `${apiUrl}/api/management/media/download/${selectedSession}/${encodeURIComponent(
+          mediaFile.filename
+        )}`,
         {
           method: 'GET',
           credentials: 'include',
@@ -313,7 +351,7 @@ export default function MediaManager({ onClose }) {
     if (session.sessionId === 'uploads') {
       return <FolderIcon className="w-4 h-4" />;
     }
-    
+
     switch (session.connectionState) {
       case 'connected':
       case true:
@@ -333,10 +371,16 @@ export default function MediaManager({ onClose }) {
     if (session.sessionId === 'uploads') {
       return 'bg-blue-500/20 text-blue-400 border-blue-500/30';
     }
-    
-    if (session.isConnected === true || session.connectionState === 'connected') {
+
+    if (
+      session.isConnected === true ||
+      session.connectionState === 'connected'
+    ) {
       return 'bg-green-500/20 text-green-400 border-green-500/30';
-    } else if (session.connectionState === 'connecting' || session.connectionState === 'qr_generated') {
+    } else if (
+      session.connectionState === 'connecting' ||
+      session.connectionState === 'qr_generated'
+    ) {
       return 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30';
     } else {
       return 'bg-red-500/20 text-red-400 border-red-500/30';
@@ -350,7 +394,7 @@ export default function MediaManager({ onClose }) {
       month: '2-digit',
       year: 'numeric',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
     });
   };
 
@@ -429,7 +473,7 @@ export default function MediaManager({ onClose }) {
             <FolderIcon className="w-5 h-5 mr-2" />
             Sessões com Mídia
           </h3>
-          
+
           {sessions.length === 0 ? (
             <div className="text-center py-8">
               <PhotoIcon className="w-12 h-12 text-foreground/30 mx-auto mb-4" />
@@ -457,22 +501,35 @@ export default function MediaManager({ onClose }) {
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center space-x-3">
                       <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
-                        {session.sessionId === 'uploads' ? 
-                          <FolderIcon className="w-4 h-4 text-foreground" /> :
+                        {session.sessionId === 'uploads' ? (
+                          <FolderIcon className="w-4 h-4 text-foreground" />
+                        ) : (
                           <WifiIcon className="w-4 h-4 text-foreground" />
-                        }
+                        )}
                       </div>
                       <div className="text-left">
                         <div className="font-medium text-foreground text-sm">
                           {session.sessionName || session.sessionId}
                         </div>
                         {session.sessionId !== 'uploads' && (
-                          <div className={`flex items-center space-x-1 text-xs ${getSessionStatusColor(session).replace('bg-', '').replace('/20', '').replace('border-', '').replace('/30', '')}`}>
+                          <div
+                            className={`flex items-center space-x-1 text-xs ${getSessionStatusColor(
+                              session
+                            )
+                              .replace('bg-', '')
+                              .replace('/20', '')
+                              .replace('border-', '')
+                              .replace('/30', '')}`}
+                          >
                             {getSessionStatusIcon(session)}
                             <span>
-                              {session.isConnected === true ? 'Conectado' : 
-                               session.connectionState === 'connecting' ? 'Conectando' :
-                               session.connectionState === 'qr_generated' ? 'QR Gerado' : 'Desconectado'}
+                              {session.isConnected === true
+                                ? 'Conectado'
+                                : session.connectionState === 'connecting'
+                                ? 'Conectando'
+                                : session.connectionState === 'qr_generated'
+                                ? 'QR Gerado'
+                                : 'Desconectado'}
                             </span>
                           </div>
                         )}
@@ -482,21 +539,26 @@ export default function MediaManager({ onClose }) {
                       {session.mediaCount}
                     </Badge>
                   </div>
-                  
+
                   {/* Session info */}
                   <div className="text-xs text-muted-foreground space-y-1">
                     {session.latestMediaAt && (
                       <div className="flex items-center space-x-1">
                         <ClockIcon className="w-3 h-3" />
-                        <span>Último arquivo: {formatDate(session.latestMediaAt)}</span>
+                        <span>
+                          Último arquivo: {formatDate(session.latestMediaAt)}
+                        </span>
                       </div>
                     )}
-                    {session.lastActivity && session.sessionId !== 'uploads' && (
-                      <div className="flex items-center space-x-1">
-                        <SignalIcon className="w-3 h-3" />
-                        <span>Atividade: {formatDate(session.lastActivity)}</span>
-                      </div>
-                    )}
+                    {session.lastActivity &&
+                      session.sessionId !== 'uploads' && (
+                        <div className="flex items-center space-x-1">
+                          <SignalIcon className="w-3 h-3" />
+                          <span>
+                            Atividade: {formatDate(session.lastActivity)}
+                          </span>
+                        </div>
+                      )}
                   </div>
                 </motion.button>
               ))}
@@ -506,7 +568,7 @@ export default function MediaManager({ onClose }) {
 
         {/* Media Grid */}
         <motion.main
-          className="flex-1 bg-card border rounded-lg p-4"
+          className="flex-1 bg-card border rounded-lg p-4 flex flex-col"
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.2 }}
@@ -516,12 +578,17 @@ export default function MediaManager({ onClose }) {
               <div className="flex items-center justify-between mb-6">
                 <div>
                   <h2 className="text-xl font-semibold text-foreground">
-                    {sessions.find(s => s.sessionId === selectedSession)?.sessionName || selectedSession}
+                    {sessions.find((s) => s.sessionId === selectedSession)
+                      ?.sessionName || selectedSession}
                   </h2>
                   <div className="flex items-center space-x-4 text-sm text-muted-foreground mt-1">
                     <span>{media.length} arquivos</span>
                     {media.length > 0 && (
-                      <span>{formatFileSize(media.reduce((sum, file) => sum + (file.size || 0), 0))}</span>
+                      <span>
+                        {formatFileSize(
+                          media.reduce((sum, file) => sum + (file.size || 0), 0)
+                        )}
+                      </span>
                     )}
                   </div>
                 </div>
@@ -537,7 +604,9 @@ export default function MediaManager({ onClose }) {
               {mediaLoading ? (
                 <div className="text-center py-12">
                   <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-500 border-t-transparent mx-auto"></div>
-                  <p className="text-muted-foreground mt-2">Carregando mídia...</p>
+                  <p className="text-muted-foreground mt-2">
+                    Carregando mídia...
+                  </p>
                 </div>
               ) : media.length === 0 ? (
                 <div className="text-center py-12">
@@ -550,7 +619,7 @@ export default function MediaManager({ onClose }) {
                   </p>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 overflow-y-auto max-h-[calc(100vh-220px)] pr-2">
                   {media.map((mediaFile) => {
                     const Icon = getMediaIcon(mediaFile.type);
                     return (
@@ -564,13 +633,22 @@ export default function MediaManager({ onClose }) {
                           <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
                             <Icon className="w-5 h-5 text-foreground" />
                           </div>
-                          <Badge className={`${getTypeColor(mediaFile.type)} text-xs`}>
+                          <Badge
+                            className={`${getTypeColor(
+                              mediaFile.type
+                            )} text-xs`}
+                          >
                             {mediaFile.type}
                           </Badge>
                         </div>
 
                         <div className="mb-3">
-                          <h4 className="font-medium text-foreground text-sm mb-1 truncate" title={mediaFile.originalFileName || mediaFile.filename}>
+                          <h4
+                            className="font-medium text-foreground text-sm mb-1 truncate"
+                            title={
+                              mediaFile.originalFileName || mediaFile.filename
+                            }
+                          >
                             {mediaFile.originalFileName || mediaFile.filename}
                           </h4>
                           <div className="space-y-1 text-xs text-muted-foreground">
@@ -582,15 +660,21 @@ export default function MediaManager({ onClose }) {
                               <div className="flex items-center justify-between">
                                 <span className="text-blue-400">WhatsApp</span>
                                 {mediaFile.isPtt && (
-                                  <span className="text-green-400">Áudio PTT</span>
+                                  <span className="text-green-400">
+                                    Áudio PTT
+                                  </span>
                                 )}
                               </div>
                             )}
-                            {mediaFile.mimetype && mediaFile.mimetype !== 'unknown' && (
-                              <div className="text-gray-400 truncate" title={mediaFile.mimetype}>
-                                {mediaFile.mimetype}
-                              </div>
-                            )}
+                            {mediaFile.mimetype &&
+                              mediaFile.mimetype !== 'unknown' && (
+                                <div
+                                  className="text-gray-400 truncate"
+                                  title={mediaFile.mimetype}
+                                >
+                                  {mediaFile.mimetype}
+                                </div>
+                              )}
                             {!mediaFile.fileExists && (
                               <div className="text-red-400 text-xs">
                                 ⚠ Arquivo não encontrado
@@ -600,17 +684,18 @@ export default function MediaManager({ onClose }) {
                         </div>
 
                         <div className="flex items-center space-x-2">
-                          {mediaFile.type === 'image' && mediaFile.fileExists !== false && (
-                            <Button
-                              onClick={() => handlePreview(mediaFile)}
-                              size="sm"
-                              variant="outline"
-                              className="flex-1 text-xs"
-                            >
-                              <EyeIcon className="w-3 h-3 mr-1" />
-                              Preview
-                            </Button>
-                          )}
+                          {mediaFile.type === 'image' &&
+                            mediaFile.fileExists !== false && (
+                              <Button
+                                onClick={() => handlePreview(mediaFile)}
+                                size="sm"
+                                variant="outline"
+                                className="flex-1 text-xs"
+                              >
+                                <EyeIcon className="w-3 h-3 mr-1" />
+                                Preview
+                              </Button>
+                            )}
                           <Button
                             onClick={() => handleDownload(mediaFile)}
                             size="sm"
@@ -622,7 +707,9 @@ export default function MediaManager({ onClose }) {
                             }`}
                           >
                             <ArrowDownTrayIcon className="w-3 h-3 mr-1" />
-                            {mediaFile.fileExists === false ? 'Indisponível' : 'Baixar'}
+                            {mediaFile.fileExists === false
+                              ? 'Indisponível'
+                              : 'Baixar'}
                           </Button>
                         </div>
                       </motion.div>
@@ -651,13 +738,17 @@ export default function MediaManager({ onClose }) {
           <DialogHeader>
             <DialogTitle>{selectedMedia?.filename}</DialogTitle>
             <DialogDescription>
-              {selectedMedia && formatFileSize(selectedMedia.size)} • {selectedMedia && new Date(selectedMedia.createdAt).toLocaleDateString('pt-BR')}
+              {selectedMedia && formatFileSize(selectedMedia.size)} •{' '}
+              {selectedMedia &&
+                new Date(selectedMedia.createdAt).toLocaleDateString('pt-BR')}
             </DialogDescription>
           </DialogHeader>
           {selectedMedia && (
             <div className="mt-4">
               <img
-                src={`${apiUrl}/api/management/media/preview/${selectedSession}/${encodeURIComponent(selectedMedia.filename)}`}
+                src={`${apiUrl}/api/management/media/preview/${selectedSession}/${encodeURIComponent(
+                  selectedMedia.filename
+                )}`}
                 alt={selectedMedia.filename}
                 className="w-full h-auto max-h-96 object-contain rounded-lg"
                 onError={(e) => {
