@@ -603,6 +603,7 @@ router.get('/:sessionId/list', checkSession, async (req, res) => {
                 admin: p.admin || null,
                 isAdmin: p.admin === 'admin',
                 isSuperAdmin: p.admin === 'superadmin',
+                fullData: p,
               })),
             }),
           },
@@ -991,6 +992,7 @@ router.get('/:sessionId/:groupId/messages', checkSession, async (req, res) => {
               admin: p.admin || null,
               isAdmin: p.admin === 'admin',
               isSuperAdmin: p.admin === 'superadmin',
+              fullData: p,
             })),
           },
           settings: {
@@ -1320,6 +1322,7 @@ router.get('/:sessionId/messages/search', checkSession, async (req, res) => {
               admin: p.admin || null,
               isAdmin: p.admin === 'admin',
               isSuperAdmin: p.admin === 'superadmin',
+              fullData: p,
             })),
           };
         } catch (error) {
