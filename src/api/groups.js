@@ -581,17 +581,15 @@ router.get('/:sessionId/list', checkSession, async (req, res) => {
               
               // Buscar status do usuário
               const statusResult = await sock.fetchStatus(p.id).catch(() => null);
-              const status = statusResult && statusResult.length > 0 ? statusResult[0].status : null;
               
               // Verificar se o número está no WhatsApp
               const onWhatsAppResult = await sock.onWhatsApp(p.id.split('@')[0]).catch(() => null);
-              const isOnWhatsApp = onWhatsAppResult && onWhatsAppResult.length > 0 ? onWhatsAppResult[0].exists : null;
 
               return {
                 ...p,
                 profilePicture: profilePicUrl,
-                status: status,
-                isOnWhatsApp: isOnWhatsApp,
+                statusResult: statusResult,
+                onWhatsAppResult: onWhatsAppResult,
                 number: p.id.includes('@') ? p.id.split('@')[0] : p.id,
               };
             } catch (error) {
@@ -599,8 +597,8 @@ router.get('/:sessionId/list', checkSession, async (req, res) => {
               return {
                 ...p,
                 profilePicture: null,
-                status: null,
-                isOnWhatsApp: null,
+                statusResult: null,
+                onWhatsAppResult: null,
                 number: p.id.includes('@') ? p.id.split('@')[0] : p.id,
               };
             }
