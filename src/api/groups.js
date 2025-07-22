@@ -571,16 +571,52 @@ router.get('/:sessionId/list', checkSession, async (req, res) => {
           ? groupMetadata.participants
           : [];
 
+        // Buscar informações adicionais dos participantes se solicitado
+        let enrichedParticipants = participants;
+        if (includeParticipants) {
+          enrichedParticipants = await Promise.all(participants.map(async (p) => {
+            try {
+              // Buscar foto de perfil
+              const profilePicUrl = await sock.profilePictureUrl(p.id, 'preview').catch(() => null);
+              
+              // Buscar status do usuário
+              const statusResult = await sock.fetchStatus(p.id).catch(() => null);
+              const status = statusResult && statusResult.length > 0 ? statusResult[0].status : null;
+              
+              // Verificar se o número está no WhatsApp
+              const onWhatsAppResult = await sock.onWhatsApp(p.id.split('@')[0]).catch(() => null);
+              const isOnWhatsApp = onWhatsAppResult && onWhatsAppResult.length > 0 ? onWhatsAppResult[0].exists : null;
+
+              return {
+                ...p,
+                profilePicture: profilePicUrl,
+                status: status,
+                isOnWhatsApp: isOnWhatsApp,
+                number: p.id.includes('@') ? p.id.split('@')[0] : p.id,
+              };
+            } catch (error) {
+              console.warn(`Erro ao buscar dados do participante ${p.id}:`, error.message);
+              return {
+                ...p,
+                profilePicture: null,
+                status: null,
+                isOnWhatsApp: null,
+                number: p.id.includes('@') ? p.id.split('@')[0] : p.id,
+              };
+            }
+          }));
+        }
+
         // Separar participantes por tipo
-        const admins = participants
+        const admins = enrichedParticipants
           .filter((p) => p.admin === 'admin')
           .map((p) => p.id);
 
-        const superAdmins = participants
+        const superAdmins = enrichedParticipants
           .filter((p) => p.admin === 'superadmin')
           .map((p) => p.id);
 
-        const regularParticipants = participants
+        const regularParticipants = enrichedParticipants
           .filter((p) => !p.admin || p.admin === null)
           .map((p) => p.id);
         const groupInfo = {
@@ -589,7 +625,7 @@ router.get('/:sessionId/list', checkSession, async (req, res) => {
           description: groupMetadata.desc || null,
           owner: groupMetadata.owner || null,
           participants: {
-            total: participants.length,
+            total: enrichedParticipants.length,
             adminsCount: admins.length,
             superAdminsCount: superAdmins.length,
             regularCount: regularParticipants.length,
@@ -598,7 +634,7 @@ router.get('/:sessionId/list', checkSession, async (req, res) => {
               admins: admins,
               superAdmins: superAdmins,
               regular: regularParticipants,
-              all: participants.map((p) => ({
+              all: enrichedParticipants.map((p) => ({
                 id: p.id,
                 admin: p.admin || null,
                 isAdmin: p.admin === 'admin',
@@ -614,7 +650,7 @@ router.get('/:sessionId/list', checkSession, async (req, res) => {
           createdAt: groupMetadata.creation
             ? new Date(groupMetadata.creation * 1000).toISOString()
             : null,
-          size: groupMetadata.size || participants.length,
+          size: groupMetadata.size || enrichedParticipants.length,
         };
 
         groupList.push(groupInfo);
