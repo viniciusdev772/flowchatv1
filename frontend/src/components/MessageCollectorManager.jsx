@@ -763,6 +763,37 @@ export default function MessageCollectorManager() {
       content += `[${date} ${time}] ${name} (${phone})\n`;
       content += `ID: ${message.id}\n`;
       
+      // Adicionar informações da mensagem citada se existir
+      if (message.quotedMessage) {
+        const quotedPhone = (message.quotedMessage.participant || 'Desconhecido')
+          .replace('@s.whatsapp.net', '')
+          .replace('@c.us', '');
+        
+        content += `↪ Respondendo a: ${quotedPhone}\n`;
+        
+        if (message.quotedMessage.mediaType) {
+          const quotedMediaTypeNames = {
+            image: 'Imagem',
+            video: 'Vídeo',
+            audio: 'Áudio',
+            document: 'Documento',
+            sticker: 'Figurinha'
+          };
+          const quotedMediaTypeName = quotedMediaTypeNames[message.quotedMessage.mediaType] || 'Mídia';
+          content += `↪ Mídia citada: 📎 ${quotedMediaTypeName}\n`;
+        }
+        
+        if (message.quotedMessage.text) {
+          // Limitar o texto citado para não poluir a exportação
+          const quotedText = message.quotedMessage.text.length > 100 
+            ? message.quotedMessage.text.substring(0, 100) + '...'
+            : message.quotedMessage.text;
+          content += `↪ "${quotedText}"\n`;
+        }
+        
+        content += `\n`;
+      }
+      
       // Verificar se é mídia com link
       const isMediaUrl = message.text && message.text.startsWith('http') && message.text.includes('/api/baileys/download/');
       if (isMediaUrl && message.mediaType) {
