@@ -88,6 +88,8 @@ export default function Dashboard() {
   const [showCreateSessionModal, setShowCreateSessionModal] = useState(false);
   const [sessionForm, setSessionForm] = useState({ 
     sessionId: '',
+    pairingMethod: 'qr', // 'qr' ou 'code'
+    phoneNumber: '',
     proxy: {
       enabled: false,
       type: 'http',
@@ -618,6 +620,11 @@ export default function Dashboard() {
         return;
       }
 
+      if (sessionForm.pairingMethod === 'code' && !sessionForm.phoneNumber.trim()) {
+        alert('Por favor, digite o número de telefone para pareamento por código');
+        return;
+      }
+
       setCreatingSession(true);
 
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -674,6 +681,8 @@ export default function Dashboard() {
         headers: authHeaders,
         body: JSON.stringify({
           sessionId: sessionId.trim(),
+          pairingMethod: sessionForm.pairingMethod,
+          phoneNumber: sessionForm.pairingMethod === 'code' ? sessionForm.phoneNumber : null,
           proxy: sessionForm.proxy.enabled ? sessionForm.proxy : null,
         }),
       });
@@ -685,6 +694,8 @@ export default function Dashboard() {
         setShowCreateSessionModal(false);
         setSessionForm({ 
           sessionId: '',
+          pairingMethod: 'qr',
+          phoneNumber: '',
           proxy: {
             enabled: false,
             type: 'http',
@@ -706,13 +717,17 @@ export default function Dashboard() {
           setShowQRCode(true);
         }
 
+        // Show pairing code if available
+        if (result.pairingCode) {
+          alert(`Sessão WhatsApp criada com sucesso!\n\nCódigo de pareamento: ${result.pairingCode}\n\nAbra o WhatsApp, vá em Dispositivos Conectados > Conectar Dispositivo e digite o código acima.`);
+        } else if (result.qrCode) {
+          alert('Sessão WhatsApp criada com sucesso! QR Code gerado para escaneamento.');
+        } else {
+          alert('Sessão WhatsApp criada com sucesso!');
+        }
+
         // Refresh sessions list
         fetchRealSessions();
-
-        alert(
-          'Sessão WhatsApp criada com sucesso! ' +
-            (result.qrCode ? 'QR Code gerado para escaneamento.' : '')
-        );
       } else {
         alert(`Erro ao criar sessão: ${result.message}`);
       }
@@ -2620,7 +2635,7 @@ export default function Dashboard() {
 
         {showCreateSessionModal && (
           <motion.div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -2642,17 +2657,28 @@ export default function Dashboard() {
             <motion.div
               className={`${
                 performanceMode ? 'bg-card border rounded-lg' : 'bg-card border rounded-lg shadow-sm'
-              } p-6 max-w-lg w-full mx-4 rounded-xl`}
+              } w-full max-w-sm sm:max-w-lg max-h-[95vh] sm:max-h-[90vh] mx-2 sm:mx-4 rounded-xl overflow-hidden flex flex-col`}
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
             >
-              <h3 className="text-xl font-semibold text-foreground mb-6">
-                Criar Sessão WhatsApp
-              </h3>
+              {/* Header fixo */}
+              <div className="p-4 sm:p-6 pb-3 sm:pb-4 border-b border-border/50">
+                <h3 className="text-lg sm:text-xl font-semibold text-foreground">
+                  Criar Sessão WhatsApp
+                </h3>
+              </div>
 
-              <div className="space-y-4">
+              {/* Conteúdo com scroll */}
+              <div className="flex-1 overflow-y-auto p-4 sm:p-6 pt-3 sm:pt-4 space-y-4 custom-scrollbar"
+                   style={{ 
+                     scrollbarWidth: 'thin', 
+                     scrollbarColor: 'rgba(255,255,255,0.3) transparent',
+                     scrollBehavior: 'smooth'
+                   }}
+              >
+                <div className="space-y-4">
                 <div>
                   <label className="block text-sm font-medium text-muted-foreground mb-2">
                     ID da Sessão *
@@ -2672,6 +2698,80 @@ export default function Dashboard() {
                     placeholder="Ex: vendas-bot, suporte-cliente, marketing..."
                     maxLength={30}
                   />
+                </div>
+
+                {/* Método de Pareamento */}
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-2">
+                    <QrCodeIcon className="w-5 h-5 text-green-400" />
+                    <label className="text-sm font-medium text-foreground">
+                      Método de Pareamento
+                    </label>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSessionForm((prev) => ({
+                          ...prev,
+                          pairingMethod: 'qr',
+                        }))
+                      }
+                      className={`p-3 rounded-lg border-2 transition-all ${
+                        sessionForm.pairingMethod === 'qr'
+                          ? 'border-green-500 bg-green-500/10 text-green-400'
+                          : 'border-gray-600 bg-card hover:border-gray-500'
+                      }`}
+                    >
+                      <QrCodeIcon className="w-6 h-6 mx-auto mb-2" />
+                      <div className="text-sm font-medium">QR Code</div>
+                      <div className="text-xs text-muted-foreground">Escaneie com WhatsApp</div>
+                    </button>
+                    
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSessionForm((prev) => ({
+                          ...prev,
+                          pairingMethod: 'code',
+                        }))
+                      }
+                      className={`p-3 rounded-lg border-2 transition-all ${
+                        sessionForm.pairingMethod === 'code'
+                          ? 'border-blue-500 bg-blue-500/10 text-blue-400'
+                          : 'border-gray-600 bg-card hover:border-gray-500'
+                      }`}
+                    >
+                      <PhoneIcon className="w-6 h-6 mx-auto mb-2" />
+                      <div className="text-sm font-medium">Código</div>
+                      <div className="text-xs text-muted-foreground">Digite código no app</div>
+                    </button>
+                  </div>
+
+                  {sessionForm.pairingMethod === 'code' && (
+                    <div>
+                      <label className="block text-sm font-medium text-muted-foreground mb-2">
+                        Número de Telefone *
+                      </label>
+                      <input
+                        type="tel"
+                        value={sessionForm.phoneNumber}
+                        onChange={(e) =>
+                          setSessionForm((prev) => ({
+                            ...prev,
+                            phoneNumber: e.target.value,
+                          }))
+                        }
+                        className="w-full px-4 py-3 bg-card border rounded-lg text-foreground placeholder-white/50 focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                        placeholder="Ex: 5511999999999"
+                        maxLength={15}
+                      />
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Digite o número completo com código do país (sem espaços ou símbolos)
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Configuração de Proxy */}
@@ -2847,8 +2947,11 @@ export default function Dashboard() {
                   </div>
                 </div>
               </div>
+              </div>
 
-              <div className="flex space-x-3 mt-6">
+              {/* Footer fixo com botões */}
+              <div className="p-4 sm:p-6 pt-3 sm:pt-4 border-t border-border/50 bg-card">
+                <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
                 <motion.button
                   onClick={() => {
                     setShowCreateSessionModal(false);
@@ -2872,15 +2975,22 @@ export default function Dashboard() {
                 </motion.button>
                 <motion.button
                   onClick={createWhatsAppSession}
-                  disabled={!sessionForm.sessionId.trim() || creatingSession}
+                  disabled={
+                    !sessionForm.sessionId.trim() || 
+                    creatingSession ||
+                    (sessionForm.pairingMethod === 'code' && !sessionForm.phoneNumber.trim())
+                  }
                   className={`flex-1 bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-md transition-colors ${
-                    !sessionForm.sessionId.trim() || creatingSession
+                    !sessionForm.sessionId.trim() || 
+                    creatingSession ||
+                    (sessionForm.pairingMethod === 'code' && !sessionForm.phoneNumber.trim())
                       ? 'opacity-50 cursor-not-allowed'
                       : ''
                   }`}
                   whileHover={
                     !sessionForm.sessionId.trim() ||
                     creatingSession ||
+                    (sessionForm.pairingMethod === 'code' && !sessionForm.phoneNumber.trim()) ||
                     performanceMode
                       ? {}
                       : { scale: 1.02 }
@@ -2888,6 +2998,7 @@ export default function Dashboard() {
                   whileTap={
                     !sessionForm.sessionId.trim() ||
                     creatingSession ||
+                    (sessionForm.pairingMethod === 'code' && !sessionForm.phoneNumber.trim()) ||
                     performanceMode
                       ? {}
                       : { scale: 0.98 }
@@ -2902,6 +3013,7 @@ export default function Dashboard() {
                     <>Criar Sessão</>
                   )}
                 </motion.button>
+                </div>
               </div>
             </motion.div>
           </motion.div>

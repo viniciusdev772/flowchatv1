@@ -2907,7 +2907,7 @@ function createProxyAgent(proxyConfig) {
 }
 
 // Criar sessão do WhatsApp
-async function createWhatsAppSession(sessionId, userId = null, proxyConfig = null) {
+async function createWhatsAppSession(sessionId, userId = null, proxyConfig = null, pairingMethod = 'qr', phoneNumber = null) {
   try {
     if (sessions.has(sessionId)) {
       return { success: false, message: 'Sessão já existe' };
@@ -2956,6 +2956,7 @@ async function createWhatsAppSession(sessionId, userId = null, proxyConfig = nul
     const sock = makeWASocket(socketConfig);
 
     let qrCode = null;
+    let pairingCode = null;
     let isConnected = false;
     let connectionState = 'connecting';
 
@@ -3146,7 +3147,23 @@ async function createWhatsAppSession(sessionId, userId = null, proxyConfig = nul
       }
     });
 
-    sock.ev.on('creds.update', saveCreds);
+    sock.ev.on('creds.update', (creds) => {
+      // Handle pairing code updates
+      if (creds.pairingCode && pairingMethod === 'code') {
+        pairingCode = creds.pairingCode;
+        logger.info(`Código de pareamento gerado para sessão ${sessionId}: ${pairingCode}`);
+        
+        // Update session data with pairing code
+        const sessionData = sessions.get(sessionId);
+        if (sessionData) {
+          sessionData.pairingCode = pairingCode;
+          sessionData.connectionState = 'pairing_code_generated';
+        }
+      }
+      
+      // Save credentials
+      saveCreds(creds);
+    });
 
     // Handler para mensagens recebidas
     sock.ev.on('messages.upsert', async (messageUpdate) => {
@@ -3239,11 +3256,14 @@ async function createWhatsAppSession(sessionId, userId = null, proxyConfig = nul
     const sessionData = {
       sock,
       qrCode,
+      pairingCode,
       isConnected,
       connectionState,
       createdAt: new Date(),
       userId: userId, // Associate session with user
       proxyConfig: proxyConfig, // Store proxy configuration
+      pairingMethod: pairingMethod, // Store pairing method
+      phoneNumber: phoneNumber, // Store phone number for pairing
     };
 
     sessions.set(sessionId, sessionData);
@@ -3251,10 +3271,31 @@ async function createWhatsAppSession(sessionId, userId = null, proxyConfig = nul
     // Save initial session data to MongoDB
     await saveSessionData(sessionId, sessionData);
 
+    // Request pairing code if method is 'code'
+    if (pairingMethod === 'code' && phoneNumber) {
+      try {
+        logger.info(`Solicitando código de pareamento para ${phoneNumber} na sessão ${sessionId}`);
+        const generatedCode = await sock.requestPairingCode(phoneNumber);
+        pairingCode = generatedCode;
+        
+        // Update session data with pairing code
+        sessionData.pairingCode = pairingCode;
+        sessionData.connectionState = 'pairing_code_generated';
+        sessions.set(sessionId, sessionData);
+        
+        logger.info(`Código de pareamento gerado: ${pairingCode}`);
+      } catch (error) {
+        logger.error(`Erro ao solicitar código de pareamento: ${error.message}`);
+      }
+    }
+
     return {
       success: true,
-      message: 'Sessão criada com sucesso',
-      qrCode,
+      message: pairingMethod === 'code' ? 'Código de pareamento gerado com sucesso' : 'Sessão criada com sucesso',
+      qrCode: pairingMethod === 'qr' ? qrCode : null,
+      pairingCode: pairingMethod === 'code' ? pairingCode : null,
+      pairingMethod,
+      phoneNumber: pairingMethod === 'code' ? phoneNumber : null,
       sessionId,
     };
   } catch (error) {
@@ -3708,7 +3749,7 @@ const dualAuth = async (req, res, next) => {
 
 app.post('/api/baileys/session/create', dualAuth, async (req, res) => {
   try {
-    const { sessionId, proxy } = req.body;
+    const { sessionId, proxy, pairingMethod = 'qr', phoneNumber } = req.body;
     const userId = req.user?.id || req.user?._id; // Get user ID from authentication middleware
 
     if (!sessionId) {
@@ -3722,6 +3763,32 @@ app.post('/api/baileys/session/create', dualAuth, async (req, res) => {
       return res.status(401).json({
         success: false,
         message: 'Usuário não autenticado',
+      });
+    }
+
+    // Validate pairing method and phone number
+    if (pairingMethod === 'code' && !phoneNumber) {
+      return res.status(400).json({
+        success: false,
+        message: 'Número de telefone é obrigatório quando usar pareamento por código',
+      });
+    }
+
+    if (pairingMethod === 'code' && phoneNumber) {
+      // Basic phone number validation (remove non-digits and check length)
+      const cleanPhone = phoneNumber.replace(/\D/g, '');
+      if (cleanPhone.length < 10 || cleanPhone.length > 15) {
+        return res.status(400).json({
+          success: false,
+          message: 'Número de telefone deve ter entre 10 e 15 dígitos',
+        });
+      }
+    }
+
+    if (!['qr', 'code'].includes(pairingMethod)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Método de pareamento deve ser "qr" ou "code"',
       });
     }
 
@@ -3757,7 +3824,7 @@ app.post('/api/baileys/session/create', dualAuth, async (req, res) => {
     // Create unique session ID by combining user ID and session name
     const uniqueSessionId = `${userId}_${sessionId}`;
 
-    const result = await createWhatsAppSession(uniqueSessionId, userId, proxyConfig);
+    const result = await createWhatsAppSession(uniqueSessionId, userId, proxyConfig, pairingMethod, phoneNumber);
 
     // Sempre retornar o QR code quando criar uma nova sessão
     if (result.success) {
