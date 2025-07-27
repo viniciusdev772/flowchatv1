@@ -3273,9 +3273,11 @@ async function createWhatsAppSession(sessionId, userId = null, proxyConfig = nul
 
     // Request pairing code if method is 'code'
     if (pairingMethod === 'code' && phoneNumber) {
+      // Clean phone number for pairing code request
+      const cleanPhone = phoneNumber.replace(/\D/g, '');
       try {
-        logger.info(`Solicitando código de pareamento para ${phoneNumber} na sessão ${sessionId}`);
-        const generatedCode = await sock.requestPairingCode(phoneNumber);
+        logger.info(`Solicitando código de pareamento para ${cleanPhone} (original: ${phoneNumber}) na sessão ${sessionId}`);
+        const generatedCode = await sock.requestPairingCode(cleanPhone);
         pairingCode = generatedCode;
         
         // Update session data with pairing code
