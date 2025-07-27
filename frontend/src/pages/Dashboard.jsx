@@ -129,7 +129,53 @@ export default function Dashboard() {
     setIsRegenerating(true);
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-      const authHeaders = await getAuthHeaders();
+
+      // Get active token for API authentication (mesma lógica da createWhatsAppSession)
+      let authHeaders = {
+        'Content-Type': 'application/json',
+      };
+
+      const tokensResponse = await fetch(`${apiUrl}/api/management/tokens/list`, {
+        method: 'GET',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (tokensResponse.ok) {
+        const tokensResult = await tokensResponse.json();
+        if (tokensResult.success && tokensResult.tokens) {
+          const activeToken = tokensResult.tokens.find(
+            (token) => token.isActive && !token.isExpired
+          );
+
+          if (activeToken) {
+            try {
+              // Get the full token
+              const tokenResponse = await fetch(
+                `${apiUrl}/api/management/tokens/${activeToken._id}/full`,
+                {
+                  method: 'GET',
+                  credentials: 'include',
+                  headers: {
+                    'Content-Type': 'application/json',
+                  },
+                }
+              );
+
+              if (tokenResponse.ok) {
+                const tokenResult = await tokenResponse.json();
+                if (tokenResult.success && tokenResult.token) {
+                  authHeaders.Authorization = `Bearer ${tokenResult.token}`;
+                }
+              }
+            } catch (error) {
+              console.log('Error fetching token for regenerating pairing code:', error);
+            }
+          }
+        }
+      }
 
       const response = await fetch(`${apiUrl}/api/baileys/session/create`, {
         method: 'POST',
