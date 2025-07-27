@@ -16,9 +16,25 @@ export default function Login() {
   const [apiSuccess, setApiSuccess] = useState('');
   const [csrfToken, setCsrfToken] = useState('');
   const [csrfLoading, setCsrfLoading] = useState(true);
+  const [validationErrors, setValidationErrors] = useState({});
   const { register, handleSubmit, formState: { errors, isSubmitting }, watch, reset } = useForm();
 
   const password = watch('password');
+  
+  // Password requirements checker
+  const checkPasswordRequirements = (password) => {
+    if (!password) return {};
+    
+    return {
+      length: password.length >= 8,
+      lowercase: /[a-z]/.test(password),
+      uppercase: /[A-Z]/.test(password),
+      number: /\d/.test(password),
+      special: /[@$!%*?&]/.test(password)
+    };
+  };
+
+  const passwordRequirements = checkPasswordRequirements(password);
 
   // Obter token CSRF ao carregar a página
   useEffect(() => {
@@ -52,6 +68,7 @@ export default function Login() {
   const onSubmit = async (data) => {
     setApiError('');
     setApiSuccess('');
+    setValidationErrors({});
     
     // Verificar se temos o token CSRF antes de tentar fazer login
     if (!csrfToken) {
@@ -163,7 +180,22 @@ export default function Login() {
             window.location.href = '/dashboard';
           }, 1500);
         } else {
-          setApiError(result.message || 'Erro no registro');
+          // Handle detailed validation errors
+          if (result.validationErrors && Array.isArray(result.validationErrors)) {
+            const fieldErrors = {};
+            result.validationErrors.forEach(error => {
+              const field = error.path || error.param;
+              if (field) {
+                fieldErrors[field] = error.msg || error.message;
+              }
+            });
+            setValidationErrors(fieldErrors);
+            
+            // Show general error message
+            setApiError('Por favor, corrija os erros nos campos destacados.');
+          } else {
+            setApiError(result.message || 'Erro no registro');
+          }
           
           // Se erro de CSRF, tentar recarregar o token
           if (result.error && (result.error.includes('CSRF') || result.error.includes('SECURITY'))) {
@@ -204,6 +236,7 @@ export default function Login() {
     setShowConfirmPassword(false);
     setApiError('');
     setApiSuccess('');
+    setValidationErrors({});
     
     // Se não tem token CSRF, tentar recarregar
     if (!csrfToken && !csrfLoading) {
@@ -619,20 +652,24 @@ export default function Login() {
                           minLength: {
                             value: 2,
                             message: 'Nome deve ter pelo menos 2 caracteres'
+                          },
+                          pattern: {
+                            value: /^[a-zA-ZÀ-ÿ\s]+$/,
+                            message: 'Nome deve conter apenas letras e espaços'
                           }
                         })}
                         type="text"
-                        className="pl-10"
+                        className={`pl-10 ${validationErrors.name ? 'border-red-500 bg-red-50/10' : ''}`}
                         placeholder="Digite seu nome completo"
                       />
                     </div>
-                    {errors.name && (
+                    {(errors.name || validationErrors.name) && (
                       <motion.p 
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
                         className="mt-2 text-sm text-red-400"
                       >
-                        {errors.name.message}
+                        {errors.name?.message || validationErrors.name}
                       </motion.p>
                     )}
                   </motion.div>
@@ -648,22 +685,22 @@ export default function Login() {
                       {...register('email', {
                         required: 'Email é obrigatório',
                         pattern: {
-                          value: /^\S+@\S+$/i,
-                          message: 'Email inválido'
+                          value: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+                          message: 'Formato de email inválido'
                         }
                       })}
                       type="email"
-                      className="pl-10"
+                      className={`pl-10 ${validationErrors.email ? 'border-red-500 bg-red-50/10' : ''}`}
                       placeholder="Digite seu email"
                     />
                   </div>
-                  {errors.email && (
+                  {(errors.email || validationErrors.email) && (
                     <motion.p 
                       initial={{ opacity: 0, y: -10 }}
                       animate={{ opacity: 1, y: 0 }}
                       className="mt-2 text-sm text-red-400"
                     >
-                      {errors.email.message}
+                      {errors.email?.message || validationErrors.email}
                     </motion.p>
                   )}
                 </div>
@@ -678,12 +715,18 @@ export default function Login() {
                       {...register('password', {
                         required: 'Senha é obrigatória',
                         minLength: {
-                          value: isLogin ? 1 : 6,
-                          message: 'Senha deve ter pelo menos 6 caracteres'
-                        }
+                          value: isLogin ? 1 : 8,
+                          message: isLogin ? 'Senha é obrigatória' : 'Senha deve ter pelo menos 8 caracteres'
+                        },
+                        ...(isLogin ? {} : {
+                          pattern: {
+                            value: /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]/,
+                            message: 'Senha deve conter: 1 minúscula, 1 maiúscula, 1 número e 1 caractere especial'
+                          }
+                        })
                       })}
                       type={showPassword ? 'text' : 'password'}
-                      className="pl-10 pr-10"
+                      className={`pl-10 pr-10 ${validationErrors.password ? 'border-red-500 bg-red-50/10' : ''}`}
                       placeholder="Digite sua senha"
                     />
                     <button
@@ -698,13 +741,52 @@ export default function Login() {
                       )}
                     </button>
                   </div>
-                  {errors.password && (
+                  
+                  {/* Password Requirements Indicator (only for registration) */}
+                  {!isLogin && password && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="mt-3 p-3 bg-white/10 lg:bg-gray-50 rounded-lg border border-white/20 lg:border-gray-200"
+                    >
+                      <p className="text-xs font-medium text-white/80 lg:text-gray-600 mb-2">Requisitos da senha:</p>
+                      <div className="grid grid-cols-1 gap-1">
+                        {[
+                          { key: 'length', label: 'Pelo menos 8 caracteres', met: passwordRequirements.length },
+                          { key: 'lowercase', label: 'Uma letra minúscula (a-z)', met: passwordRequirements.lowercase },
+                          { key: 'uppercase', label: 'Uma letra maiúscula (A-Z)', met: passwordRequirements.uppercase },
+                          { key: 'number', label: 'Um número (0-9)', met: passwordRequirements.number },
+                          { key: 'special', label: 'Um caractere especial (@$!%*?&)', met: passwordRequirements.special }
+                        ].map((req) => (
+                          <div key={req.key} className="flex items-center space-x-2">
+                            <div className={`w-4 h-4 rounded-full flex items-center justify-center ${
+                              req.met ? 'bg-green-500' : 'bg-white/20 lg:bg-gray-300'
+                            }`}>
+                              {req.met && (
+                                <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                </svg>
+                              )}
+                            </div>
+                            <span className={`text-xs ${
+                              req.met ? 'text-green-400 lg:text-green-600' : 'text-white/60 lg:text-gray-500'
+                            }`}>
+                              {req.label}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </motion.div>
+                  )}
+                  
+                  {(errors.password || validationErrors.password) && (
                     <motion.p 
                       initial={{ opacity: 0, y: -10 }}
                       animate={{ opacity: 1, y: 0 }}
                       className="mt-2 text-sm text-red-400"
                     >
-                      {errors.password.message}
+                      {errors.password?.message || validationErrors.password}
                     </motion.p>
                   )}
                 </div>
@@ -729,7 +811,9 @@ export default function Login() {
                           validate: value => isLogin || value === password || 'As senhas não coincidem'
                         })}
                         type={showConfirmPassword ? 'text' : 'password'}
-                        className="block w-full pl-10 sm:pl-12 pr-11 sm:pr-14 py-3 sm:py-4 border-2 border-white/30 lg:border-gray-200 bg-white/10 lg:bg-white rounded-xl sm:rounded-2xl text-white lg:text-gray-900 placeholder-white/60 lg:placeholder-gray-400 focus:ring-0 focus:border-blue-500 lg:focus:border-blue-500 focus:bg-white/20 lg:focus:bg-white transition-all duration-200 text-sm sm:text-base lg:text-lg"
+                        className={`block w-full pl-10 sm:pl-12 pr-11 sm:pr-14 py-3 sm:py-4 border-2 border-white/30 lg:border-gray-200 bg-white/10 lg:bg-white rounded-xl sm:rounded-2xl text-white lg:text-gray-900 placeholder-white/60 lg:placeholder-gray-400 focus:ring-0 focus:border-blue-500 lg:focus:border-blue-500 focus:bg-white/20 lg:focus:bg-white transition-all duration-200 text-sm sm:text-base lg:text-lg ${
+                          validationErrors.confirmPassword ? 'border-red-500 bg-red-50/10' : ''
+                        }`}
                         placeholder="Confirme sua senha"
                       />
                       <button
@@ -744,13 +828,13 @@ export default function Login() {
                         )}
                       </button>
                     </div>
-                    {errors.confirmPassword && (
+                    {(errors.confirmPassword || validationErrors.confirmPassword) && (
                       <motion.p 
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
                         className="mt-2 text-sm text-red-400"
                       >
-                        {errors.confirmPassword.message}
+                        {errors.confirmPassword?.message || validationErrors.confirmPassword}
                       </motion.p>
                     )}
                   </motion.div>
@@ -798,7 +882,9 @@ export default function Login() {
                         required: !isLogin ? 'Você deve aceitar os termos' : false
                       })}
                       type="checkbox"
-                      className="mt-1 h-4 w-4 text-blue-400 focus:ring-blue-400 bg-white/10 border-white/30 rounded"
+                      className={`mt-1 h-4 w-4 text-blue-400 focus:ring-blue-400 bg-white/10 border-white/30 rounded ${
+                        validationErrors.terms ? 'border-red-500' : ''
+                      }`}
                     />
                     <label htmlFor="terms" className="ml-2 block text-sm text-white/80 leading-5">
                       Concordo com os{' '}
@@ -811,13 +897,13 @@ export default function Login() {
                       </a>
                     </label>
                   </div>
-                  {errors.terms && (
+                  {(errors.terms || validationErrors.terms) && (
                     <motion.p 
                       initial={{ opacity: 0, y: -10 }}
                       animate={{ opacity: 1, y: 0 }}
                       className="text-sm text-red-400"
                     >
-                      {errors.terms.message}
+                      {errors.terms?.message || validationErrors.terms}
                     </motion.p>
                   )}
                 </motion.div>
@@ -902,6 +988,35 @@ export default function Login() {
                 </motion.button>
               </p>
             </div>
+
+            {/* Registration Tips */}
+            {!isLogin && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="mt-6 p-4 bg-white/5 lg:bg-blue-50 rounded-lg border border-white/20 lg:border-blue-200"
+              >
+                <div className="flex items-start space-x-3">
+                  <div className="flex-shrink-0">
+                    <svg className="w-5 h-5 text-blue-400 lg:text-blue-600 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-medium text-white lg:text-blue-800 mb-2">
+                      Dicas para sua conta FlowChat API
+                    </h4>
+                    <ul className="text-xs text-white/80 lg:text-blue-700 space-y-1">
+                      <li>• Use seu nome real para facilitar o suporte</li>
+                      <li>• Evite emails temporários (serão rejeitados)</li>
+                      <li>• Senha forte protege suas sessões WhatsApp</li>
+                      <li>• Aceite os termos para acesso completo à API</li>
+                    </ul>
+                  </div>
+                </div>
+              </motion.div>
+            )}
 
             {/* Social Login */}
             <div className="mt-6 sm:mt-8">

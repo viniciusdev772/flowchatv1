@@ -114,11 +114,13 @@ class SecurityMiddleware {
       
       if (!errors.isEmpty()) {
         const errorMessages = errors.array().map(error => error.msg);
+        const validationErrors = errors.array();
         
         return res.status(400).json({
           success: false,
           message: 'Dados inválidos fornecidos',
           errors: errorMessages,
+          validationErrors: validationErrors, // Add detailed validation errors for frontend
           details: process.env.NODE_ENV === 'development' ? errors.array() : undefined
         });
       }

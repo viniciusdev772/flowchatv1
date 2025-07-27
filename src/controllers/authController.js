@@ -10,26 +10,46 @@ class AuthController {
     try {
       const { name, email, password } = req.body;
 
-      // Validation
-      if (!name || !email || !password) {
-        return res.status(400).json({
-          success: false,
-          message: 'Nome, email e senha são obrigatórios'
-        });
+      // Validation (basic fallback if middleware didn't catch them)
+      const validationErrors = [];
+      
+      if (!name || name.trim().length < 2) {
+        validationErrors.push({ path: 'name', msg: 'Nome deve ter pelo menos 2 caracteres' });
       }
-
-      if (password.length < 6) {
-        return res.status(400).json({
-          success: false,
-          message: 'A senha deve ter pelo menos 6 caracteres'
-        });
+      
+      if (!email) {
+        validationErrors.push({ path: 'email', msg: 'Email é obrigatório' });
+      } else {
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+          validationErrors.push({ path: 'email', msg: 'Formato de email inválido' });
+        }
       }
-
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(email)) {
+      
+      if (!password) {
+        validationErrors.push({ path: 'password', msg: 'Senha é obrigatória' });
+      } else if (password.length < 8) {
+        validationErrors.push({ path: 'password', msg: 'Senha deve ter pelo menos 8 caracteres' });
+      } else {
+        // Check password strength requirements
+        const hasLowercase = /[a-z]/.test(password);
+        const hasUppercase = /[A-Z]/.test(password);
+        const hasNumber = /\d/.test(password);
+        const hasSpecial = /[@$!%*?&]/.test(password);
+        
+        if (!hasLowercase || !hasUppercase || !hasNumber || !hasSpecial) {
+          validationErrors.push({ 
+            path: 'password', 
+            msg: 'Senha deve conter pelo menos: 1 minúscula, 1 maiúscula, 1 número e 1 caractere especial (@$!%*?&)' 
+          });
+        }
+      }
+      
+      if (validationErrors.length > 0) {
         return res.status(400).json({
           success: false,
-          message: 'Formato de email inválido'
+          message: 'Dados inválidos fornecidos',
+          validationErrors: validationErrors
         });
       }
 
@@ -47,7 +67,8 @@ class AuthController {
         if (existingUser) {
           return res.status(409).json({
             success: false,
-            message: 'Já existe um usuário cadastrado com este email'
+            message: 'Já existe um usuário cadastrado com este email',
+            validationErrors: [{ path: 'email', msg: 'Este email já está sendo usado por outra conta' }]
           });
         }
 
