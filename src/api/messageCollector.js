@@ -172,14 +172,19 @@ async function addMessageToDB(collectorId, messageData) {
   }
 }
 
-async function getActiveCollectors() {
+async function getActiveCollectors(userId = null) {
   try {
     const db = database.getDb();
     if (!db) return [];
 
+    const query = { status: 'active' };
+    if (userId) {
+      query.userId = new ObjectId(userId);
+    }
+
     return await db
       .collection('messageCollectors')
-      .find({ status: 'active' })
+      .find(query)
       .toArray();
   } catch (error) {
     logger.error('Erro ao buscar coletores ativos:', error);
@@ -831,8 +836,8 @@ router.get('/list', authenticateToken, async (req, res) => {
       logger.warn('Erro ao buscar coletores no banco:', dbError.message);
     }
 
-    // Buscar coletores ativos diretamente do banco
-    const activeCollectorsList = await getActiveCollectors();
+    // Buscar coletores ativos diretamente do banco - APENAS DO USUÁRIO ATUAL
+    const activeCollectorsList = await getActiveCollectors(userId);
     const activeFormatted = activeCollectorsList.map((collector) => ({
       id: collector._id,
       sessionId: collector.sessionId,
