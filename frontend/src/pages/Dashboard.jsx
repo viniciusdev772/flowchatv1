@@ -195,7 +195,7 @@ export default function Dashboard() {
           ...prev,
           code: result.pairingCode
         }));
-        setTimeRemaining(20); // Reset timer
+        setTimeRemaining(60); // Reset timer
         setCodeCopied(false);
         setShowRegeneratedMessage(true);
         setTimeout(() => setShowRegeneratedMessage(false), 3000);
@@ -212,6 +212,12 @@ export default function Dashboard() {
   // Função para formatar tempo restante
   const formatTimeRemaining = (seconds) => {
     return `${seconds}s`;
+  };
+
+  // Função para formatar código de pareamento (XXXX-XXXX)
+  const formatPairingCode = (code) => {
+    if (!code || code.length !== 8) return code;
+    return `${code.slice(0, 4)}-${code.slice(4)}`;
   };
 
   // Performance mode - detecta dispositivos menos potentes
@@ -256,7 +262,7 @@ export default function Dashboard() {
   const [showPairingCodeModal, setShowPairingCodeModal] = useState(false);
   const [pairingCodeData, setPairingCodeData] = useState(null);
   const [codeCopied, setCodeCopied] = useState(false);
-  const [timeRemaining, setTimeRemaining] = useState(20); // 20 segundos
+  const [timeRemaining, setTimeRemaining] = useState(60); // 60 segundos (mais realista)
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [showRegeneratedMessage, setShowRegeneratedMessage] = useState(false);
 
@@ -269,7 +275,7 @@ export default function Dashboard() {
           if (prev <= 1) {
             // Tempo esgotado, regenerar automaticamente
             regeneratePairingCode();
-            return 20; // Reset para 20 segundos
+            return 60; // Reset para 60 segundos
           }
           return prev - 1;
         });
@@ -284,12 +290,12 @@ export default function Dashboard() {
   // Reset timer when modal opens/closes
   useEffect(() => {
     if (showPairingCodeModal) {
-      setTimeRemaining(20);
+      setTimeRemaining(60);
       setIsRegenerating(false);
       setShowRegeneratedMessage(false);
     } else {
       // Reset all states when modal closes
-      setTimeRemaining(20);
+      setTimeRemaining(60);
       setIsRegenerating(false);
       setShowRegeneratedMessage(false);
       setCodeCopied(false);
@@ -3254,7 +3260,7 @@ export default function Dashboard() {
               setShowPairingCodeModal(false);
               setPairingCodeData(null);
               setCodeCopied(false);
-              setTimeRemaining(20);
+              setTimeRemaining(60);
             }}
           >
             <motion.div
@@ -3297,14 +3303,14 @@ export default function Dashboard() {
                   
                   <div className="bg-gradient-to-r from-green-500/20 to-blue-500/20 rounded-xl p-6 mb-4 border border-green-500/30">
                     <div className="text-3xl font-mono font-bold text-foreground tracking-wider mb-2">
-                      {isRegenerating ? '••••••••' : pairingCodeData.code}
+                      {isRegenerating ? '••••-••••' : formatPairingCode(pairingCodeData.code)}
                     </div>
                     <div className="flex items-center justify-between">
                       <p className="text-sm text-muted-foreground">
                         {isRegenerating ? 'Gerando novo código...' : 'Digite este código no WhatsApp'}
                       </p>
                       <div className={`flex items-center text-sm font-medium ${
-                        timeRemaining <= 5 ? 'text-red-400' : timeRemaining <= 10 ? 'text-yellow-400' : 'text-green-400'
+                        timeRemaining <= 10 ? 'text-red-400' : timeRemaining <= 30 ? 'text-yellow-400' : 'text-green-400'
                       }`}>
                         <ClockIcon className="w-4 h-4 mr-1" />
                         {formatTimeRemaining(timeRemaining)}
@@ -3316,13 +3322,13 @@ export default function Dashboard() {
                   <div className="w-full bg-muted rounded-full h-2 mb-6">
                     <div 
                       className={`h-2 rounded-full transition-all duration-1000 ${
-                        timeRemaining <= 5 ? 'bg-red-500' : timeRemaining <= 10 ? 'bg-yellow-500' : 'bg-green-500'
+                        timeRemaining <= 10 ? 'bg-red-500' : timeRemaining <= 30 ? 'bg-yellow-500' : 'bg-green-500'
                       }`}
-                      style={{ width: `${(timeRemaining / 20) * 100}%` }}
+                      style={{ width: `${(timeRemaining / 60) * 100}%` }}
                     ></div>
                   </div>
                   
-                  <div className="bg-card/50 rounded-lg p-4 mb-6 text-left">
+                  <div className="bg-card/50 rounded-lg p-4 mb-4 text-left">
                     <h4 className="font-semibold text-foreground mb-3 flex items-center">
                       <SparklesIcon className="w-4 h-4 mr-2 text-blue-400" />
                       Como conectar:
@@ -3342,9 +3348,24 @@ export default function Dashboard() {
                       </li>
                       <li className="flex items-start">
                         <span className="inline-block w-5 h-5 rounded-full bg-blue-500 text-white text-xs flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">4</span>
-                        Digite o código: <strong className="font-mono">{pairingCodeData.code}</strong>
+                        Digite o código: <strong className="font-mono">{formatPairingCode(pairingCodeData.code)}</strong>
                       </li>
                     </ol>
+                  </div>
+                  
+                  {/* Warning sobre validade do código */}
+                  <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 mb-6">
+                    <div className="flex items-start">
+                      <ExclamationTriangleIcon className="w-5 h-5 text-amber-400 mr-2 mt-0.5 flex-shrink-0" />
+                      <div className="text-sm">
+                        <p className="text-amber-400 font-medium mb-1">Importante:</p>
+                        <ul className="text-amber-300 space-y-1">
+                          <li>• Digite o código exatamente como mostrado (com hífen)</li>
+                          <li>• Use o código rapidamente - ele expira automaticamente</li>
+                          <li>• Se não funcionar, aguarde a regeneração automática</li>
+                        </ul>
+                      </div>
+                    </div>
                   </div>
                   
                   <div className="flex flex-col gap-2 sm:gap-3 sm:flex-row">
@@ -3417,7 +3438,7 @@ export default function Dashboard() {
                         setShowPairingCodeModal(false);
                         setPairingCodeData(null);
                         setCodeCopied(false);
-                        setTimeRemaining(20);
+                        setTimeRemaining(60);
                       }}
                       className="flex-1 bg-secondary text-secondary-foreground hover:bg-secondary/90 px-4 py-2 rounded-md transition-colors"
                       whileHover={performanceMode ? {} : { scale: 1.02 }}
