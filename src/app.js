@@ -1566,13 +1566,30 @@ async function sendWebhook(sessionId, eventType, data) {
     // Filtrar webhooks baseado na configuração ignoreGroups
     let filteredWebhooks = activeWebhooks;
     
-    // Se for uma mensagem de grupo, filtrar webhooks que ignoram grupos
-    if (eventType === 'messages.upsert' && enrichedData.chat?.isGroup) {
+    // Função para verificar se o evento é relacionado a grupo
+    function isGroupRelatedEvent(eventType, data) {
+      switch (eventType) {
+        case 'messages.upsert':
+          return data.chat?.isGroup === true;
+        case 'messages.update':
+        case 'messages.delete':
+          // Para updates e deletes, verificar se a messageKey contém um JID de grupo
+          return data.messageKey?.remoteJid?.endsWith('@g.us') || false;
+        case 'group-participants.update':
+          // Este evento é sempre relacionado a grupo
+          return true;
+        default:
+          return false;
+      }
+    }
+    
+    // Se for um evento relacionado a grupo, filtrar webhooks que ignoram grupos
+    if (isGroupRelatedEvent(eventType, enrichedData)) {
       filteredWebhooks = activeWebhooks.filter(webhook => !webhook.ignoreGroups);
       
       if (filteredWebhooks.length < activeWebhooks.length) {
         logger.info(
-          `Filtered ${activeWebhooks.length - filteredWebhooks.length} webhooks that ignore groups for session ${sessionId}`
+          `Filtered ${activeWebhooks.length - filteredWebhooks.length} webhooks that ignore groups for session ${sessionId}, event: ${eventType}`
         );
       }
     }
