@@ -61,6 +61,113 @@ export default function Dashboard() {
   const [showCreateTokenModal, setShowCreateTokenModal] = useState(false);
   const [tokenForm, setTokenForm] = useState({ name: '', expiresIn: 'never' });
 
+  // Funções de formatação e validação de número brasileiro
+  const formatBrazilianPhone = (value) => {
+    // Remove tudo que não é número
+    const numbers = value.replace(/\D/g, '');
+    
+    // Limita a 11 dígitos (55 + DDD + número)
+    const limited = numbers.slice(0, 13);
+    
+    // Aplica formatação: +55 (11) 99999-9999
+    if (limited.length === 0) return '';
+    if (limited.length <= 2) return `+${limited}`;
+    if (limited.length <= 4) return `+${limited.slice(0, 2)} (${limited.slice(2)}`;
+    if (limited.length <= 9) return `+${limited.slice(0, 2)} (${limited.slice(2, 4)}) ${limited.slice(4)}`;
+    if (limited.length <= 13) {
+      return `+${limited.slice(0, 2)} (${limited.slice(2, 4)}) ${limited.slice(4, 9)}-${limited.slice(9)}`;
+    }
+    
+    return `+${limited.slice(0, 2)} (${limited.slice(2, 4)}) ${limited.slice(4, 9)}-${limited.slice(9, 13)}`;
+  };
+
+  const validateBrazilianPhone = (phoneNumber) => {
+    const numbers = phoneNumber.replace(/\D/g, '');
+    
+    // Deve ter exatamente 13 dígitos (55 + 11 dígitos do número)
+    if (numbers.length !== 13) return false;
+    
+    // Deve começar com 55 (código do Brasil)
+    if (!numbers.startsWith('55')) return false;
+    
+    // DDD deve estar entre 11 e 99
+    const ddd = parseInt(numbers.slice(2, 4));
+    if (ddd < 11 || ddd > 99) return false;
+    
+    // Número deve ter 9 dígitos e começar com 9
+    const phoneNum = numbers.slice(4);
+    if (phoneNum.length !== 9 || !phoneNum.startsWith('9')) return false;
+    
+    return true;
+  };
+
+  const getPhoneValidationMessage = (phoneNumber) => {
+    const numbers = phoneNumber.replace(/\D/g, '');
+    
+    if (numbers.length === 0) return 'Digite o número do telefone';
+    if (numbers.length < 2) return 'Digite o código do país (55)';
+    if (!numbers.startsWith('55')) return 'Código do país deve ser 55';
+    if (numbers.length < 4) return 'Digite o DDD (11-99)';
+    
+    const ddd = parseInt(numbers.slice(2, 4));
+    if (ddd < 11 || ddd > 99) return 'DDD inválido (deve ser entre 11-99)';
+    
+    if (numbers.length < 13) return `Digite mais ${13 - numbers.length} dígitos`;
+    if (numbers.length === 13) {
+      const phoneNum = numbers.slice(4);
+      if (!phoneNum.startsWith('9')) return 'Número deve começar com 9';
+      return '✓ Número válido';
+    }
+    
+    return 'Número muito longo';
+  };
+
+  // Função para regenerar código de pareamento
+  const regeneratePairingCode = async () => {
+    if (!pairingCodeData || isRegenerating) return;
+    
+    setIsRegenerating(true);
+    try {
+      const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+      const authHeaders = await getAuthHeaders();
+
+      const response = await fetch(`${apiUrl}/api/baileys/session/create`, {
+        method: 'POST',
+        headers: authHeaders,
+        body: JSON.stringify({
+          sessionId: pairingCodeData.sessionId,
+          pairingMethod: 'code',
+          phoneNumber: pairingCodeData.phoneNumber.replace(/\D/g, ''),
+          proxy: null,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok && result.success && result.pairingCode) {
+        setPairingCodeData(prev => ({
+          ...prev,
+          code: result.pairingCode
+        }));
+        setTimeRemaining(20); // Reset timer
+        setCodeCopied(false);
+        setShowRegeneratedMessage(true);
+        setTimeout(() => setShowRegeneratedMessage(false), 3000);
+      } else {
+        console.error('Erro ao regenerar código:', result.message);
+      }
+    } catch (error) {
+      console.error('Erro ao regenerar código de pareamento:', error);
+    } finally {
+      setIsRegenerating(false);
+    }
+  };
+
+  // Função para formatar tempo restante
+  const formatTimeRemaining = (seconds) => {
+    return `${seconds}s`;
+  };
+
   // Performance mode - detecta dispositivos menos potentes
   const [performanceMode, setPerformanceMode] = useState(() => {
     const isLowEnd =
@@ -100,6 +207,48 @@ export default function Dashboard() {
     }
   });
   const [creatingSession, setCreatingSession] = useState(false);
+  const [showPairingCodeModal, setShowPairingCodeModal] = useState(false);
+  const [pairingCodeData, setPairingCodeData] = useState(null);
+  const [codeCopied, setCodeCopied] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState(20); // 20 segundos
+  const [isRegenerating, setIsRegenerating] = useState(false);
+  const [showRegeneratedMessage, setShowRegeneratedMessage] = useState(false);
+
+  // Timer effect for pairing code
+  useEffect(() => {
+    let timer;
+    if (showPairingCodeModal && timeRemaining > 0 && !isRegenerating) {
+      timer = setInterval(() => {
+        setTimeRemaining(prev => {
+          if (prev <= 1) {
+            // Tempo esgotado, regenerar automaticamente
+            regeneratePairingCode();
+            return 20; // Reset para 20 segundos
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    }
+
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [showPairingCodeModal, timeRemaining, isRegenerating]);
+
+  // Reset timer when modal opens/closes
+  useEffect(() => {
+    if (showPairingCodeModal) {
+      setTimeRemaining(20);
+      setIsRegenerating(false);
+      setShowRegeneratedMessage(false);
+    } else {
+      // Reset all states when modal closes
+      setTimeRemaining(20);
+      setIsRegenerating(false);
+      setShowRegeneratedMessage(false);
+      setCodeCopied(false);
+    }
+  }, [showPairingCodeModal]);
 
   // Webhook management state
   const [showWebhookManager, setShowWebhookManager] = useState(false);
@@ -620,9 +769,15 @@ export default function Dashboard() {
         return;
       }
 
-      if (sessionForm.pairingMethod === 'code' && !sessionForm.phoneNumber.trim()) {
-        alert('Por favor, digite o número de telefone para pareamento por código');
-        return;
+      if (sessionForm.pairingMethod === 'code') {
+        if (!sessionForm.phoneNumber.trim()) {
+          alert('Por favor, digite o número de telefone para pareamento por código');
+          return;
+        }
+        if (!validateBrazilianPhone(sessionForm.phoneNumber)) {
+          alert('Por favor, digite um número de telefone brasileiro válido');
+          return;
+        }
       }
 
       setCreatingSession(true);
@@ -682,7 +837,7 @@ export default function Dashboard() {
         body: JSON.stringify({
           sessionId: sessionId.trim(),
           pairingMethod: sessionForm.pairingMethod,
-          phoneNumber: sessionForm.pairingMethod === 'code' ? sessionForm.phoneNumber : null,
+          phoneNumber: sessionForm.pairingMethod === 'code' ? sessionForm.phoneNumber.replace(/\D/g, '') : null,
           proxy: sessionForm.proxy.enabled ? sessionForm.proxy : null,
         }),
       });
@@ -719,7 +874,12 @@ export default function Dashboard() {
 
         // Show pairing code if available
         if (result.pairingCode) {
-          alert(`Sessão WhatsApp criada com sucesso!\n\nCódigo de pareamento: ${result.pairingCode}\n\nAbra o WhatsApp, vá em Dispositivos Conectados > Conectar Dispositivo e digite o código acima.`);
+          setPairingCodeData({
+            code: result.pairingCode,
+            sessionId: sessionId,
+            phoneNumber: formatBrazilianPhone(sessionForm.phoneNumber.replace(/\D/g, ''))
+          });
+          setShowPairingCodeModal(true);
         } else if (result.qrCode) {
           alert('Sessão WhatsApp criada com sucesso! QR Code gerado para escaneamento.');
         } else {
@@ -2756,20 +2916,38 @@ export default function Dashboard() {
                       </label>
                       <input
                         type="tel"
-                        value={sessionForm.phoneNumber}
-                        onChange={(e) =>
+                        value={formatBrazilianPhone(sessionForm.phoneNumber)}
+                        onChange={(e) => {
+                          const rawValue = e.target.value.replace(/\D/g, '');
                           setSessionForm((prev) => ({
                             ...prev,
-                            phoneNumber: e.target.value,
-                          }))
-                        }
-                        className="w-full px-4 py-3 bg-card border rounded-lg text-foreground placeholder-white/50 focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                        placeholder="Ex: 5511999999999"
-                        maxLength={15}
+                            phoneNumber: rawValue,
+                          }));
+                        }}
+                        className={`w-full px-4 py-3 bg-card border rounded-lg text-foreground placeholder-white/50 focus:ring-2 transition-colors ${
+                          sessionForm.phoneNumber && validateBrazilianPhone(sessionForm.phoneNumber)
+                            ? 'focus:ring-green-500 border-green-500/50'
+                            : sessionForm.phoneNumber
+                            ? 'focus:ring-red-500 border-red-500/50'
+                            : 'focus:ring-blue-500'
+                        } focus:outline-none`}
+                        placeholder="+55 (11) 99999-9999"
+                        maxLength={19}
                       />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Digite o número completo com código do país (sem espaços ou símbolos)
-                      </p>
+                      <div className="flex items-center justify-between mt-1">
+                        <p className={`text-xs transition-colors ${
+                          sessionForm.phoneNumber && validateBrazilianPhone(sessionForm.phoneNumber)
+                            ? 'text-green-400'
+                            : sessionForm.phoneNumber
+                            ? 'text-red-400'
+                            : 'text-muted-foreground'
+                        }`}>
+                          {sessionForm.phoneNumber ? getPhoneValidationMessage(sessionForm.phoneNumber) : 'Digite o número brasileiro completo'}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {sessionForm.phoneNumber.replace(/\D/g, '').length}/13
+                        </p>
+                      </div>
                     </div>
                   )}
                 </div>
@@ -2978,19 +3156,19 @@ export default function Dashboard() {
                   disabled={
                     !sessionForm.sessionId.trim() || 
                     creatingSession ||
-                    (sessionForm.pairingMethod === 'code' && !sessionForm.phoneNumber.trim())
+                    (sessionForm.pairingMethod === 'code' && !validateBrazilianPhone(sessionForm.phoneNumber))
                   }
                   className={`flex-1 bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-md transition-colors ${
                     !sessionForm.sessionId.trim() || 
                     creatingSession ||
-                    (sessionForm.pairingMethod === 'code' && !sessionForm.phoneNumber.trim())
+                    (sessionForm.pairingMethod === 'code' && !validateBrazilianPhone(sessionForm.phoneNumber))
                       ? 'opacity-50 cursor-not-allowed'
                       : ''
                   }`}
                   whileHover={
                     !sessionForm.sessionId.trim() ||
                     creatingSession ||
-                    (sessionForm.pairingMethod === 'code' && !sessionForm.phoneNumber.trim()) ||
+                    (sessionForm.pairingMethod === 'code' && !validateBrazilianPhone(sessionForm.phoneNumber)) ||
                     performanceMode
                       ? {}
                       : { scale: 1.02 }
@@ -2998,7 +3176,7 @@ export default function Dashboard() {
                   whileTap={
                     !sessionForm.sessionId.trim() ||
                     creatingSession ||
-                    (sessionForm.pairingMethod === 'code' && !sessionForm.phoneNumber.trim()) ||
+                    (sessionForm.pairingMethod === 'code' && !validateBrazilianPhone(sessionForm.phoneNumber)) ||
                     performanceMode
                       ? {}
                       : { scale: 0.98 }
@@ -3013,6 +3191,195 @@ export default function Dashboard() {
                     <>Criar Sessão</>
                   )}
                 </motion.button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+
+        {/* Pairing Code Modal */}
+        {showPairingCodeModal && pairingCodeData && (
+          <motion.div
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => {
+              setShowPairingCodeModal(false);
+              setPairingCodeData(null);
+              setCodeCopied(false);
+              setTimeRemaining(20);
+            }}
+          >
+            <motion.div
+              className={`${
+                performanceMode ? 'bg-card border rounded-lg' : 'bg-card border rounded-lg shadow-sm'
+              } w-full max-w-sm sm:max-w-md mx-2 sm:mx-4 rounded-xl overflow-hidden`}
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-4 sm:p-6">
+                <div className="text-center">
+                  <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-green-500 to-blue-500 flex items-center justify-center">
+                    <PhoneIcon className="w-8 h-8 text-white" />
+                  </div>
+                  
+                  <h3 className="text-xl font-semibold text-foreground mb-2">
+                    Código de Pareamento
+                  </h3>
+                  
+                  <p className="text-muted-foreground mb-4">
+                    Sessão criada para {pairingCodeData.phoneNumber}
+                  </p>
+                  
+                  {/* Mensagem de código regenerado */}
+                  {showRegeneratedMessage && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      className="bg-blue-500/20 border border-blue-500/50 rounded-lg p-3 mb-4 flex items-center"
+                    >
+                      <CheckCircleIcon className="w-5 h-5 text-blue-400 mr-2 flex-shrink-0" />
+                      <span className="text-sm text-blue-400">
+                        Novo código gerado automaticamente!
+                      </span>
+                    </motion.div>
+                  )}
+                  
+                  <div className="bg-gradient-to-r from-green-500/20 to-blue-500/20 rounded-xl p-6 mb-4 border border-green-500/30">
+                    <div className="text-3xl font-mono font-bold text-foreground tracking-wider mb-2">
+                      {isRegenerating ? '••••••••' : pairingCodeData.code}
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm text-muted-foreground">
+                        {isRegenerating ? 'Gerando novo código...' : 'Digite este código no WhatsApp'}
+                      </p>
+                      <div className={`flex items-center text-sm font-medium ${
+                        timeRemaining <= 5 ? 'text-red-400' : timeRemaining <= 10 ? 'text-yellow-400' : 'text-green-400'
+                      }`}>
+                        <ClockIcon className="w-4 h-4 mr-1" />
+                        {formatTimeRemaining(timeRemaining)}
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Progress bar para o timer */}
+                  <div className="w-full bg-muted rounded-full h-2 mb-6">
+                    <div 
+                      className={`h-2 rounded-full transition-all duration-1000 ${
+                        timeRemaining <= 5 ? 'bg-red-500' : timeRemaining <= 10 ? 'bg-yellow-500' : 'bg-green-500'
+                      }`}
+                      style={{ width: `${(timeRemaining / 20) * 100}%` }}
+                    ></div>
+                  </div>
+                  
+                  <div className="bg-card/50 rounded-lg p-4 mb-6 text-left">
+                    <h4 className="font-semibold text-foreground mb-3 flex items-center">
+                      <SparklesIcon className="w-4 h-4 mr-2 text-blue-400" />
+                      Como conectar:
+                    </h4>
+                    <ol className="text-sm text-muted-foreground space-y-2">
+                      <li className="flex items-start">
+                        <span className="inline-block w-5 h-5 rounded-full bg-blue-500 text-white text-xs flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">1</span>
+                        Abra o WhatsApp no seu celular
+                      </li>
+                      <li className="flex items-start">
+                        <span className="inline-block w-5 h-5 rounded-full bg-blue-500 text-white text-xs flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">2</span>
+                        Toque em <strong>Configurações</strong> → <strong>Dispositivos conectados</strong>
+                      </li>
+                      <li className="flex items-start">
+                        <span className="inline-block w-5 h-5 rounded-full bg-blue-500 text-white text-xs flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">3</span>
+                        Toque em <strong>Conectar dispositivo</strong>
+                      </li>
+                      <li className="flex items-start">
+                        <span className="inline-block w-5 h-5 rounded-full bg-blue-500 text-white text-xs flex items-center justify-center mr-3 mt-0.5 flex-shrink-0">4</span>
+                        Digite o código: <strong className="font-mono">{pairingCodeData.code}</strong>
+                      </li>
+                    </ol>
+                  </div>
+                  
+                  <div className="flex flex-col gap-2 sm:gap-3 sm:flex-row">
+                    <motion.button
+                      onClick={async () => {
+                        if (isRegenerating) return;
+                        try {
+                          await navigator.clipboard.writeText(pairingCodeData.code);
+                          setCodeCopied(true);
+                          setTimeout(() => setCodeCopied(false), 2000);
+                        } catch (err) {
+                          console.error('Erro ao copiar código:', err);
+                        }
+                      }}
+                      disabled={isRegenerating}
+                      className={`flex-1 px-4 py-2 rounded-md transition-colors flex items-center justify-center ${
+                        isRegenerating
+                          ? 'bg-muted text-muted-foreground cursor-not-allowed'
+                          : codeCopied 
+                          ? 'bg-green-500 text-white' 
+                          : 'bg-primary text-primary-foreground hover:bg-primary/90'
+                      }`}
+                      whileHover={!isRegenerating && performanceMode ? {} : { scale: 1.02 }}
+                      whileTap={!isRegenerating && performanceMode ? {} : { scale: 0.98 }}
+                    >
+                      {isRegenerating ? (
+                        <>
+                          <div className="w-4 h-4 mr-2 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                          Aguarde...
+                        </>
+                      ) : codeCopied ? (
+                        <>
+                          <CheckCircleIcon className="w-4 h-4 mr-2" />
+                          Copiado!
+                        </>
+                      ) : (
+                        <>
+                          <ClipboardDocumentIcon className="w-4 h-4 mr-2" />
+                          Copiar Código
+                        </>
+                      )}
+                    </motion.button>
+                    
+                    <motion.button
+                      onClick={regeneratePairingCode}
+                      disabled={isRegenerating}
+                      className={`flex-1 px-4 py-2 rounded-md transition-colors flex items-center justify-center ${
+                        isRegenerating
+                          ? 'bg-muted text-muted-foreground cursor-not-allowed'
+                          : 'bg-blue-500 text-white hover:bg-blue-600'
+                      }`}
+                      whileHover={!isRegenerating && performanceMode ? {} : { scale: 1.02 }}
+                      whileTap={!isRegenerating && performanceMode ? {} : { scale: 0.98 }}
+                    >
+                      {isRegenerating ? (
+                        <>
+                          <div className="w-4 h-4 mr-2 animate-spin rounded-full border-2 border-white border-t-transparent"></div>
+                          Gerando...
+                        </>
+                      ) : (
+                        <>
+                          <SparklesIcon className="w-4 h-4 mr-2" />
+                          Novo Código
+                        </>
+                      )}
+                    </motion.button>
+                    
+                    <motion.button
+                      onClick={() => {
+                        setShowPairingCodeModal(false);
+                        setPairingCodeData(null);
+                        setCodeCopied(false);
+                        setTimeRemaining(20);
+                      }}
+                      className="flex-1 bg-secondary text-secondary-foreground hover:bg-secondary/90 px-4 py-2 rounded-md transition-colors"
+                      whileHover={performanceMode ? {} : { scale: 1.02 }}
+                      whileTap={performanceMode ? {} : { scale: 0.98 }}
+                    >
+                      Fechar
+                    </motion.button>
+                  </div>
                 </div>
               </div>
             </motion.div>
