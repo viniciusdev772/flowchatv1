@@ -36,7 +36,8 @@
       "WebFetch(domain:www.rockstargames.com)",
       "WebFetch(domain:raw.githubusercontent.com)",
       "Bash(cp:*)",
-      "WebFetch(domain:waha.devlike.pro)"
+      "WebFetch(domain:waha.devlike.pro)",
+      "mcp__memory-bank__list_projects"
     ],
     "deny": []
   },

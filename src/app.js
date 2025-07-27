@@ -1563,8 +1563,30 @@ async function sendWebhook(sessionId, eventType, data) {
       data: enrichedData,
     };
 
-    // Enviar para todos os webhooks ativos em paralelo
-    const webhookPromises = activeWebhooks.map(async (webhook) => {
+    // Filtrar webhooks baseado na configuração ignoreGroups
+    let filteredWebhooks = activeWebhooks;
+    
+    // Se for uma mensagem de grupo, filtrar webhooks que ignoram grupos
+    if (eventType === 'messages.upsert' && enrichedData.chat?.isGroup) {
+      filteredWebhooks = activeWebhooks.filter(webhook => !webhook.ignoreGroups);
+      
+      if (filteredWebhooks.length < activeWebhooks.length) {
+        logger.info(
+          `Filtered ${activeWebhooks.length - filteredWebhooks.length} webhooks that ignore groups for session ${sessionId}`
+        );
+      }
+    }
+
+    // Verificar se ainda há webhooks após filtragem
+    if (filteredWebhooks.length === 0) {
+      logger.warn(
+        `No webhooks available after filtering for session ${sessionId}, event: ${eventType}`
+      );
+      return;
+    }
+
+    // Enviar para todos os webhooks filtrados em paralelo
+    const webhookPromises = filteredWebhooks.map(async (webhook) => {
       try {
         const webhookPayload = {
           ...payload,
@@ -1617,7 +1639,7 @@ async function sendWebhook(sessionId, eventType, data) {
     const successCount = results.filter(
       (r) => r.status === 'fulfilled' && r.value.success
     ).length;
-    const totalCount = activeWebhooks.length;
+    const totalCount = filteredWebhooks.length;
 
     if (successCount > 0) {
       logger.info(
@@ -5095,7 +5117,7 @@ app.post(
   async (req, res) => {
     try {
       const { sessionId } = req.params;
-      const { name, url, active, priority, events } = req.body;
+      const { name, url, active, priority, events, ignoreGroups } = req.body;
       const userId = req.user.id;
 
       const session = sessions.get(sessionId);
@@ -5156,6 +5178,7 @@ app.post(
         active: active !== undefined ? active : true,
         priority: priority || existingCount + 1,
         events: events || ['messages.upsert', 'messages.update', 'messages.delete', 'group-participants.update'],
+        ignoreGroups: ignoreGroups || false,
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -5256,7 +5279,7 @@ app.put(
   async (req, res) => {
     try {
       const { sessionId, webhookId } = req.params;
-      const { name, url, active, priority, events } = req.body;
+      const { name, url, active, priority, events, ignoreGroups } = req.body;
       const userId = req.user.id;
 
       const session = sessions.get(sessionId);
@@ -5299,6 +5322,7 @@ app.put(
       if (active !== undefined) updateData.active = active;
       if (priority !== undefined) updateData.priority = priority;
       if (events !== undefined) updateData.events = events;
+      if (ignoreGroups !== undefined) updateData.ignoreGroups = ignoreGroups;
 
       // Search by both id field and _id field for compatibility
       const result = await webhooksCollection.updateOne(

@@ -70,6 +70,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
       'messages.delete',
       'group-participants.update',
     ],
+    ignoreGroups: false,
   });
   const [testingWebhook, setTestingWebhook] = useState(null);
   const [testResults, setTestResults] = useState({});
@@ -334,6 +335,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
         'messages.delete',
         'group-participants.update',
       ],
+      ignoreGroups: false,
     });
   };
 
@@ -350,6 +352,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
         'messages.delete',
         'group-participants.update',
       ],
+      ignoreGroups: webhook.ignoreGroups || false,
     });
   };
 
@@ -582,6 +585,18 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                               })}
                             </div>
                           </div>
+                          <div className="flex items-center">
+                            <span className="font-medium w-16 text-gray-700">Grupos:</span>
+                            <span
+                              className={`px-2 py-1 rounded text-xs border ${
+                                webhook.ignoreGroups
+                                  ? 'bg-red-50 text-red-700 border-red-200'
+                                  : 'bg-green-50 text-green-700 border-green-200'
+                              }`}
+                            >
+                              {webhook.ignoreGroups ? 'Ignorados' : 'Incluídos'}
+                            </span>
+                          </div>
                           {testResults[webhook.id] && (
                             <div className="flex items-center">
                               <span className="font-medium w-16 text-gray-700">Teste:</span>
@@ -770,6 +785,28 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                       Webhook ativo
                     </span>
                   </label>
+                </div>
+
+                <div>
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={webhookForm.ignoreGroups}
+                      onChange={(e) =>
+                        setWebhookForm((prev) => ({
+                          ...prev,
+                          ignoreGroups: e.target.checked,
+                        }))
+                      }
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 bg-white transition-all"
+                    />
+                    <span className="ml-2 text-sm text-gray-700">
+                      Ignorar mensagens de grupos
+                    </span>
+                  </label>
+                  <p className="text-xs text-gray-500 mt-1 ml-6">
+                    Quando ativado, este webhook não receberá mensagens de grupos do WhatsApp
+                  </p>
                 </div>
 
                 <div>
