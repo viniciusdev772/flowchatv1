@@ -86,7 +86,17 @@ export default function Dashboard() {
   const [qrCodeData, setQrCodeData] = useState(null);
   const [loadingQrCode, setLoadingQrCode] = useState(false);
   const [showCreateSessionModal, setShowCreateSessionModal] = useState(false);
-  const [sessionForm, setSessionForm] = useState({ sessionId: '' });
+  const [sessionForm, setSessionForm] = useState({ 
+    sessionId: '',
+    proxy: {
+      enabled: false,
+      type: 'http',
+      host: '',
+      port: '',
+      username: '',
+      password: ''
+    }
+  });
   const [creatingSession, setCreatingSession] = useState(false);
 
   // Webhook management state
@@ -664,6 +674,7 @@ export default function Dashboard() {
         headers: authHeaders,
         body: JSON.stringify({
           sessionId: sessionId.trim(),
+          proxy: sessionForm.proxy.enabled ? sessionForm.proxy : null,
         }),
       });
 
@@ -672,7 +683,17 @@ export default function Dashboard() {
       if (response.ok && result.success) {
         // Session created successfully
         setShowCreateSessionModal(false);
-        setSessionForm({ sessionId: '' });
+        setSessionForm({ 
+          sessionId: '',
+          proxy: {
+            enabled: false,
+            type: 'http',
+            host: '',
+            port: '',
+            username: '',
+            password: ''
+          }
+        });
 
         // Show QR code if available
         if (result.qrCode) {
@@ -2605,7 +2626,17 @@ export default function Dashboard() {
             exit={{ opacity: 0 }}
             onClick={() => {
               setShowCreateSessionModal(false);
-              setSessionForm({ sessionId: '' });
+              setSessionForm({ 
+          sessionId: '',
+          proxy: {
+            enabled: false,
+            type: 'http',
+            host: '',
+            port: '',
+            username: '',
+            password: ''
+          }
+        });
             }}
           >
             <motion.div
@@ -2643,6 +2674,155 @@ export default function Dashboard() {
                   />
                 </div>
 
+                {/* Configuração de Proxy */}
+                <div className="space-y-4">
+                  <div className="flex items-center space-x-2">
+                    <ServerIcon className="w-5 h-5 text-blue-400" />
+                    <label className="text-sm font-medium text-foreground">
+                      Configuração de Proxy (Opcional)
+                    </label>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    <input
+                      type="checkbox"
+                      id="proxyEnabled"
+                      checked={sessionForm.proxy.enabled}
+                      onChange={(e) =>
+                        setSessionForm((prev) => ({
+                          ...prev,
+                          proxy: {
+                            ...prev.proxy,
+                            enabled: e.target.checked,
+                          },
+                        }))
+                      }
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                    />
+                    <label htmlFor="proxyEnabled" className="text-sm text-foreground">
+                      Usar proxy para esta sessão
+                    </label>
+                  </div>
+
+                  {sessionForm.proxy.enabled && (
+                    <div className="space-y-3 p-4 bg-card/50 rounded-lg border">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-xs font-medium text-foreground mb-1 block">
+                            Tipo de Proxy
+                          </label>
+                          <select
+                            value={sessionForm.proxy.type}
+                            onChange={(e) =>
+                              setSessionForm((prev) => ({
+                                ...prev,
+                                proxy: {
+                                  ...prev.proxy,
+                                  type: e.target.value,
+                                },
+                              }))
+                            }
+                            className="w-full px-3 py-2 bg-card border rounded text-sm text-foreground"
+                          >
+                            <option value="http">HTTP</option>
+                            <option value="https">HTTPS</option>
+                            <option value="socks4">SOCKS4</option>
+                            <option value="socks5">SOCKS5</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-xs font-medium text-foreground mb-1 block">
+                            Porta
+                          </label>
+                          <input
+                            type="number"
+                            value={sessionForm.proxy.port}
+                            onChange={(e) =>
+                              setSessionForm((prev) => ({
+                                ...prev,
+                                proxy: {
+                                  ...prev.proxy,
+                                  port: e.target.value,
+                                },
+                              }))
+                            }
+                            className="w-full px-3 py-2 bg-card border rounded text-sm text-foreground"
+                            placeholder="8080"
+                          />
+                        </div>
+                      </div>
+                      
+                      <div>
+                        <label className="text-xs font-medium text-foreground mb-1 block">
+                          Host do Proxy
+                        </label>
+                        <input
+                          type="text"
+                          value={sessionForm.proxy.host}
+                          onChange={(e) =>
+                            setSessionForm((prev) => ({
+                              ...prev,
+                              proxy: {
+                                ...prev.proxy,
+                                host: e.target.value,
+                              },
+                            }))
+                          }
+                          className="w-full px-3 py-2 bg-card border rounded text-sm text-foreground"
+                          placeholder="proxy.exemplo.com"
+                        />
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="text-xs font-medium text-foreground mb-1 block">
+                            Usuário (Opcional)
+                          </label>
+                          <input
+                            type="text"
+                            value={sessionForm.proxy.username}
+                            onChange={(e) =>
+                              setSessionForm((prev) => ({
+                                ...prev,
+                                proxy: {
+                                  ...prev.proxy,
+                                  username: e.target.value,
+                                },
+                              }))
+                            }
+                            className="w-full px-3 py-2 bg-card border rounded text-sm text-foreground"
+                            placeholder="usuario"
+                          />
+                        </div>
+                        <div>
+                          <label className="text-xs font-medium text-foreground mb-1 block">
+                            Senha (Opcional)
+                          </label>
+                          <input
+                            type="password"
+                            value={sessionForm.proxy.password}
+                            onChange={(e) =>
+                              setSessionForm((prev) => ({
+                                ...prev,
+                                proxy: {
+                                  ...prev.proxy,
+                                  password: e.target.value,
+                                },
+                              }))
+                            }
+                            className="w-full px-3 py-2 bg-card border rounded text-sm text-foreground"
+                            placeholder="senha"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="text-xs text-muted-foreground bg-blue-50/10 p-2 rounded">
+                        <p><strong>Dica:</strong> Use proxy para contornar restrições de rede ou geográficas. SOCKS5 é geralmente mais estável.</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 <div
                   className={`${
                     'bg-card border rounded-lg'
@@ -2672,7 +2852,17 @@ export default function Dashboard() {
                 <motion.button
                   onClick={() => {
                     setShowCreateSessionModal(false);
-                    setSessionForm({ sessionId: '' });
+                    setSessionForm({ 
+          sessionId: '',
+          proxy: {
+            enabled: false,
+            type: 'http',
+            host: '',
+            port: '',
+            username: '',
+            password: ''
+          }
+        });
                   }}
                   className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-md transition-colors-secondary"
                   whileHover={performanceMode ? {} : { scale: 1.02 }}

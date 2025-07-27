@@ -368,7 +368,35 @@ const swaggerUiOptions = {
  *     tags:
  *       - Sessões
  *     summary: Criar nova sessão do WhatsApp
- *     description: Cria uma nova sessão do WhatsApp e retorna QR code para autenticação
+ *     description: |
+ *       Cria uma nova sessão do WhatsApp e retorna QR code para autenticação.
+ *       
+ *       **NOVO: Suporte a Proxy**
+ *       - Suporte completo para proxies HTTP, HTTPS, SOCKS4 e SOCKS5
+ *       - Configuração opcional de autenticação (usuário/senha)
+ *       - Proxy aplicado especificamente para esta instância do WhatsApp
+ *       - Útil para contornar restrições geográficas ou de rede
+ *       
+ *       **Tipos de proxy suportados:**
+ *       - `http`: Proxy HTTP padrão
+ *       - `https`: Proxy HTTPS com SSL
+ *       - `socks4`: Proxy SOCKS versão 4
+ *       - `socks5`: Proxy SOCKS versão 5 (recomendado)
+ *       
+ *       **Exemplo de configuração de proxy:**
+ *       ```json
+ *       {
+ *         "sessionId": "minha-sessao-1",
+ *         "proxy": {
+ *           "enabled": true,
+ *           "type": "http",
+ *           "host": "proxy.exemplo.com",
+ *           "port": 8080,
+ *           "username": "usuario_proxy",
+ *           "password": "senha_proxy"
+ *         }
+ *       }
+ *       ```
  *     security:
  *       - ApiTokenAuth: []
  *     requestBody:
@@ -384,6 +412,35 @@ const swaggerUiOptions = {
  *                 type: string
  *                 description: ID único para identificar a sessão
  *                 example: "minha-sessao-1"
+ *               proxy:
+ *                 type: object
+ *                 description: Configurações de proxy para a sessão (opcional)
+ *                 properties:
+ *                   enabled:
+ *                     type: boolean
+ *                     description: Se o proxy está habilitado
+ *                     example: true
+ *                   type:
+ *                     type: string
+ *                     enum: ["http", "https", "socks4", "socks5"]
+ *                     description: Tipo de proxy
+ *                     example: "http"
+ *                   host:
+ *                     type: string
+ *                     description: Endereço do servidor proxy
+ *                     example: "proxy.exemplo.com"
+ *                   port:
+ *                     type: integer
+ *                     description: Porta do servidor proxy
+ *                     example: 8080
+ *                   username:
+ *                     type: string
+ *                     description: Nome de usuário para autenticação (opcional)
+ *                     example: "usuario_proxy"
+ *                   password:
+ *                     type: string
+ *                     description: Senha para autenticação (opcional)
+ *                     example: "senha_proxy"
  *     responses:
  *       200:
  *         description: Sessão criada com sucesso

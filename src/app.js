@@ -6,6 +6,10 @@ const {
   downloadMediaMessage,
   delay,
 } = require('@whiskeysockets/baileys');
+
+// Dependências para proxy
+const { HttpsProxyAgent } = require('https-proxy-agent');
+const { SocksProxyAgent } = require('socks-proxy-agent');
 const pino = require('pino');
 const fs = require('fs');
 const path = require('path');
@@ -2862,8 +2866,48 @@ async function extractMessageData(message, sock = null) {
   return messageData;
 }
 
+// Função para criar agent de proxy
+function createProxyAgent(proxyConfig) {
+  if (!proxyConfig || !proxyConfig.enabled) {
+    return null;
+  }
+
+  try {
+    const { type, host, port, username, password } = proxyConfig;
+    
+    if (!host || !port) {
+      logger.warn('Configuração de proxy incompleta: host e port são obrigatórios');
+      return null;
+    }
+
+    let proxyUrl;
+    if (username && password) {
+      proxyUrl = `${type}://${username}:${password}@${host}:${port}`;
+    } else {
+      proxyUrl = `${type}://${host}:${port}`;
+    }
+
+    logger.info(`Criando agent de proxy: ${type}://${host}:${port}`);
+
+    switch (type.toLowerCase()) {
+      case 'http':
+      case 'https':
+        return new HttpsProxyAgent(proxyUrl);
+      case 'socks4':
+      case 'socks5':
+        return new SocksProxyAgent(proxyUrl);
+      default:
+        logger.error(`Tipo de proxy não suportado: ${type}`);
+        return null;
+    }
+  } catch (error) {
+    logger.error(`Erro ao criar agent de proxy: ${error.message}`);
+    return null;
+  }
+}
+
 // Criar sessão do WhatsApp
-async function createWhatsAppSession(sessionId, userId = null) {
+async function createWhatsAppSession(sessionId, userId = null, proxyConfig = null) {
   try {
     if (sessions.has(sessionId)) {
       return { success: false, message: 'Sessão já existe' };
@@ -2876,7 +2920,11 @@ async function createWhatsAppSession(sessionId, userId = null) {
 
     const { state, saveCreds } = await useMultiFileAuthState(authDir);
 
-    const sock = makeWASocket({
+    // Criar agent de proxy se configurado
+    const proxyAgent = createProxyAgent(proxyConfig);
+    
+    // Configuração base do socket
+    const socketConfig = {
       auth: state,
       logger: logger.child({ session: sessionId }),
       printQRInTerminal: false,
@@ -2897,7 +2945,15 @@ async function createWhatsAppSession(sessionId, userId = null) {
       keepAliveIntervalMs: 30000,
       connectTimeoutMs: 60000,
       emitOwnEvents: true,
-    });
+    };
+
+    // Adicionar agent de proxy se disponível
+    if (proxyAgent) {
+      socketConfig.agent = proxyAgent;
+      logger.info(`Sessão ${sessionId} configurada com proxy: ${proxyConfig.type}://${proxyConfig.host}:${proxyConfig.port}`);
+    }
+
+    const sock = makeWASocket(socketConfig);
 
     let qrCode = null;
     let isConnected = false;
@@ -3187,6 +3243,7 @@ async function createWhatsAppSession(sessionId, userId = null) {
       connectionState,
       createdAt: new Date(),
       userId: userId, // Associate session with user
+      proxyConfig: proxyConfig, // Store proxy configuration
     };
 
     sessions.set(sessionId, sessionData);
@@ -3651,7 +3708,7 @@ const dualAuth = async (req, res, next) => {
 
 app.post('/api/baileys/session/create', dualAuth, async (req, res) => {
   try {
-    const { sessionId } = req.body;
+    const { sessionId, proxy } = req.body;
     const userId = req.user?.id || req.user?._id; // Get user ID from authentication middleware
 
     if (!sessionId) {
@@ -3668,10 +3725,39 @@ app.post('/api/baileys/session/create', dualAuth, async (req, res) => {
       });
     }
 
+    // Validar configuração de proxy se fornecida
+    let proxyConfig = null;
+    if (proxy && proxy.enabled) {
+      const { type, host, port, username, password } = proxy;
+      
+      if (!host || !port) {
+        return res.status(400).json({
+          success: false,
+          message: 'Configuração de proxy inválida: host e port são obrigatórios',
+        });
+      }
+
+      if (!['http', 'https', 'socks4', 'socks5'].includes(type?.toLowerCase())) {
+        return res.status(400).json({
+          success: false,
+          message: 'Tipo de proxy inválido. Tipos suportados: http, https, socks4, socks5',
+        });
+      }
+
+      proxyConfig = {
+        enabled: true,
+        type: type.toLowerCase(),
+        host,
+        port: parseInt(port),
+        username: username || null,
+        password: password || null,
+      };
+    }
+
     // Create unique session ID by combining user ID and session name
     const uniqueSessionId = `${userId}_${sessionId}`;
 
-    const result = await createWhatsAppSession(uniqueSessionId, userId);
+    const result = await createWhatsAppSession(uniqueSessionId, userId, proxyConfig);
 
     // Sempre retornar o QR code quando criar uma nova sessão
     if (result.success) {
