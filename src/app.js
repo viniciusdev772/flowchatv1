@@ -2112,6 +2112,78 @@ async function sendWebhookV2Direct(sessionId, eventType, originalMessage, bailey
     // Send to webhooks
     const webhookPromises = filteredWebhooks.map(async (webhook) => {
       try {
+        // Create custom payload based on selected fields for webhook v2
+        let finalPayload = payload;
+        
+        if (webhook.selectedFields && webhook.selectedFields.length > 0) {
+          // Custom field selection - create simplified payload
+          finalPayload = {
+            event: eventType,
+            session: sessionId,
+            timestamp: Date.now(),
+            data: null
+          };
+          
+          if (eventType === 'messages.upsert' && payload.data.processed) {
+            const customMessages = payload.data.processed.map(msg => {
+              const customMsg = {};
+              
+              // Map selected fields to message data
+              webhook.selectedFields.forEach(field => {
+                switch(field) {
+                  case 'remoteJid':
+                    customMsg.remoteJid = msg.remoteJid;
+                    break;
+                  case 'id':
+                    customMsg.id = msg.messageId;
+                    break;
+                  case 'fromMe':
+                    customMsg.fromMe = msg.fromMe;
+                    break;
+                  case 'conversation':
+                    customMsg.conversation = msg.text;
+                    break;
+                  case 'messageType':
+                    customMsg.messageType = msg.messageType;
+                    break;
+                  case 'pushName':
+                    customMsg.pushName = msg.pushName;
+                    break;
+                  case 'mediaUrl':
+                    customMsg.mediaUrl = msg.media?.downloadUrl || null;
+                    break;
+                  case 'timestamp':
+                    customMsg.timestamp = msg.timestamp;
+                    break;
+                  case 'participant':
+                    customMsg.participant = msg.participant;
+                    break;
+                  case 'quotedMessage':
+                    customMsg.quotedMessage = msg.quotedMessage;
+                    break;
+                  case 'isGroup':
+                    customMsg.isGroup = msg.isGroup;
+                    break;
+                  case 'groupName':
+                    // Extract group name from session data if available
+                    customMsg.groupName = msg.isGroup ? (global.whatsappSessions?.[sessionId]?.groupName || null) : null;
+                    break;
+                }
+              });
+              
+              return customMsg;
+            });
+            
+            finalPayload.data = {
+              messages: customMessages,
+              selectedFields: webhook.selectedFields
+            };
+          } else {
+            // For non-messages.upsert events, send full data
+            finalPayload.data = payload.data;
+          }
+        }
+
         const response = await fetch(webhook.url, {
           method: 'POST',
           headers: {
@@ -2120,8 +2192,9 @@ async function sendWebhookV2Direct(sessionId, eventType, originalMessage, bailey
             'X-Webhook-Version': 'v2',
             'X-Session-ID': sessionId,
             'X-Event-Type': eventType,
+            'X-Selected-Fields': webhook.selectedFields ? webhook.selectedFields.join(',') : 'all',
           },
-          body: JSON.stringify(payload),
+          body: JSON.stringify(finalPayload),
           timeout: 15000,
         });
 
@@ -5910,7 +5983,7 @@ app.post(
   async (req, res) => {
     try {
       const { sessionId } = req.params;
-      const { name, url, active, priority, events, ignoreGroups, version } = req.body;
+      const { name, url, active, priority, events, ignoreGroups, version, selectedFields } = req.body;
       const userId = req.user.id;
 
       const session = sessions.get(sessionId);
@@ -5978,6 +6051,7 @@ app.post(
         ],
         ignoreGroups: ignoreGroups || false,
         version: version || 'v1', // Default to v1 for backward compatibility
+        selectedFields: selectedFields || [], // Store selected fields for webhook v2
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -6078,7 +6152,7 @@ app.put(
   async (req, res) => {
     try {
       const { sessionId, webhookId } = req.params;
-      const { name, url, active, priority, events, ignoreGroups, version } = req.body;
+      const { name, url, active, priority, events, ignoreGroups, version, selectedFields } = req.body;
       const userId = req.user.id;
 
       const session = sessions.get(sessionId);
@@ -6123,6 +6197,7 @@ app.put(
       if (events !== undefined) updateData.events = events;
       if (ignoreGroups !== undefined) updateData.ignoreGroups = ignoreGroups;
       if (version !== undefined) updateData.version = version;
+      if (selectedFields !== undefined) updateData.selectedFields = selectedFields;
 
       // Search by both id field and _id field for compatibility
       const result = await webhooksCollection.updateOne(

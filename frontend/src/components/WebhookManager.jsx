@@ -81,6 +81,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
     ],
     ignoreGroups: false,
     version: 'v1', // New field for webhook version
+    selectedFields: [], // Fields to include in webhook v2 payload
   });
   const [testingWebhook, setTestingWebhook] = useState(null);
   const [testResults, setTestResults] = useState({});
@@ -348,6 +349,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
       ],
       ignoreGroups: false,
       version: 'v1', // Reset to v1 by default
+      selectedFields: [], // Reset selected fields
     });
   };
 
@@ -367,6 +369,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
       ],
       ignoreGroups: webhook.ignoreGroups || false,
       version: webhook.version || 'v1', // Include version in edit form
+      selectedFields: webhook.selectedFields || [], // Include selected fields in edit
     });
   };
 
@@ -426,6 +429,35 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
       return {
         ...prev,
         events: newEvents.length > 0 ? newEvents : ['messages.upsert'],
+      };
+    });
+  };
+
+  // Available fields for webhook v2
+  const availableFields = [
+    { id: 'remoteJid', name: 'Remote JID', description: 'Número da pessoa que enviou a mensagem' },
+    { id: 'id', name: 'Message ID', description: 'ID da mensagem' },
+    { id: 'fromMe', name: 'From Me', description: 'Indica se foi o próprio número da instância que enviou' },
+    { id: 'conversation', name: 'Conversation', description: 'Mensagem de texto' },
+    { id: 'messageType', name: 'Message Type', description: 'Tipo da mensagem (Texto, Áudio, Imagem...)' },
+    { id: 'pushName', name: 'Push Name', description: 'Nome da pessoa no WhatsApp' },
+    { id: 'mediaUrl', name: 'Media URL', description: 'Link direto para mídia (imagens, vídeos, etc.)' },
+    { id: 'timestamp', name: 'Timestamp', description: 'Horário da mensagem' },
+    { id: 'participant', name: 'Participant', description: 'Participante em grupos' },
+    { id: 'quotedMessage', name: 'Quoted Message', description: 'Mensagem citada/respondida' },
+    { id: 'isGroup', name: 'Is Group', description: 'Indica se é mensagem de grupo' },
+    { id: 'groupName', name: 'Group Name', description: 'Nome do grupo (se aplicável)' },
+  ];
+
+  const toggleFieldSelection = (fieldId) => {
+    setWebhookForm((prev) => {
+      const newFields = prev.selectedFields.includes(fieldId)
+        ? prev.selectedFields.filter((id) => id !== fieldId)
+        : [...prev.selectedFields, fieldId];
+
+      return {
+        ...prev,
+        selectedFields: newFields,
       };
     });
   };
@@ -934,6 +966,84 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                     </div>
                   </div>
                 </div>
+
+                {/* Field Selection for Webhook v2 */}
+                {webhookForm.version === 'v2' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-3">
+                      Campos para Incluir no Webhook v2
+                    </label>
+                    <div className="space-y-2 max-h-48 overflow-y-auto">
+                      {availableFields.map((field) => {
+                        const isSelected = webhookForm.selectedFields.includes(field.id);
+
+                        return (
+                          <div
+                            key={field.id}
+                            className={`p-3 rounded-xl border cursor-pointer transition-all ${
+                              isSelected
+                                ? 'bg-purple-50 border-purple-200'
+                                : 'bg-gray-50 border-gray-200 hover:border-gray-300'
+                            }`}
+                            onClick={() => toggleFieldSelection(field.id)}
+                          >
+                            <div className="flex items-start">
+                              <div className="flex items-center mr-3">
+                                <input
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={() => toggleFieldSelection(field.id)}
+                                  className="rounded border-gray-300 text-purple-600 focus:ring-purple-500 bg-white transition-all"
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                              </div>
+                              <div className="flex-1">
+                                <div className="flex items-center mb-1">
+                                  <span
+                                    className={`text-sm font-medium ${
+                                      isSelected
+                                        ? 'text-purple-700'
+                                        : 'text-gray-700'
+                                    }`}
+                                  >
+                                    {field.name}
+                                  </span>
+                                  <span
+                                    className={`ml-2 px-2 py-0.5 rounded text-xs font-mono ${
+                                      isSelected
+                                        ? 'text-purple-600 bg-purple-100'
+                                        : 'text-gray-600 bg-gray-100'
+                                    }`}
+                                  >
+                                    {field.id}
+                                  </span>
+                                </div>
+                                <p
+                                  className={`text-xs ${
+                                    isSelected ? 'text-purple-600' : 'text-gray-600'
+                                  }`}
+                                >
+                                  {field.description}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="mt-3 p-3 bg-purple-50 rounded-xl border border-purple-200">
+                      <div className="flex items-center">
+                        <ExclamationTriangleIcon className="h-4 w-4 text-purple-600 mr-2" />
+                        <span className="text-xs text-purple-700">
+                          {webhookForm.selectedFields.length === 0 
+                            ? 'Nenhum campo selecionado = payload completo será enviado'
+                            : `${webhookForm.selectedFields.length} campo(s) selecionado(s) = payload customizado`
+                          }
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <motion.div
