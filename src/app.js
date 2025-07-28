@@ -1,8 +1,7 @@
 const express = require('express');
 const makeWASocket = require('@whiskeysockets/baileys').default;
-let fetchLatestBaileysVersion,
-  isLatest = require('@whiskeysockets/baileys');
 const {
+  fetchLatestBaileysVersion,
   useMultiFileAuthState,
   DisconnectReason,
   downloadMediaMessage,
