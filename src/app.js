@@ -1825,6 +1825,141 @@ async function sendWebhookV1Direct(sessionId, eventType, data, webhooksList) {
   }
 }
 
+// Helper functions for message analysis
+function detectMessageType(msgContent) {
+  if (msgContent.conversation) return 'text';
+  if (msgContent.extendedTextMessage) return 'text';
+  if (msgContent.imageMessage) return 'image';
+  if (msgContent.videoMessage) return 'video';
+  if (msgContent.audioMessage) return msgContent.audioMessage.ptt ? 'voice' : 'audio';
+  if (msgContent.documentMessage) return 'document';
+  if (msgContent.stickerMessage) return 'sticker';
+  if (msgContent.contactMessage) return 'contact';
+  if (msgContent.contactsArrayMessage) return 'contacts';
+  if (msgContent.locationMessage) return 'location';
+  if (msgContent.liveLocationMessage) return 'liveLocation';
+  if (msgContent.reactionMessage) return 'reaction';
+  if (msgContent.pollCreationMessage) return 'poll';
+  if (msgContent.pollUpdateMessage) return 'pollUpdate';
+  return 'unknown';
+}
+
+function extractTextContent(msgContent) {
+  if (msgContent.conversation) return msgContent.conversation;
+  if (msgContent.extendedTextMessage?.text) return msgContent.extendedTextMessage.text;
+  if (msgContent.imageMessage?.caption) return msgContent.imageMessage.caption;
+  if (msgContent.videoMessage?.caption) return msgContent.videoMessage.caption;
+  if (msgContent.documentMessage?.caption) return msgContent.documentMessage.caption;
+  return null;
+}
+
+function extractMediaInfo(msgContent) {
+  const media = msgContent.imageMessage || msgContent.videoMessage || 
+                msgContent.audioMessage || msgContent.documentMessage || 
+                msgContent.stickerMessage;
+  
+  if (!media) return null;
+  
+  return {
+    mimetype: media.mimetype,
+    fileSize: media.fileLength,
+    width: media.width,
+    height: media.height,
+    duration: media.seconds,
+    fileName: media.fileName || media.title,
+    url: media.url,
+    directPath: media.directPath,
+    isAnimated: media.isAnimated || media.gifPlayback,
+    isVoice: media.ptt
+  };
+}
+
+function extractQuotedMessage(msgContent) {
+  const contextInfo = msgContent.extendedTextMessage?.contextInfo ||
+                     msgContent.imageMessage?.contextInfo ||
+                     msgContent.videoMessage?.contextInfo ||
+                     msgContent.audioMessage?.contextInfo ||
+                     msgContent.documentMessage?.contextInfo ||
+                     msgContent.stickerMessage?.contextInfo;
+  
+  if (!contextInfo?.quotedMessage) return null;
+  
+  const quoted = contextInfo.quotedMessage;
+  return {
+    messageId: contextInfo.stanzaId,
+    participant: contextInfo.participant,
+    messageType: detectMessageType(quoted),
+    text: extractTextContent(quoted),
+    media: extractMediaInfo(quoted)
+  };
+}
+
+function extractContactInfo(msgContent) {
+  if (msgContent.contactMessage) {
+    return {
+      displayName: msgContent.contactMessage.displayName,
+      vcard: msgContent.contactMessage.vcard
+    };
+  }
+  if (msgContent.contactsArrayMessage) {
+    return {
+      contacts: msgContent.contactsArrayMessage.contacts || []
+    };
+  }
+  return null;
+}
+
+function extractLocationInfo(msgContent) {
+  const location = msgContent.locationMessage || msgContent.liveLocationMessage;
+  if (!location) return null;
+  
+  return {
+    latitude: location.degreesLatitude,
+    longitude: location.degreesLongitude,
+    name: location.name,
+    address: location.address,
+    url: location.url,
+    isLive: !!msgContent.liveLocationMessage
+  };
+}
+
+function extractMentions(msgContent) {
+  const contextInfo = msgContent.extendedTextMessage?.contextInfo ||
+                     msgContent.imageMessage?.contextInfo ||
+                     msgContent.videoMessage?.contextInfo;
+  
+  return contextInfo?.mentionedJid || [];
+}
+
+function extractReactionInfo(msgContent) {
+  if (!msgContent.reactionMessage) return null;
+  
+  return {
+    emoji: msgContent.reactionMessage.text,
+    targetMessageId: msgContent.reactionMessage.key?.id,
+    targetRemoteJid: msgContent.reactionMessage.key?.remoteJid
+  };
+}
+
+function extractPollInfo(msgContent) {
+  if (msgContent.pollCreationMessage) {
+    return {
+      type: 'creation',
+      name: msgContent.pollCreationMessage.name,
+      options: msgContent.pollCreationMessage.options || [],
+      selectableCount: msgContent.pollCreationMessage.selectableOptionsCount
+    };
+  }
+  if (msgContent.pollUpdateMessage) {
+    return {
+      type: 'update',
+      pollCreationMessageKey: msgContent.pollUpdateMessage.pollCreationMessageKey,
+      vote: msgContent.pollUpdateMessage.vote
+    };
+  }
+  return null;
+}
+
 // Send webhook v2 to pre-filtered webhooks list  
 async function sendWebhookV2Direct(sessionId, eventType, originalMessage, baileysRawEvent, webhooksList) {
   const { isJidGroup } = require('@whiskeysockets/baileys');
@@ -1840,15 +1975,88 @@ async function sendWebhookV2Direct(sessionId, eventType, originalMessage, bailey
       data: null
     };
 
-    // Build the payload based on event type - keep it simple!
+    // Build the payload based on event type - with enhanced structure for messages.upsert!
     switch (eventType) {
       case 'messages.upsert':
-        // For messages, send the complete Baileys message structure + our processed data
+        // Enhanced messages.upsert with pre-defined dictionary and boolean flags
+        const messages = baileysRawEvent?.messages || [];
+        const processedMessages = messages.map(msg => {
+          const msgContent = msg.message || {};
+          
+          // Create comprehensive message analysis with boolean flags FIRST
+          return {
+            // === BOOLEAN FLAGS (FIRST - MOST IMPORTANT) ===
+            hasMedia: !!(msgContent.imageMessage || msgContent.videoMessage || 
+                        msgContent.audioMessage || msgContent.documentMessage || 
+                        msgContent.stickerMessage),
+            hasQuoted: !!(msgContent.extendedTextMessage?.contextInfo?.quotedMessage || 
+                         msgContent.imageMessage?.contextInfo?.quotedMessage ||
+                         msgContent.videoMessage?.contextInfo?.quotedMessage ||
+                         msgContent.audioMessage?.contextInfo?.quotedMessage ||
+                         msgContent.documentMessage?.contextInfo?.quotedMessage ||
+                         msgContent.stickerMessage?.contextInfo?.quotedMessage),
+            isGroup: msg.key?.remoteJid?.endsWith('@g.us') || false,
+            fromMe: msg.key?.fromMe || false,
+            isForwarded: !!(msgContent.imageMessage?.contextInfo?.isForwarded ||
+                           msgContent.videoMessage?.contextInfo?.isForwarded ||
+                           msgContent.extendedTextMessage?.contextInfo?.isForwarded ||
+                           msgContent.audioMessage?.contextInfo?.isForwarded ||
+                           msgContent.documentMessage?.contextInfo?.isForwarded),
+            hasMentions: !!(msgContent.extendedTextMessage?.contextInfo?.mentionedJid?.length ||
+                           msgContent.imageMessage?.contextInfo?.mentionedJid?.length ||
+                           msgContent.videoMessage?.contextInfo?.mentionedJid?.length),
+            isVoiceMessage: !!(msgContent.audioMessage?.ptt),
+            isViewOnce: !!(msgContent.imageMessage?.viewOnce || msgContent.videoMessage?.viewOnce),
+            isAnimated: !!(msgContent.stickerMessage?.isAnimated || msgContent.videoMessage?.gifPlayback),
+            hasCaption: !!(msgContent.imageMessage?.caption || msgContent.videoMessage?.caption || msgContent.documentMessage?.caption),
+            isContact: !!(msgContent.contactMessage || msgContent.contactsArrayMessage),
+            isLocation: !!(msgContent.locationMessage || msgContent.liveLocationMessage),
+            isReaction: !!(msgContent.reactionMessage),
+            isPoll: !!(msgContent.pollCreationMessage || msgContent.pollUpdateMessage),
+            isSystemMessage: !!(msg.messageStubType),
+            
+            // === MESSAGE METADATA ===
+            messageId: msg.key?.id,
+            timestamp: msg.messageTimestamp,
+            remoteJid: msg.key?.remoteJid,
+            participant: msg.key?.participant,
+            pushName: msg.pushName,
+            status: msg.status,
+            
+            // === MESSAGE TYPE & CONTENT ===
+            messageType: detectMessageType(msgContent),
+            text: extractTextContent(msgContent),
+            
+            // === DETAILED INFORMATION ===
+            media: extractMediaInfo(msgContent),
+            quotedMessage: extractQuotedMessage(msgContent),
+            contact: extractContactInfo(msgContent),
+            location: extractLocationInfo(msgContent),
+            mentions: extractMentions(msgContent),
+            reaction: extractReactionInfo(msgContent),
+            poll: extractPollInfo(msgContent),
+          };
+        });
+
         payload.data = {
-          messages: baileysRawEvent?.messages || [originalMessage.message],
-          type: baileysRawEvent?.type || 'notify',
-          // Include our enhanced processing for convenience
-          processed: {
+          // Boolean summary for quick access
+          summary: {
+            hasMediaMessages: processedMessages.some(m => m.hasMedia),
+            hasQuotedMessages: processedMessages.some(m => m.hasQuoted),
+            hasGroupMessages: processedMessages.some(m => m.isGroup),
+            messagesCount: processedMessages.length,
+            messageTypes: [...new Set(processedMessages.map(m => m.messageType))]
+          },
+          // Raw Baileys data for full compatibility
+          raw: {
+            messages: messages,
+            type: baileysRawEvent?.type || 'notify',
+            requestId: baileysRawEvent?.requestId
+          },
+          // Enhanced processed data with boolean flags first
+          processed: processedMessages,
+          // FlowChat legacy compatibility
+          legacy: originalMessage ? {
             messageId: originalMessage.messageId,
             from: originalMessage.sender?.id,
             fromName: originalMessage.sender?.name,
@@ -1858,13 +2066,8 @@ async function sendWebhookV2Direct(sessionId, eventType, originalMessage, bailey
             messageType: originalMessage.messageType,
             content: originalMessage.content,
             timestamp: originalMessage.timestamp,
-            // Media data if present
-            ...(originalMessage.mediaData && { media: originalMessage.mediaData }),
-            // Download URL if media
-            ...(originalMessage.mediaDownload && { mediaUrl: originalMessage.mediaDownload }),
-            // Quoted message if present
-            ...(originalMessage.quotedMessage && { quotedMessage: originalMessage.quotedMessage }),
-          }
+            mediaUrl: originalMessage.mediaDownload
+          } : null
         };
         break;
         
