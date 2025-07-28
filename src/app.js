@@ -2035,8 +2035,16 @@ async function sendWebhookV2Direct(sessionId, eventType, originalMessage, bailey
             mentions: extractMentions(msgContent),
             reaction: extractReactionInfo(msgContent),
             poll: extractPollInfo(msgContent),
+            
+            // === MEDIA DOWNLOAD (if available from originalMessage) ===
+            mediaDownload: null, // Will be populated below if originalMessage has it
           };
         });
+        
+        // If we have original processed message data, merge the media download info
+        if (originalMessage && originalMessage.mediaDownload && processedMessages.length === 1) {
+          processedMessages[0].mediaDownload = originalMessage.mediaDownload;
+        }
 
         payload.data = {
           // Boolean summary for quick access
@@ -2125,8 +2133,13 @@ async function sendWebhookV2Direct(sessionId, eventType, originalMessage, bailey
           };
           
           if (eventType === 'messages.upsert' && payload.data.processed) {
-            const customMessages = payload.data.processed.map(msg => {
+            const customMessages = payload.data.processed.map((msg, index) => {
               const customMsg = {};
+              
+              // Try to find the corresponding original message by ID for media download URL
+              const rawMessage = payload.data.raw.messages[index];
+              const matchingOriginalMessage = originalMessage && 
+                originalMessage.messageId === msg.messageId ? originalMessage : null;
               
               // Map selected fields to message data
               webhook.selectedFields.forEach(field => {
@@ -2150,7 +2163,10 @@ async function sendWebhookV2Direct(sessionId, eventType, originalMessage, bailey
                     customMsg.pushName = msg.pushName;
                     break;
                   case 'mediaUrl':
-                    customMsg.mediaUrl = msg.media?.downloadUrl || null;
+                    // Use media download URL if available
+                    customMsg.mediaUrl = msg.mediaDownload?.downloadUrl || 
+                                       msg.media?.url || 
+                                       null;
                     break;
                   case 'timestamp':
                     customMsg.timestamp = msg.timestamp;
