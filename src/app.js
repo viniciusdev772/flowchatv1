@@ -1,5 +1,7 @@
 const express = require('express');
 const makeWASocket = require('@whiskeysockets/baileys').default;
+let fetchLatestBaileysVersion,
+  isLatest = require('@whiskeysockets/baileys');
 const {
   useMultiFileAuthState,
   DisconnectReason,
@@ -16,7 +18,11 @@ const path = require('path');
 const multer = require('multer');
 const cors = require('cors');
 const swaggerUi = require('swagger-ui-express');
-const { swaggerSpec, swaggerUiOptions, generateOpenAPIFile } = require('./config/swagger');
+const {
+  swaggerSpec,
+  swaggerUiOptions,
+  generateOpenAPIFile,
+} = require('./config/swagger');
 const QRCode = require('qrcode');
 const crypto = require('crypto');
 const database = require('./config/database');
@@ -77,10 +83,10 @@ app.get('/openapi.json', (req, res) => {
     res.setHeader('Content-Disposition', 'attachment; filename="openapi.json"');
     res.json(swaggerSpec);
   } catch (error) {
-    res.status(500).json({ 
-      success: false, 
+    res.status(500).json({
+      success: false,
       message: 'Erro ao gerar arquivo OpenAPI',
-      error: error.message 
+      error: error.message,
     });
   }
 });
@@ -162,7 +168,7 @@ app.use(
           }
         }, 1000);
       };
-    `
+    `,
   })
 );
 
@@ -608,11 +614,14 @@ async function sendMessageWithHumanBehavior(
     }
 
     // Check for active AI agent for this session (only mark as read if agent is active)
-    const { getAgentFromDatabase, findAgentBySessionId } = require('./routes/aiAgents');
+    const {
+      getAgentFromDatabase,
+      findAgentBySessionId,
+    } = require('./routes/aiAgents');
 
     // Get active agent with auto-reply enabled from database
     let activeAgent = await findAgentBySessionId(sessionId, true);
-    
+
     // Additional check for autoReply setting
     if (activeAgent && !activeAgent.autoReply) {
       activeAgent = null;
@@ -1417,11 +1426,11 @@ async function sendWebhook(sessionId, eventType, data) {
     // Define supported events
     const supportedEvents = [
       'messages.upsert',
-      'messages.update', 
+      'messages.update',
       'messages.delete',
-      'group-participants.update'
+      'group-participants.update',
     ];
-    
+
     if (!supportedEvents.includes(eventType)) {
       logger.debug(`Skipping webhook for unsupported event type: ${eventType}`);
       return;
@@ -1569,7 +1578,7 @@ async function sendWebhook(sessionId, eventType, data) {
 
     // Filtrar webhooks baseado na configuração ignoreGroups
     let filteredWebhooks = activeWebhooks;
-    
+
     // Função para verificar se o evento é relacionado a grupo
     function isGroupRelatedEvent(eventType, data) {
       switch (eventType) {
@@ -1586,14 +1595,18 @@ async function sendWebhook(sessionId, eventType, data) {
           return false;
       }
     }
-    
+
     // Se for um evento relacionado a grupo, filtrar webhooks que ignoram grupos
     if (isGroupRelatedEvent(eventType, enrichedData)) {
-      filteredWebhooks = activeWebhooks.filter(webhook => !webhook.ignoreGroups);
-      
+      filteredWebhooks = activeWebhooks.filter(
+        (webhook) => !webhook.ignoreGroups
+      );
+
       if (filteredWebhooks.length < activeWebhooks.length) {
         logger.info(
-          `Filtered ${activeWebhooks.length - filteredWebhooks.length} webhooks that ignore groups for session ${sessionId}, event: ${eventType}`
+          `Filtered ${
+            activeWebhooks.length - filteredWebhooks.length
+          } webhooks that ignore groups for session ${sessionId}, event: ${eventType}`
         );
       }
     }
@@ -2296,8 +2309,8 @@ async function extractMessageData(message, sock = null) {
       locationData: null,
       contactData: null,
       contactsData: null,
-      unknownData: null
-    }
+      unknownData: null,
+    },
   };
 
   // Helper function to extract URLs from text
@@ -2325,7 +2338,10 @@ async function extractMessageData(message, sock = null) {
 
   // Helper function to check if message is forwarded
   const checkForwarded = (contextInfo) => {
-    return !!(contextInfo && (contextInfo.forwardingScore > 0 || contextInfo.isForwarded));
+    return !!(
+      contextInfo &&
+      (contextInfo.forwardingScore > 0 || contextInfo.isForwarded)
+    );
   };
 
   // Helper function to extract detailed media information
@@ -2333,20 +2349,26 @@ async function extractMessageData(message, sock = null) {
     const details = {
       fileLength: mediaMsg.fileLength || null,
       mimetype: mediaMsg.mimetype || null,
-      fileSha256: mediaMsg.fileSha256 ? mediaMsg.fileSha256.toString('base64') : null,
-      fileEncSha256: mediaMsg.fileEncSha256 ? mediaMsg.fileEncSha256.toString('base64') : null,
+      fileSha256: mediaMsg.fileSha256
+        ? mediaMsg.fileSha256.toString('base64')
+        : null,
+      fileEncSha256: mediaMsg.fileEncSha256
+        ? mediaMsg.fileEncSha256.toString('base64')
+        : null,
       mediaKey: mediaMsg.mediaKey ? mediaMsg.mediaKey.toString('base64') : null,
       directPath: mediaMsg.directPath || null,
       url: mediaMsg.url || null,
       width: mediaMsg.width || null,
       height: mediaMsg.height || null,
-      duration: mediaMsg.seconds || null
+      duration: mediaMsg.seconds || null,
     };
-    
+
     // Type-specific fields
     if (mediaType === 'audio') {
       details.ptt = mediaMsg.ptt || false;
-      details.waveform = mediaMsg.waveform ? Array.from(mediaMsg.waveform) : null;
+      details.waveform = mediaMsg.waveform
+        ? Array.from(mediaMsg.waveform)
+        : null;
     } else if (mediaType === 'document') {
       details.fileName = mediaMsg.fileName || null;
       details.title = mediaMsg.title || null;
@@ -2354,7 +2376,7 @@ async function extractMessageData(message, sock = null) {
     } else if (mediaType === 'sticker') {
       details.isAnimated = mediaMsg.isAnimated || false;
     }
-    
+
     return details;
   };
 
@@ -2450,12 +2472,12 @@ async function extractMessageData(message, sock = null) {
     }
 
     return {
-      id: contextInfo.stanzaId,          // Consistent field name
-      messageId: contextInfo.stanzaId,   // Keep for backward compatibility
+      id: contextInfo.stanzaId, // Consistent field name
+      messageId: contextInfo.stanzaId, // Keep for backward compatibility
       participant: contextInfo.participant,
       remoteJid: contextInfo.remoteJid,
       content: quotedContent,
-      text: quotedContent,               // Alias for content
+      text: quotedContent, // Alias for content
       messageType: quotedType,
       mediaData: quotedMediaData,
       fromMe: contextInfo.participant === message.key.remoteJid,
@@ -2471,7 +2493,7 @@ async function extractMessageData(message, sock = null) {
     if (message.message.conversation) {
       messageData.messageType = 'text';
       messageData.content = message.message.conversation;
-      
+
       // Extract URLs and mentions from simple text messages
       messageData.metadata.urls = extractUrls(messageData.content);
       messageData.metadata.mentions = extractMentions(messageData.content);
@@ -2481,16 +2503,19 @@ async function extractMessageData(message, sock = null) {
 
       // Extract URLs and mentions
       messageData.metadata.urls = extractUrls(messageData.content);
-      
+
       // Extract contextInfo metadata
       if (message.message.extendedTextMessage.contextInfo) {
         const contextInfo = message.message.extendedTextMessage.contextInfo;
-        messageData.metadata.mentions = extractMentions(messageData.content, contextInfo);
+        messageData.metadata.mentions = extractMentions(
+          messageData.content,
+          contextInfo
+        );
         messageData.metadata.forwarded = checkForwarded(contextInfo);
         if (contextInfo.ephemeralExpiration) {
           messageData.metadata.ephemeral = contextInfo.ephemeralExpiration;
         }
-        
+
         // Extract quoted message if present
         if (contextInfo.quotedMessage) {
           messageData.quotedMessage = extractQuotedMessage(contextInfo);
@@ -2499,11 +2524,12 @@ async function extractMessageData(message, sock = null) {
     } else if (message.message.imageMessage) {
       messageData.messageType = 'image';
       messageData.content = message.message.imageMessage.caption || '';
-      messageData.metadata.caption = message.message.imageMessage.caption || null;
-      
+      messageData.metadata.caption =
+        message.message.imageMessage.caption || null;
+
       // Extract URLs from caption
       messageData.metadata.urls = extractUrls(messageData.content);
-      
+
       // Enhanced media data
       messageData.mediaData = {
         mimetype: message.message.imageMessage.mimetype,
@@ -2512,19 +2538,25 @@ async function extractMessageData(message, sock = null) {
         width: message.message.imageMessage.width,
         height: message.message.imageMessage.height,
       };
-      
+
       // Detailed media metadata
-      messageData.metadata.mediaDetails = extractMediaDetails(message.message.imageMessage, 'image');
+      messageData.metadata.mediaDetails = extractMediaDetails(
+        message.message.imageMessage,
+        'image'
+      );
 
       // Extract contextInfo metadata
       if (message.message.imageMessage.contextInfo) {
         const contextInfo = message.message.imageMessage.contextInfo;
-        messageData.metadata.mentions = extractMentions(messageData.content, contextInfo);
+        messageData.metadata.mentions = extractMentions(
+          messageData.content,
+          contextInfo
+        );
         messageData.metadata.forwarded = checkForwarded(contextInfo);
         if (contextInfo.ephemeralExpiration) {
           messageData.metadata.ephemeral = contextInfo.ephemeralExpiration;
         }
-        
+
         // Extract quoted message if present
         if (contextInfo.quotedMessage) {
           messageData.quotedMessage = extractQuotedMessage(contextInfo);
@@ -2547,11 +2579,12 @@ async function extractMessageData(message, sock = null) {
     } else if (message.message.videoMessage) {
       messageData.messageType = 'video';
       messageData.content = message.message.videoMessage.caption || '';
-      messageData.metadata.caption = message.message.videoMessage.caption || null;
-      
+      messageData.metadata.caption =
+        message.message.videoMessage.caption || null;
+
       // Extract URLs from caption
       messageData.metadata.urls = extractUrls(messageData.content);
-      
+
       messageData.mediaData = {
         mimetype: message.message.videoMessage.mimetype,
         fileSha256: message.message.videoMessage.fileSha256?.toString('base64'),
@@ -2560,19 +2593,25 @@ async function extractMessageData(message, sock = null) {
         height: message.message.videoMessage.height,
         seconds: message.message.videoMessage.seconds,
       };
-      
+
       // Detailed media metadata
-      messageData.metadata.mediaDetails = extractMediaDetails(message.message.videoMessage, 'video');
+      messageData.metadata.mediaDetails = extractMediaDetails(
+        message.message.videoMessage,
+        'video'
+      );
 
       // Extract contextInfo metadata
       if (message.message.videoMessage.contextInfo) {
         const contextInfo = message.message.videoMessage.contextInfo;
-        messageData.metadata.mentions = extractMentions(messageData.content, contextInfo);
+        messageData.metadata.mentions = extractMentions(
+          messageData.content,
+          contextInfo
+        );
         messageData.metadata.forwarded = checkForwarded(contextInfo);
         if (contextInfo.ephemeralExpiration) {
           messageData.metadata.ephemeral = contextInfo.ephemeralExpiration;
         }
-        
+
         // Extract quoted message if present
         if (contextInfo.quotedMessage) {
           messageData.quotedMessage = extractQuotedMessage(contextInfo);
@@ -2595,7 +2634,7 @@ async function extractMessageData(message, sock = null) {
     } else if (message.message.audioMessage) {
       messageData.messageType = 'audio';
       messageData.content = '';
-      
+
       messageData.mediaData = {
         mimetype: message.message.audioMessage.mimetype,
         fileSha256: message.message.audioMessage.fileSha256?.toString('base64'),
@@ -2603,9 +2642,12 @@ async function extractMessageData(message, sock = null) {
         seconds: message.message.audioMessage.seconds,
         ptt: message.message.audioMessage.ptt || false,
       };
-      
+
       // Detailed media metadata
-      messageData.metadata.mediaDetails = extractMediaDetails(message.message.audioMessage, 'audio');
+      messageData.metadata.mediaDetails = extractMediaDetails(
+        message.message.audioMessage,
+        'audio'
+      );
 
       // Extract contextInfo metadata
       if (message.message.audioMessage.contextInfo) {
@@ -2615,7 +2657,7 @@ async function extractMessageData(message, sock = null) {
         if (contextInfo.ephemeralExpiration) {
           messageData.metadata.ephemeral = contextInfo.ephemeralExpiration;
         }
-        
+
         // Extract quoted message if present
         if (contextInfo.quotedMessage) {
           messageData.quotedMessage = extractQuotedMessage(contextInfo);
@@ -2638,11 +2680,12 @@ async function extractMessageData(message, sock = null) {
     } else if (message.message.documentMessage) {
       messageData.messageType = 'document';
       messageData.content = message.message.documentMessage.caption || '';
-      messageData.metadata.caption = message.message.documentMessage.caption || null;
-      
+      messageData.metadata.caption =
+        message.message.documentMessage.caption || null;
+
       // Extract URLs from caption
       messageData.metadata.urls = extractUrls(messageData.content);
-      
+
       messageData.mediaData = {
         mimetype: message.message.documentMessage.mimetype,
         fileSha256:
@@ -2651,19 +2694,25 @@ async function extractMessageData(message, sock = null) {
         fileName: message.message.documentMessage.fileName,
         title: message.message.documentMessage.title,
       };
-      
+
       // Detailed media metadata
-      messageData.metadata.mediaDetails = extractMediaDetails(message.message.documentMessage, 'document');
+      messageData.metadata.mediaDetails = extractMediaDetails(
+        message.message.documentMessage,
+        'document'
+      );
 
       // Extract contextInfo metadata
       if (message.message.documentMessage.contextInfo) {
         const contextInfo = message.message.documentMessage.contextInfo;
-        messageData.metadata.mentions = extractMentions(messageData.content, contextInfo);
+        messageData.metadata.mentions = extractMentions(
+          messageData.content,
+          contextInfo
+        );
         messageData.metadata.forwarded = checkForwarded(contextInfo);
         if (contextInfo.ephemeralExpiration) {
           messageData.metadata.ephemeral = contextInfo.ephemeralExpiration;
         }
-        
+
         // Extract quoted message if present
         if (contextInfo.quotedMessage) {
           messageData.quotedMessage = extractQuotedMessage(contextInfo);
@@ -2686,7 +2735,7 @@ async function extractMessageData(message, sock = null) {
     } else if (message.message.stickerMessage) {
       messageData.messageType = 'sticker';
       messageData.content = '';
-      
+
       messageData.mediaData = {
         mimetype: message.message.stickerMessage.mimetype,
         fileSha256:
@@ -2695,9 +2744,12 @@ async function extractMessageData(message, sock = null) {
         width: message.message.stickerMessage.width,
         height: message.message.stickerMessage.height,
       };
-      
+
       // Detailed media metadata
-      messageData.metadata.mediaDetails = extractMediaDetails(message.message.stickerMessage, 'sticker');
+      messageData.metadata.mediaDetails = extractMediaDetails(
+        message.message.stickerMessage,
+        'sticker'
+      );
 
       // Extract contextInfo metadata
       if (message.message.stickerMessage.contextInfo) {
@@ -2707,7 +2759,7 @@ async function extractMessageData(message, sock = null) {
         if (contextInfo.ephemeralExpiration) {
           messageData.metadata.ephemeral = contextInfo.ephemeralExpiration;
         }
-        
+
         // Extract quoted message if present
         if (contextInfo.quotedMessage) {
           messageData.quotedMessage = extractQuotedMessage(contextInfo);
@@ -2733,7 +2785,7 @@ async function extractMessageData(message, sock = null) {
         displayName: message.message.contactMessage.displayName,
         vcard: message.message.contactMessage.vcard,
       };
-      
+
       // Store contact data in metadata
       messageData.metadata.contactData = messageData.content;
 
@@ -2745,7 +2797,7 @@ async function extractMessageData(message, sock = null) {
         if (contextInfo.ephemeralExpiration) {
           messageData.metadata.ephemeral = contextInfo.ephemeralExpiration;
         }
-        
+
         // Extract quoted message if present
         if (contextInfo.quotedMessage) {
           messageData.quotedMessage = extractQuotedMessage(contextInfo);
@@ -2759,7 +2811,7 @@ async function extractMessageData(message, sock = null) {
         name: message.message.locationMessage.name,
         address: message.message.locationMessage.address,
       };
-      
+
       // Store location data in metadata
       messageData.metadata.locationData = messageData.content;
 
@@ -2771,7 +2823,7 @@ async function extractMessageData(message, sock = null) {
         if (contextInfo.ephemeralExpiration) {
           messageData.metadata.ephemeral = contextInfo.ephemeralExpiration;
         }
-        
+
         // Extract quoted message if present
         if (contextInfo.quotedMessage) {
           messageData.quotedMessage = extractQuotedMessage(contextInfo);
@@ -2785,23 +2837,29 @@ async function extractMessageData(message, sock = null) {
         caption: message.message.liveLocationMessage.caption,
         sequenceNumber: message.message.liveLocationMessage.sequenceNumber,
       };
-      
+
       // Store location data in metadata
       messageData.metadata.locationData = messageData.content;
-      messageData.metadata.caption = message.message.liveLocationMessage.caption || null;
-      
+      messageData.metadata.caption =
+        message.message.liveLocationMessage.caption || null;
+
       // Extract URLs from caption
-      messageData.metadata.urls = extractUrls(messageData.content.caption || '');
+      messageData.metadata.urls = extractUrls(
+        messageData.content.caption || ''
+      );
 
       // Extract contextInfo metadata
       if (message.message.liveLocationMessage.contextInfo) {
         const contextInfo = message.message.liveLocationMessage.contextInfo;
-        messageData.metadata.mentions = extractMentions(messageData.content.caption || '', contextInfo);
+        messageData.metadata.mentions = extractMentions(
+          messageData.content.caption || '',
+          contextInfo
+        );
         messageData.metadata.forwarded = checkForwarded(contextInfo);
         if (contextInfo.ephemeralExpiration) {
           messageData.metadata.ephemeral = contextInfo.ephemeralExpiration;
         }
-        
+
         // Extract quoted message if present
         if (contextInfo.quotedMessage) {
           messageData.quotedMessage = extractQuotedMessage(contextInfo);
@@ -2814,7 +2872,7 @@ async function extractMessageData(message, sock = null) {
         contactsCount:
           message.message.contactsArrayMessage.contacts?.length || 0,
       };
-      
+
       // Store contacts data in metadata
       messageData.metadata.contactsData = messageData.content;
 
@@ -2826,7 +2884,7 @@ async function extractMessageData(message, sock = null) {
         if (contextInfo.ephemeralExpiration) {
           messageData.metadata.ephemeral = contextInfo.ephemeralExpiration;
         }
-        
+
         // Extract quoted message if present
         if (contextInfo.quotedMessage) {
           messageData.quotedMessage = extractQuotedMessage(contextInfo);
@@ -2858,7 +2916,7 @@ async function extractMessageData(message, sock = null) {
       messageData.content = 'Tipo de mensagem não suportado';
       messageData.metadata.unknownData = {
         availableKeys: messageKeys,
-        rawMessage: message.message
+        rawMessage: message.message,
       };
     }
   }
@@ -2874,9 +2932,11 @@ function createProxyAgent(proxyConfig) {
 
   try {
     const { type, host, port, username, password } = proxyConfig;
-    
+
     if (!host || !port) {
-      logger.warn('Configuração de proxy incompleta: host e port são obrigatórios');
+      logger.warn(
+        'Configuração de proxy incompleta: host e port são obrigatórios'
+      );
       return null;
     }
 
@@ -2907,7 +2967,13 @@ function createProxyAgent(proxyConfig) {
 }
 
 // Criar sessão do WhatsApp
-async function createWhatsAppSession(sessionId, userId = null, proxyConfig = null, pairingMethod = 'qr', phoneNumber = null) {
+async function createWhatsAppSession(
+  sessionId,
+  userId = null,
+  proxyConfig = null,
+  pairingMethod = 'qr',
+  phoneNumber = null
+) {
   try {
     if (sessions.has(sessionId)) {
       return { success: false, message: 'Sessão já existe' };
@@ -2922,10 +2988,12 @@ async function createWhatsAppSession(sessionId, userId = null, proxyConfig = nul
 
     // Criar agent de proxy se configurado
     const proxyAgent = createProxyAgent(proxyConfig);
-    
+    const { version, isLatest } = await fetchLatestBaileysVersion();
+
     // Configuração base do socket
     const socketConfig = {
       auth: state,
+      version,
       logger: logger.child({ session: sessionId }),
       printQRInTerminal: false,
       browser: ['WhatsApp Business', 'Chrome', '4.0.0'],
@@ -2950,7 +3018,9 @@ async function createWhatsAppSession(sessionId, userId = null, proxyConfig = nul
     // Adicionar agent de proxy se disponível
     if (proxyAgent) {
       socketConfig.agent = proxyAgent;
-      logger.info(`Sessão ${sessionId} configurada com proxy: ${proxyConfig.type}://${proxyConfig.host}:${proxyConfig.port}`);
+      logger.info(
+        `Sessão ${sessionId} configurada com proxy: ${proxyConfig.type}://${proxyConfig.host}:${proxyConfig.port}`
+      );
     }
 
     const sock = makeWASocket(socketConfig);
@@ -3151,8 +3221,10 @@ async function createWhatsAppSession(sessionId, userId = null, proxyConfig = nul
       // Handle pairing code updates
       if (creds.pairingCode && pairingMethod === 'code') {
         pairingCode = creds.pairingCode;
-        logger.info(`Código de pareamento gerado para sessão ${sessionId}: ${pairingCode}`);
-        
+        logger.info(
+          `Código de pareamento gerado para sessão ${sessionId}: ${pairingCode}`
+        );
+
         // Update session data with pairing code
         const sessionData = sessions.get(sessionId);
         if (sessionData) {
@@ -3160,7 +3232,7 @@ async function createWhatsAppSession(sessionId, userId = null, proxyConfig = nul
           sessionData.connectionState = 'pairing_code_generated';
         }
       }
-      
+
       // Save credentials
       saveCreds(creds);
     });
@@ -3209,15 +3281,18 @@ async function createWhatsAppSession(sessionId, userId = null, proxyConfig = nul
     // Handler para atualizações de mensagens (status de entrega, edições, etc.)
     sock.ev.on('messages.update', async (messageUpdates) => {
       for (const update of messageUpdates) {
-        logger.info(`Message update received for session ${sessionId}:`, update);
-        
+        logger.info(
+          `Message update received for session ${sessionId}:`,
+          update
+        );
+
         const updateData = {
           messageKey: update.key,
           update: update.update || {},
           timestamp: Date.now(),
-          sessionId: sessionId
+          sessionId: sessionId,
         };
-        
+
         await sendWebhook(sessionId, 'messages.update', updateData);
       }
     });
@@ -3225,32 +3300,34 @@ async function createWhatsAppSession(sessionId, userId = null, proxyConfig = nul
     // Handler para mensagens deletadas
     sock.ev.on('messages.delete', async (deleteEvent) => {
       logger.info(`Messages deleted for session ${sessionId}:`, deleteEvent);
-      
+
       const deleteData = {
         ...deleteEvent,
         timestamp: Date.now(),
-        sessionId: sessionId
+        sessionId: sessionId,
       };
-      
+
       await sendWebhook(sessionId, 'messages.delete', deleteData);
     });
 
     // Handler para mudanças de participantes em grupos
     sock.ev.on('group-participants.update', async (groupUpdate) => {
-      logger.info(`Group participants update for session ${sessionId}:`, groupUpdate);
-      
+      logger.info(
+        `Group participants update for session ${sessionId}:`,
+        groupUpdate
+      );
+
       const groupData = {
         groupId: groupUpdate.id,
         participants: groupUpdate.participants,
         action: groupUpdate.action, // add, remove, promote, demote
         author: groupUpdate.author,
         timestamp: Date.now(),
-        sessionId: sessionId
+        sessionId: sessionId,
       };
-      
+
       await sendWebhook(sessionId, 'group-participants.update', groupData);
     });
-
 
     // Armazenar sessão
     const sessionData = {
@@ -3272,25 +3349,39 @@ async function createWhatsAppSession(sessionId, userId = null, proxyConfig = nul
     await saveSessionData(sessionId, sessionData);
 
     // Request pairing code if method is 'code' - Following official Baileys pattern
-    if (pairingMethod === 'code' && phoneNumber && !sock.authState.creds.registered) {
+    if (
+      pairingMethod === 'code' &&
+      phoneNumber &&
+      !sock.authState.creds.registered
+    ) {
       // Clean phone number for pairing code request
       const cleanPhone = phoneNumber.replace(/\D/g, '');
       try {
-        logger.info(`Solicitando código de pareamento para ${cleanPhone} (original: ${phoneNumber}) na sessão ${sessionId}`);
+        logger.info(
+          `Solicitando código de pareamento para ${cleanPhone} (original: ${phoneNumber}) na sessão ${sessionId}`
+        );
         const generatedCode = await sock.requestPairingCode(cleanPhone);
         pairingCode = generatedCode;
-        
+
         // Update session data with pairing code
         sessionData.pairingCode = pairingCode;
         sessionData.connectionState = 'pairing_code_generated';
         sessions.set(sessionId, sessionData);
-        
+
         logger.info(`Código de pareamento gerado: ${pairingCode}`);
       } catch (error) {
-        logger.error(`Erro ao solicitar código de pareamento: ${error.message}`);
+        logger.error(
+          `Erro ao solicitar código de pareamento: ${error.message}`
+        );
       }
-    } else if (pairingMethod === 'code' && phoneNumber && sock.authState.creds.registered) {
-      logger.info(`Sessão ${sessionId} já está registrada, código de pareamento não necessário`);
+    } else if (
+      pairingMethod === 'code' &&
+      phoneNumber &&
+      sock.authState.creds.registered
+    ) {
+      logger.info(
+        `Sessão ${sessionId} já está registrada, código de pareamento não necessário`
+      );
       sessionData.connectionState = 'already_registered';
     }
 
@@ -3474,12 +3565,15 @@ async function processCompleteMessage(
     await delay(500 + Math.random() * 1500);
 
     // Check for active AI agent for this session
-    const { getAgentFromDatabase, findAgentBySessionId } = require('./routes/aiAgents');
+    const {
+      getAgentFromDatabase,
+      findAgentBySessionId,
+    } = require('./routes/aiAgents');
 
     // First check memory, then try to load from database
     // Get active agent with auto-reply enabled from database
     let activeAgent = await findAgentBySessionId(sessionId, true);
-    
+
     // Additional check for autoReply setting
     if (activeAgent && !activeAgent.autoReply) {
       activeAgent = null;
@@ -3541,14 +3635,18 @@ async function processCompleteMessage(
         // Check if user is replying to agent's message
         let isReplyingToAgent = false;
         if (contextInfo?.quotedMessage && contextInfo.stanzaId) {
-          console.log(`🔍 Group message has quoted message - checking if replying to agent. Quoted ID: ${contextInfo.stanzaId}, Chat: ${jid}`);
-          isReplyingToAgent = await activeAgent.isQuotedMessageFromAgent(contextInfo.stanzaId, jid);
+          console.log(
+            `🔍 Group message has quoted message - checking if replying to agent. Quoted ID: ${contextInfo.stanzaId}, Chat: ${jid}`
+          );
+          isReplyingToAgent = await activeAgent.isQuotedMessageFromAgent(
+            contextInfo.stanzaId,
+            jid
+          );
           console.log(`📊 isReplyingToAgent result: ${isReplyingToAgent}`);
         }
 
         // Check if agent was mentioned in the message
         const isAgentMentioned = activeAgent.isAgentMentioned(messageText);
-
 
         // Skip if agent wasn't mentioned and user isn't replying to agent
         if (!isReplyingToAgent && !isAgentMentioned) {
@@ -3575,7 +3673,7 @@ async function processCompleteMessage(
             type: isGroupMessage ? 'group' : 'private',
             name: isGroupMessage ? 'Grupo' : 'Contato',
           },
-          quotedMessage: null
+          quotedMessage: null,
         };
 
         // Extract quotedMessage from any message type that has contextInfo
@@ -3599,7 +3697,9 @@ async function processCompleteMessage(
         }
         messageData.isMultiPart = allMessageParts.length > 1;
         messageData.partCount = allMessageParts.length;
-        messageData.allMessageKeys = allMessageParts.map((part) => part.messageKey);
+        messageData.allMessageKeys = allMessageParts.map(
+          (part) => part.messageKey
+        );
 
         const aiResult = await activeAgent.processMessage(messageData, sock);
 
@@ -3702,7 +3802,11 @@ async function processCompleteMessage(
         );
 
         // Track the fallback message ID too
-        if (fallbackSentMessage && fallbackSentMessage.key && fallbackSentMessage.key.id) {
+        if (
+          fallbackSentMessage &&
+          fallbackSentMessage.key &&
+          fallbackSentMessage.key.id
+        ) {
           await activeAgent.updateConversationEntryWithMessageId(
             messageData.messageId,
             fallbackSentMessage.key.id,
@@ -3788,7 +3892,8 @@ app.post('/api/baileys/session/create', dualAuth, async (req, res) => {
     if (pairingMethod === 'code' && !phoneNumber) {
       return res.status(400).json({
         success: false,
-        message: 'Número de telefone é obrigatório quando usar pareamento por código',
+        message:
+          'Número de telefone é obrigatório quando usar pareamento por código',
       });
     }
 
@@ -3814,18 +3919,22 @@ app.post('/api/baileys/session/create', dualAuth, async (req, res) => {
     let proxyConfig = null;
     if (proxy && proxy.enabled) {
       const { type, host, port, username, password } = proxy;
-      
+
       if (!host || !port) {
         return res.status(400).json({
           success: false,
-          message: 'Configuração de proxy inválida: host e port são obrigatórios',
+          message:
+            'Configuração de proxy inválida: host e port são obrigatórios',
         });
       }
 
-      if (!['http', 'https', 'socks4', 'socks5'].includes(type?.toLowerCase())) {
+      if (
+        !['http', 'https', 'socks4', 'socks5'].includes(type?.toLowerCase())
+      ) {
         return res.status(400).json({
           success: false,
-          message: 'Tipo de proxy inválido. Tipos suportados: http, https, socks4, socks5',
+          message:
+            'Tipo de proxy inválido. Tipos suportados: http, https, socks4, socks5',
         });
       }
 
@@ -3842,7 +3951,13 @@ app.post('/api/baileys/session/create', dualAuth, async (req, res) => {
     // Create unique session ID by combining user ID and session name
     const uniqueSessionId = `${userId}_${sessionId}`;
 
-    const result = await createWhatsAppSession(uniqueSessionId, userId, proxyConfig, pairingMethod, phoneNumber);
+    const result = await createWhatsAppSession(
+      uniqueSessionId,
+      userId,
+      proxyConfig,
+      pairingMethod,
+      phoneNumber
+    );
 
     // Sempre retornar o QR code quando criar uma nova sessão
     if (result.success) {
@@ -4010,7 +4125,7 @@ app.get('/api/baileys/sessions', (req, res) => {
         ([id, session]) =>
           session.userId && session.userId.toString() === userId.toString()
       )
-      
+
       .map(([id, session]) => ({
         sessionId: id,
         isConnected: session.isConnected,
@@ -5365,7 +5480,12 @@ app.post(
         url: url,
         active: active !== undefined ? active : true,
         priority: priority || existingCount + 1,
-        events: events || ['messages.upsert', 'messages.update', 'messages.delete', 'group-participants.update'],
+        events: events || [
+          'messages.upsert',
+          'messages.update',
+          'messages.delete',
+          'group-participants.update',
+        ],
         ignoreGroups: ignoreGroups || false,
         createdAt: new Date(),
         updatedAt: new Date(),
@@ -5924,11 +6044,14 @@ async function sendMessageWithAdvancedHumanBehavior(
     }
 
     // 3. MARCAR COMO VISTO - apenas se há agente ativo e configurado
-    const { getAgentFromDatabase, findAgentBySessionId } = require('./routes/aiAgents');
+    const {
+      getAgentFromDatabase,
+      findAgentBySessionId,
+    } = require('./routes/aiAgents');
 
     // Get active agent with auto-reply enabled from database
     let activeAgent = await findAgentBySessionId(sessionId, true);
-    
+
     // Additional check for autoReply setting
     if (activeAgent && !activeAgent.autoReply) {
       activeAgent = null;
@@ -6314,7 +6437,7 @@ app.post(
 
       // Remove duplicates and format numbers
       const uniqueNumbers = [...new Set(numbers)];
-      const formattedNumbers = uniqueNumbers.map(num => {
+      const formattedNumbers = uniqueNumbers.map((num) => {
         // Remove any non-digit characters except +
         const cleaned = num.replace(/[^\d+]/g, '');
         // Ensure it starts with + if it doesn't
@@ -6325,7 +6448,7 @@ app.post(
 
       res.json({
         success: true,
-        results: results.map(result => ({
+        results: results.map((result) => ({
           jid: result.jid,
           exists: result.exists,
           number: result.jid ? result.jid.replace('@s.whatsapp.net', '') : null,
@@ -6430,7 +6553,7 @@ app.post(
       }
 
       const contactsInfo = [];
-      
+
       for (const jid of contacts) {
         try {
           const contactInfo = await getContactOrGroupInfo(jid, session.sock);
@@ -6561,7 +6684,7 @@ app.get(
       });
     } catch (error) {
       console.error('Error getting profile picture:', error);
-      
+
       if (error.message?.includes('not-authorized')) {
         return res.status(403).json({
           success: false,
@@ -6662,7 +6785,7 @@ app.get(
       });
     } catch (error) {
       console.error('Error getting contact status:', error);
-      
+
       if (error.message?.includes('not-authorized')) {
         return res.status(403).json({
           success: false,
@@ -6772,8 +6895,8 @@ app.post(
         message: `${blockedContacts.length} contatos bloqueados com sucesso`,
         data: {
           blocked: blockedContacts,
-          failed: failedContacts
-        }
+          failed: failedContacts,
+        },
       });
     } catch (error) {
       console.error('Error blocking contacts:', error);
@@ -6879,8 +7002,8 @@ app.post(
         message: `${unblockedContacts.length} contatos desbloqueados com sucesso`,
         data: {
           unblocked: unblockedContacts,
-          failed: failedContacts
-        }
+          failed: failedContacts,
+        },
       });
     } catch (error) {
       console.error('Error unblocking contacts:', error);
@@ -6975,8 +7098,10 @@ app.get('/api/baileys/info', (req, res) => {
         'Testar webhook',
 
       // Contatos
-      'POST /api/baileys/session/:id/contacts/check': 'Verificar números no WhatsApp',
-      'POST /api/baileys/session/:id/contacts/info': 'Obter informações de contatos',
+      'POST /api/baileys/session/:id/contacts/check':
+        'Verificar números no WhatsApp',
+      'POST /api/baileys/session/:id/contacts/info':
+        'Obter informações de contatos',
       'GET /api/baileys/session/:id/contacts/profile': 'Obter foto de perfil',
       'GET /api/baileys/session/:id/contacts/status': 'Obter status do contato',
       'POST /api/baileys/session/:id/contacts/block': 'Bloquear contatos',
@@ -7017,7 +7142,8 @@ app.get('/api/baileys/info', (req, res) => {
         'Processar mensagem com agente',
 
       // LID Resolver
-      'POST /api/baileys/session/:sessionId/lid/resolve': 'Resolver LID para número de telefone',
+      'POST /api/baileys/session/:sessionId/lid/resolve':
+        'Resolver LID para número de telefone',
 
       // Informações
       'GET /api/baileys/info': 'Informações da API',
