@@ -435,18 +435,18 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
 
   // Available fields for webhook v2
   const availableFields = [
-    { id: 'remoteJid', name: 'Remote JID', description: 'Número da pessoa que enviou a mensagem' },
-    { id: 'id', name: 'Message ID', description: 'ID da mensagem' },
-    { id: 'fromMe', name: 'From Me', description: 'Indica se foi o próprio número da instância que enviou' },
-    { id: 'conversation', name: 'Conversation', description: 'Mensagem de texto' },
-    { id: 'messageType', name: 'Message Type', description: 'Tipo da mensagem (Texto, Áudio, Imagem...)' },
-    { id: 'pushName', name: 'Push Name', description: 'Nome da pessoa no WhatsApp' },
-    { id: 'mediaUrl', name: 'Media URL', description: 'Link direto para mídia (imagens, vídeos, etc.)' },
-    { id: 'timestamp', name: 'Timestamp', description: 'Horário da mensagem' },
-    { id: 'participant', name: 'Participant', description: 'Participante em grupos' },
-    { id: 'quotedMessage', name: 'Quoted Message', description: 'Mensagem citada/respondida' },
-    { id: 'isGroup', name: 'Is Group', description: 'Indica se é mensagem de grupo' },
-    { id: 'groupName', name: 'Group Name', description: 'Nome do grupo (se aplicável)' },
+    { id: 'remoteJid', name: 'Remote JID', description: 'Número da pessoa que enviou a mensagem', isGroupField: false },
+    { id: 'id', name: 'Message ID', description: 'ID da mensagem', isGroupField: false },
+    { id: 'fromMe', name: 'From Me', description: 'Indica se foi o próprio número da instância que enviou', isGroupField: false },
+    { id: 'conversation', name: 'Conversation', description: 'Mensagem de texto', isGroupField: false },
+    { id: 'messageType', name: 'Message Type', description: 'Tipo da mensagem (Texto, Áudio, Imagem...)', isGroupField: false },
+    { id: 'pushName', name: 'Push Name', description: 'Nome da pessoa no WhatsApp', isGroupField: false },
+    { id: 'mediaUrl', name: 'Media URL', description: 'Link direto para mídia (imagens, vídeos, etc.)', isGroupField: false },
+    { id: 'timestamp', name: 'Timestamp', description: 'Horário da mensagem', isGroupField: false },
+    { id: 'participant', name: 'Participant', description: 'Participante em grupos', isGroupField: true },
+    { id: 'quotedMessage', name: 'Quoted Message', description: 'Mensagem citada/respondida', isGroupField: false },
+    { id: 'isGroup', name: 'Is Group', description: 'Indica se é mensagem de grupo', isGroupField: true },
+    { id: 'groupName', name: 'Group Name', description: 'Nome do grupo (se aplicável)', isGroupField: true },
   ];
 
   const toggleFieldSelection = (fieldId) => {
@@ -458,6 +458,30 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
       return {
         ...prev,
         selectedFields: newFields,
+      };
+    });
+  };
+
+  // Function to handle ignoreGroups change and auto-filter group fields
+  const handleIgnoreGroupsChange = (checked) => {
+    setWebhookForm((prev) => {
+      let updatedSelectedFields = prev.selectedFields;
+      
+      if (checked) {
+        // Remove all group-related fields when ignoreGroups is enabled
+        const groupFieldIds = availableFields
+          .filter(field => field.isGroupField)
+          .map(field => field.id);
+        
+        updatedSelectedFields = prev.selectedFields.filter(
+          fieldId => !groupFieldIds.includes(fieldId)
+        );
+      }
+      
+      return {
+        ...prev,
+        ignoreGroups: checked,
+        selectedFields: updatedSelectedFields,
       };
     });
   };
@@ -869,12 +893,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                     <input
                       type="checkbox"
                       checked={webhookForm.ignoreGroups}
-                      onChange={(e) =>
-                        setWebhookForm((prev) => ({
-                          ...prev,
-                          ignoreGroups: e.target.checked,
-                        }))
-                      }
+                      onChange={(e) => handleIgnoreGroupsChange(e.target.checked)}
                       className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 bg-white transition-all"
                     />
                     <span className="ml-2 text-sm text-gray-700">
@@ -883,6 +902,11 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                   </label>
                   <p className="text-xs text-gray-500 mt-1 ml-6">
                     Quando ativado, este webhook não receberá mensagens de grupos do WhatsApp
+                    {webhookForm.version === 'v2' && (
+                      <span className="text-orange-600 font-medium">
+                        {' '}e campos relacionados a grupos serão automaticamente removidos
+                      </span>
+                    )}
                   </p>
                 </div>
 
@@ -976,24 +1000,32 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                     <div className="space-y-2 max-h-48 overflow-y-auto">
                       {availableFields.map((field) => {
                         const isSelected = webhookForm.selectedFields.includes(field.id);
+                        const isDisabled = webhookForm.ignoreGroups && field.isGroupField;
 
                         return (
                           <div
                             key={field.id}
-                            className={`p-3 rounded-xl border cursor-pointer transition-all ${
-                              isSelected
-                                ? 'bg-purple-50 border-purple-200'
-                                : 'bg-gray-50 border-gray-200 hover:border-gray-300'
+                            className={`p-3 rounded-xl border transition-all ${
+                              isDisabled
+                                ? 'bg-gray-100 border-gray-300 opacity-50 cursor-not-allowed'
+                                : isSelected
+                                ? 'bg-purple-50 border-purple-200 cursor-pointer'
+                                : 'bg-gray-50 border-gray-200 hover:border-gray-300 cursor-pointer'
                             }`}
-                            onClick={() => toggleFieldSelection(field.id)}
+                            onClick={() => !isDisabled && toggleFieldSelection(field.id)}
                           >
                             <div className="flex items-start">
                               <div className="flex items-center mr-3">
                                 <input
                                   type="checkbox"
                                   checked={isSelected}
-                                  onChange={() => toggleFieldSelection(field.id)}
-                                  className="rounded border-gray-300 text-purple-600 focus:ring-purple-500 bg-white transition-all"
+                                  disabled={isDisabled}
+                                  onChange={() => !isDisabled && toggleFieldSelection(field.id)}
+                                  className={`rounded border-gray-300 focus:ring-purple-500 bg-white transition-all ${
+                                    isDisabled 
+                                      ? 'text-gray-400 cursor-not-allowed' 
+                                      : 'text-purple-600'
+                                  }`}
                                   onClick={(e) => e.stopPropagation()}
                                 />
                               </div>
@@ -1001,16 +1033,25 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                                 <div className="flex items-center mb-1">
                                   <span
                                     className={`text-sm font-medium ${
-                                      isSelected
+                                      isDisabled
+                                        ? 'text-gray-400'
+                                        : isSelected
                                         ? 'text-purple-700'
                                         : 'text-gray-700'
                                     }`}
                                   >
                                     {field.name}
+                                    {field.isGroupField && (
+                                      <span className="ml-1 text-xs text-orange-600 font-normal">
+                                        (grupo)
+                                      </span>
+                                    )}
                                   </span>
                                   <span
                                     className={`ml-2 px-2 py-0.5 rounded text-xs font-mono ${
-                                      isSelected
+                                      isDisabled
+                                        ? 'text-gray-400 bg-gray-200'
+                                        : isSelected
                                         ? 'text-purple-600 bg-purple-100'
                                         : 'text-gray-600 bg-gray-100'
                                     }`}
@@ -1020,10 +1061,19 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                                 </div>
                                 <p
                                   className={`text-xs ${
-                                    isSelected ? 'text-purple-600' : 'text-gray-600'
+                                    isDisabled
+                                      ? 'text-gray-400'
+                                      : isSelected 
+                                      ? 'text-purple-600' 
+                                      : 'text-gray-600'
                                   }`}
                                 >
                                   {field.description}
+                                  {isDisabled && (
+                                    <span className="block text-orange-500 font-medium mt-1">
+                                      Campo desabilitado porque grupos estão sendo ignorados
+                                    </span>
+                                  )}
                                 </p>
                               </div>
                             </div>
