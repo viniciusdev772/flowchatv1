@@ -57,6 +57,14 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
       category: 'groups',
       color: 'purple',
     },
+    {
+      id: 'connection.update',
+      name: 'Status de Conexão',
+      description: 'QR Code, conectando, conectado, desconectado',
+      icon: BoltIcon,
+      category: 'connection',
+      color: 'yellow',
+    },
   ];
 
   const [webhookForm, setWebhookForm] = useState({
@@ -69,8 +77,10 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
       'messages.update',
       'messages.delete',
       'group-participants.update',
+      'connection.update',
     ],
     ignoreGroups: false,
+    version: 'v1', // New field for webhook version
   });
   const [testingWebhook, setTestingWebhook] = useState(null);
   const [testResults, setTestResults] = useState({});
@@ -334,8 +344,10 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
         'messages.update',
         'messages.delete',
         'group-participants.update',
+        'connection.update',
       ],
       ignoreGroups: false,
+      version: 'v1', // Reset to v1 by default
     });
   };
 
@@ -351,8 +363,10 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
         'messages.update',
         'messages.delete',
         'group-participants.update',
+        'connection.update',
       ],
       ignoreGroups: webhook.ignoreGroups || false,
+      version: webhook.version || 'v1', // Include version in edit form
     });
   };
 
@@ -551,6 +565,15 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                             )}`}
                           >
                             Prioridade {webhook.priority}
+                          </span>
+                          <span
+                            className={`px-2 py-1 rounded-full text-xs font-medium border ${
+                              webhook.version === 'v2' 
+                                ? 'text-purple-700 bg-purple-50 border-purple-200' 
+                                : 'text-gray-700 bg-gray-50 border-gray-200'
+                            }`}
+                          >
+                            {webhook.version === 'v2' ? 'Webhook v2' : 'Webhook v1'}
                           </span>
                         </div>
 
@@ -766,6 +789,28 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                     <option value={2}>2 - Média</option>
                     <option value={3}>3 - Baixa</option>
                   </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Versão do Webhook
+                  </label>
+                  <select
+                    value={webhookForm.version}
+                    onChange={(e) =>
+                      setWebhookForm((prev) => ({
+                        ...prev,
+                        version: e.target.value,
+                      }))
+                    }
+                    className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-gray-900 focus:ring-2 focus:ring-blue-500 focus:outline-none focus:border-blue-500 transition-all"
+                  >
+                    <option value="v1">v1 - Webhook Original</option>
+                    <option value="v2">v2 - Webhook Avançado (Baileys Enhanced)</option>
+                  </select>
+                  <p className="text-xs text-gray-500 mt-1">
+                    v2 oferece estrutura de eventos aprimorada baseada no exemplo oficial do Baileys
+                  </p>
                 </div>
 
                 <div>

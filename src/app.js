@@ -1690,6 +1690,137 @@ async function sendWebhook(sessionId, eventType, data) {
   }
 }
 
+// Webhook v2 system - Simplified and Direct WhatsApp Compatible
+async function sendWebhookV2(sessionId, eventType, originalMessage, baileysRawEvent = null) {
+  const { isJidGroup } = require('@whiskeysockets/baileys');
+  
+  try {
+    // Get webhooks that are configured for v2
+    const activeWebhooks = await getActiveWebhooksFromDB(sessionId, eventType);
+    const v2Webhooks = activeWebhooks.filter(webhook => webhook.version === 'v2');
+    
+    if (v2Webhooks.length === 0) {
+      return;
+    }
+
+    // Simple, direct payload - just the essential data
+    let payload = {
+      event: eventType,
+      session: sessionId,
+      timestamp: Date.now(),
+      data: null
+    };
+
+    // Build the payload based on event type - keep it simple!
+    switch (eventType) {
+      case 'messages.upsert':
+        // For messages, send the complete Baileys message structure + our processed data
+        payload.data = {
+          messages: baileysRawEvent?.messages || [originalMessage.message],
+          type: baileysRawEvent?.type || 'notify',
+          // Include our enhanced processing for convenience
+          processed: {
+            messageId: originalMessage.messageId,
+            from: originalMessage.sender?.id,
+            fromName: originalMessage.sender?.name,
+            to: originalMessage.chat?.id,
+            toName: originalMessage.chat?.name,
+            isGroup: originalMessage.chat?.isGroup || false,
+            messageType: originalMessage.messageType,
+            content: originalMessage.content,
+            timestamp: originalMessage.timestamp,
+            // Media data if present
+            ...(originalMessage.mediaData && { media: originalMessage.mediaData }),
+            // Download URL if media
+            ...(originalMessage.mediaDownload && { mediaUrl: originalMessage.mediaDownload }),
+            // Quoted message if present
+            ...(originalMessage.quotedMessage && { quotedMessage: originalMessage.quotedMessage }),
+          }
+        };
+        break;
+        
+      case 'messages.update':
+        payload.data = baileysRawEvent;
+        break;
+        
+      case 'messages.delete':  
+        payload.data = baileysRawEvent;
+        break;
+        
+      case 'group-participants.update':
+        payload.data = baileysRawEvent;
+        break;
+        
+      case 'connection.update':
+        payload.data = baileysRawEvent;
+        break;
+        
+      default:
+        payload.data = baileysRawEvent || originalMessage;
+    }
+
+    // Simple group filtering using isJidGroup
+    let filteredWebhooks = v2Webhooks;
+    
+    if (eventType === 'messages.upsert' && payload.data.messages) {
+      const hasGroupMessage = payload.data.messages.some(msg => {
+        const jid = msg.key?.remoteJid;
+        return jid && isJidGroup(jid);
+      });
+      
+      if (hasGroupMessage) {
+        filteredWebhooks = v2Webhooks.filter(webhook => !webhook.ignoreGroups);
+      }
+    }
+
+    if (filteredWebhooks.length === 0) {
+      return;
+    }
+
+    // Send to webhooks
+    const webhookPromises = filteredWebhooks.map(async (webhook) => {
+      try {
+        const response = await fetch(webhook.url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'User-Agent': 'FlowChat-Webhook/2.0',
+            'X-Webhook-Version': 'v2',
+            'X-Session-ID': sessionId,
+            'X-Event-Type': eventType,
+          },
+          body: JSON.stringify(payload),
+          timeout: 15000,
+        });
+
+        if (response.ok) {
+          logger.debug(`Webhook v2 ${webhook.name} sent successfully`);
+          return { success: true, webhook: webhook.id };
+        } else {
+          logger.warn(`Webhook v2 ${webhook.name} failed: ${response.status}`);
+          return { success: false, webhook: webhook.id, error: response.status };
+        }
+      } catch (error) {
+        logger.error(`Webhook v2 ${webhook.name} error: ${error.message}`);
+        return { success: false, webhook: webhook.id, error: error.message };
+      }
+    });
+
+    await Promise.allSettled(webhookPromises);
+  } catch (error) {
+    logger.error(`Error in sendWebhookV2: ${error.message}`);
+  }
+}
+
+// Function to send webhooks (both v1 and v2) 
+async function sendWebhooksByVersion(sessionId, eventType, processedData, baileysRawEvent = null) {
+  // Send v1 webhooks (existing system)
+  await sendWebhook(sessionId, eventType, processedData);
+  
+  // Send v2 webhooks (simplified and direct)
+  await sendWebhookV2(sessionId, eventType, processedData, baileysRawEvent);
+}
+
 // Coleção MongoDB para armazenar metadados dos arquivos baixados
 const DOWNLOADS_COLLECTION = 'downloaded_files';
 
@@ -3054,7 +3185,8 @@ async function createWhatsAppSession(
         }
         logger.info(`QR Code gerado para sessão ${sessionId}`);
 
-        // QR code generated - no webhook needed
+        // Send webhook v2 for QR code generation
+        await sendWebhookV2(sessionId, 'connection.update', null, update);
       }
 
       if (connection === 'close') {
@@ -3206,13 +3338,17 @@ async function createWhatsAppSession(
         }
         logger.info(`Sessão ${sessionId} conectada com sucesso`);
 
-        // Connection established - no webhook needed
+        // Send webhook v2 for successful connection
+        await sendWebhookV2(sessionId, 'connection.update', null, update);
       } else if (connection === 'connecting') {
         connectionState = 'connecting';
         const sessionData = sessions.get(sessionId);
         if (sessionData) {
           sessionData.connectionState = 'connecting';
         }
+        
+        // Send webhook v2 for connecting state
+        await sendWebhookV2(sessionId, 'connection.update', null, update);
       }
     });
 
@@ -3258,7 +3394,7 @@ async function createWhatsAppSession(
 
         // Enviar webhook apenas se messageData não for null (filtra mensagens de protocolo)
         if (messageData !== null) {
-          await sendWebhook(sessionId, 'messages.upsert', messageData);
+          await sendWebhooksByVersion(sessionId, 'messages.upsert', messageData, m);
         } else {
           logger.debug(
             `Mensagem ignorada para webhook - SessionID: ${sessionId}, MessageID: ${message.key?.id}`
@@ -3292,7 +3428,7 @@ async function createWhatsAppSession(
           sessionId: sessionId,
         };
 
-        await sendWebhook(sessionId, 'messages.update', updateData);
+        await sendWebhooksByVersion(sessionId, 'messages.update', updateData, [update]);
       }
     });
 
@@ -3306,7 +3442,7 @@ async function createWhatsAppSession(
         sessionId: sessionId,
       };
 
-      await sendWebhook(sessionId, 'messages.delete', deleteData);
+      await sendWebhooksByVersion(sessionId, 'messages.delete', deleteData, deletedMessages);
     });
 
     // Handler para mudanças de participantes em grupos
@@ -3325,7 +3461,7 @@ async function createWhatsAppSession(
         sessionId: sessionId,
       };
 
-      await sendWebhook(sessionId, 'group-participants.update', groupData);
+      await sendWebhooksByVersion(sessionId, 'group-participants.update', groupData, groupUpdate);
     });
 
     // Armazenar sessão
@@ -5419,7 +5555,7 @@ app.post(
   async (req, res) => {
     try {
       const { sessionId } = req.params;
-      const { name, url, active, priority, events, ignoreGroups } = req.body;
+      const { name, url, active, priority, events, ignoreGroups, version } = req.body;
       const userId = req.user.id;
 
       const session = sessions.get(sessionId);
@@ -5486,6 +5622,7 @@ app.post(
           'group-participants.update',
         ],
         ignoreGroups: ignoreGroups || false,
+        version: version || 'v1', // Default to v1 for backward compatibility
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -5586,7 +5723,7 @@ app.put(
   async (req, res) => {
     try {
       const { sessionId, webhookId } = req.params;
-      const { name, url, active, priority, events, ignoreGroups } = req.body;
+      const { name, url, active, priority, events, ignoreGroups, version } = req.body;
       const userId = req.user.id;
 
       const session = sessions.get(sessionId);
@@ -5630,6 +5767,7 @@ app.put(
       if (priority !== undefined) updateData.priority = priority;
       if (events !== undefined) updateData.events = events;
       if (ignoreGroups !== undefined) updateData.ignoreGroups = ignoreGroups;
+      if (version !== undefined) updateData.version = version;
 
       // Search by both id field and _id field for compatibility
       const result = await webhooksCollection.updateOne(
