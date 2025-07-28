@@ -3271,8 +3271,8 @@ async function createWhatsAppSession(sessionId, userId = null, proxyConfig = nul
     // Save initial session data to MongoDB
     await saveSessionData(sessionId, sessionData);
 
-    // Request pairing code if method is 'code'
-    if (pairingMethod === 'code' && phoneNumber) {
+    // Request pairing code if method is 'code' - Following official Baileys pattern
+    if (pairingMethod === 'code' && phoneNumber && !sock.authState.creds.registered) {
       // Clean phone number for pairing code request
       const cleanPhone = phoneNumber.replace(/\D/g, '');
       try {
@@ -3289,16 +3289,32 @@ async function createWhatsAppSession(sessionId, userId = null, proxyConfig = nul
       } catch (error) {
         logger.error(`Erro ao solicitar código de pareamento: ${error.message}`);
       }
+    } else if (pairingMethod === 'code' && phoneNumber && sock.authState.creds.registered) {
+      logger.info(`Sessão ${sessionId} já está registrada, código de pareamento não necessário`);
+      sessionData.connectionState = 'already_registered';
+    }
+
+    // Determine success message based on pairing method and registration status
+    let message = 'Sessão criada com sucesso';
+    if (pairingMethod === 'code' && phoneNumber) {
+      if (sock.authState.creds.registered) {
+        message = 'Sessão já registrada, conexão estabelecida';
+      } else if (pairingCode) {
+        message = 'Código de pareamento gerado com sucesso';
+      } else {
+        message = 'Sessão criada, aguardando registro';
+      }
     }
 
     return {
       success: true,
-      message: pairingMethod === 'code' ? 'Código de pareamento gerado com sucesso' : 'Sessão criada com sucesso',
+      message,
       qrCode: pairingMethod === 'qr' ? qrCode : null,
       pairingCode: pairingMethod === 'code' ? pairingCode : null,
       pairingMethod,
       phoneNumber: pairingMethod === 'code' ? phoneNumber : null,
       sessionId,
+      isRegistered: sock.authState.creds.registered || false,
     };
   } catch (error) {
     logger.error(`Erro ao criar sessão ${sessionId}: ${error.message}`);

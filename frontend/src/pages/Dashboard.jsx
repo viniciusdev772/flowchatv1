@@ -924,7 +924,7 @@ export default function Dashboard() {
           setShowQRCode(true);
         }
 
-        // Show pairing code if available
+        // Handle pairing code and registration status
         if (result.pairingCode) {
           setPairingCodeData({
             code: result.pairingCode,
@@ -932,6 +932,8 @@ export default function Dashboard() {
             phoneNumber: formatBrazilianPhone(sessionForm.phoneNumber.replace(/\D/g, ''))
           });
           setShowPairingCodeModal(true);
+        } else if (result.isRegistered && sessionForm.pairingMethod === 'code') {
+          alert('Sessão já está registrada! Conexão estabelecida automaticamente.');
         } else if (result.qrCode) {
           alert('Sessão WhatsApp criada com sucesso! QR Code gerado para escaneamento.');
         } else {
