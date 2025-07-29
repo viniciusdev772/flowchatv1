@@ -404,9 +404,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
       yellow: 'text-yellow-700 bg-yellow-50 border-yellow-200',
     };
 
-    return (
-      colors[event.color] || 'text-gray-700 bg-gray-50 border-gray-200'
-    );
+    return colors[event.color] || 'text-gray-700 bg-gray-50 border-gray-200';
   };
 
   const getEventIcon = (eventId) => {
@@ -435,18 +433,78 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
 
   // Available fields for webhook v2
   const availableFields = [
-    { id: 'remoteJid', name: 'Remote JID', description: 'Número da pessoa que enviou a mensagem', isGroupField: false },
-    { id: 'id', name: 'Message ID', description: 'ID da mensagem', isGroupField: false },
-    { id: 'fromMe', name: 'From Me', description: 'Indica se foi o próprio número da instância que enviou', isGroupField: false },
-    { id: 'conversation', name: 'Conversation', description: 'Mensagem de texto', isGroupField: false },
-    { id: 'messageType', name: 'Message Type', description: 'Tipo da mensagem (Texto, Áudio, Imagem...)', isGroupField: false },
-    { id: 'pushName', name: 'Push Name', description: 'Nome da pessoa no WhatsApp', isGroupField: false },
-    { id: 'mediaUrl', name: 'Media URL', description: 'Link direto para mídia (imagens, vídeos, etc.)', isGroupField: false },
-    { id: 'timestamp', name: 'Timestamp', description: 'Horário da mensagem', isGroupField: false },
-    { id: 'participant', name: 'Participant', description: 'Participante em grupos', isGroupField: true },
-    { id: 'quotedMessage', name: 'Quoted Message', description: 'Mensagem citada/respondida', isGroupField: false },
-    { id: 'isGroup', name: 'Is Group', description: 'Indica se é mensagem de grupo', isGroupField: true },
-    { id: 'groupName', name: 'Group Name', description: 'Nome do grupo (se aplicável)', isGroupField: true },
+    {
+      id: 'remoteJid',
+      name: 'Remote JID',
+      description: 'Número da pessoa que enviou a mensagem',
+      isGroupField: false,
+    },
+    {
+      id: 'id',
+      name: 'Message ID',
+      description: 'ID da mensagem',
+      isGroupField: false,
+    },
+    {
+      id: 'fromMe',
+      name: 'From Me',
+      description: 'Indica se foi o próprio número da instância que enviou',
+      isGroupField: false,
+    },
+    {
+      id: 'conversation',
+      name: 'Conversation',
+      description: 'Mensagem de texto',
+      isGroupField: false,
+    },
+    {
+      id: 'messageType',
+      name: 'Message Type',
+      description: 'Tipo da mensagem (Texto, Áudio, Imagem...)',
+      isGroupField: false,
+    },
+    {
+      id: 'pushName',
+      name: 'Push Name',
+      description: 'Nome da pessoa no WhatsApp',
+      isGroupField: false,
+    },
+    {
+      id: 'mediaUrl',
+      name: 'Media URL',
+      description: 'Link direto para mídia (imagens, vídeos, etc.)',
+      isGroupField: false,
+    },
+    {
+      id: 'timestamp',
+      name: 'Timestamp',
+      description: 'Horário da mensagem',
+      isGroupField: false,
+    },
+    {
+      id: 'participant',
+      name: 'Participant',
+      description: 'Participante em grupos',
+      isGroupField: true,
+    },
+    {
+      id: 'quotedMessage',
+      name: 'Quoted Message',
+      description: 'Mensagem citada/respondida',
+      isGroupField: false,
+    },
+    {
+      id: 'isGroup',
+      name: 'Is Group',
+      description: 'Indica se é mensagem de grupo',
+      isGroupField: true,
+    },
+    {
+      id: 'groupName',
+      name: 'Group Name',
+      description: 'Nome do grupo (se aplicável)',
+      isGroupField: true,
+    },
   ];
 
   const toggleFieldSelection = (fieldId) => {
@@ -466,18 +524,18 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
   const handleIgnoreGroupsChange = (checked) => {
     setWebhookForm((prev) => {
       let updatedSelectedFields = prev.selectedFields;
-      
+
       if (checked) {
         // Remove all group-related fields when ignoreGroups is enabled
         const groupFieldIds = availableFields
-          .filter(field => field.isGroupField)
-          .map(field => field.id);
-        
+          .filter((field) => field.isGroupField)
+          .map((field) => field.id);
+
         updatedSelectedFields = prev.selectedFields.filter(
-          fieldId => !groupFieldIds.includes(fieldId)
+          (fieldId) => !groupFieldIds.includes(fieldId)
         );
       }
-      
+
       return {
         ...prev,
         ignoreGroups: checked,
@@ -624,24 +682,30 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                           </span>
                           <span
                             className={`px-2 py-1 rounded-full text-xs font-medium border ${
-                              webhook.version === 'v2' 
-                                ? 'text-purple-700 bg-purple-50 border-purple-200' 
+                              webhook.version === 'v2'
+                                ? 'text-purple-700 bg-purple-50 border-purple-200'
                                 : 'text-gray-700 bg-gray-50 border-gray-200'
                             }`}
                           >
-                            {webhook.version === 'v2' ? 'Webhook v2' : 'Webhook v1'}
+                            {webhook.version === 'v2'
+                              ? 'Webhook v2'
+                              : 'Webhook v1'}
                           </span>
                         </div>
 
                         <div className="space-y-2 text-sm text-gray-600">
                           <div className="flex items-center">
-                            <span className="font-medium w-16 text-gray-700">URL:</span>
+                            <span className="font-medium w-16 text-gray-700">
+                              URL:
+                            </span>
                             <span className="font-mono bg-gray-100 px-2 py-1 rounded text-xs text-gray-800 break-all">
                               {webhook.url}
                             </span>
                           </div>
                           <div className="flex items-center">
-                            <span className="font-medium w-16 text-gray-700">Eventos:</span>
+                            <span className="font-medium w-16 text-gray-700">
+                              Eventos:
+                            </span>
                             <div className="flex flex-wrap gap-1">
                               {webhook.events.map((event, index) => {
                                 const EventIcon = getEventIcon(event);
@@ -665,7 +729,9 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                             </div>
                           </div>
                           <div className="flex items-center">
-                            <span className="font-medium w-16 text-gray-700">Grupos:</span>
+                            <span className="font-medium w-16 text-gray-700">
+                              Grupos:
+                            </span>
                             <span
                               className={`px-2 py-1 rounded text-xs border ${
                                 webhook.ignoreGroups
@@ -678,7 +744,9 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                           </div>
                           {testResults[webhook.id] && (
                             <div className="flex items-center">
-                              <span className="font-medium w-16 text-gray-700">Teste:</span>
+                              <span className="font-medium w-16 text-gray-700">
+                                Teste:
+                              </span>
                               <span
                                 className={`px-2 py-1 rounded text-xs border ${
                                   testResults[webhook.id].success
@@ -782,298 +850,233 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="bg-white/95 backdrop-blur-xl border border-gray-200 p-8 max-w-md w-full mx-4 max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl"
+              className="bg-white/95 backdrop-blur-xl border border-gray-200 w-full h-full flex flex-col shadow-2xl"
               onClick={(e) => e.stopPropagation()}
+              style={{
+                borderRadius: '20px',
+                margin: '12px',
+                height: 'calc(100vh - 24px)',
+              }}
             >
-              <h3 className="text-xl font-bold text-gray-900 mb-6">
-                {editingWebhook ? 'Editar Webhook' : 'Novo Webhook'}
-              </h3>
-
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Nome (opcional)
-                  </label>
-                  <input
-                    type="text"
-                    value={webhookForm.name}
-                    onChange={(e) =>
-                      setWebhookForm((prev) => ({
-                        ...prev,
-                        name: e.target.value,
-                      }))
-                    }
-                    placeholder="Ex: Webhook Principal"
-                    className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:outline-none focus:border-blue-500 transition-all"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    URL do Webhook *
-                  </label>
-                  <input
-                    type="url"
-                    value={webhookForm.url}
-                    onChange={(e) =>
-                      setWebhookForm((prev) => ({
-                        ...prev,
-                        url: e.target.value,
-                      }))
-                    }
-                    placeholder="https://meusite.com/webhook"
-                    className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:outline-none focus:border-blue-500 transition-all"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Prioridade
-                  </label>
-                  <select
-                    value={webhookForm.priority}
-                    onChange={(e) =>
-                      setWebhookForm((prev) => ({
-                        ...prev,
-                        priority: parseInt(e.target.value),
-                      }))
-                    }
-                    className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-gray-900 focus:ring-2 focus:ring-blue-500 focus:outline-none focus:border-blue-500 transition-all"
+              {/* Header fixo */}
+              <div className="sticky top-0 bg-white/90 backdrop-blur-xl border-b border-gray-200 px-8 py-6 z-10">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-2xl font-bold text-gray-900">
+                    {editingWebhook ? 'Editar Webhook' : 'Novo Webhook'}
+                  </h3>
+                  <button
+                    onClick={() => {
+                      setShowCreateModal(false);
+                      setEditingWebhook(null);
+                      resetForm();
+                    }}
+                    className="relative w-10 h-10 rounded-full bg-red-50 hover:bg-red-100 transition-all duration-200 flex items-center justify-center group border border-red-200"
                   >
-                    <option value={1}>1 - Alta</option>
-                    <option value={2}>2 - Média</option>
-                    <option value={3}>3 - Baixa</option>
-                  </select>
+                    <XCircleIcon className="h-5 w-5 text-red-600" />
+                  </button>
                 </div>
+              </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Versão do Webhook
-                  </label>
-                  <select
-                    value={webhookForm.version}
-                    onChange={(e) =>
-                      setWebhookForm((prev) => ({
-                        ...prev,
-                        version: e.target.value,
-                      }))
-                    }
-                    className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-gray-900 focus:ring-2 focus:ring-blue-500 focus:outline-none focus:border-blue-500 transition-all"
-                  >
-                    <option value="v1">v1 - Webhook Original</option>
-                    <option value="v2">v2 - Webhook Avançado (Baileys Enhanced)</option>
-                  </select>
-                  <p className="text-xs text-gray-500 mt-1">
-                    v2 oferece estrutura de eventos aprimorada baseada no exemplo oficial do Baileys
-                  </p>
-                </div>
-
-                <div>
-                  <label className="flex items-center">
+              {/* Conteúdo scrollável */}
+              <div className="flex-1 overflow-y-auto px-8 py-6">
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Nome (opcional)
+                    </label>
                     <input
-                      type="checkbox"
-                      checked={webhookForm.active}
+                      type="text"
+                      value={webhookForm.name}
                       onChange={(e) =>
                         setWebhookForm((prev) => ({
                           ...prev,
-                          active: e.target.checked,
+                          name: e.target.value,
                         }))
                       }
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 bg-white transition-all"
+                      placeholder="Ex: Webhook Principal"
+                      className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:outline-none focus:border-blue-500 transition-all"
                     />
-                    <span className="ml-2 text-sm text-gray-700">
-                      Webhook ativo
-                    </span>
-                  </label>
-                </div>
+                  </div>
 
-                <div>
-                  <label className="flex items-center">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      URL do Webhook *
+                    </label>
                     <input
-                      type="checkbox"
-                      checked={webhookForm.ignoreGroups}
-                      onChange={(e) => handleIgnoreGroupsChange(e.target.checked)}
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 bg-white transition-all"
+                      type="url"
+                      value={webhookForm.url}
+                      onChange={(e) =>
+                        setWebhookForm((prev) => ({
+                          ...prev,
+                          url: e.target.value,
+                        }))
+                      }
+                      placeholder="https://meusite.com/webhook"
+                      className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:outline-none focus:border-blue-500 transition-all"
+                      required
                     />
-                    <span className="ml-2 text-sm text-gray-700">
-                      Ignorar mensagens de grupos
-                    </span>
-                  </label>
-                  <p className="text-xs text-gray-500 mt-1 ml-6">
-                    Quando ativado, este webhook não receberá mensagens de grupos do WhatsApp
-                    {webhookForm.version === 'v2' && (
-                      <span className="text-orange-600 font-medium">
-                        {' '}e campos relacionados a grupos serão automaticamente removidos
-                      </span>
-                    )}
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-3">
-                    Eventos para Escutar
-                  </label>
-                  <div className="space-y-2 max-h-40 overflow-y-auto">
-                    {availableEvents.map((event) => {
-                      const EventIcon = event.icon;
-                      const isSelected = webhookForm.events.includes(event.id);
-
-                      return (
-                        <div
-                          key={event.id}
-                          className={`p-3 rounded-xl border cursor-pointer transition-all ${
-                            isSelected
-                              ? 'bg-blue-50 border-blue-200'
-                              : 'bg-gray-50 border-gray-200 hover:border-gray-300'
-                          }`}
-                          onClick={() => toggleEventSelection(event.id)}
-                        >
-                          <div className="flex items-start">
-                            <div className="flex items-center mr-3">
-                              <input
-                                type="checkbox"
-                                checked={isSelected}
-                                onChange={() => toggleEventSelection(event.id)}
-                                className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 bg-white transition-all"
-                                onClick={(e) => e.stopPropagation()}
-                              />
-                            </div>
-                            <div className="flex-1">
-                              <div className="flex items-center mb-1">
-                                <EventIcon
-                                  className={`h-4 w-4 mr-2 ${
-                                    isSelected
-                                      ? 'text-blue-600'
-                                      : 'text-gray-500'
-                                  }`}
-                                />
-                                <span
-                                  className={`text-sm font-medium ${
-                                    isSelected
-                                      ? 'text-blue-700'
-                                      : 'text-gray-700'
-                                  }`}
-                                >
-                                  {event.name}
-                                </span>
-                                <span
-                                  className={`ml-2 px-2 py-0.5 rounded text-xs ${
-                                    isSelected
-                                      ? getEventColor(event.id)
-                                      : 'text-gray-600 bg-gray-100'
-                                  }`}
-                                >
-                                  {event.category}
-                                </span>
-                              </div>
-                              <p
-                                className={`text-xs ${
-                                  isSelected ? 'text-blue-600' : 'text-gray-600'
-                                }`}
-                              >
-                                {event.description}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
                   </div>
-                  <div className="mt-3 p-3 bg-yellow-50 rounded-xl border border-yellow-200">
-                    <div className="flex items-center">
-                      <ExclamationTriangleIcon className="h-4 w-4 text-yellow-600 mr-2" />
-                      <span className="text-xs text-yellow-700">
-                        Selecione pelo menos um evento. Mais eventos = mais
-                        webhooks disparados.
-                      </span>
-                    </div>
-                  </div>
-                </div>
 
-                {/* Field Selection for Webhook v2 */}
-                {webhookForm.version === 'v2' && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Prioridade
+                    </label>
+                    <select
+                      value={webhookForm.priority}
+                      onChange={(e) =>
+                        setWebhookForm((prev) => ({
+                          ...prev,
+                          priority: parseInt(e.target.value),
+                        }))
+                      }
+                      className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-gray-900 focus:ring-2 focus:ring-blue-500 focus:outline-none focus:border-blue-500 transition-all"
+                    >
+                      <option value={1}>1 - Alta</option>
+                      <option value={2}>2 - Média</option>
+                      <option value={3}>3 - Baixa</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Versão do Webhook
+                    </label>
+                    <select
+                      value={webhookForm.version}
+                      onChange={(e) =>
+                        setWebhookForm((prev) => ({
+                          ...prev,
+                          version: e.target.value,
+                        }))
+                      }
+                      className="w-full px-4 py-3 bg-white border border-gray-300 rounded-xl text-gray-900 focus:ring-2 focus:ring-blue-500 focus:outline-none focus:border-blue-500 transition-all"
+                    >
+                      <option value="v1">v1 - Webhook Original</option>
+                      <option value="v2">
+                        v2 - Webhook Avançado (Baileys Enhanced)
+                      </option>
+                    </select>
+                    <p className="text-xs text-gray-500 mt-1">
+                      v2 oferece estrutura de eventos aprimorada baseada no
+                      exemplo oficial do Baileys
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={webhookForm.active}
+                        onChange={(e) =>
+                          setWebhookForm((prev) => ({
+                            ...prev,
+                            active: e.target.checked,
+                          }))
+                        }
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 bg-white transition-all"
+                      />
+                      <span className="ml-2 text-sm text-gray-700">
+                        Webhook ativo
+                      </span>
+                    </label>
+                  </div>
+
+                  <div>
+                    <label className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={webhookForm.ignoreGroups}
+                        onChange={(e) =>
+                          handleIgnoreGroupsChange(e.target.checked)
+                        }
+                        className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 bg-white transition-all"
+                      />
+                      <span className="ml-2 text-sm text-gray-700">
+                        Ignorar mensagens de grupos
+                      </span>
+                    </label>
+                    <p className="text-xs text-gray-500 mt-1 ml-6">
+                      Quando ativado, este webhook não receberá mensagens de
+                      grupos do WhatsApp
+                      {webhookForm.version === 'v2' && (
+                        <span className="text-orange-600 font-medium">
+                          {' '}
+                          e campos relacionados a grupos serão automaticamente
+                          removidos
+                        </span>
+                      )}
+                    </p>
+                  </div>
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-3">
-                      Campos para Incluir no Webhook v2
+                      Eventos para Escutar
                     </label>
-                    <div className="space-y-2 max-h-48 overflow-y-auto">
-                      {availableFields.map((field) => {
-                        const isSelected = webhookForm.selectedFields.includes(field.id);
-                        const isDisabled = webhookForm.ignoreGroups && field.isGroupField;
+                    <div className="space-y-2 max-h-40 overflow-y-auto">
+                      {availableEvents.map((event) => {
+                        const EventIcon = event.icon;
+                        const isSelected = webhookForm.events.includes(
+                          event.id
+                        );
 
                         return (
                           <div
-                            key={field.id}
-                            className={`p-3 rounded-xl border transition-all ${
-                              isDisabled
-                                ? 'bg-gray-100 border-gray-300 opacity-50 cursor-not-allowed'
-                                : isSelected
-                                ? 'bg-purple-50 border-purple-200 cursor-pointer'
-                                : 'bg-gray-50 border-gray-200 hover:border-gray-300 cursor-pointer'
+                            key={event.id}
+                            className={`p-3 rounded-xl border cursor-pointer transition-all ${
+                              isSelected
+                                ? 'bg-blue-50 border-blue-200'
+                                : 'bg-gray-50 border-gray-200 hover:border-gray-300'
                             }`}
-                            onClick={() => !isDisabled && toggleFieldSelection(field.id)}
+                            onClick={() => toggleEventSelection(event.id)}
                           >
                             <div className="flex items-start">
                               <div className="flex items-center mr-3">
                                 <input
                                   type="checkbox"
                                   checked={isSelected}
-                                  disabled={isDisabled}
-                                  onChange={() => !isDisabled && toggleFieldSelection(field.id)}
-                                  className={`rounded border-gray-300 focus:ring-purple-500 bg-white transition-all ${
-                                    isDisabled 
-                                      ? 'text-gray-400 cursor-not-allowed' 
-                                      : 'text-purple-600'
-                                  }`}
+                                  onChange={() =>
+                                    toggleEventSelection(event.id)
+                                  }
+                                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 bg-white transition-all"
                                   onClick={(e) => e.stopPropagation()}
                                 />
                               </div>
                               <div className="flex-1">
                                 <div className="flex items-center mb-1">
+                                  <EventIcon
+                                    className={`h-4 w-4 mr-2 ${
+                                      isSelected
+                                        ? 'text-blue-600'
+                                        : 'text-gray-500'
+                                    }`}
+                                  />
                                   <span
                                     className={`text-sm font-medium ${
-                                      isDisabled
-                                        ? 'text-gray-400'
-                                        : isSelected
-                                        ? 'text-purple-700'
+                                      isSelected
+                                        ? 'text-blue-700'
                                         : 'text-gray-700'
                                     }`}
                                   >
-                                    {field.name}
-                                    {field.isGroupField && (
-                                      <span className="ml-1 text-xs text-orange-600 font-normal">
-                                        (grupo)
-                                      </span>
-                                    )}
+                                    {event.name}
                                   </span>
                                   <span
-                                    className={`ml-2 px-2 py-0.5 rounded text-xs font-mono ${
-                                      isDisabled
-                                        ? 'text-gray-400 bg-gray-200'
-                                        : isSelected
-                                        ? 'text-purple-600 bg-purple-100'
+                                    className={`ml-2 px-2 py-0.5 rounded text-xs ${
+                                      isSelected
+                                        ? getEventColor(event.id)
                                         : 'text-gray-600 bg-gray-100'
                                     }`}
                                   >
-                                    {field.id}
+                                    {event.category}
                                   </span>
                                 </div>
                                 <p
                                   className={`text-xs ${
-                                    isDisabled
-                                      ? 'text-gray-400'
-                                      : isSelected 
-                                      ? 'text-purple-600' 
+                                    isSelected
+                                      ? 'text-blue-600'
                                       : 'text-gray-600'
                                   }`}
                                 >
-                                  {field.description}
-                                  {isDisabled && (
-                                    <span className="block text-orange-500 font-medium mt-1">
-                                      Campo desabilitado porque grupos estão sendo ignorados
-                                    </span>
-                                  )}
+                                  {event.description}
                                 </p>
                               </div>
                             </div>
@@ -1081,52 +1084,164 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                         );
                       })}
                     </div>
-                    <div className="mt-3 p-3 bg-purple-50 rounded-xl border border-purple-200">
+                    <div className="mt-3 p-3 bg-yellow-50 rounded-xl border border-yellow-200">
                       <div className="flex items-center">
-                        <ExclamationTriangleIcon className="h-4 w-4 text-purple-600 mr-2" />
-                        <span className="text-xs text-purple-700">
-                          {webhookForm.selectedFields.length === 0 
-                            ? 'Nenhum campo selecionado = payload completo será enviado'
-                            : `${webhookForm.selectedFields.length} campo(s) selecionado(s) = payload customizado`
-                          }
+                        <ExclamationTriangleIcon className="h-4 w-4 text-yellow-600 mr-2" />
+                        <span className="text-xs text-yellow-700">
+                          Selecione pelo menos um evento. Mais eventos = mais
+                          webhooks disparados.
                         </span>
                       </div>
                     </div>
                   </div>
-                )}
+
+                  {/* Field Selection for Webhook v2 */}
+                  {webhookForm.version === 'v2' && (
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-3">
+                        Campos para Incluir no Webhook v2
+                      </label>
+                      <div className="space-y-2 max-h-48 overflow-y-auto">
+                        {availableFields.map((field) => {
+                          const isSelected =
+                            webhookForm.selectedFields.includes(field.id);
+                          const isDisabled =
+                            webhookForm.ignoreGroups && field.isGroupField;
+
+                          return (
+                            <div
+                              key={field.id}
+                              className={`p-3 rounded-xl border transition-all ${
+                                isDisabled
+                                  ? 'bg-gray-100 border-gray-300 opacity-50 cursor-not-allowed'
+                                  : isSelected
+                                  ? 'bg-purple-50 border-purple-200 cursor-pointer'
+                                  : 'bg-gray-50 border-gray-200 hover:border-gray-300 cursor-pointer'
+                              }`}
+                              onClick={() =>
+                                !isDisabled && toggleFieldSelection(field.id)
+                              }
+                            >
+                              <div className="flex items-start">
+                                <div className="flex items-center mr-3">
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    disabled={isDisabled}
+                                    onChange={() =>
+                                      !isDisabled &&
+                                      toggleFieldSelection(field.id)
+                                    }
+                                    className={`rounded border-gray-300 focus:ring-purple-500 bg-white transition-all ${
+                                      isDisabled
+                                        ? 'text-gray-400 cursor-not-allowed'
+                                        : 'text-purple-600'
+                                    }`}
+                                    onClick={(e) => e.stopPropagation()}
+                                  />
+                                </div>
+                                <div className="flex-1">
+                                  <div className="flex items-center mb-1">
+                                    <span
+                                      className={`text-sm font-medium ${
+                                        isDisabled
+                                          ? 'text-gray-400'
+                                          : isSelected
+                                          ? 'text-purple-700'
+                                          : 'text-gray-700'
+                                      }`}
+                                    >
+                                      {field.name}
+                                      {field.isGroupField && (
+                                        <span className="ml-1 text-xs text-orange-600 font-normal">
+                                          (grupo)
+                                        </span>
+                                      )}
+                                    </span>
+                                    <span
+                                      className={`ml-2 px-2 py-0.5 rounded text-xs font-mono ${
+                                        isDisabled
+                                          ? 'text-gray-400 bg-gray-200'
+                                          : isSelected
+                                          ? 'text-purple-600 bg-purple-100'
+                                          : 'text-gray-600 bg-gray-100'
+                                      }`}
+                                    >
+                                      {field.id}
+                                    </span>
+                                  </div>
+                                  <p
+                                    className={`text-xs ${
+                                      isDisabled
+                                        ? 'text-gray-400'
+                                        : isSelected
+                                        ? 'text-purple-600'
+                                        : 'text-gray-600'
+                                    }`}
+                                  >
+                                    {field.description}
+                                    {isDisabled && (
+                                      <span className="block text-orange-500 font-medium mt-1">
+                                        Campo desabilitado porque grupos estão
+                                        sendo ignorados
+                                      </span>
+                                    )}
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div className="mt-3 p-3 bg-purple-50 rounded-xl border border-purple-200">
+                        <div className="flex items-center">
+                          <ExclamationTriangleIcon className="h-4 w-4 text-purple-600 mr-2" />
+                          <span className="text-xs text-purple-700">
+                            {webhookForm.selectedFields.length === 0
+                              ? 'Nenhum campo selecionado = payload completo será enviado'
+                              : `${webhookForm.selectedFields.length} campo(s) selecionado(s) = payload customizado`}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
 
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
-                className="flex gap-3 mt-8"
-              >
-                <Button
-                  onClick={() => {
-                    if (editingWebhook) {
-                      updateWebhook(editingWebhook);
-                    } else {
-                      createWebhook();
-                    }
-                  }}
-                  disabled={!webhookForm.url}
-                  className="flex-1 bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 disabled:opacity-50"
+              {/* Footer fixo */}
+              <div className="sticky bottom-0 bg-white/90 backdrop-blur-xl border-t border-gray-200 px-8 py-6 z-10">
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 }}
+                  className="flex gap-3"
                 >
-                  {editingWebhook ? 'Atualizar' : 'Criar'}
-                </Button>
-                <Button
-                  onClick={() => {
-                    setShowCreateModal(false);
-                    setEditingWebhook(null);
-                    resetForm();
-                  }}
-                  variant="outline"
-                  className="flex-1 bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100 hover:text-gray-900"
-                >
-                  Cancelar
-                </Button>
-              </motion.div>
+                  <Button
+                    onClick={() => {
+                      if (editingWebhook) {
+                        updateWebhook(editingWebhook);
+                      } else {
+                        createWebhook();
+                      }
+                    }}
+                    disabled={!webhookForm.url}
+                    className="flex-1 bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 disabled:opacity-50"
+                  >
+                    {editingWebhook ? 'Atualizar' : 'Criar'}
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setShowCreateModal(false);
+                      setEditingWebhook(null);
+                      resetForm();
+                    }}
+                    variant="outline"
+                    className="flex-1 bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100 hover:text-gray-900"
+                  >
+                    Cancelar
+                  </Button>
+                </motion.div>
+              </div>
             </motion.div>
           </motion.div>
         )}
