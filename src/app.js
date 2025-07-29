@@ -2080,10 +2080,7 @@ async function sendWebhookV2Direct(
             // === MESSAGE METADATA ===
             messageId: msg.key?.id,
             timestamp: msg.messageTimestamp,
-            remoteJid: msg.key?.remoteJid,
-            previousRemoteJid: msg.key?.previousRemoteJid || null,
-            participant: msg.key?.participant,
-            senderPn: msg.key?.senderPn || null,
+            key: msg.key || {}, // Objeto key completo
             pushName: msg.pushName,
             status: msg.status,
 
@@ -2221,14 +2218,17 @@ async function sendWebhookV2Direct(
               // Map selected fields to message data
               webhook.selectedFields.forEach((field) => {
                 switch (field) {
+                  case 'key':
+                    customMsg.key = msg.key;
+                    break;
                   case 'remoteJid':
-                    customMsg.remoteJid = msg.remoteJid;
+                    customMsg.remoteJid = msg.key?.remoteJid;
                     break;
                   case 'previousRemoteJid':
-                    customMsg.previousRemoteJid = msg.previousRemoteJid;
+                    customMsg.previousRemoteJid = msg.key?.previousRemoteJid;
                     break;
                   case 'senderPn':
-                    customMsg.senderPn = msg.senderPn;
+                    customMsg.senderPn = msg.key?.senderPn;
                     break;
                   case 'isBusinessAccount':
                     customMsg.isBusinessAccount = msg.isBusinessAccount;
@@ -2257,7 +2257,7 @@ async function sendWebhookV2Direct(
                     customMsg.timestamp = msg.timestamp;
                     break;
                   case 'participant':
-                    customMsg.participant = msg.participant;
+                    customMsg.participant = msg.key?.participant;
                     break;
                   case 'quotedMessage':
                     customMsg.quotedMessage = msg.quotedMessage;
@@ -2961,6 +2961,7 @@ async function extractMessageData(message, sock = null) {
   const messageData = {
     messageId: message.key.id,
     timestamp: message.messageTimestamp,
+    key: message.key || {}, // Objeto key completo
     messageType: null,
     content: null,
     quotedMessage: null,
