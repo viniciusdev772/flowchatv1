@@ -3951,8 +3951,8 @@ async function createWhatsAppSession(
       for (const message of messages) {
         // Processar @lid (Business accounts) - seguindo padrão Evolution API
         if (message.key.remoteJid?.includes('@lid') && message.key.senderPn) {
-          // Armazenar o JID original para referência
-          message.key.previousRemoteJid = message.key.remoteJid;
+          // Armazenar o JID original para referência (mesmo padrão Evolution API)
+          (message.key).previousRemoteJid = message.key.remoteJid;
           // Substituir pelo número do remetente para compatibilidade
           message.key.remoteJid = message.key.senderPn;
           
@@ -4003,6 +4003,12 @@ async function createWhatsAppSession(
     // Handler para atualizações de mensagens (status de entrega, edições, etc.)
     sock.ev.on('messages.update', async (messageUpdates) => {
       for (const update of messageUpdates) {
+        // Processar @lid em updates também - seguindo padrão Evolution API
+        if (update.key?.remoteJid?.includes('@lid') && update.key.senderPn) {
+          (update.key).previousRemoteJid = update.key.remoteJid;
+          update.key.remoteJid = update.key.senderPn;
+        }
+
         logger.info(
           `Message update received for session ${sessionId}:`,
           update
