@@ -3570,7 +3570,6 @@ async function createWhatsAppSession(
       version,
       logger: logger.child({ session: sessionId }),
       printQRInTerminal: false,
-      browser: ['WhatsApp Business', 'Chrome', '4.0.0'],
       markOnlineOnConnect: false, // Importante para não receber notificações no app
       defaultQueryTimeoutMs: 60000,
       // Configurações para evitar detecção e melhorar estabilidade
