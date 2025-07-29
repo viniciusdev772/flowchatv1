@@ -1691,14 +1691,21 @@ async function sendWebhook(sessionId, eventType, data) {
 }
 
 // Webhook v2 system - Simplified and Direct WhatsApp Compatible
-async function sendWebhookV2(sessionId, eventType, originalMessage, baileysRawEvent = null) {
+async function sendWebhookV2(
+  sessionId,
+  eventType,
+  originalMessage,
+  baileysRawEvent = null
+) {
   const { isJidGroup } = require('@whiskeysockets/baileys');
-  
+
   try {
     // Get webhooks that are configured for v2
     const activeWebhooks = await getActiveWebhooksFromDB(sessionId, eventType);
-    const v2Webhooks = activeWebhooks.filter(webhook => webhook.version === 'v2');
-    
+    const v2Webhooks = activeWebhooks.filter(
+      (webhook) => webhook.version === 'v2'
+    );
+
     if (v2Webhooks.length === 0) {
       return;
     }
@@ -1708,7 +1715,7 @@ async function sendWebhookV2(sessionId, eventType, originalMessage, baileysRawEv
       event: eventType,
       session: sessionId,
       timestamp: Date.now(),
-      data: null
+      data: null,
     };
 
     // Build the payload based on event type - keep it simple!
@@ -1730,46 +1737,54 @@ async function sendWebhookV2(sessionId, eventType, originalMessage, baileysRawEv
             content: originalMessage.content,
             timestamp: originalMessage.timestamp,
             // Media data if present
-            ...(originalMessage.mediaData && { media: originalMessage.mediaData }),
+            ...(originalMessage.mediaData && {
+              media: originalMessage.mediaData,
+            }),
             // Download URL if media
-            ...(originalMessage.mediaDownload && { mediaUrl: originalMessage.mediaDownload }),
+            ...(originalMessage.mediaDownload && {
+              mediaUrl: originalMessage.mediaDownload,
+            }),
             // Quoted message if present
-            ...(originalMessage.quotedMessage && { quotedMessage: originalMessage.quotedMessage }),
-          }
+            ...(originalMessage.quotedMessage && {
+              quotedMessage: originalMessage.quotedMessage,
+            }),
+          },
         };
         break;
-        
+
       case 'messages.update':
         payload.data = baileysRawEvent;
         break;
-        
-      case 'messages.delete':  
+
+      case 'messages.delete':
         payload.data = baileysRawEvent;
         break;
-        
+
       case 'group-participants.update':
         payload.data = baileysRawEvent;
         break;
-        
+
       case 'connection.update':
         payload.data = baileysRawEvent;
         break;
-        
+
       default:
         payload.data = baileysRawEvent || originalMessage;
     }
 
     // Simple group filtering using isJidGroup
     let filteredWebhooks = v2Webhooks;
-    
+
     if (eventType === 'messages.upsert' && payload.data.messages) {
-      const hasGroupMessage = payload.data.messages.some(msg => {
+      const hasGroupMessage = payload.data.messages.some((msg) => {
         const jid = msg.key?.remoteJid;
         return jid && isJidGroup(jid);
       });
-      
+
       if (hasGroupMessage) {
-        filteredWebhooks = v2Webhooks.filter(webhook => !webhook.ignoreGroups);
+        filteredWebhooks = v2Webhooks.filter(
+          (webhook) => !webhook.ignoreGroups
+        );
       }
     }
 
@@ -1798,7 +1813,11 @@ async function sendWebhookV2(sessionId, eventType, originalMessage, baileysRawEv
           return { success: true, webhook: webhook.id };
         } else {
           logger.warn(`Webhook v2 ${webhook.name} failed: ${response.status}`);
-          return { success: false, webhook: webhook.id, error: response.status };
+          return {
+            success: false,
+            webhook: webhook.id,
+            error: response.status,
+          };
         }
       } catch (error) {
         logger.error(`Webhook v2 ${webhook.name} error: ${error.message}`);
@@ -1831,7 +1850,8 @@ function detectMessageType(msgContent) {
   if (msgContent.extendedTextMessage) return 'text';
   if (msgContent.imageMessage) return 'image';
   if (msgContent.videoMessage) return 'video';
-  if (msgContent.audioMessage) return msgContent.audioMessage.ptt ? 'voice' : 'audio';
+  if (msgContent.audioMessage)
+    return msgContent.audioMessage.ptt ? 'voice' : 'audio';
   if (msgContent.documentMessage) return 'document';
   if (msgContent.stickerMessage) return 'sticker';
   if (msgContent.contactMessage) return 'contact';
@@ -1846,20 +1866,25 @@ function detectMessageType(msgContent) {
 
 function extractTextContent(msgContent) {
   if (msgContent.conversation) return msgContent.conversation;
-  if (msgContent.extendedTextMessage?.text) return msgContent.extendedTextMessage.text;
+  if (msgContent.extendedTextMessage?.text)
+    return msgContent.extendedTextMessage.text;
   if (msgContent.imageMessage?.caption) return msgContent.imageMessage.caption;
   if (msgContent.videoMessage?.caption) return msgContent.videoMessage.caption;
-  if (msgContent.documentMessage?.caption) return msgContent.documentMessage.caption;
+  if (msgContent.documentMessage?.caption)
+    return msgContent.documentMessage.caption;
   return null;
 }
 
 function extractMediaInfo(msgContent) {
-  const media = msgContent.imageMessage || msgContent.videoMessage || 
-                msgContent.audioMessage || msgContent.documentMessage || 
-                msgContent.stickerMessage;
-  
+  const media =
+    msgContent.imageMessage ||
+    msgContent.videoMessage ||
+    msgContent.audioMessage ||
+    msgContent.documentMessage ||
+    msgContent.stickerMessage;
+
   if (!media) return null;
-  
+
   return {
     mimetype: media.mimetype,
     fileSize: media.fileLength,
@@ -1870,27 +1895,28 @@ function extractMediaInfo(msgContent) {
     url: media.url,
     directPath: media.directPath,
     isAnimated: media.isAnimated || media.gifPlayback,
-    isVoice: media.ptt
+    isVoice: media.ptt,
   };
 }
 
 function extractQuotedMessage(msgContent) {
-  const contextInfo = msgContent.extendedTextMessage?.contextInfo ||
-                     msgContent.imageMessage?.contextInfo ||
-                     msgContent.videoMessage?.contextInfo ||
-                     msgContent.audioMessage?.contextInfo ||
-                     msgContent.documentMessage?.contextInfo ||
-                     msgContent.stickerMessage?.contextInfo;
-  
+  const contextInfo =
+    msgContent.extendedTextMessage?.contextInfo ||
+    msgContent.imageMessage?.contextInfo ||
+    msgContent.videoMessage?.contextInfo ||
+    msgContent.audioMessage?.contextInfo ||
+    msgContent.documentMessage?.contextInfo ||
+    msgContent.stickerMessage?.contextInfo;
+
   if (!contextInfo?.quotedMessage) return null;
-  
+
   const quoted = contextInfo.quotedMessage;
   return {
     messageId: contextInfo.stanzaId,
     participant: contextInfo.participant,
     messageType: detectMessageType(quoted),
     text: extractTextContent(quoted),
-    media: extractMediaInfo(quoted)
+    media: extractMediaInfo(quoted),
   };
 }
 
@@ -1898,12 +1924,12 @@ function extractContactInfo(msgContent) {
   if (msgContent.contactMessage) {
     return {
       displayName: msgContent.contactMessage.displayName,
-      vcard: msgContent.contactMessage.vcard
+      vcard: msgContent.contactMessage.vcard,
     };
   }
   if (msgContent.contactsArrayMessage) {
     return {
-      contacts: msgContent.contactsArrayMessage.contacts || []
+      contacts: msgContent.contactsArrayMessage.contacts || [],
     };
   }
   return null;
@@ -1912,32 +1938,33 @@ function extractContactInfo(msgContent) {
 function extractLocationInfo(msgContent) {
   const location = msgContent.locationMessage || msgContent.liveLocationMessage;
   if (!location) return null;
-  
+
   return {
     latitude: location.degreesLatitude,
     longitude: location.degreesLongitude,
     name: location.name,
     address: location.address,
     url: location.url,
-    isLive: !!msgContent.liveLocationMessage
+    isLive: !!msgContent.liveLocationMessage,
   };
 }
 
 function extractMentions(msgContent) {
-  const contextInfo = msgContent.extendedTextMessage?.contextInfo ||
-                     msgContent.imageMessage?.contextInfo ||
-                     msgContent.videoMessage?.contextInfo;
-  
+  const contextInfo =
+    msgContent.extendedTextMessage?.contextInfo ||
+    msgContent.imageMessage?.contextInfo ||
+    msgContent.videoMessage?.contextInfo;
+
   return contextInfo?.mentionedJid || [];
 }
 
 function extractReactionInfo(msgContent) {
   if (!msgContent.reactionMessage) return null;
-  
+
   return {
     emoji: msgContent.reactionMessage.text,
     targetMessageId: msgContent.reactionMessage.key?.id,
-    targetRemoteJid: msgContent.reactionMessage.key?.remoteJid
+    targetRemoteJid: msgContent.reactionMessage.key?.remoteJid,
   };
 }
 
@@ -1947,23 +1974,30 @@ function extractPollInfo(msgContent) {
       type: 'creation',
       name: msgContent.pollCreationMessage.name,
       options: msgContent.pollCreationMessage.options || [],
-      selectableCount: msgContent.pollCreationMessage.selectableOptionsCount
+      selectableCount: msgContent.pollCreationMessage.selectableOptionsCount,
     };
   }
   if (msgContent.pollUpdateMessage) {
     return {
       type: 'update',
-      pollCreationMessageKey: msgContent.pollUpdateMessage.pollCreationMessageKey,
-      vote: msgContent.pollUpdateMessage.vote
+      pollCreationMessageKey:
+        msgContent.pollUpdateMessage.pollCreationMessageKey,
+      vote: msgContent.pollUpdateMessage.vote,
     };
   }
   return null;
 }
 
-// Send webhook v2 to pre-filtered webhooks list  
-async function sendWebhookV2Direct(sessionId, eventType, originalMessage, baileysRawEvent, webhooksList) {
+// Send webhook v2 to pre-filtered webhooks list
+async function sendWebhookV2Direct(
+  sessionId,
+  eventType,
+  originalMessage,
+  baileysRawEvent,
+  webhooksList
+) {
   const { isJidGroup } = require('@whiskeysockets/baileys');
-  
+
   try {
     if (webhooksList.length === 0) return;
 
@@ -1972,7 +2006,7 @@ async function sendWebhookV2Direct(sessionId, eventType, originalMessage, bailey
       event: eventType,
       session: sessionId,
       timestamp: Date.now(),
-      data: null
+      data: null,
     };
 
     // Build the payload based on event type - with enhanced structure for messages.upsert!
@@ -1980,41 +2014,68 @@ async function sendWebhookV2Direct(sessionId, eventType, originalMessage, bailey
       case 'messages.upsert':
         // Enhanced messages.upsert with pre-defined dictionary and boolean flags
         const messages = baileysRawEvent?.messages || [];
-        const processedMessages = messages.map(msg => {
+        const processedMessages = messages.map((msg) => {
           const msgContent = msg.message || {};
-          
+
           // Create comprehensive message analysis with boolean flags FIRST
           return {
             // === BOOLEAN FLAGS (FIRST - MOST IMPORTANT) ===
-            hasMedia: !!(msgContent.imageMessage || msgContent.videoMessage || 
-                        msgContent.audioMessage || msgContent.documentMessage || 
-                        msgContent.stickerMessage),
-            hasQuoted: !!(msgContent.extendedTextMessage?.contextInfo?.quotedMessage || 
-                         msgContent.imageMessage?.contextInfo?.quotedMessage ||
-                         msgContent.videoMessage?.contextInfo?.quotedMessage ||
-                         msgContent.audioMessage?.contextInfo?.quotedMessage ||
-                         msgContent.documentMessage?.contextInfo?.quotedMessage ||
-                         msgContent.stickerMessage?.contextInfo?.quotedMessage),
+            hasMedia: !!(
+              msgContent.imageMessage ||
+              msgContent.videoMessage ||
+              msgContent.audioMessage ||
+              msgContent.documentMessage ||
+              msgContent.stickerMessage
+            ),
+            hasQuoted: !!(
+              msgContent.extendedTextMessage?.contextInfo?.quotedMessage ||
+              msgContent.imageMessage?.contextInfo?.quotedMessage ||
+              msgContent.videoMessage?.contextInfo?.quotedMessage ||
+              msgContent.audioMessage?.contextInfo?.quotedMessage ||
+              msgContent.documentMessage?.contextInfo?.quotedMessage ||
+              msgContent.stickerMessage?.contextInfo?.quotedMessage
+            ),
             isGroup: msg.key?.remoteJid?.endsWith('@g.us') || false,
             fromMe: msg.key?.fromMe || false,
-            isForwarded: !!(msgContent.imageMessage?.contextInfo?.isForwarded ||
-                           msgContent.videoMessage?.contextInfo?.isForwarded ||
-                           msgContent.extendedTextMessage?.contextInfo?.isForwarded ||
-                           msgContent.audioMessage?.contextInfo?.isForwarded ||
-                           msgContent.documentMessage?.contextInfo?.isForwarded),
-            hasMentions: !!(msgContent.extendedTextMessage?.contextInfo?.mentionedJid?.length ||
-                           msgContent.imageMessage?.contextInfo?.mentionedJid?.length ||
-                           msgContent.videoMessage?.contextInfo?.mentionedJid?.length),
-            isVoiceMessage: !!(msgContent.audioMessage?.ptt),
-            isViewOnce: !!(msgContent.imageMessage?.viewOnce || msgContent.videoMessage?.viewOnce),
-            isAnimated: !!(msgContent.stickerMessage?.isAnimated || msgContent.videoMessage?.gifPlayback),
-            hasCaption: !!(msgContent.imageMessage?.caption || msgContent.videoMessage?.caption || msgContent.documentMessage?.caption),
-            isContact: !!(msgContent.contactMessage || msgContent.contactsArrayMessage),
-            isLocation: !!(msgContent.locationMessage || msgContent.liveLocationMessage),
-            isReaction: !!(msgContent.reactionMessage),
-            isPoll: !!(msgContent.pollCreationMessage || msgContent.pollUpdateMessage),
-            isSystemMessage: !!(msg.messageStubType),
-            
+            isForwarded: !!(
+              msgContent.imageMessage?.contextInfo?.isForwarded ||
+              msgContent.videoMessage?.contextInfo?.isForwarded ||
+              msgContent.extendedTextMessage?.contextInfo?.isForwarded ||
+              msgContent.audioMessage?.contextInfo?.isForwarded ||
+              msgContent.documentMessage?.contextInfo?.isForwarded
+            ),
+            hasMentions: !!(
+              msgContent.extendedTextMessage?.contextInfo?.mentionedJid
+                ?.length ||
+              msgContent.imageMessage?.contextInfo?.mentionedJid?.length ||
+              msgContent.videoMessage?.contextInfo?.mentionedJid?.length
+            ),
+            isVoiceMessage: !!msgContent.audioMessage?.ptt,
+            isViewOnce: !!(
+              msgContent.imageMessage?.viewOnce ||
+              msgContent.videoMessage?.viewOnce
+            ),
+            isAnimated: !!(
+              msgContent.stickerMessage?.isAnimated ||
+              msgContent.videoMessage?.gifPlayback
+            ),
+            hasCaption: !!(
+              msgContent.imageMessage?.caption ||
+              msgContent.videoMessage?.caption ||
+              msgContent.documentMessage?.caption
+            ),
+            isContact: !!(
+              msgContent.contactMessage || msgContent.contactsArrayMessage
+            ),
+            isLocation: !!(
+              msgContent.locationMessage || msgContent.liveLocationMessage
+            ),
+            isReaction: !!msgContent.reactionMessage,
+            isPoll: !!(
+              msgContent.pollCreationMessage || msgContent.pollUpdateMessage
+            ),
+            isSystemMessage: !!msg.messageStubType,
+
             // === MESSAGE METADATA ===
             messageId: msg.key?.id,
             timestamp: msg.messageTimestamp,
@@ -2022,11 +2083,11 @@ async function sendWebhookV2Direct(sessionId, eventType, originalMessage, bailey
             participant: msg.key?.participant,
             pushName: msg.pushName,
             status: msg.status,
-            
+
             // === MESSAGE TYPE & CONTENT ===
             messageType: detectMessageType(msgContent),
             text: extractTextContent(msgContent),
-            
+
             // === DETAILED INFORMATION ===
             media: extractMediaInfo(msgContent),
             quotedMessage: extractQuotedMessage(msgContent),
@@ -2035,81 +2096,91 @@ async function sendWebhookV2Direct(sessionId, eventType, originalMessage, bailey
             mentions: extractMentions(msgContent),
             reaction: extractReactionInfo(msgContent),
             poll: extractPollInfo(msgContent),
-            
+
             // === MEDIA DOWNLOAD (if available from originalMessage) ===
             mediaDownload: null, // Will be populated below if originalMessage has it
           };
         });
-        
+
         // If we have original processed message data, merge the media download info
-        if (originalMessage && originalMessage.mediaDownload && processedMessages.length === 1) {
+        if (
+          originalMessage &&
+          originalMessage.mediaDownload &&
+          processedMessages.length === 1
+        ) {
           processedMessages[0].mediaDownload = originalMessage.mediaDownload;
         }
 
         payload.data = {
           // Boolean summary for quick access
           summary: {
-            hasMediaMessages: processedMessages.some(m => m.hasMedia),
-            hasQuotedMessages: processedMessages.some(m => m.hasQuoted),
-            hasGroupMessages: processedMessages.some(m => m.isGroup),
+            hasMediaMessages: processedMessages.some((m) => m.hasMedia),
+            hasQuotedMessages: processedMessages.some((m) => m.hasQuoted),
+            hasGroupMessages: processedMessages.some((m) => m.isGroup),
             messagesCount: processedMessages.length,
-            messageTypes: [...new Set(processedMessages.map(m => m.messageType))]
+            messageTypes: [
+              ...new Set(processedMessages.map((m) => m.messageType)),
+            ],
           },
           // Raw Baileys data for full compatibility
           raw: {
             messages: messages,
             type: baileysRawEvent?.type || 'notify',
-            requestId: baileysRawEvent?.requestId
+            requestId: baileysRawEvent?.requestId,
           },
           // Enhanced processed data with boolean flags first
           processed: processedMessages,
           // FlowChat legacy compatibility
-          legacy: originalMessage ? {
-            messageId: originalMessage.messageId,
-            from: originalMessage.sender?.id,
-            fromName: originalMessage.sender?.name,
-            to: originalMessage.chat?.id,
-            toName: originalMessage.chat?.name,
-            isGroup: originalMessage.chat?.isGroup || false,
-            messageType: originalMessage.messageType,
-            content: originalMessage.content,
-            timestamp: originalMessage.timestamp,
-            mediaUrl: originalMessage.mediaDownload
-          } : null
+          legacy: originalMessage
+            ? {
+                messageId: originalMessage.messageId,
+                from: originalMessage.sender?.id,
+                fromName: originalMessage.sender?.name,
+                to: originalMessage.chat?.id,
+                toName: originalMessage.chat?.name,
+                isGroup: originalMessage.chat?.isGroup || false,
+                messageType: originalMessage.messageType,
+                content: originalMessage.content,
+                timestamp: originalMessage.timestamp,
+                mediaUrl: originalMessage.mediaDownload,
+              }
+            : null,
         };
         break;
-        
+
       case 'messages.update':
         payload.data = baileysRawEvent;
         break;
-        
-      case 'messages.delete':  
+
+      case 'messages.delete':
         payload.data = baileysRawEvent;
         break;
-        
+
       case 'group-participants.update':
         payload.data = baileysRawEvent;
         break;
-        
+
       case 'connection.update':
         payload.data = baileysRawEvent;
         break;
-        
+
       default:
         payload.data = baileysRawEvent || originalMessage;
     }
 
     // Simple group filtering using isJidGroup on pre-filtered webhooks
     let filteredWebhooks = webhooksList;
-    
+
     if (eventType === 'messages.upsert' && payload.data.messages) {
-      const hasGroupMessage = payload.data.messages.some(msg => {
+      const hasGroupMessage = payload.data.messages.some((msg) => {
         const jid = msg.key?.remoteJid;
         return jid && isJidGroup(jid);
       });
-      
+
       if (hasGroupMessage) {
-        filteredWebhooks = webhooksList.filter(webhook => !webhook.ignoreGroups);
+        filteredWebhooks = webhooksList.filter(
+          (webhook) => !webhook.ignoreGroups
+        );
       }
     }
 
@@ -2122,28 +2193,30 @@ async function sendWebhookV2Direct(sessionId, eventType, originalMessage, bailey
       try {
         // Create custom payload based on selected fields for webhook v2
         let finalPayload = payload;
-        
+
         if (webhook.selectedFields && webhook.selectedFields.length > 0) {
           // Custom field selection - create simplified payload
           finalPayload = {
             event: eventType,
             session: sessionId,
             timestamp: Date.now(),
-            data: null
+            data: null,
           };
-          
+
           if (eventType === 'messages.upsert' && payload.data.processed) {
             const customMessages = payload.data.processed.map((msg, index) => {
               const customMsg = {};
-              
+
               // Try to find the corresponding original message by ID for media download URL
               const rawMessage = payload.data.raw.messages[index];
-              const matchingOriginalMessage = originalMessage && 
-                originalMessage.messageId === msg.messageId ? originalMessage : null;
-              
+              const matchingOriginalMessage =
+                originalMessage && originalMessage.messageId === msg.messageId
+                  ? originalMessage
+                  : null;
+
               // Map selected fields to message data
-              webhook.selectedFields.forEach(field => {
-                switch(field) {
+              webhook.selectedFields.forEach((field) => {
+                switch (field) {
                   case 'remoteJid':
                     customMsg.remoteJid = msg.remoteJid;
                     break;
@@ -2164,9 +2237,8 @@ async function sendWebhookV2Direct(sessionId, eventType, originalMessage, bailey
                     break;
                   case 'mediaUrl':
                     // Use media download URL if available
-                    customMsg.mediaUrl = msg.mediaDownload?.downloadUrl || 
-                                       msg.media?.url || 
-                                       null;
+                    customMsg.mediaUrl =
+                      msg.mediaDownload?.downloadUrl || msg.media?.url || null;
                     break;
                   case 'timestamp':
                     customMsg.timestamp = msg.timestamp;
@@ -2182,17 +2254,19 @@ async function sendWebhookV2Direct(sessionId, eventType, originalMessage, bailey
                     break;
                   case 'groupName':
                     // Extract group name from session data if available
-                    customMsg.groupName = msg.isGroup ? (global.whatsappSessions?.[sessionId]?.groupName || null) : null;
+                    customMsg.groupName = msg.isGroup
+                      ? global.whatsappSessions?.[sessionId]?.groupName || null
+                      : null;
                     break;
                 }
               });
-              
+
               return customMsg;
             });
-            
+
             finalPayload.data = {
               messages: customMessages,
-              selectedFields: webhook.selectedFields
+              selectedFields: webhook.selectedFields,
             };
           } else {
             // For non-messages.upsert events, send full data
@@ -2208,7 +2282,9 @@ async function sendWebhookV2Direct(sessionId, eventType, originalMessage, bailey
             'X-Webhook-Version': 'v2',
             'X-Session-ID': sessionId,
             'X-Event-Type': eventType,
-            'X-Selected-Fields': webhook.selectedFields ? webhook.selectedFields.join(',') : 'all',
+            'X-Selected-Fields': webhook.selectedFields
+              ? webhook.selectedFields.join(',')
+              : 'all',
           },
           body: JSON.stringify(finalPayload),
           timeout: 15000,
@@ -2219,7 +2295,11 @@ async function sendWebhookV2Direct(sessionId, eventType, originalMessage, bailey
           return { success: true, webhook: webhook.id };
         } else {
           logger.warn(`Webhook v2 ${webhook.name} failed: ${response.status}`);
-          return { success: false, webhook: webhook.id, error: response.status };
+          return {
+            success: false,
+            webhook: webhook.id,
+            error: response.status,
+          };
         }
       } catch (error) {
         logger.error(`Webhook v2 ${webhook.name} error: ${error.message}`);
@@ -2234,34 +2314,59 @@ async function sendWebhookV2Direct(sessionId, eventType, originalMessage, bailey
 }
 
 // Function to send webhooks based on their configured version (v1 OR v2, not both)
-async function sendWebhooksByVersion(sessionId, eventType, processedData, baileysRawEvent = null) {
+async function sendWebhooksByVersion(
+  sessionId,
+  eventType,
+  processedData,
+  baileysRawEvent = null
+) {
   try {
     // Get all active webhooks for this session and event - single DB query
     const activeWebhooks = await getActiveWebhooksFromDB(sessionId, eventType);
-    
+
     if (activeWebhooks.length === 0) {
-      logger.debug(`No active webhooks found for session ${sessionId}, event: ${eventType}`);
+      logger.debug(
+        `No active webhooks found for session ${sessionId}, event: ${eventType}`
+      );
       return;
     }
 
     // Separate webhooks by version
-    const v1Webhooks = activeWebhooks.filter(webhook => !webhook.version || webhook.version === 'v1');
-    const v2Webhooks = activeWebhooks.filter(webhook => webhook.version === 'v2');
+    const v1Webhooks = activeWebhooks.filter(
+      (webhook) => !webhook.version || webhook.version === 'v1'
+    );
+    const v2Webhooks = activeWebhooks.filter(
+      (webhook) => webhook.version === 'v2'
+    );
 
-    logger.info(`Session ${sessionId} webhooks: ${v1Webhooks.length} v1, ${v2Webhooks.length} v2 for event ${eventType}`);
+    logger.info(
+      `Session ${sessionId} webhooks: ${v1Webhooks.length} v1, ${v2Webhooks.length} v2 for event ${eventType}`
+    );
 
     // Send to v1 webhooks if any exist
     if (v1Webhooks.length > 0) {
-      await sendWebhookV1Direct(sessionId, eventType, processedData, v1Webhooks);
+      await sendWebhookV1Direct(
+        sessionId,
+        eventType,
+        processedData,
+        v1Webhooks
+      );
     }
 
-    // Send to v2 webhooks if any exist  
+    // Send to v2 webhooks if any exist
     if (v2Webhooks.length > 0) {
-      await sendWebhookV2Direct(sessionId, eventType, processedData, baileysRawEvent, v2Webhooks);
+      await sendWebhookV2Direct(
+        sessionId,
+        eventType,
+        processedData,
+        baileysRawEvent,
+        v2Webhooks
+      );
     }
-
   } catch (error) {
-    logger.error(`Error in sendWebhooksByVersion for session ${sessionId}: ${error.message}`);
+    logger.error(
+      `Error in sendWebhooksByVersion for session ${sessionId}: ${error.message}`
+    );
   }
 }
 
@@ -3568,6 +3673,8 @@ async function createWhatsAppSession(
     const socketConfig = {
       auth: state,
       version,
+      fireInitQueries: true,
+      qrTimeout: 45_000,
       logger: logger.child({ session: sessionId }),
       printQRInTerminal: false,
       markOnlineOnConnect: false, // Importante para não receber notificações no app
@@ -3585,7 +3692,7 @@ async function createWhatsAppSession(
       // Configurações adicionais para estabilidade
       keepAliveIntervalMs: 30000,
       connectTimeoutMs: 60000,
-      emitOwnEvents: true,
+      emitOwnEvents: false,
     };
 
     // Adicionar agent de proxy se disponível
@@ -3789,7 +3896,7 @@ async function createWhatsAppSession(
         if (sessionData) {
           sessionData.connectionState = 'connecting';
         }
-        
+
         // Send webhook v2 for connecting state
         await sendWebhookV2(sessionId, 'connection.update', null, update);
       }
@@ -3837,7 +3944,12 @@ async function createWhatsAppSession(
 
         // Enviar webhook apenas se messageData não for null (filtra mensagens de protocolo)
         if (messageData !== null) {
-          await sendWebhooksByVersion(sessionId, 'messages.upsert', messageData, messageUpdate);
+          await sendWebhooksByVersion(
+            sessionId,
+            'messages.upsert',
+            messageData,
+            messageUpdate
+          );
         } else {
           logger.debug(
             `Mensagem ignorada para webhook - SessionID: ${sessionId}, MessageID: ${message.key?.id}`
@@ -3871,7 +3983,9 @@ async function createWhatsAppSession(
           sessionId: sessionId,
         };
 
-        await sendWebhooksByVersion(sessionId, 'messages.update', updateData, [update]);
+        await sendWebhooksByVersion(sessionId, 'messages.update', updateData, [
+          update,
+        ]);
       }
     });
 
@@ -3885,7 +3999,12 @@ async function createWhatsAppSession(
         sessionId: sessionId,
       };
 
-      await sendWebhooksByVersion(sessionId, 'messages.delete', deleteData, deletedMessages);
+      await sendWebhooksByVersion(
+        sessionId,
+        'messages.delete',
+        deleteData,
+        deletedMessages
+      );
     });
 
     // Handler para mudanças de participantes em grupos
@@ -3904,7 +4023,12 @@ async function createWhatsAppSession(
         sessionId: sessionId,
       };
 
-      await sendWebhooksByVersion(sessionId, 'group-participants.update', groupData, groupUpdate);
+      await sendWebhooksByVersion(
+        sessionId,
+        'group-participants.update',
+        groupData,
+        groupUpdate
+      );
     });
 
     // Armazenar sessão
@@ -5998,7 +6122,16 @@ app.post(
   async (req, res) => {
     try {
       const { sessionId } = req.params;
-      const { name, url, active, priority, events, ignoreGroups, version, selectedFields } = req.body;
+      const {
+        name,
+        url,
+        active,
+        priority,
+        events,
+        ignoreGroups,
+        version,
+        selectedFields,
+      } = req.body;
       const userId = req.user.id;
 
       const session = sessions.get(sessionId);
@@ -6167,7 +6300,16 @@ app.put(
   async (req, res) => {
     try {
       const { sessionId, webhookId } = req.params;
-      const { name, url, active, priority, events, ignoreGroups, version, selectedFields } = req.body;
+      const {
+        name,
+        url,
+        active,
+        priority,
+        events,
+        ignoreGroups,
+        version,
+        selectedFields,
+      } = req.body;
       const userId = req.user.id;
 
       const session = sessions.get(sessionId);
@@ -6212,7 +6354,8 @@ app.put(
       if (events !== undefined) updateData.events = events;
       if (ignoreGroups !== undefined) updateData.ignoreGroups = ignoreGroups;
       if (version !== undefined) updateData.version = version;
-      if (selectedFields !== undefined) updateData.selectedFields = selectedFields;
+      if (selectedFields !== undefined)
+        updateData.selectedFields = selectedFields;
 
       // Search by both id field and _id field for compatibility
       const result = await webhooksCollection.updateOne(
