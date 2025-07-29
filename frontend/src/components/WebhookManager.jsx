@@ -20,7 +20,6 @@ import {
   DocumentTextIcon,
   SparklesIcon,
 } from '@heroicons/react/24/outline';
-import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 import { Button } from './ui/button';
 import {
@@ -44,6 +43,7 @@ import {
   SortableContext as SortableContextProvider,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { useDroppable } from '@dnd-kit/core';
 
 // Draggable Field Component
 function DraggableField({ field, isInSelected = false, isDragOverlay = false }) {
@@ -67,30 +67,6 @@ function DraggableField({ field, isInSelected = false, isDragOverlay = false }) 
     transition,
   };
 
-  const getFieldIcon = (fieldId) => {
-    const iconMap = {
-      key: CodeBracketIcon,
-      remoteJid: ChatBubbleLeftRightIcon,
-      previousRemoteJid: LinkIcon,
-      senderPn: UserGroupIcon,
-      isBusinessAccount: SparklesIcon,
-      id: DocumentTextIcon,
-      fromMe: UserGroupIcon,
-      conversation: ChatBubbleLeftRightIcon,
-      messageType: Squares2X2Icon,
-      pushName: UserGroupIcon,
-      mediaUrl: LinkIcon,
-      timestamp: ClipboardDocumentListIcon,
-      participant: UserGroupIcon,
-      quotedMessage: ChatBubbleLeftRightIcon,
-      isGroup: UserGroupIcon,
-      groupName: UserGroupIcon,
-    };
-    return iconMap[fieldId] || CogIcon;
-  };
-
-  const FieldIcon = getFieldIcon(field.id);
-
   return (
     <div
       ref={setNodeRef}
@@ -98,63 +74,28 @@ function DraggableField({ field, isInSelected = false, isDragOverlay = false }) 
       {...attributes}
       {...listeners}
       className={`
-        group relative bg-gradient-to-br from-white to-gray-50 
-        border border-gray-300 rounded-xl p-4 cursor-grab
-        hover:shadow-lg transition-all duration-300 select-none
-        ${isDragging ? 'opacity-50 scale-105 shadow-2xl z-50' : ''}
-        ${isDragOverlay ? 'rotate-2 shadow-2xl scale-110' : ''}
-        ${isInSelected ? 'ring-2 ring-purple-500 bg-gradient-to-br from-purple-50 to-purple-100' : ''}
-        hover:border-gray-400 active:cursor-grabbing
+        bg-white border rounded-lg p-3 cursor-grab select-none
+        ${isDragging ? 'opacity-50' : ''}
+        ${isInSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'}
+        active:cursor-grabbing
       `}
     >
-      <div className="flex items-center space-x-3">
-        <div className={`
-          p-2 rounded-lg transition-colors duration-200
-          ${isInSelected 
-            ? 'bg-purple-500 text-white' 
-            : 'bg-gray-100 text-gray-600 group-hover:bg-gray-200'
-          }
-        `}>
-          <FieldIcon className="h-5 w-5" />
-        </div>
+      <div className="flex items-center space-x-2">
+        <div className={`w-2 h-2 rounded-full ${isInSelected ? 'bg-blue-500' : 'bg-gray-400'}`} />
         <div className="flex-1 min-w-0">
           <div className="flex items-center space-x-2">
-            <h3 className={`
-              text-sm font-semibold truncate
-              ${isInSelected ? 'text-purple-900' : 'text-gray-900'}
-            `}>
+            <span className="text-sm font-medium truncate text-gray-900">
               {field.name}
-            </h3>
+            </span>
             {field.isGroupField && (
-              <span className="px-2 py-0.5 bg-orange-100 text-orange-700 text-xs rounded-full font-medium">
+              <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 text-xs rounded">
                 grupo
               </span>
             )}
           </div>
-          <p className={`
-            text-xs mt-1 truncate
-            ${isInSelected ? 'text-purple-700' : 'text-gray-600'}
-          `}>
+          <p className="text-xs text-gray-600 truncate mt-0.5">
             {field.description}
           </p>
-          <div className={`
-            text-xs font-mono mt-1 px-2 py-0.5 rounded inline-block
-            ${isInSelected 
-              ? 'bg-purple-200 text-purple-800' 
-              : 'bg-gray-200 text-gray-700'
-            }
-          `}>
-            {field.id}
-          </div>
-        </div>
-      </div>
-      
-      {/* Drag handle indicator */}
-      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-        <div className="w-4 h-4 grid grid-cols-2 gap-0.5">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="w-1 h-1 bg-gray-400 rounded-full"></div>
-          ))}
         </div>
       </div>
     </div>
@@ -162,37 +103,30 @@ function DraggableField({ field, isInSelected = false, isDragOverlay = false }) 
 }
 
 // Droppable Zone Component
-function DroppableZone({ children, title, description, isEmpty = false }) {
+function DroppableZone({ children, title, description, isEmpty = false, id }) {
+  const { isOver, setNodeRef } = useDroppable({
+    id: id,
+  });
+
   return (
-    <div className="h-full flex flex-col">
-      <div className="flex items-center space-x-2 mb-4">
-        <ClipboardDocumentListIcon className="h-5 w-5 text-purple-600" />
-        <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
-      </div>
-      <p className="text-sm text-gray-600 mb-4">{description}</p>
-      
-      <div className={`
-        flex-1 border-2 border-dashed rounded-xl p-4 transition-all duration-300
-        ${isEmpty 
-          ? 'border-gray-300 bg-gray-50/50' 
-          : 'border-purple-300 bg-purple-50/50'
-        }
-        hover:border-purple-400 hover:bg-purple-50
-      `}>
-        {isEmpty ? (
-          <div className="h-full flex flex-col items-center justify-center text-center py-8">
-            <Squares2X2Icon className="h-12 w-12 text-gray-400 mb-3" />
-            <p className="text-gray-500 font-medium">Arraste campos aqui</p>
-            <p className="text-sm text-gray-400 mt-1">
-              Os campos selecionados aparecerão no webhook
-            </p>
-          </div>
-        ) : (
-          <div className="space-y-3 h-full overflow-y-auto">
-            {children}
-          </div>
-        )}
-      </div>
+    <div 
+      ref={setNodeRef}
+      className={`
+        border-2 border-dashed rounded-lg p-4 min-h-[300px]
+        ${isEmpty ? 'border-gray-300 bg-gray-50' : 'border-blue-300 bg-blue-50'}
+        ${isOver ? 'border-blue-500 bg-blue-100' : ''}
+      `}
+    >
+      {isEmpty ? (
+        <div className="h-full flex flex-col items-center justify-center text-center py-8">
+          <div className="w-8 h-8 border-2 border-dashed border-gray-400 rounded mb-2" />
+          <p className="text-gray-500 text-sm">Arraste campos aqui</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {children}
+        </div>
+      )}
     </div>
   );
 }
@@ -760,17 +694,21 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
     const activeField = availableFields.find(f => f.id === active.id);
     if (!activeField) return;
 
+    console.log('Drag end:', { activeId: active.id, overId: over.id, overData: over.data?.current });
+
     // Check if field is being dropped in selected area
-    if (over.id === 'selected-fields' || over.data?.current?.type === 'selected') {
+    if (over.id === 'selected-drop-zone') {
       // Add field to selected if not already there
       if (!webhookForm.selectedFields.includes(activeField.id)) {
+        console.log('Adding field to selected:', activeField.id);
         setWebhookForm(prev => ({
           ...prev,
           selectedFields: [...prev.selectedFields, activeField.id]
         }));
       }
-    } else if (over.id === 'available-fields' || over.data?.current?.type === 'available') {
+    } else if (over.id === 'available-drop-zone') {
       // Remove field from selected
+      console.log('Removing field from selected:', activeField.id);
       setWebhookForm(prev => ({
         ...prev,
         selectedFields: prev.selectedFields.filter(id => id !== activeField.id)
@@ -781,6 +719,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
       const newIndex = webhookForm.selectedFields.indexOf(over.id);
       
       if (oldIndex !== -1 && newIndex !== -1) {
+        console.log('Reordering fields:', { oldIndex, newIndex });
         setWebhookForm(prev => ({
           ...prev,
           selectedFields: arrayMove(prev.selectedFields, oldIndex, newIndex)
@@ -869,336 +808,277 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
             height: 'calc(100vh - 32px)',
           }}
         >
-          {/* Modern Header */}
-          <div className="sticky top-0 bg-gradient-to-r from-white/95 via-white/90 to-gray-50/95 backdrop-blur-xl border-b border-gray-200/50 px-6 md:px-8 py-6 z-10">
+          {/* Header */}
+          <div className="bg-white border-b border-gray-200 px-6 py-4">
             <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <div className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl shadow-lg">
-                  <LinkIcon className="h-8 w-8 text-white" />
+              <div className="flex items-center space-x-3">
+                <div className="p-2 bg-blue-500 rounded-lg">
+                  <LinkIcon className="h-6 w-6 text-white" />
                 </div>
                 <div>
-                  <h2 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
-                    Webhook Manager
-                  </h2>
-                  <p className="text-gray-600 font-medium">Sessão: {sessionId}</p>
+                  <h2 className="text-xl font-bold text-gray-900">Webhook Manager</h2>
+                  <p className="text-sm text-gray-600">Sessão: {sessionId}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
+              <div className="flex items-center gap-2">
+                <button
                   onClick={() => setShowCreateModal(true)}
                   disabled={webhooks.length >= 3}
-                  className="flex items-center px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-2xl hover:from-blue-600 hover:to-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow-lg font-medium"
+                  className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  <PlusIcon className="h-5 w-5 mr-2" />
+                  <PlusIcon className="h-4 w-4 mr-1" />
                   Novo Webhook
-                </motion.button>
-                <motion.button
-                  whileHover={{ scale: 1.1 }}
-                  whileTap={{ scale: 0.9 }}
+                </button>
+                <button
                   onClick={onClose}
-                  className="relative w-12 h-12 rounded-2xl bg-gradient-to-br from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 transition-all duration-300 flex items-center justify-center shadow-lg"
+                  className="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
                 >
-                  <XCircleIcon className="h-6 w-6 text-white" />
-                </motion.button>
+                  <XCircleIcon className="h-5 w-5" />
+                </button>
               </div>
             </div>
           </div>
 
           {/* Content */}
-          <div className="p-6 md:p-8">
-            {/* Modern Webhooks Grid */}
-            <div className="grid gap-6">
+          <div className="p-4">
+            {/* Webhooks List */}
+            <div className="space-y-4">
               {webhooks.length === 0 ? (
-                <motion.div 
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="text-center py-16"
-                >
-                  <div className="inline-flex p-6 bg-gradient-to-br from-gray-100 to-gray-200 rounded-3xl mb-6">
-                    <LinkIcon className="h-16 w-16 text-gray-400" />
+                <div className="text-center py-12">
+                  <div className="w-16 h-16 bg-gray-100 rounded-lg mx-auto mb-4 flex items-center justify-center">
+                    <LinkIcon className="h-8 w-8 text-gray-400" />
                   </div>
-                  <h3 className="text-2xl font-bold text-gray-900 mb-3">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-2">
                     Nenhum webhook configurado
                   </h3>
-                  <p className="text-gray-600 mb-8 max-w-md mx-auto">
+                  <p className="text-gray-600 mb-6">
                     Configure webhooks para receber eventos em tempo real do WhatsApp
                   </p>
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
+                  <button
                     onClick={() => setShowCreateModal(true)}
-                    className="inline-flex items-center px-8 py-4 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-2xl hover:from-blue-600 hover:to-purple-700 transition-all duration-300 shadow-lg font-medium"
+                    className="inline-flex items-center px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                   >
-                    <PlusIcon className="h-5 w-5 mr-2" />
+                    <PlusIcon className="h-4 w-4 mr-2" />
                     Criar Primeiro Webhook
-                  </motion.button>
-                </motion.div>
+                  </button>
+                </div>
               ) : (
-                webhooks.map((webhook, index) => (
-                  <motion.div
+                webhooks.map((webhook) => (
+                  <div
                     key={webhook.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    className="bg-gradient-to-br from-white to-gray-50/50 backdrop-blur-sm rounded-3xl p-8 border border-gray-200/50 hover:border-gray-300/50 transition-all duration-500 shadow-xl hover:shadow-2xl"
+                    className="bg-white border border-gray-200 rounded-lg p-4"
                   >
                     <div className="flex items-start justify-between">
                       <div className="flex-1">
-                        <div className="flex items-center gap-4 mb-4">
-                          <h3 className="text-2xl font-bold text-gray-900">
+                        <div className="flex items-center gap-2 mb-3">
+                          <h3 className="text-lg font-semibold text-gray-900">
                             {webhook.name || 'Webhook'}
                           </h3>
                           <span
-                            className={`px-3 py-1 rounded-full text-sm font-semibold border ${getStatusColor(
+                            className={`px-2 py-1 rounded text-xs font-medium ${getStatusColor(
                               webhook.active
                             )}`}
                           >
                             {webhook.active ? 'Ativo' : 'Inativo'}
                           </span>
                           <span
-                            className={`px-3 py-1 rounded-full text-sm font-semibold border ${getPriorityColor(
+                            className={`px-2 py-1 rounded text-xs font-medium ${getPriorityColor(
                               webhook.priority
                             )}`}
                           >
-                            Prioridade {webhook.priority}
+                            P{webhook.priority}
                           </span>
                           <span
-                            className={`px-3 py-1 rounded-full text-sm font-semibold border ${
+                            className={`px-2 py-1 rounded text-xs font-medium ${
                               webhook.version === 'v2'
-                                ? 'text-purple-700 bg-purple-50 border-purple-200'
-                                : 'text-gray-700 bg-gray-50 border-gray-200'
+                                ? 'text-purple-700 bg-purple-100'
+                                : 'text-gray-700 bg-gray-100'
                             }`}
                           >
-                            {webhook.version === 'v2' ? 'Webhook v2' : 'Webhook v1'}
+                            {webhook.version === 'v2' ? 'v2' : 'v1'}
                           </span>
                         </div>
 
-                        <div className="space-y-4 text-sm">
-                          <div className="flex items-center space-x-3">
-                            <span className="font-semibold text-gray-700 w-20">
-                              URL:
-                            </span>
-                            <span className="font-mono bg-gray-100 px-3 py-2 rounded-lg text-sm text-gray-800 break-all flex-1">
+                        <div className="space-y-2 text-sm">
+                          <div>
+                            <span className="font-medium text-gray-700">URL:</span>
+                            <div className="font-mono bg-gray-50 px-2 py-1 rounded text-xs text-gray-800 break-all mt-1">
                               {webhook.url}
-                            </span>
-                          </div>
-                          
-                          <div className="flex items-start space-x-3">
-                            <span className="font-semibold text-gray-700 w-20 mt-1">
-                              Eventos:
-                            </span>
-                            <div className="flex flex-wrap gap-2 flex-1">
-                              {webhook.events.map((event, index) => {
-                                const EventIcon = getEventIcon(event);
-                                return (
-                                  <span
-                                    key={index}
-                                    className={`px-3 py-1 rounded-lg text-sm border flex items-center gap-2 font-medium ${getEventColor(
-                                      event
-                                    )}`}
-                                    title={
-                                      availableEvents.find((e) => e.id === event)
-                                        ?.description || event
-                                    }
-                                  >
-                                    <EventIcon className="h-4 w-4" />
-                                    {getEventName(event)}
-                                  </span>
-                                );
-                              })}
                             </div>
                           </div>
                           
-                          <div className="flex items-center space-x-3">
-                            <span className="font-semibold text-gray-700 w-20">
-                              Grupos:
-                            </span>
+                          <div>
+                            <span className="font-medium text-gray-700">Eventos:</span>
+                            <div className="flex flex-wrap gap-1 mt-1">
+                              {webhook.events.map((event, index) => (
+                                <span
+                                  key={index}
+                                  className={`px-2 py-1 rounded text-xs ${getEventColor(event)}`}
+                                  title={availableEvents.find((e) => e.id === event)?.description || event}
+                                >
+                                  {getEventName(event)}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center space-x-4">
+                            <span className="font-medium text-gray-700">Grupos:</span>
                             <span
-                              className={`px-3 py-1 rounded-lg text-sm border font-medium ${
+                              className={`px-2 py-1 rounded text-xs ${
                                 webhook.ignoreGroups
-                                  ? 'bg-red-50 text-red-700 border-red-200'
-                                  : 'bg-green-50 text-green-700 border-green-200'
+                                  ? 'bg-red-100 text-red-700'
+                                  : 'bg-green-100 text-green-700'
                               }`}
                             >
                               {webhook.ignoreGroups ? 'Ignorados' : 'Incluídos'}
                             </span>
+                            
+                            {testResults[webhook.id] && (
+                              <>
+                                <span className="font-medium text-gray-700">Teste:</span>
+                                <span
+                                  className={`px-2 py-1 rounded text-xs ${
+                                    testResults[webhook.id].success
+                                      ? 'bg-green-100 text-green-700'
+                                      : 'bg-red-100 text-red-700'
+                                  }`}
+                                >
+                                  {testResults[webhook.id].success ? 'OK' : 'Erro'}
+                                </span>
+                              </>
+                            )}
                           </div>
-                          
-                          {testResults[webhook.id] && (
-                            <div className="flex items-center space-x-3">
-                              <span className="font-semibold text-gray-700 w-20">
-                                Teste:
-                              </span>
-                              <span
-                                className={`px-3 py-1 rounded-lg text-sm border font-medium ${
-                                  testResults[webhook.id].success
-                                    ? 'bg-green-50 text-green-700 border-green-200'
-                                    : 'bg-red-50 text-red-700 border-red-200'
-                                }`}
-                              >
-                                {testResults[webhook.id].success ? 'Sucesso' : 'Falha'}
-                                ({testResults[webhook.id].status})
-                              </span>
-                            </div>
-                          )}
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-3 ml-6">
-                        <motion.button
-                          whileHover={{ scale: 1.1 }}
-                          whileTap={{ scale: 0.9 }}
+                      <div className="flex items-center gap-1 ml-4">
+                        <button
                           onClick={() => testWebhook(webhook.id)}
                           disabled={testingWebhook === webhook.id}
-                          className="p-3 text-purple-600 hover:bg-purple-50 rounded-xl transition-colors disabled:opacity-50 border border-purple-200 shadow-sm"
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded disabled:opacity-50"
                           title="Testar webhook"
                         >
                           {testingWebhook === webhook.id ? (
-                            <ArrowPathIcon className="h-5 w-5 animate-spin" />
+                            <ArrowPathIcon className="h-4 w-4 animate-spin" />
                           ) : (
-                            <BoltIcon className="h-5 w-5" />
+                            <BoltIcon className="h-4 w-4" />
                           )}
-                        </motion.button>
+                        </button>
 
-                        <motion.button
-                          whileHover={{ scale: 1.1 }}
-                          whileTap={{ scale: 0.9 }}
+                        <button
                           onClick={() => toggleWebhook(webhook.id)}
-                          className={`p-3 rounded-xl transition-colors border shadow-sm ${
+                          className={`p-2 rounded ${
                             webhook.active
-                              ? 'text-yellow-600 hover:bg-yellow-50 border-yellow-200'
-                              : 'text-green-600 hover:bg-green-50 border-green-200'
+                              ? 'text-yellow-600 hover:bg-yellow-50'
+                              : 'text-green-600 hover:bg-green-50'
                           }`}
                           title={webhook.active ? 'Desativar' : 'Ativar'}
                         >
                           {webhook.active ? (
-                            <PauseIcon className="h-5 w-5" />
+                            <PauseIcon className="h-4 w-4" />
                           ) : (
-                            <PlayIcon className="h-5 w-5" />
+                            <PlayIcon className="h-4 w-4" />
                           )}
-                        </motion.button>
+                        </button>
 
-                        <motion.button
-                          whileHover={{ scale: 1.1 }}
-                          whileTap={{ scale: 0.9 }}
+                        <button
                           onClick={() => startEdit(webhook)}
-                          className="p-3 text-blue-600 hover:bg-blue-50 rounded-xl transition-colors border border-blue-200 shadow-sm"
+                          className="p-2 text-blue-600 hover:bg-blue-50 rounded"
                           title="Editar"
                         >
-                          <PencilIcon className="h-5 w-5" />
-                        </motion.button>
+                          <PencilIcon className="h-4 w-4" />
+                        </button>
 
-                        <motion.button
-                          whileHover={{ scale: 1.1 }}
-                          whileTap={{ scale: 0.9 }}
+                        <button
                           onClick={() => deleteWebhook(webhook.id)}
-                          className="p-3 text-red-600 hover:bg-red-50 rounded-xl transition-colors border border-red-200 shadow-sm"
+                          className="p-2 text-red-600 hover:bg-red-50 rounded"
                           title="Remover"
                         >
-                          <TrashIcon className="h-5 w-5" />
-                        </motion.button>
+                          <TrashIcon className="h-4 w-4" />
+                        </button>
                       </div>
                     </div>
-                  </motion.div>
+                  </div>
                 ))
               )}
             </div>
 
             {/* Footer Info */}
             {webhooks.length > 0 && (
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5 }}
-                className="mt-8 p-6 bg-gradient-to-r from-yellow-50 to-orange-50 rounded-2xl border border-yellow-200/50 shadow-lg"
-              >
+              <div className="mt-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
                 <div className="flex items-center">
-                  <ExclamationTriangleIcon className="h-6 w-6 text-yellow-600 mr-3" />
-                  <span className="text-yellow-700 font-medium">
+                  <ExclamationTriangleIcon className="h-4 w-4 text-yellow-600 mr-2" />
+                  <span className="text-yellow-700 text-sm">
                     Máximo de 3 webhooks por sessão. {3 - webhooks.length} restante(s).
                   </span>
                 </div>
-              </motion.div>
+              </div>
             )}
           </div>
         </div>
       </div>
 
-      {/* Enhanced Create/Edit Modal */}
-      <AnimatePresence>
-        {(showCreateModal || editingWebhook) && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-[60]"
-            onClick={() => {
-              setShowCreateModal(false);
-              setEditingWebhook(null);
-              resetForm();
+      {/* Create/Edit Modal */}
+      {(showCreateModal || editingWebhook) && (
+        <div
+          className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]"
+          onClick={() => {
+            setShowCreateModal(false);
+            setEditingWebhook(null);
+            resetForm();
+          }}
+        >
+          <div
+            className="bg-white border w-full h-full flex flex-col overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              borderRadius: '12px',
+              margin: '16px',
+              height: 'calc(100vh - 32px)',
             }}
           >
-            <motion.div
-              initial={{ opacity: 0, scale: 0.9, y: 20 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="bg-gradient-to-br from-white via-white to-gray-50/50 backdrop-blur-xl border border-gray-200/50 w-full h-full flex flex-col shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-              style={{
-                borderRadius: '24px',
-                margin: '16px',
-                height: 'calc(100vh - 32px)',
-              }}
-            >
-              {/* Modern Header */}
-              <div className="sticky top-0 bg-gradient-to-r from-white/95 via-white/90 to-gray-50/95 backdrop-blur-xl border-b border-gray-200/50 px-8 py-6 z-10">
+              {/* Header */}
+              <div className="bg-white border-b px-4 py-3">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
-                    <div className="p-3 bg-gradient-to-br from-purple-500 to-blue-600 rounded-2xl shadow-lg">
+                  <div className="flex items-center space-x-2">
+                    <div className="p-2 bg-blue-500 rounded">
                       {editingWebhook ? (
-                        <PencilIcon className="h-6 w-6 text-white" />
+                        <PencilIcon className="h-4 w-4 text-white" />
                       ) : (
-                        <PlusIcon className="h-6 w-6 text-white" />
+                        <PlusIcon className="h-4 w-4 text-white" />
                       )}
                     </div>
-                    <h3 className="text-3xl font-bold bg-gradient-to-r from-gray-900 to-gray-700 bg-clip-text text-transparent">
+                    <h3 className="text-lg font-semibold text-gray-900">
                       {editingWebhook ? 'Editar Webhook' : 'Novo Webhook'}
                     </h3>
                   </div>
-                  <motion.button
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
+                  <button
                     onClick={() => {
                       setShowCreateModal(false);
                       setEditingWebhook(null);
                       resetForm();
                     }}
-                    className="relative w-12 h-12 rounded-2xl bg-gradient-to-br from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 transition-all duration-300 flex items-center justify-center shadow-lg"
+                    className="p-2 bg-red-500 text-white rounded hover:bg-red-600"
                   >
-                    <XCircleIcon className="h-6 w-6 text-white" />
-                  </motion.button>
+                    <XCircleIcon className="h-4 w-4" />
+                  </button>
                 </div>
               </div>
 
-              {/* Scrollable Content */}
-              <div className="flex-1 overflow-y-auto px-8 py-6">
-                <div className="space-y-8">
+              {/* Content */}
+              <div className="flex-1 overflow-y-auto px-4 py-4">
+                <div className="space-y-6">
                   {/* Basic Configuration */}
-                  <motion.div 
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="space-y-6"
-                  >
-                    <h4 className="text-xl font-semibold text-gray-900 flex items-center">
-                      <CogIcon className="h-5 w-5 mr-2 text-blue-600" />
+                  <div className="space-y-4">
+                    <h4 className="text-lg font-semibold text-gray-900 flex items-center">
+                      <CogIcon className="h-4 w-4 mr-2 text-blue-600" />
                       Configuração Básica
                     </h4>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-3">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
                           Nome (opcional)
                         </label>
                         <input
@@ -1211,12 +1091,12 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                             }))
                           }
                           placeholder="Ex: Webhook Principal"
-                          className="w-full px-4 py-4 bg-white border border-gray-300 rounded-2xl text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-purple-500 focus:outline-none focus:border-purple-500 transition-all shadow-sm"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:outline-none focus:border-blue-500"
                         />
                       </div>
 
                       <div>
-                        <label className="block text-sm font-semibold text-gray-700 mb-3">
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
                           Prioridade
                         </label>
                         <select
@@ -1227,7 +1107,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                               priority: parseInt(e.target.value),
                             }))
                           }
-                          className="w-full px-4 py-4 bg-white border border-gray-300 rounded-2xl text-gray-900 focus:ring-2 focus:ring-purple-500 focus:outline-none focus:border-purple-500 transition-all shadow-sm"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-blue-500 focus:outline-none focus:border-blue-500"
                         >
                           <option value={1}>1 - Alta</option>
                           <option value={2}>2 - Média</option>
@@ -1237,7 +1117,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-3">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
                         URL do Webhook *
                       </label>
                       <input
@@ -1250,13 +1130,13 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                           }))
                         }
                         placeholder="https://meusite.com/webhook"
-                        className="w-full px-4 py-4 bg-white border border-gray-300 rounded-2xl text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-purple-500 focus:outline-none focus:border-purple-500 transition-all shadow-sm"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:outline-none focus:border-blue-500"
                         required
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-3">
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
                         Versão do Webhook
                       </label>
                       <select
@@ -1267,18 +1147,17 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                             version: e.target.value,
                           }))
                         }
-                        className="w-full px-4 py-4 bg-white border border-gray-300 rounded-2xl text-gray-900 focus:ring-2 focus:ring-purple-500 focus:outline-none focus:border-purple-500 transition-all shadow-sm"
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-blue-500 focus:outline-none focus:border-blue-500"
                       >
                         <option value="v1">v1 - Webhook Original</option>
                         <option value="v2">v2 - Webhook Avançado (Baileys Enhanced)</option>
                       </select>
-                      <p className="text-sm text-gray-600 mt-2 bg-blue-50 p-3 rounded-xl border border-blue-200">
-                        <SparklesIcon className="h-4 w-4 inline mr-1 text-blue-600" />
+                      <p className="text-sm text-gray-600 mt-2 bg-blue-50 p-2 rounded border border-blue-200">
                         v2 oferece estrutura de eventos aprimorada com suporte completo a @lid e drag-and-drop
                       </p>
                     </div>
 
-                    <div className="flex items-center space-x-8">
+                    <div className="flex flex-col space-y-2">
                       <label className="flex items-center">
                         <input
                           type="checkbox"
@@ -1289,9 +1168,9 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                               active: e.target.checked,
                             }))
                           }
-                          className="rounded border-gray-300 text-purple-600 focus:ring-purple-500 bg-white transition-all w-5 h-5"
+                          className="rounded border-gray-300 text-blue-600"
                         />
-                        <span className="ml-3 text-sm font-medium text-gray-700">
+                        <span className="ml-2 text-sm text-gray-700">
                           Webhook ativo
                         </span>
                       </label>
@@ -1301,121 +1180,78 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                           type="checkbox"
                           checked={webhookForm.ignoreGroups}
                           onChange={(e) => handleIgnoreGroupsChange(e.target.checked)}
-                          className="rounded border-gray-300 text-purple-600 focus:ring-purple-500 bg-white transition-all w-5 h-5"
+                          className="rounded border-gray-300 text-blue-600"
                         />
-                        <span className="ml-3 text-sm font-medium text-gray-700">
+                        <span className="ml-2 text-sm text-gray-700">
                           Ignorar mensagens de grupos
                         </span>
                       </label>
                     </div>
-                  </motion.div>
+                  </div>
 
                   {/* Events Configuration */}
-                  <motion.div 
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.1 }}
-                    className="space-y-6"
-                  >
-                    <h4 className="text-xl font-semibold text-gray-900 flex items-center">
-                      <BoltIcon className="h-5 w-5 mr-2 text-yellow-600" />
+                  <div className="space-y-4">
+                    <h4 className="text-lg font-semibold text-gray-900 flex items-center">
+                      <BoltIcon className="h-4 w-4 mr-2 text-blue-600" />
                       Eventos para Escutar
                     </h4>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 gap-2">
                       {availableEvents.map((event) => {
-                        const EventIcon = event.icon;
                         const isSelected = webhookForm.events.includes(event.id);
 
                         return (
-                          <motion.div
+                          <div
                             key={event.id}
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                            className={`p-4 rounded-2xl border cursor-pointer transition-all duration-300 ${
+                            className={`p-3 rounded-lg border cursor-pointer ${
                               isSelected
-                                ? 'bg-gradient-to-br from-blue-50 to-purple-50 border-purple-300 shadow-lg'
-                                : 'bg-white border-gray-200 hover:border-gray-300 hover:shadow-md'
+                                ? 'bg-blue-50 border-blue-300'
+                                : 'bg-white border-gray-200 hover:border-gray-300'
                             }`}
                             onClick={() => toggleEventSelection(event.id)}
                           >
-                            <div className="flex items-start">
-                              <div className="flex items-center mr-4">
-                                <input
-                                  type="checkbox"
-                                  checked={isSelected}
-                                  onChange={() => toggleEventSelection(event.id)}
-                                  className="rounded border-gray-300 text-purple-600 focus:ring-purple-500 bg-white transition-all w-5 h-5"
-                                  onClick={(e) => e.stopPropagation()}
-                                />
-                              </div>
-                              <div className="flex-1">
-                                <div className="flex items-center mb-2">
-                                  <EventIcon
-                                    className={`h-5 w-5 mr-3 ${
-                                      isSelected ? 'text-purple-600' : 'text-gray-500'
-                                    }`}
-                                  />
-                                  <span
-                                    className={`text-sm font-semibold ${
-                                      isSelected ? 'text-purple-700' : 'text-gray-700'
-                                    }`}
-                                  >
+                            <div className="flex items-center">
+                              <input
+                                type="checkbox"
+                                checked={isSelected}
+                                onChange={() => toggleEventSelection(event.id)}
+                                className="rounded border-gray-300 text-blue-600"
+                                onClick={(e) => e.stopPropagation()}
+                              />
+                              <div className="ml-3 flex-1">
+                                <div className="flex items-center">
+                                  <span className="text-sm font-medium text-gray-900">
                                     {event.name}
                                   </span>
-                                  <span
-                                    className={`ml-2 px-2 py-1 rounded-full text-xs font-medium ${
-                                      isSelected
-                                        ? getEventColor(event.id)
-                                        : 'text-gray-600 bg-gray-100'
-                                    }`}
-                                  >
+                                  <span className="ml-2 px-2 py-1 rounded text-xs bg-gray-100 text-gray-600">
                                     {event.category}
                                   </span>
                                 </div>
-                                <p
-                                  className={`text-xs ${
-                                    isSelected ? 'text-purple-600' : 'text-gray-600'
-                                  }`}
-                                >
+                                <p className="text-xs text-gray-600 mt-1">
                                   {event.description}
                                 </p>
                               </div>
                             </div>
-                          </motion.div>
+                          </div>
                         );
                       })}
                     </div>
-                  </motion.div>
+                  </div>
 
                   {/* Drag and Drop Field Selection for v2 */}
                   {webhookForm.version === 'v2' && (
-                    <motion.div 
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: 0.2 }}
-                      className="space-y-6"
-                    >
-                      <div className="flex items-center space-x-3">
-                        <Squares2X2Icon className="h-6 w-6 text-purple-600" />
-                        <h4 className="text-xl font-semibold text-gray-900">
+                    <div className="space-y-4">
+                      <div className="flex items-center space-x-2">
+                        <Squares2X2Icon className="h-4 w-4 text-blue-600" />
+                        <h4 className="text-lg font-semibold text-gray-900">
                           Campos do Webhook v2 - Drag & Drop
                         </h4>
-                        <div className="px-3 py-1 bg-gradient-to-r from-purple-100 to-blue-100 text-purple-700 text-sm font-medium rounded-full">
-                          Sketchware Style
-                        </div>
                       </div>
                       
-                      <div className="bg-gradient-to-br from-purple-50 to-blue-50 p-4 rounded-2xl border border-purple-200">
-                        <div className="flex items-center space-x-2 mb-2">
-                          <EyeIcon className="h-4 w-4 text-purple-600" />
-                          <span className="text-sm font-medium text-purple-700">
-                            Como usar:
-                          </span>
-                        </div>
-                        <p className="text-sm text-purple-600">
-                          Arraste campos da área "Disponíveis" para "Selecionados" para customizar o payload do webhook.
-                          Deixe vazio para enviar payload completo. Reordene arrastando dentro da área selecionada.
+                      <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                        <p className="text-sm text-blue-700">
+                          <strong>Como usar:</strong> Arraste campos da área "Disponíveis" para "Selecionados" para customizar o payload do webhook.
+                          Deixe vazio para enviar payload completo.
                         </p>
                       </div>
 
@@ -1425,28 +1261,26 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                         onDragStart={handleDragStart}
                         onDragEnd={handleDragEnd}
                       >
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 min-h-[500px]">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                           {/* Available Fields */}
-                          <div className="space-y-4">
-                            <div className="flex items-center space-x-2">
-                              <ClipboardDocumentListIcon className="h-5 w-5 text-gray-600" />
-                              <h5 className="text-lg font-semibold text-gray-900">
+                          <div>
+                            <div className="flex items-center space-x-2 mb-3">
+                              <h5 className="text-md font-medium text-gray-900">
                                 Campos Disponíveis
                               </h5>
-                              <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full font-medium">
+                              <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
                                 {availableFields.filter(f => !webhookForm.selectedFields.includes(f.id) && 
-                                  !(webhookForm.ignoreGroups && f.isGroupField)).length} campos
+                                  !(webhookForm.ignoreGroups && f.isGroupField)).length}
                               </span>
                             </div>
-                            <p className="text-sm text-gray-600 mb-4">
-                              Arraste campos para a área de selecionados
-                            </p>
                             
-                            <div 
-                              className="border-2 border-dashed border-gray-300 rounded-2xl p-4 bg-gray-50/50 min-h-[400px] transition-all duration-300"
-                              data-type="available"
+                            <DroppableZone 
+                              id="available-drop-zone"
+                              title=""
+                              description=""
+                              isEmpty={false}
                             >
-                              <div className="space-y-3">
+                              <div className="space-y-2">
                                 {Object.entries(fieldCategories).map(([categoryId, category]) => {
                                   const categoryFields = availableFields.filter(
                                     field => 
@@ -1458,11 +1292,11 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                                   if (categoryFields.length === 0) return null;
 
                                   return (
-                                    <div key={categoryId} className="space-y-2">
-                                      <h6 className={`text-sm font-semibold text-${category.color}-700 px-3 py-1 bg-${category.color}-50 rounded-lg inline-block`}>
+                                    <div key={categoryId} className="space-y-1">
+                                      <h6 className="text-xs font-medium text-gray-600 px-2 py-1 bg-gray-100 rounded">
                                         {category.name}
                                       </h6>
-                                      <div className="grid grid-cols-1 gap-2">
+                                      <div className="space-y-1">
                                         {categoryFields.map((field) => (
                                           <DraggableField
                                             key={field.id}
@@ -1475,49 +1309,32 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                                   );
                                 })}
                               </div>
-                            </div>
+                            </DroppableZone>
                           </div>
 
                           {/* Selected Fields */}
-                          <div className="space-y-4">
-                            <div className="flex items-center space-x-2">
-                              <ClipboardDocumentListIcon className="h-5 w-5 text-purple-600" />
-                              <h5 className="text-lg font-semibold text-gray-900">
+                          <div>
+                            <div className="flex items-center space-x-2 mb-3">
+                              <h5 className="text-md font-medium text-gray-900">
                                 Campos Selecionados
                               </h5>
-                              <span className="px-2 py-1 bg-purple-100 text-purple-600 text-xs rounded-full font-medium">
-                                {webhookForm.selectedFields.length} campos
+                              <span className="px-2 py-1 bg-blue-100 text-blue-600 text-xs rounded">
+                                {webhookForm.selectedFields.length}
                               </span>
                             </div>
-                            <p className="text-sm text-gray-600 mb-4">
-                              {webhookForm.selectedFields.length === 0 
-                                ? 'Payload completo será enviado' 
-                                : 'Apenas estes campos serão enviados'
-                              }
-                            </p>
                             
-                            <SortableContext
-                              items={webhookForm.selectedFields}
-                              strategy={verticalListSortingStrategy}
+                            <DroppableZone 
+                              id="selected-drop-zone"
+                              title=""
+                              description=""
+                              isEmpty={webhookForm.selectedFields.length === 0}
                             >
-                              <div 
-                                className={`border-2 border-dashed rounded-2xl p-4 min-h-[400px] transition-all duration-300 ${
-                                  webhookForm.selectedFields.length === 0
-                                    ? 'border-gray-300 bg-gray-50/50'
-                                    : 'border-purple-300 bg-purple-50/50'
-                                }`}
-                                data-type="selected"
+                              <SortableContext
+                                items={webhookForm.selectedFields}
+                                strategy={verticalListSortingStrategy}
                               >
-                                {webhookForm.selectedFields.length === 0 ? (
-                                  <div className="h-full flex flex-col items-center justify-center text-center py-16">
-                                    <Squares2X2Icon className="h-16 w-16 text-gray-400 mb-4" />
-                                    <p className="text-gray-500 font-medium text-lg">Arraste campos aqui</p>
-                                    <p className="text-sm text-gray-400 mt-2">
-                                      Os campos selecionados aparecerão no webhook
-                                    </p>
-                                  </div>
-                                ) : (
-                                  <div className="space-y-3">
+                                {webhookForm.selectedFields.length === 0 ? null : (
+                                  <div className="space-y-2">
                                     {webhookForm.selectedFields.map((fieldId) => {
                                       const field = availableFields.find(f => f.id === fieldId);
                                       return field ? (
@@ -1530,8 +1347,8 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                                     })}
                                   </div>
                                 )}
-                              </div>
-                            </SortableContext>
+                              </SortableContext>
+                            </DroppableZone>
                           </div>
                         </div>
 
@@ -1545,35 +1362,25 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                         </DragOverlay>
                       </DndContext>
 
-                      <div className="bg-gradient-to-r from-purple-50 to-blue-50 p-4 rounded-2xl border border-purple-200">
+                      <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
                         <div className="flex items-center space-x-2">
-                          <ExclamationTriangleIcon className="h-5 w-5 text-purple-600" />
-                          <span className="text-sm font-semibold text-purple-700">
-                            Status da Seleção:
-                          </span>
-                          <span className="text-sm text-purple-600">
+                          <span className="text-sm font-medium text-blue-700">Status:</span>
+                          <span className="text-sm text-blue-600">
                             {webhookForm.selectedFields.length === 0
-                              ? 'Payload completo será enviado (todos os campos)'
-                              : `${webhookForm.selectedFields.length} campo(s) selecionado(s) - payload customizado`}
+                              ? 'Payload completo será enviado'
+                              : `${webhookForm.selectedFields.length} campo(s) selecionado(s)`}
                           </span>
                         </div>
                       </div>
-                    </motion.div>
+                    </div>
                   )}
                 </div>
               </div>
 
-              {/* Modern Footer */}
-              <div className="sticky bottom-0 bg-gradient-to-r from-white/95 via-white/90 to-gray-50/95 backdrop-blur-xl border-t border-gray-200/50 px-8 py-6 z-10">
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.3 }}
-                  className="flex gap-4"
-                >
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
+              {/* Footer */}
+              <div className="bg-white border-t px-4 py-3">
+                <div className="flex gap-3">
+                  <button
                     onClick={() => {
                       if (editingWebhook) {
                         updateWebhook(editingWebhook);
@@ -1582,28 +1389,26 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                       }
                     }}
                     disabled={!webhookForm.url}
-                    className="flex-1 py-4 px-6 bg-gradient-to-r from-purple-500 to-blue-600 text-white rounded-2xl hover:from-purple-600 hover:to-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 shadow-lg font-semibold text-lg"
+                    className="flex-1 py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
                   >
-                    {editingWebhook ? 'Atualizar Webhook' : 'Criar Webhook'}
-                  </motion.button>
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
+                    {editingWebhook ? 'Atualizar' : 'Criar'}
+                  </button>
+                  <button
                     onClick={() => {
                       setShowCreateModal(false);
                       setEditingWebhook(null);
                       resetForm();
                     }}
-                    className="flex-1 py-4 px-6 bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 rounded-2xl hover:from-gray-200 hover:to-gray-300 transition-all duration-300 shadow-lg font-semibold text-lg"
+                    className="flex-1 py-2 px-4 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium"
                   >
                     Cancelar
-                  </motion.button>
-                </motion.div>
+                  </button>
+                </div>
               </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            </div>
+          </div>
+        )
+      }
     </>
   );
 }
