@@ -2036,6 +2036,7 @@ async function sendWebhookV2Direct(
               msgContent.stickerMessage?.contextInfo?.quotedMessage
             ),
             isGroup: msg.key?.remoteJid?.endsWith('@g.us') || false,
+            isBusinessAccount: !!(msg.key?.previousRemoteJid?.includes('@lid')),
             fromMe: msg.key?.fromMe || false,
             isForwarded: !!(
               msgContent.imageMessage?.contextInfo?.isForwarded ||
@@ -2080,7 +2081,9 @@ async function sendWebhookV2Direct(
             messageId: msg.key?.id,
             timestamp: msg.messageTimestamp,
             remoteJid: msg.key?.remoteJid,
+            previousRemoteJid: msg.key?.previousRemoteJid || null,
             participant: msg.key?.participant,
+            senderPn: msg.key?.senderPn || null,
             pushName: msg.pushName,
             status: msg.status,
 
@@ -2117,6 +2120,7 @@ async function sendWebhookV2Direct(
             hasMediaMessages: processedMessages.some((m) => m.hasMedia),
             hasQuotedMessages: processedMessages.some((m) => m.hasQuoted),
             hasGroupMessages: processedMessages.some((m) => m.isGroup),
+            hasBusinessMessages: processedMessages.some((m) => m.isBusinessAccount),
             messagesCount: processedMessages.length,
             messageTypes: [
               ...new Set(processedMessages.map((m) => m.messageType)),
@@ -2219,6 +2223,15 @@ async function sendWebhookV2Direct(
                 switch (field) {
                   case 'remoteJid':
                     customMsg.remoteJid = msg.remoteJid;
+                    break;
+                  case 'previousRemoteJid':
+                    customMsg.previousRemoteJid = msg.previousRemoteJid;
+                    break;
+                  case 'senderPn':
+                    customMsg.senderPn = msg.senderPn;
+                    break;
+                  case 'isBusinessAccount':
+                    customMsg.isBusinessAccount = msg.isBusinessAccount;
                     break;
                   case 'id':
                     customMsg.id = msg.messageId;
@@ -2943,6 +2956,7 @@ async function downloadMediaAsBase64(sock, message) {
 // Função para extrair dados completos da mensagem (agora com mídia em base64)
 async function extractMessageData(message, sock = null) {
   const isGroup = message.key.remoteJid?.endsWith('@g.us') || false;
+  const isBusinessAccount = message.key.previousRemoteJid?.includes('@lid') || false;
 
   const messageData = {
     messageId: message.key.id,
@@ -2956,8 +2970,10 @@ async function extractMessageData(message, sock = null) {
     // Chat info structure
     chat: {
       id: message.key.remoteJid,
+      previousId: message.key.previousRemoteJid || null,
       type: isGroup ? 'group' : 'private',
       isGroup: isGroup,
+      isBusinessAccount: isBusinessAccount,
     },
 
     // Sender info structure
@@ -2965,6 +2981,7 @@ async function extractMessageData(message, sock = null) {
       id: isGroup ? message.key.participant : message.key.remoteJid,
       pushName: message.pushName,
       isMe: message.key.fromMe,
+      senderPn: message.key.senderPn || null,
     },
 
     // Enhanced message metadata
@@ -2989,6 +3006,10 @@ async function extractMessageData(message, sock = null) {
       contactData: null,
       contactsData: null,
       unknownData: null,
+      // @lid (Business Account) fields
+      isBusinessAccount: isBusinessAccount,
+      previousRemoteJid: message.key.previousRemoteJid || null,
+      senderPn: message.key.senderPn || null,
     },
   };
 
@@ -3927,6 +3948,16 @@ async function createWhatsAppSession(
       const { messages } = messageUpdate;
 
       for (const message of messages) {
+        // Processar @lid (Business accounts) - seguindo padrão Evolution API
+        if (message.key.remoteJid?.includes('@lid') && message.key.senderPn) {
+          // Armazenar o JID original para referência
+          message.key.previousRemoteJid = message.key.remoteJid;
+          // Substituir pelo número do remetente para compatibilidade
+          message.key.remoteJid = message.key.senderPn;
+          
+          logger.info(`@lid processado - Original JID: ${message.key.previousRemoteJid}, Novo JID: ${message.key.remoteJid}`);
+        }
+
         // Armazenar todas as mensagens (enviadas e recebidas) para reply
         if (message.key?.id) {
           storeMessage(sessionId, message.key.id, message);
