@@ -1103,29 +1103,38 @@ function applyFieldMapping(data, fieldMapping) {
 
   // If data is an array, apply mapping to each item
   if (Array.isArray(data)) {
-    return data.map(item => applyFieldMapping(item, fieldMapping));
+    return data.map((item) => applyFieldMapping(item, fieldMapping));
   }
 
   // If data is an object, apply field mapping
   if (typeof data === 'object' && data !== null) {
     const mappedData = {};
-    
-    Object.keys(data).forEach(originalKey => {
+
+    Object.keys(data).forEach((originalKey) => {
       // Check if this field has a custom mapping
       const customKey = fieldMapping[originalKey] || originalKey;
-      
+
       // Apply mapping recursively for nested objects
-      if (typeof data[originalKey] === 'object' && data[originalKey] !== null && !Array.isArray(data[originalKey])) {
-        mappedData[customKey] = applyFieldMapping(data[originalKey], fieldMapping);
+      if (
+        typeof data[originalKey] === 'object' &&
+        data[originalKey] !== null &&
+        !Array.isArray(data[originalKey])
+      ) {
+        mappedData[customKey] = applyFieldMapping(
+          data[originalKey],
+          fieldMapping
+        );
       } else if (Array.isArray(data[originalKey])) {
-        mappedData[customKey] = data[originalKey].map(item => 
-          typeof item === 'object' ? applyFieldMapping(item, fieldMapping) : item
+        mappedData[customKey] = data[originalKey].map((item) =>
+          typeof item === 'object'
+            ? applyFieldMapping(item, fieldMapping)
+            : item
         );
       } else {
         mappedData[customKey] = data[originalKey];
       }
     });
-    
+
     return mappedData;
   }
 
@@ -2073,7 +2082,7 @@ async function sendWebhookV2Direct(
               msgContent.stickerMessage?.contextInfo?.quotedMessage
             ),
             isGroup: msg.key?.remoteJid?.endsWith('@g.us') || false,
-            isBusinessAccount: !!(msg.key?.previousRemoteJid?.includes('@lid')),
+            isBusinessAccount: !!msg.key?.previousRemoteJid?.includes('@lid'),
             fromMe: msg.key?.fromMe || false,
             isForwarded: !!(
               msgContent.imageMessage?.contextInfo?.isForwarded ||
@@ -2154,7 +2163,9 @@ async function sendWebhookV2Direct(
             hasMediaMessages: processedMessages.some((m) => m.hasMedia),
             hasQuotedMessages: processedMessages.some((m) => m.hasQuoted),
             hasGroupMessages: processedMessages.some((m) => m.isGroup),
-            hasBusinessMessages: processedMessages.some((m) => m.isBusinessAccount),
+            hasBusinessMessages: processedMessages.some(
+              (m) => m.isBusinessAccount
+            ),
             messagesCount: processedMessages.length,
             messageTypes: [
               ...new Set(processedMessages.map((m) => m.messageType)),
@@ -2231,11 +2242,6 @@ async function sendWebhookV2Direct(
       try {
         // Create custom payload based on selected fields for webhook v2
         let finalPayload = payload;
-
-        // Apply field mapping first if configured
-        if (webhook.fieldMapping && Object.keys(webhook.fieldMapping).length > 0) {
-          finalPayload = applyFieldMapping(finalPayload, webhook.fieldMapping);
-        }
 
         if (webhook.selectedFields && webhook.selectedFields.length > 0) {
           // Custom field selection - create simplified payload
@@ -2327,6 +2333,14 @@ async function sendWebhookV2Direct(
             // For non-messages.upsert events, send full data
             finalPayload.data = payload.data;
           }
+        }
+
+        // Apply field mapping AFTER creating the custom payload
+        if (
+          webhook.fieldMapping &&
+          Object.keys(webhook.fieldMapping).length > 0
+        ) {
+          finalPayload = applyFieldMapping(finalPayload, webhook.fieldMapping);
         }
 
         const response = await fetch(webhook.url, {
@@ -3001,7 +3015,8 @@ async function downloadMediaAsBase64(sock, message) {
 // Função para extrair dados completos da mensagem (agora com mídia em base64)
 async function extractMessageData(message, sock = null) {
   const isGroup = message.key.remoteJid?.endsWith('@g.us') || false;
-  const isBusinessAccount = message.key.previousRemoteJid?.includes('@lid') || false;
+  const isBusinessAccount =
+    message.key.previousRemoteJid?.includes('@lid') || false;
 
   const messageData = {
     messageId: message.key.id,
@@ -3997,11 +4012,13 @@ async function createWhatsAppSession(
         // Processar @lid (Business accounts) - seguindo padrão Evolution API
         if (message.key.remoteJid?.includes('@lid') && message.key.senderPn) {
           // Armazenar o JID original para referência (mesmo padrão Evolution API)
-          (message.key).previousRemoteJid = message.key.remoteJid;
+          message.key.previousRemoteJid = message.key.remoteJid;
           // Substituir pelo número do remetente para compatibilidade
           message.key.remoteJid = message.key.senderPn;
-          
-          logger.info(`@lid processado - Original JID: ${message.key.previousRemoteJid}, Novo JID: ${message.key.remoteJid}`);
+
+          logger.info(
+            `@lid processado - Original JID: ${message.key.previousRemoteJid}, Novo JID: ${message.key.remoteJid}`
+          );
         }
 
         // Armazenar todas as mensagens (enviadas e recebidas) para reply
@@ -4050,7 +4067,7 @@ async function createWhatsAppSession(
       for (const update of messageUpdates) {
         // Processar @lid em updates também - seguindo padrão Evolution API
         if (update.key?.remoteJid?.includes('@lid') && update.key.senderPn) {
-          (update.key).previousRemoteJid = update.key.remoteJid;
+          update.key.previousRemoteJid = update.key.remoteJid;
           update.key.remoteJid = update.key.senderPn;
         }
 
