@@ -27,6 +27,7 @@ import {
   closestCenter,
   KeyboardSensor,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   DragOverlay,
@@ -70,30 +71,33 @@ function DraggableField({ field, isInSelected = false, isDragOverlay = false }) 
   return (
     <div
       ref={setNodeRef}
-      style={style}
+      style={{
+        ...style,
+        touchAction: 'manipulation',
+      }}
       {...attributes}
       {...listeners}
       className={`
-        bg-white border rounded-lg p-3 cursor-grab select-none
+        bg-white border rounded-lg p-3 cursor-grab select-none touch-manipulation
         ${isDragging ? 'opacity-50' : ''}
-        ${isInSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400'}
-        active:cursor-grabbing
+        ${isInSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400 active:border-gray-500'}
+        active:cursor-grabbing active:scale-[1.02] transition-transform
       `}
     >
       <div className="flex items-center space-x-2">
-        <div className={`w-2 h-2 rounded-full ${isInSelected ? 'bg-blue-500' : 'bg-gray-400'}`} />
+        <div className={`w-3 h-3 rounded-full flex-shrink-0 ${isInSelected ? 'bg-blue-500' : 'bg-gray-400'}`} />
         <div className="flex-1 min-w-0">
-          <div className="flex items-center space-x-2">
-            <span className="text-sm font-medium truncate text-gray-900">
+          <div className="flex items-center space-x-1 flex-wrap">
+            <span className="text-sm font-medium text-gray-900 min-w-0 break-words">
               {field.name}
             </span>
             {field.isGroupField && (
-              <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 text-xs rounded">
+              <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 text-xs rounded flex-shrink-0">
                 grupo
               </span>
             )}
           </div>
-          <p className="text-xs text-gray-600 truncate mt-0.5">
+          <p className="text-xs text-gray-600 mt-0.5 break-words">
             {field.description}
           </p>
         </div>
@@ -112,15 +116,16 @@ function DroppableZone({ children, title, description, isEmpty = false, id }) {
     <div 
       ref={setNodeRef}
       className={`
-        border-2 border-dashed rounded-lg p-4 min-h-[300px]
+        border-2 border-dashed rounded-lg p-3 min-h-[200px] sm:min-h-[300px] touch-manipulation
         ${isEmpty ? 'border-gray-300 bg-gray-50' : 'border-blue-300 bg-blue-50'}
-        ${isOver ? 'border-blue-500 bg-blue-100' : ''}
+        ${isOver ? 'border-blue-500 bg-blue-100 scale-[1.01] transition-transform' : ''}
       `}
     >
       {isEmpty ? (
-        <div className="h-full flex flex-col items-center justify-center text-center py-8">
+        <div className="h-full flex flex-col items-center justify-center text-center py-6 sm:py-8">
           <div className="w-8 h-8 border-2 border-dashed border-gray-400 rounded mb-2" />
-          <p className="text-gray-500 text-sm">Arraste campos aqui</p>
+          <p className="text-gray-500 text-sm px-2">Arraste campos aqui</p>
+          <p className="text-gray-400 text-xs mt-1 px-2">👆 Toque e arraste no mobile</p>
         </div>
       ) : (
         <div className="space-y-2">
@@ -335,6 +340,12 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
     useSensor(PointerSensor, {
       activationConstraint: {
         distance: 8,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 150,
+        tolerance: 6,
       },
     }),
     useSensor(KeyboardSensor, {
@@ -809,29 +820,30 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
           }}
         >
           {/* Header */}
-          <div className="bg-white border-b border-gray-200 px-6 py-4">
+          <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4">
             <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-3">
-                <div className="p-2 bg-blue-500 rounded-lg">
-                  <LinkIcon className="h-6 w-6 text-white" />
+              <div className="flex items-center space-x-3 min-w-0 flex-1">
+                <div className="p-2 bg-blue-500 rounded-lg flex-shrink-0">
+                  <LinkIcon className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                 </div>
-                <div>
-                  <h2 className="text-xl font-bold text-gray-900">Webhook Manager</h2>
-                  <p className="text-sm text-gray-600">Sessão: {sessionId}</p>
+                <div className="min-w-0">
+                  <h2 className="text-lg sm:text-xl font-bold text-gray-900 truncate">Webhook Manager</h2>
+                  <p className="text-xs sm:text-sm text-gray-600 truncate">Sessão: {sessionId}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-shrink-0">
                 <button
                   onClick={() => setShowCreateModal(true)}
                   disabled={webhooks.length >= 3}
-                  className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="flex items-center px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm touch-manipulation"
                 >
                   <PlusIcon className="h-4 w-4 mr-1" />
-                  Novo Webhook
+                  <span className="hidden sm:inline">Novo Webhook</span>
+                  <span className="sm:hidden">Novo</span>
                 </button>
                 <button
                   onClick={onClose}
-                  className="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600"
+                  className="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 touch-manipulation"
                 >
                   <XCircleIcon className="h-5 w-5" />
                 </button>
@@ -1034,22 +1046,22 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
             onClick={(e) => e.stopPropagation()}
             style={{
               borderRadius: '12px',
-              margin: '16px',
-              height: 'calc(100vh - 32px)',
+              margin: window.innerWidth <= 768 ? '8px' : '16px',
+              height: window.innerWidth <= 768 ? 'calc(100vh - 16px)' : 'calc(100vh - 32px)',
             }}
           >
               {/* Header */}
               <div className="bg-white border-b px-4 py-3">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2">
-                    <div className="p-2 bg-blue-500 rounded">
+                  <div className="flex items-center space-x-2 min-w-0 flex-1">
+                    <div className="p-2 bg-blue-500 rounded flex-shrink-0">
                       {editingWebhook ? (
                         <PencilIcon className="h-4 w-4 text-white" />
                       ) : (
                         <PlusIcon className="h-4 w-4 text-white" />
                       )}
                     </div>
-                    <h3 className="text-lg font-semibold text-gray-900">
+                    <h3 className="text-base sm:text-lg font-semibold text-gray-900 truncate">
                       {editingWebhook ? 'Editar Webhook' : 'Novo Webhook'}
                     </h3>
                   </div>
@@ -1059,7 +1071,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                       setEditingWebhook(null);
                       resetForm();
                     }}
-                    className="p-2 bg-red-500 text-white rounded hover:bg-red-600"
+                    className="p-2 bg-red-500 text-white rounded hover:bg-red-600 flex-shrink-0 touch-manipulation"
                   >
                     <XCircleIcon className="h-4 w-4" />
                   </button>
@@ -1076,7 +1088,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                       Configuração Básica
                     </h4>
                     
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                           Nome (opcional)
@@ -1243,15 +1255,19 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                     <div className="space-y-4">
                       <div className="flex items-center space-x-2">
                         <Squares2X2Icon className="h-4 w-4 text-blue-600" />
-                        <h4 className="text-lg font-semibold text-gray-900">
-                          Campos do Webhook v2 - Drag & Drop
+                        <h4 className="text-base sm:text-lg font-semibold text-gray-900">
+                          Campos v2 - 
+                          <span className="hidden sm:inline">Drag & Drop</span>
+                          <span className="sm:hidden">Toque & Arraste</span>
                         </h4>
                       </div>
                       
                       <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
                         <p className="text-sm text-blue-700">
-                          <strong>Como usar:</strong> Arraste campos da área "Disponíveis" para "Selecionados" para customizar o payload do webhook.
-                          Deixe vazio para enviar payload completo.
+                          <strong>Como usar:</strong> 
+                          <span className="hidden sm:inline">Arraste campos da área "Disponíveis" para "Selecionados"</span>
+                          <span className="sm:hidden">Toque e arraste campos entre as áreas</span>
+                          {' '}para customizar o payload do webhook. Deixe vazio para enviar payload completo.
                         </p>
                       </div>
 
@@ -1261,17 +1277,22 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                         onDragStart={handleDragStart}
                         onDragEnd={handleDragEnd}
                       >
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
                           {/* Available Fields */}
                           <div>
-                            <div className="flex items-center space-x-2 mb-3">
-                              <h5 className="text-md font-medium text-gray-900">
-                                Campos Disponíveis
-                              </h5>
-                              <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
-                                {availableFields.filter(f => !webhookForm.selectedFields.includes(f.id) && 
-                                  !(webhookForm.ignoreGroups && f.isGroupField)).length}
-                              </span>
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="flex items-center space-x-2">
+                                <h5 className="text-sm sm:text-md font-medium text-gray-900">
+                                  Disponíveis
+                                </h5>
+                                <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
+                                  {availableFields.filter(f => !webhookForm.selectedFields.includes(f.id) && 
+                                    !(webhookForm.ignoreGroups && f.isGroupField)).length}
+                                </span>
+                              </div>
+                              <div className="text-xs text-gray-500 hidden sm:block">
+                                👆 Toque e arraste
+                              </div>
                             </div>
                             
                             <DroppableZone 
@@ -1293,7 +1314,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
 
                                   return (
                                     <div key={categoryId} className="space-y-1">
-                                      <h6 className="text-xs font-medium text-gray-600 px-2 py-1 bg-gray-100 rounded">
+                                      <h6 className="text-xs font-medium text-gray-600 px-2 py-1 bg-gray-100 rounded sticky top-0 z-10">
                                         {category.name}
                                       </h6>
                                       <div className="space-y-1">
@@ -1314,13 +1335,18 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
 
                           {/* Selected Fields */}
                           <div>
-                            <div className="flex items-center space-x-2 mb-3">
-                              <h5 className="text-md font-medium text-gray-900">
-                                Campos Selecionados
-                              </h5>
-                              <span className="px-2 py-1 bg-blue-100 text-blue-600 text-xs rounded">
-                                {webhookForm.selectedFields.length}
-                              </span>
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="flex items-center space-x-2">
+                                <h5 className="text-sm sm:text-md font-medium text-gray-900">
+                                  Selecionados
+                                </h5>
+                                <span className="px-2 py-1 bg-blue-100 text-blue-600 text-xs rounded">
+                                  {webhookForm.selectedFields.length}
+                                </span>
+                              </div>
+                              <div className="text-xs text-gray-500 hidden sm:block">
+                                🔄 Reordene aqui
+                              </div>
                             </div>
                             
                             <DroppableZone 
@@ -1379,7 +1405,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
 
               {/* Footer */}
               <div className="bg-white border-t px-4 py-3">
-                <div className="flex gap-3">
+                <div className="flex flex-col sm:flex-row gap-3">
                   <button
                     onClick={() => {
                       if (editingWebhook) {
@@ -1389,7 +1415,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                       }
                     }}
                     disabled={!webhookForm.url}
-                    className="flex-1 py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium"
+                    className="flex-1 py-3 sm:py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium touch-manipulation"
                   >
                     {editingWebhook ? 'Atualizar' : 'Criar'}
                   </button>
@@ -1399,7 +1425,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                       setEditingWebhook(null);
                       resetForm();
                     }}
-                    className="flex-1 py-2 px-4 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium"
+                    className="flex-1 py-3 sm:py-2 px-4 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium touch-manipulation"
                   >
                     Cancelar
                   </button>
