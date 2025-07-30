@@ -46,6 +46,126 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { useDroppable } from '@dnd-kit/core';
 
+// Hook personalizado para detectar dispositivo móvel
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(false);
+  
+  useEffect(() => {
+    const checkMobile = () => {
+      const userAgent = navigator.userAgent;
+      const isMobileUA = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(userAgent);
+      const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      const isSmallScreen = window.innerWidth < 768;
+      
+      setIsMobile(isMobileUA || (isTouchDevice && isSmallScreen));
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+  
+  return isMobile;
+}
+
+// Componente de seleção de campos para mobile (sem drag and drop)
+function MobileFieldSelector({ availableFields, selectedFields, onFieldToggle, fieldCategories, ignoreGroups }) {
+  return (
+    <div className="space-y-4">
+      <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+        <p className="text-sm text-blue-700">
+          <strong>Seleção de Campos:</strong> Toque nos campos para adicionar/remover do payload do webhook.
+          <br />Deixe vazio para enviar payload completo.
+        </p>
+      </div>
+
+      {Object.entries(fieldCategories).map(([categoryId, category]) => {
+        const categoryFields = availableFields.filter(
+          field => 
+            field.category === categoryId && 
+            !(ignoreGroups && field.isGroupField)
+        );
+
+        if (categoryFields.length === 0) return null;
+
+        return (
+          <div key={categoryId} className="space-y-2">
+            <h6 className="text-sm font-medium text-gray-700 px-3 py-2 bg-gray-100 rounded-lg">
+              {category.name}
+            </h6>
+            <div className="space-y-2">
+              {categoryFields.map((field) => {
+                const isSelected = selectedFields.includes(field.id);
+                return (
+                  <div
+                    key={field.id}
+                    className={`
+                      p-4 rounded-lg border cursor-pointer transition-all touch-manipulation
+                      ${isSelected 
+                        ? 'bg-blue-50 border-blue-300 ring-2 ring-blue-200' 
+                        : 'bg-white border-gray-200 hover:border-gray-300'
+                      }
+                    `}
+                    onClick={() => onFieldToggle(field.id)}
+                  >
+                    <div className="flex items-center space-x-3">
+                      <div className={`w-3 h-3 rounded-full flex-shrink-0 ${
+                        isSelected ? 'bg-blue-500' : 'bg-gray-300'
+                      }`} />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center space-x-2">
+                          <span className="text-sm font-medium text-gray-900">
+                            {field.name}
+                          </span>
+                          {field.isGroupField && (
+                            <span className="px-2 py-1 bg-orange-100 text-orange-700 text-xs rounded">
+                              grupo
+                            </span>
+                          )}
+                          {isSelected && (
+                            <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded">
+                              selecionado
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-600 mt-1">
+                          {field.description}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })}
+
+      {selectedFields.length > 0 && (
+        <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+          <h6 className="text-sm font-medium text-green-800 mb-2">
+            Campos Selecionados ({selectedFields.length})
+          </h6>
+          <div className="flex flex-wrap gap-2">
+            {selectedFields.map(fieldId => {
+              const field = availableFields.find(f => f.id === fieldId);
+              return field ? (
+                <span 
+                  key={fieldId}
+                  className="px-2 py-1 bg-green-100 text-green-700 text-xs rounded-md"
+                >
+                  {field.name}
+                </span>
+              ) : null;
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Draggable Field Component
 function DraggableField({ field, isInSelected = false, isDragOverlay = false }) {
   const {
@@ -140,6 +260,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingWebhook, setEditingWebhook] = useState(null);
   const [activeId, setActiveId] = useState(null);
+  const isMobile = useIsMobile();
   
   // Available events configuration
   const availableEvents = [
@@ -334,22 +455,34 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
     group: { name: 'Grupo', color: 'orange' },
   };
 
+  // Configurar sensores apenas para desktop (não mobile)
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
         distance: 8,
       },
     }),
-    useSensor(TouchSensor, {
+    // TouchSensor desabilitado em mobile para evitar conflitos
+    ...(isMobile ? [] : [useSensor(TouchSensor, {
       activationConstraint: {
         delay: 250,
         tolerance: 8,
       },
-    }),
+    })]),
     useSensor(KeyboardSensor, {
       coordinateGetter: sortableKeyboardCoordinates,
     })
   );
+
+  // Função para alternar seleção de campos em mobile
+  const handleFieldToggle = (fieldId) => {
+    setWebhookForm(prev => ({
+      ...prev,
+      selectedFields: prev.selectedFields.includes(fieldId)
+        ? prev.selectedFields.filter(id => id !== fieldId)
+        : [...prev.selectedFields, fieldId]
+    }));
+  };
 
   useEffect(() => {
     const initializeWebhookManager = async () => {
@@ -812,36 +945,42 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
         <div
           className="relative h-full bg-gradient-to-br from-white via-white to-gray-50/80 backdrop-blur-xl border border-gray-200/50 overflow-y-auto shadow-2xl"
           style={{
-            borderRadius: window.innerWidth < 640 ? '12px' : '24px',
-            margin: window.innerWidth < 640 ? '8px' : '16px',
-            height: window.innerWidth < 640 ? 'calc(100vh - 16px)' : 'calc(100vh - 32px)',
+            borderRadius: isMobile ? '16px' : '24px',
+            margin: isMobile ? '4px' : '16px',
+            height: isMobile ? 'calc(100vh - 8px)' : 'calc(100vh - 32px)',
           }}
         >
           {/* Header */}
-          <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-3 sm:py-4">
+          <div className={`bg-white border-b border-gray-200 ${isMobile ? 'px-4 py-4' : 'px-6 py-4'}`}>
             <div className="flex items-center justify-between">
-              <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
-                <div className="p-1.5 sm:p-2 bg-blue-500 rounded-lg flex-shrink-0">
-                  <LinkIcon className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+              <div className="flex items-center space-x-3 min-w-0 flex-1">
+                <div className={`${isMobile ? 'p-2' : 'p-2'} bg-blue-500 rounded-lg flex-shrink-0`}>
+                  <LinkIcon className={`${isMobile ? 'h-5 w-5' : 'h-6 w-6'} text-white`} />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <h2 className="text-lg sm:text-xl font-bold text-gray-900 truncate">Webhook Manager</h2>
-                  <p className="text-xs sm:text-sm text-gray-600 truncate">Sessão: {sessionId}</p>
+                  <h2 className={`${isMobile ? 'text-lg' : 'text-xl'} font-bold text-gray-900 truncate`}>
+                    Webhook Manager
+                  </h2>
+                  <p className={`${isMobile ? 'text-xs' : 'text-sm'} text-gray-600 truncate`}>
+                    Sessão: {sessionId}
+                  </p>
                 </div>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
                 <button
                   onClick={() => setShowCreateModal(true)}
                   disabled={webhooks.length >= 3}
-                  className="flex items-center px-3 py-2 sm:px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-sm sm:text-base touch-manipulation"
+                  className={`flex items-center ${isMobile ? 'px-3 py-3 text-sm' : 'px-4 py-2 text-base'} bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed touch-manipulation transition-colors`}
                 >
                   <PlusIcon className="h-4 w-4 mr-1" />
-                  <span className="hidden sm:inline">Novo Webhook</span>
-                  <span className="sm:hidden">Novo</span>
+                  <span className={isMobile ? 'text-xs' : 'hidden sm:inline'}>
+                    {isMobile ? 'Novo' : 'Novo Webhook'}
+                  </span>
+                  {!isMobile && <span className="sm:hidden">Novo</span>}
                 </button>
                 <button
                   onClick={onClose}
-                  className="p-2 bg-red-500 text-white rounded-lg hover:bg-red-600 touch-manipulation"
+                  className={`${isMobile ? 'p-3' : 'p-2'} bg-red-500 text-white rounded-lg hover:bg-red-600 touch-manipulation transition-colors`}
                 >
                   <XCircleIcon className="h-5 w-5" />
                 </button>
@@ -850,7 +989,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
           </div>
 
           {/* Content */}
-          <div className="p-3 sm:p-4">
+          <div className={isMobile ? 'p-4' : 'p-6'}>
             {/* Webhooks List */}
             <div className="space-y-4">
               {webhooks.length === 0 ? (
@@ -876,9 +1015,9 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                 webhooks.map((webhook) => (
                   <div
                     key={webhook.id}
-                    className="bg-white border border-gray-200 rounded-lg p-3 sm:p-4"
+                    className={`bg-white border border-gray-200 rounded-lg ${isMobile ? 'p-4' : 'p-4'} transition-shadow hover:shadow-md`}
                   >
-                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between space-y-3 sm:space-y-0">
+                    <div className={`flex ${isMobile ? 'flex-col space-y-4' : 'flex-col sm:flex-row sm:items-start sm:justify-between space-y-3 sm:space-y-0'}`}>
                       <div className="flex-1 min-w-0">
                         <div className="flex flex-wrap items-center gap-2 mb-3">
                           <h3 className="text-base sm:text-lg font-semibold text-gray-900 truncate">
@@ -965,23 +1104,23 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                         </div>
                       </div>
 
-                      <div className="flex items-center justify-end gap-1 sm:gap-1 sm:ml-4 flex-shrink-0">
+                      <div className={`flex items-center ${isMobile ? 'justify-start gap-3' : 'justify-end gap-1 sm:gap-1 sm:ml-4'} flex-shrink-0`}>
                         <button
                           onClick={() => testWebhook(webhook.id)}
                           disabled={testingWebhook === webhook.id}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded disabled:opacity-50 touch-manipulation"
+                          className={`${isMobile ? 'p-3 min-w-[44px] min-h-[44px]' : 'p-2'} text-blue-600 hover:bg-blue-50 rounded disabled:opacity-50 touch-manipulation transition-colors`}
                           title="Testar webhook"
                         >
                           {testingWebhook === webhook.id ? (
-                            <ArrowPathIcon className="h-4 w-4 animate-spin" />
+                            <ArrowPathIcon className={`${isMobile ? 'h-5 w-5' : 'h-4 w-4'} animate-spin`} />
                           ) : (
-                            <BoltIcon className="h-4 w-4" />
+                            <BoltIcon className={`${isMobile ? 'h-5 w-5' : 'h-4 w-4'}`} />
                           )}
                         </button>
 
                         <button
                           onClick={() => toggleWebhook(webhook.id)}
-                          className={`p-2 rounded touch-manipulation ${
+                          className={`${isMobile ? 'p-3 min-w-[44px] min-h-[44px]' : 'p-2'} rounded touch-manipulation transition-colors ${
                             webhook.active
                               ? 'text-yellow-600 hover:bg-yellow-50'
                               : 'text-green-600 hover:bg-green-50'
@@ -989,26 +1128,26 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                           title={webhook.active ? 'Desativar' : 'Ativar'}
                         >
                           {webhook.active ? (
-                            <PauseIcon className="h-4 w-4" />
+                            <PauseIcon className={`${isMobile ? 'h-5 w-5' : 'h-4 w-4'}`} />
                           ) : (
-                            <PlayIcon className="h-4 w-4" />
+                            <PlayIcon className={`${isMobile ? 'h-5 w-5' : 'h-4 w-4'}`} />
                           )}
                         </button>
 
                         <button
                           onClick={() => startEdit(webhook)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded touch-manipulation"
+                          className={`${isMobile ? 'p-3 min-w-[44px] min-h-[44px]' : 'p-2'} text-blue-600 hover:bg-blue-50 rounded touch-manipulation transition-colors`}
                           title="Editar"
                         >
-                          <PencilIcon className="h-4 w-4" />
+                          <PencilIcon className={`${isMobile ? 'h-5 w-5' : 'h-4 w-4'}`} />
                         </button>
 
                         <button
                           onClick={() => deleteWebhook(webhook.id)}
-                          className="p-2 text-red-600 hover:bg-red-50 rounded touch-manipulation"
+                          className={`${isMobile ? 'p-3 min-w-[44px] min-h-[44px]' : 'p-2'} text-red-600 hover:bg-red-50 rounded touch-manipulation transition-colors`}
                           title="Remover"
                         >
-                          <TrashIcon className="h-4 w-4" />
+                          <TrashIcon className={`${isMobile ? 'h-5 w-5' : 'h-4 w-4'}`} />
                         </button>
                       </div>
                     </div>
@@ -1251,131 +1390,143 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                     </div>
                   </div>
 
-                  {/* Drag and Drop Field Selection for v2 */}
+                  {/* Field Selection for v2 - Responsive */}
                   {webhookForm.version === 'v2' && (
                     <div className="space-y-3 sm:space-y-4">
                       <div className="flex items-center space-x-2">
                         <Squares2X2Icon className="h-4 w-4 text-blue-600" />
                         <h4 className="text-base sm:text-lg font-semibold text-gray-900">
-                          Campos do Webhook v2 - Drag & Drop
+                          Campos do Webhook v2 {isMobile ? '' : '- Drag & Drop'}
                         </h4>
                       </div>
-                      
-                      <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
-                        <p className="text-sm text-blue-700">
-                          <strong>Como usar:</strong> 
-                          <span className="hidden sm:inline"> Arraste campos da área "Disponíveis" para "Selecionados" para customizar o payload do webhook.</span>
-                          <span className="sm:hidden"> Toque e arraste campos para customizar o payload.</span>
-                          <br />Deixe vazio para enviar payload completo.
-                        </p>
-                      </div>
 
-                      <DndContext
-                        sensors={sensors}
-                        collisionDetection={closestCenter}
-                        onDragStart={handleDragStart}
-                        onDragEnd={handleDragEnd}
-                      >
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                          {/* Available Fields */}
-                          <div>
-                            <div className="flex items-center space-x-2 mb-3">
-                              <h5 className="text-sm sm:text-base font-medium text-gray-900">
-                                Campos Disponíveis
-                              </h5>
-                              <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
-                                {availableFields.filter(f => !webhookForm.selectedFields.includes(f.id) && 
-                                  !(webhookForm.ignoreGroups && f.isGroupField)).length}
-                              </span>
-                            </div>
-                            
-                            <DroppableZone 
-                              id="available-drop-zone"
-                              title=""
-                              description=""
-                              isEmpty={false}
-                            >
-                              <div className="space-y-2">
-                                {Object.entries(fieldCategories).map(([categoryId, category]) => {
-                                  const categoryFields = availableFields.filter(
-                                    field => 
-                                      field.category === categoryId && 
-                                      !webhookForm.selectedFields.includes(field.id) &&
-                                      !(webhookForm.ignoreGroups && field.isGroupField)
-                                  );
-
-                                  if (categoryFields.length === 0) return null;
-
-                                  return (
-                                    <div key={categoryId} className="space-y-1">
-                                      <h6 className="text-xs font-medium text-gray-600 px-2 py-1 bg-gray-100 rounded">
-                                        {category.name}
-                                      </h6>
-                                      <div className="space-y-1">
-                                        {categoryFields.map((field) => (
-                                          <DraggableField
-                                            key={field.id}
-                                            field={field}
-                                            isInSelected={false}
-                                          />
-                                        ))}
-                                      </div>
-                                    </div>
-                                  );
-                                })}
-                              </div>
-                            </DroppableZone>
+                      {/* Interface Mobile - Sem Drag and Drop */}
+                      {isMobile ? (
+                        <MobileFieldSelector
+                          availableFields={availableFields}
+                          selectedFields={webhookForm.selectedFields}
+                          onFieldToggle={handleFieldToggle}
+                          fieldCategories={fieldCategories}
+                          ignoreGroups={webhookForm.ignoreGroups}
+                        />
+                      ) : (
+                        /* Interface Desktop - Com Drag and Drop */
+                        <>
+                          <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                            <p className="text-sm text-blue-700">
+                              <strong>Como usar:</strong> Arraste campos da área "Disponíveis" para "Selecionados" para customizar o payload do webhook.
+                              <br />Deixe vazio para enviar payload completo.
+                            </p>
                           </div>
 
-                          {/* Selected Fields */}
-                          <div>
-                            <div className="flex items-center space-x-2 mb-3">
-                              <h5 className="text-sm sm:text-base font-medium text-gray-900">
-                                Campos Selecionados
-                              </h5>
-                              <span className="px-2 py-1 bg-blue-100 text-blue-600 text-xs rounded">
-                                {webhookForm.selectedFields.length}
-                              </span>
-                            </div>
-                            
-                            <DroppableZone 
-                              id="selected-drop-zone"
-                              title=""
-                              description=""
-                              isEmpty={webhookForm.selectedFields.length === 0}
-                            >
-                              <SortableContext
-                                items={webhookForm.selectedFields}
-                                strategy={verticalListSortingStrategy}
-                              >
-                                {webhookForm.selectedFields.length === 0 ? null : (
+                          <DndContext
+                            sensors={sensors}
+                            collisionDetection={closestCenter}
+                            onDragStart={handleDragStart}
+                            onDragEnd={handleDragEnd}
+                          >
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                              {/* Available Fields */}
+                              <div>
+                                <div className="flex items-center space-x-2 mb-3">
+                                  <h5 className="text-base font-medium text-gray-900">
+                                    Campos Disponíveis
+                                  </h5>
+                                  <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
+                                    {availableFields.filter(f => !webhookForm.selectedFields.includes(f.id) && 
+                                      !(webhookForm.ignoreGroups && f.isGroupField)).length}
+                                  </span>
+                                </div>
+                                
+                                <DroppableZone 
+                                  id="available-drop-zone"
+                                  title=""
+                                  description=""
+                                  isEmpty={false}
+                                >
                                   <div className="space-y-2">
-                                    {webhookForm.selectedFields.map((fieldId) => {
-                                      const field = availableFields.find(f => f.id === fieldId);
-                                      return field ? (
-                                        <DraggableField
-                                          key={field.id}
-                                          field={field}
-                                          isInSelected={true}
-                                        />
-                                      ) : null;
+                                    {Object.entries(fieldCategories).map(([categoryId, category]) => {
+                                      const categoryFields = availableFields.filter(
+                                        field => 
+                                          field.category === categoryId && 
+                                          !webhookForm.selectedFields.includes(field.id) &&
+                                          !(webhookForm.ignoreGroups && field.isGroupField)
+                                      );
+
+                                      if (categoryFields.length === 0) return null;
+
+                                      return (
+                                        <div key={categoryId} className="space-y-1">
+                                          <h6 className="text-xs font-medium text-gray-600 px-2 py-1 bg-gray-100 rounded">
+                                            {category.name}
+                                          </h6>
+                                          <div className="space-y-1">
+                                            {categoryFields.map((field) => (
+                                              <DraggableField
+                                                key={field.id}
+                                                field={field}
+                                                isInSelected={false}
+                                              />
+                                            ))}
+                                          </div>
+                                        </div>
+                                      );
                                     })}
                                   </div>
-                                )}
-                              </SortableContext>
-                            </DroppableZone>
-                          </div>
-                        </div>
+                                </DroppableZone>
+                              </div>
 
-                        <DragOverlay>
-                          {activeId ? (
-                            <DraggableField
-                              field={availableFields.find(f => f.id === activeId)}
-                              isDragOverlay={true}
-                            />
-                          ) : null}
-                        </DragOverlay>
-                      </DndContext>
+                              {/* Selected Fields */}
+                              <div>
+                                <div className="flex items-center space-x-2 mb-3">
+                                  <h5 className="text-base font-medium text-gray-900">
+                                    Campos Selecionados
+                                  </h5>
+                                  <span className="px-2 py-1 bg-blue-100 text-blue-600 text-xs rounded">
+                                    {webhookForm.selectedFields.length}
+                                  </span>
+                                </div>
+                                
+                                <DroppableZone 
+                                  id="selected-drop-zone"
+                                  title=""
+                                  description=""
+                                  isEmpty={webhookForm.selectedFields.length === 0}
+                                >
+                                  <SortableContext
+                                    items={webhookForm.selectedFields}
+                                    strategy={verticalListSortingStrategy}
+                                  >
+                                    {webhookForm.selectedFields.length === 0 ? null : (
+                                      <div className="space-y-2">
+                                        {webhookForm.selectedFields.map((fieldId) => {
+                                          const field = availableFields.find(f => f.id === fieldId);
+                                          return field ? (
+                                            <DraggableField
+                                              key={field.id}
+                                              field={field}
+                                              isInSelected={true}
+                                            />
+                                          ) : null;
+                                        })}
+                                      </div>
+                                    )}
+                                  </SortableContext>
+                                </DroppableZone>
+                              </div>
+                            </div>
+
+                            <DragOverlay>
+                              {activeId ? (
+                                <DraggableField
+                                  field={availableFields.find(f => f.id === activeId)}
+                                  isDragOverlay={true}
+                                />
+                              ) : null}
+                            </DragOverlay>
+                          </DndContext>
+                        </>
+                      )}
 
                       <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
                         <div className="flex items-center space-x-2">
@@ -1393,8 +1544,8 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
               </div>
 
               {/* Footer */}
-              <div className="bg-white border-t px-3 sm:px-4 py-3">
-                <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+              <div className={`bg-white border-t ${isMobile ? 'px-4 py-4' : 'px-4 py-3'}`}>
+                <div className={`flex ${isMobile ? 'flex-col gap-3' : 'flex-col sm:flex-row gap-2 sm:gap-3'}`}>
                   <button
                     onClick={() => {
                       if (editingWebhook) {
@@ -1404,7 +1555,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                       }
                     }}
                     disabled={!webhookForm.url}
-                    className="flex-1 py-3 sm:py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium text-base sm:text-sm touch-manipulation"
+                    className={`flex-1 ${isMobile ? 'py-4 px-4 text-base min-h-[52px]' : 'py-3 sm:py-2 px-4 text-base sm:text-sm'} bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium touch-manipulation transition-colors`}
                   >
                     {editingWebhook ? 'Atualizar' : 'Criar'}
                   </button>
@@ -1414,7 +1565,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                       setEditingWebhook(null);
                       resetForm();
                     }}
-                    className="flex-1 py-3 sm:py-2 px-4 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium text-base sm:text-sm touch-manipulation"
+                    className={`flex-1 ${isMobile ? 'py-4 px-4 text-base min-h-[52px]' : 'py-3 sm:py-2 px-4 text-base sm:text-sm'} bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium touch-manipulation transition-colors`}
                   >
                     Cancelar
                   </button>
