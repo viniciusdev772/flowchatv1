@@ -1718,7 +1718,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
 
                   {/* Field Mapping Section for v2 */}
                   {webhookForm.version === 'v2' && showFieldMapping && (
-                <div className="space-y-4">
+                    <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
                       <CodeBracketIcon className="h-4 w-4 text-purple-600" />
@@ -1793,7 +1793,9 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                         ))}
                       </div>
                     )}
+                    </div>
                   </div>
+                  )}
                 </div>
               </div>
 
