@@ -513,7 +513,7 @@ export default function Login() {
           />
         </div>
 
-        <div className="relative z-10 w-full max-w-xs xs:max-w-sm sm:max-w-md mx-auto lg:mx-0">
+        <div className="relative z-10 w-full max-w-sm sm:max-w-md md:max-w-lg mx-auto lg:mx-0">
           {/* Header */}
           <div className="mb-6 sm:mb-8">
             <motion.div
@@ -522,8 +522,8 @@ export default function Login() {
               animate={{ scale: 1 }}
               transition={{ duration: 0.5, delay: 0.3 }}
             >
-              <div className="w-12 h-12 sm:w-16 sm:h-16 mx-auto bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
-                <ChatBubbleLeftRightIcon className="w-6 h-6 sm:w-8 sm:h-8 text-white" />
+              <div className="w-16 h-16 sm:w-20 sm:h-20 mx-auto bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
+                <ChatBubbleLeftRightIcon className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
               </div>
             </motion.div>
             
@@ -535,10 +535,10 @@ export default function Login() {
                 exit={{ opacity: 0, y: -10 }}
                 transition={{ duration: 0.3 }}
               >
-                <h2 className="text-xl xs:text-2xl sm:text-3xl lg:text-3xl xl:text-4xl font-bold text-white lg:text-gray-900 mb-2 sm:mb-3">
+                <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-3xl xl:text-4xl font-bold text-white lg:text-gray-900 mb-3 sm:mb-4">
                   {isLogin ? 'Entrar' : 'Criar Conta'}
                 </h2>
-                <p className="text-sm xs:text-base sm:text-lg lg:text-base xl:text-lg text-white/80 lg:text-gray-600">
+                <p className="text-base sm:text-lg md:text-xl lg:text-base xl:text-lg text-white/80 lg:text-gray-600">
                   {isLogin 
                     ? 'Acesse sua conta e gerencie seus fluxos de mensagens' 
                     : 'Crie sua conta e automatize seu fluxo de comunicação'
@@ -548,7 +548,7 @@ export default function Login() {
             </AnimatePresence>
           </div>
         
-          <form className="space-y-4 sm:space-y-5" onSubmit={handleSubmit(onSubmit)}>
+          <form className="space-y-5 sm:space-y-6" onSubmit={handleSubmit(onSubmit)}>
             {/* API Error Message */}
             <AnimatePresence>
               {apiError && (
@@ -915,7 +915,7 @@ export default function Login() {
               whileTap={{ scale: 0.98 }}
               type="submit"
               disabled={isSubmitting || csrfLoading || !csrfToken}
-              className="relative w-full py-3 sm:py-4 px-4 sm:px-6 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-xl sm:rounded-2xl shadow-2xl hover:shadow-blue-500/25 focus:outline-none focus:ring-4 focus:ring-blue-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 text-sm sm:text-base lg:text-lg overflow-hidden group"
+              className="relative w-full py-4 sm:py-5 px-6 sm:px-8 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-xl sm:rounded-2xl shadow-2xl hover:shadow-blue-500/25 focus:outline-none focus:ring-4 focus:ring-blue-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 text-base sm:text-lg lg:text-xl overflow-hidden group min-h-[52px] touch-manipulation"
             >
               {/* Enhanced shimmer effect */}
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
@@ -1031,10 +1031,10 @@ export default function Login() {
                 </div>
               </div>
 
-              <div className="mt-4 sm:mt-6 grid grid-cols-2 gap-3 sm:gap-4">
+              <div className="mt-6 sm:mt-8 grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
                 <motion.button
                   type="button"
-                  className="flex items-center justify-center py-2.5 sm:py-3 px-3 sm:px-4 border-2 border-white/30 lg:border-gray-200 rounded-xl sm:rounded-2xl bg-white/10 lg:bg-white text-white lg:text-gray-700 font-medium hover:bg-white/20 lg:hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-xs sm:text-sm"
+                  className="flex items-center justify-center py-4 sm:py-4 px-4 sm:px-6 border-2 border-white/30 lg:border-gray-200 rounded-xl sm:rounded-2xl bg-white/10 lg:bg-white text-white lg:text-gray-700 font-medium hover:bg-white/20 lg:hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-sm sm:text-base min-h-[48px] touch-manipulation"
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                 >
@@ -1049,7 +1049,7 @@ export default function Login() {
 
                 <motion.button
                   type="button"
-                  className="flex items-center justify-center py-2.5 sm:py-3 px-3 sm:px-4 border-2 border-white/30 lg:border-gray-200 rounded-xl sm:rounded-2xl bg-white/10 lg:bg-white text-white lg:text-gray-700 font-medium hover:bg-white/20 lg:hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-xs sm:text-sm"
+                  className="flex items-center justify-center py-4 sm:py-4 px-4 sm:px-6 border-2 border-white/30 lg:border-gray-200 rounded-xl sm:rounded-2xl bg-white/10 lg:bg-white text-white lg:text-gray-700 font-medium hover:bg-white/20 lg:hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200 text-sm sm:text-base min-h-[48px] touch-manipulation"
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                 >

@@ -1715,11 +1715,9 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                       </div>
                     </div>
                   )}
-                </div>
-              </div>
 
-              {/* Field Mapping Section for v2 */}
-              {webhookForm.version === 'v2' && showFieldMapping && (
+                  {/* Field Mapping Section for v2 */}
+                  {webhookForm.version === 'v2' && showFieldMapping && (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
@@ -1797,7 +1795,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                     )}
                   </div>
                 </div>
-              )}
+              </div>
 
               {/* Footer */}
               <div className="bg-white border-t px-4 py-3">
