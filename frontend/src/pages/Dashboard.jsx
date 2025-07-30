@@ -1472,7 +1472,7 @@ export default function Dashboard() {
       <div className="flex flex-col lg:flex-row">
         {/* Sidebar Navigation - Desktop */}
         <motion.nav
-          className="hidden lg:block lg:w-64 bg-card border rounded-lg mx-2 md:mx-4 mb-4 p-3 md:p-4"
+          className="hidden lg:block lg:w-64 bg-card border rounded-lg mx-2 md:mx-4 mb-4 p-3 md:p-4 overflow-hidden"
           initial={{ opacity: 0, x: -10 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.2 }}
@@ -1519,7 +1519,7 @@ export default function Dashboard() {
                 <motion.button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 ${
+                  className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 touch-manipulation ${
                     activeTab === tab.id
                       ? 'bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-foreground border border-blue-500/30'
                       : 'text-muted-foreground hover:text-foreground hover:bg-white/5'

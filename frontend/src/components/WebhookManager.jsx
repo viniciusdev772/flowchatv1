@@ -19,6 +19,9 @@ import {
   CodeBracketIcon,
   DocumentTextIcon,
   SparklesIcon,
+  ChevronUpIcon,
+  ChevronDownIcon,
+  MinusIcon,
 } from '@heroicons/react/24/outline';
 import { useEffect, useState } from 'react';
 import { Button } from './ui/button';
@@ -106,6 +109,180 @@ function DraggableField({ field, isInSelected = false, isDragOverlay = false }) 
   );
 }
 
+// Mobile Field Selector Component
+function MobileFieldSelector({ 
+  availableFields, 
+  selectedFields, 
+  onFieldToggle, 
+  onFieldReorder, 
+  ignoreGroups,
+  fieldCategories 
+}) {
+  const moveField = (fieldId, direction) => {
+    const currentIndex = selectedFields.indexOf(fieldId);
+    if (currentIndex === -1) return;
+    
+    const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+    if (newIndex < 0 || newIndex >= selectedFields.length) return;
+    
+    onFieldReorder(fieldId, newIndex);
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Available Fields */}
+      <div>
+        <h5 className="text-md font-medium text-gray-900 mb-3">
+          Campos Disponíveis
+          <span className="ml-2 px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
+            {availableFields.filter(f => !selectedFields.includes(f.id) && 
+              !(ignoreGroups && f.isGroupField)).length}
+          </span>
+        </h5>
+        
+        <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 max-h-64 overflow-y-auto">
+          {Object.entries(fieldCategories).map(([categoryId, category]) => {
+            const categoryFields = availableFields.filter(
+              field => 
+                field.category === categoryId && 
+                !selectedFields.includes(field.id) &&
+                !(ignoreGroups && field.isGroupField)
+            );
+
+            if (categoryFields.length === 0) return null;
+
+            return (
+              <div key={categoryId} className="mb-4 last:mb-0">
+                <h6 className="text-xs font-medium text-gray-600 px-2 py-1 bg-white rounded mb-2">
+                  {category.name}
+                </h6>
+                <div className="space-y-2">
+                  {categoryFields.map((field) => (
+                    <div
+                      key={field.id}
+                      className="flex items-center justify-between p-2 bg-white border border-gray-200 rounded-lg"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center space-x-2">
+                          <span className="text-sm font-medium text-gray-900 truncate">
+                            {field.name}
+                          </span>
+                          {field.isGroupField && (
+                            <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 text-xs rounded flex-shrink-0">
+                              grupo
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs text-gray-600 truncate">
+                          {field.description}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => onFieldToggle(field.id, true)}
+                        className="ml-2 p-1.5 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors flex-shrink-0"
+                        title="Adicionar campo"
+                      >
+                        <PlusIcon className="h-4 w-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+          
+          {availableFields.filter(f => !selectedFields.includes(f.id) && 
+            !(ignoreGroups && f.isGroupField)).length === 0 && (
+            <div className="text-center py-8 text-gray-500">
+              <p className="text-sm">Todos os campos foram selecionados</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Selected Fields */}
+      <div>
+        <h5 className="text-md font-medium text-gray-900 mb-3">
+          Campos Selecionados
+          <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-600 text-xs rounded">
+            {selectedFields.length}
+          </span>
+        </h5>
+        
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 min-h-32">
+          {selectedFields.length === 0 ? (
+            <div className="text-center py-8 text-blue-500">
+              <p className="text-sm">Nenhum campo selecionado</p>
+              <p className="text-xs mt-1">Toque no + para adicionar campos</p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {selectedFields.map((fieldId, index) => {
+                const field = availableFields.find(f => f.id === fieldId);
+                if (!field) return null;
+
+                return (
+                  <div
+                    key={field.id}
+                    className="flex items-center justify-between p-2 bg-white border border-blue-300 rounded-lg"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center space-x-2">
+                        <span className="text-sm font-medium text-gray-900 truncate">
+                          {field.name}
+                        </span>
+                        {field.isGroupField && (
+                          <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 text-xs rounded flex-shrink-0">
+                            grupo
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-600 truncate">
+                        {field.description}
+                      </p>
+                    </div>
+                    
+                    <div className="flex items-center space-x-1 ml-2 flex-shrink-0">
+                      {/* Move Up */}
+                      <button
+                        onClick={() => moveField(field.id, 'up')}
+                        disabled={index === 0}
+                        className="p-1.5 bg-gray-100 text-gray-600 rounded-md hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        title="Mover para cima"
+                      >
+                        <ChevronUpIcon className="h-4 w-4" />
+                      </button>
+                      
+                      {/* Move Down */}
+                      <button
+                        onClick={() => moveField(field.id, 'down')}
+                        disabled={index === selectedFields.length - 1}
+                        className="p-1.5 bg-gray-100 text-gray-600 rounded-md hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                        title="Mover para baixo"
+                      >
+                        <ChevronDownIcon className="h-4 w-4" />
+                      </button>
+                      
+                      {/* Remove */}
+                      <button
+                        onClick={() => onFieldToggle(field.id, false)}
+                        className="p-1.5 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors"
+                        title="Remover campo"
+                      >
+                        <MinusIcon className="h-4 w-4" />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // Droppable Zone Component
 function DroppableZone({ children, title, description, isEmpty = false, id }) {
   const { isOver, setNodeRef } = useDroppable({
@@ -136,12 +313,35 @@ function DroppableZone({ children, title, description, isEmpty = false, id }) {
   );
 }
 
+// Hook para detectar dispositivo mobile
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const checkIsMobile = () => {
+      const userAgent = navigator.userAgent.toLowerCase();
+      const isMobileUA = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/.test(userAgent);
+      const isSmallScreen = window.innerWidth <= 768;
+      const hasTouchScreen = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+      
+      setIsMobile(isMobileUA || (isSmallScreen && hasTouchScreen));
+    };
+
+    checkIsMobile();
+    window.addEventListener('resize', checkIsMobile);
+    return () => window.removeEventListener('resize', checkIsMobile);
+  }, []);
+
+  return isMobile;
+}
+
 export default function WebhookManager({ sessionId, tokenId, onClose }) {
   const [webhooks, setWebhooks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingWebhook, setEditingWebhook] = useState(null);
   const [activeId, setActiveId] = useState(null);
+  const isMobile = useIsMobile();
   
   // Available events configuration
   const availableEvents = [
@@ -761,6 +961,44 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
     });
   };
 
+  // Mobile field management functions
+  const handleMobileFieldToggle = (fieldId, add) => {
+    setWebhookForm((prev) => {
+      if (add) {
+        // Add field if not already selected
+        if (!prev.selectedFields.includes(fieldId)) {
+          return {
+            ...prev,
+            selectedFields: [...prev.selectedFields, fieldId],
+          };
+        }
+      } else {
+        // Remove field
+        return {
+          ...prev,
+          selectedFields: prev.selectedFields.filter(id => id !== fieldId),
+        };
+      }
+      return prev;
+    });
+  };
+
+  const handleMobileFieldReorder = (fieldId, newIndex) => {
+    setWebhookForm((prev) => {
+      const currentIndex = prev.selectedFields.indexOf(fieldId);
+      if (currentIndex === -1) return prev;
+
+      const newSelectedFields = [...prev.selectedFields];
+      const [movedField] = newSelectedFields.splice(currentIndex, 1);
+      newSelectedFields.splice(newIndex, 0, movedField);
+
+      return {
+        ...prev,
+        selectedFields: newSelectedFields,
+      };
+    });
+  };
+
   if (tokenLoading || loading) {
     return (
       <div className="fixed inset-0 bg-black/20 backdrop-blur-sm flex items-center justify-center z-50">
@@ -1250,143 +1488,158 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                     </div>
                   </div>
 
-                  {/* Drag and Drop Field Selection for v2 */}
+                  {/* Field Selection for v2 */}
                   {webhookForm.version === 'v2' && (
                     <div className="space-y-4">
                       <div className="flex items-center space-x-2">
                         <Squares2X2Icon className="h-4 w-4 text-blue-600" />
                         <h4 className="text-base sm:text-lg font-semibold text-gray-900">
-                          Campos v2 - 
-                          <span className="hidden sm:inline">Drag & Drop</span>
-                          <span className="sm:hidden">Toque & Arraste</span>
+                          Campos do Webhook v2 - 
+                          {isMobile ? 'Toque & Botões' : 'Drag & Drop'}
                         </h4>
                       </div>
                       
                       <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
                         <p className="text-sm text-blue-700">
-                          <strong>Como usar:</strong> 
-                          <span className="hidden sm:inline">Arraste campos da área "Disponíveis" para "Selecionados"</span>
-                          <span className="sm:hidden">Toque e arraste campos entre as áreas</span>
-                          {' '}para customizar o payload do webhook. Deixe vazio para enviar payload completo.
+                          <strong>Como usar:</strong> {' '}
+                          {isMobile ? (
+                            'Toque nos botões + para adicionar campos e use as setas para reordenar.'
+                          ) : (
+                            'Arraste campos da área "Disponíveis" para "Selecionados"'
+                          )}
+                          {' '}Deixe vazio para enviar payload completo.
                         </p>
                       </div>
 
-                      <DndContext
-                        sensors={sensors}
-                        collisionDetection={closestCenter}
-                        onDragStart={handleDragStart}
-                        onDragEnd={handleDragEnd}
-                      >
-                        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-                          {/* Available Fields */}
-                          <div>
-                            <div className="flex items-center justify-between mb-3">
-                              <div className="flex items-center space-x-2">
-                                <h5 className="text-sm sm:text-md font-medium text-gray-900">
-                                  Disponíveis
-                                </h5>
-                                <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
-                                  {availableFields.filter(f => !webhookForm.selectedFields.includes(f.id) && 
-                                    !(webhookForm.ignoreGroups && f.isGroupField)).length}
-                                </span>
+                      {isMobile ? (
+                        /* Mobile Interface */
+                        <MobileFieldSelector
+                          availableFields={availableFields}
+                          selectedFields={webhookForm.selectedFields}
+                          onFieldToggle={handleMobileFieldToggle}
+                          onFieldReorder={handleMobileFieldReorder}
+                          ignoreGroups={webhookForm.ignoreGroups}
+                          fieldCategories={fieldCategories}
+                        />
+                      ) : (
+                        /* Desktop Drag & Drop Interface */
+                        <DndContext
+                          sensors={sensors}
+                          collisionDetection={closestCenter}
+                          onDragStart={handleDragStart}
+                          onDragEnd={handleDragEnd}
+                        >
+                          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                            {/* Available Fields */}
+                            <div>
+                              <div className="flex items-center justify-between mb-3">
+                                <div className="flex items-center space-x-2">
+                                  <h5 className="text-sm sm:text-md font-medium text-gray-900">
+                                    Disponíveis
+                                  </h5>
+                                  <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
+                                    {availableFields.filter(f => !webhookForm.selectedFields.includes(f.id) && 
+                                      !(webhookForm.ignoreGroups && f.isGroupField)).length}
+                                  </span>
+                                </div>
+                                <div className="text-xs text-gray-500 hidden sm:block">
+                                  🖱️ Arraste campos
+                                </div>
                               </div>
-                              <div className="text-xs text-gray-500 hidden sm:block">
-                                👆 Toque e arraste
-                              </div>
+                              
+                              <DroppableZone 
+                                id="available-drop-zone"
+                                title=""
+                                description=""
+                                isEmpty={false}
+                              >
+                                <div className="space-y-2">
+                                  {Object.entries(fieldCategories).map(([categoryId, category]) => {
+                                    const categoryFields = availableFields.filter(
+                                      field => 
+                                        field.category === categoryId && 
+                                        !webhookForm.selectedFields.includes(field.id) &&
+                                        !(webhookForm.ignoreGroups && field.isGroupField)
+                                    );
+
+                                    if (categoryFields.length === 0) return null;
+
+                                    return (
+                                      <div key={categoryId} className="space-y-1">
+                                        <h6 className="text-xs font-medium text-gray-600 px-2 py-1 bg-gray-100 rounded sticky top-0 z-10">
+                                          {category.name}
+                                        </h6>
+                                        <div className="space-y-1">
+                                          {categoryFields.map((field) => (
+                                            <DraggableField
+                                              key={field.id}
+                                              field={field}
+                                              isInSelected={false}
+                                            />
+                                          ))}
+                                        </div>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </DroppableZone>
                             </div>
-                            
-                            <DroppableZone 
-                              id="available-drop-zone"
-                              title=""
-                              description=""
-                              isEmpty={false}
-                            >
-                              <div className="space-y-2">
-                                {Object.entries(fieldCategories).map(([categoryId, category]) => {
-                                  const categoryFields = availableFields.filter(
-                                    field => 
-                                      field.category === categoryId && 
-                                      !webhookForm.selectedFields.includes(field.id) &&
-                                      !(webhookForm.ignoreGroups && field.isGroupField)
-                                  );
 
-                                  if (categoryFields.length === 0) return null;
-
-                                  return (
-                                    <div key={categoryId} className="space-y-1">
-                                      <h6 className="text-xs font-medium text-gray-600 px-2 py-1 bg-gray-100 rounded sticky top-0 z-10">
-                                        {category.name}
-                                      </h6>
-                                      <div className="space-y-1">
-                                        {categoryFields.map((field) => (
+                            {/* Selected Fields */}
+                            <div>
+                              <div className="flex items-center justify-between mb-3">
+                                <div className="flex items-center space-x-2">
+                                  <h5 className="text-sm sm:text-md font-medium text-gray-900">
+                                    Selecionados
+                                  </h5>
+                                  <span className="px-2 py-1 bg-blue-100 text-blue-600 text-xs rounded">
+                                    {webhookForm.selectedFields.length}
+                                  </span>
+                                </div>
+                                <div className="text-xs text-gray-500 hidden sm:block">
+                                  🔄 Reordene aqui
+                                </div>
+                              </div>
+                              
+                              <DroppableZone 
+                                id="selected-drop-zone"
+                                title=""
+                                description=""
+                                isEmpty={webhookForm.selectedFields.length === 0}
+                              >
+                                <SortableContext
+                                  items={webhookForm.selectedFields}
+                                  strategy={verticalListSortingStrategy}
+                                >
+                                  {webhookForm.selectedFields.length === 0 ? null : (
+                                    <div className="space-y-2">
+                                      {webhookForm.selectedFields.map((fieldId) => {
+                                        const field = availableFields.find(f => f.id === fieldId);
+                                        return field ? (
                                           <DraggableField
                                             key={field.id}
                                             field={field}
-                                            isInSelected={false}
+                                            isInSelected={true}
                                           />
-                                        ))}
-                                      </div>
+                                        ) : null;
+                                      })}
                                     </div>
-                                  );
-                                })}
-                              </div>
-                            </DroppableZone>
-                          </div>
-
-                          {/* Selected Fields */}
-                          <div>
-                            <div className="flex items-center justify-between mb-3">
-                              <div className="flex items-center space-x-2">
-                                <h5 className="text-sm sm:text-md font-medium text-gray-900">
-                                  Selecionados
-                                </h5>
-                                <span className="px-2 py-1 bg-blue-100 text-blue-600 text-xs rounded">
-                                  {webhookForm.selectedFields.length}
-                                </span>
-                              </div>
-                              <div className="text-xs text-gray-500 hidden sm:block">
-                                🔄 Reordene aqui
-                              </div>
+                                  )}
+                                </SortableContext>
+                              </DroppableZone>
                             </div>
-                            
-                            <DroppableZone 
-                              id="selected-drop-zone"
-                              title=""
-                              description=""
-                              isEmpty={webhookForm.selectedFields.length === 0}
-                            >
-                              <SortableContext
-                                items={webhookForm.selectedFields}
-                                strategy={verticalListSortingStrategy}
-                              >
-                                {webhookForm.selectedFields.length === 0 ? null : (
-                                  <div className="space-y-2">
-                                    {webhookForm.selectedFields.map((fieldId) => {
-                                      const field = availableFields.find(f => f.id === fieldId);
-                                      return field ? (
-                                        <DraggableField
-                                          key={field.id}
-                                          field={field}
-                                          isInSelected={true}
-                                        />
-                                      ) : null;
-                                    })}
-                                  </div>
-                                )}
-                              </SortableContext>
-                            </DroppableZone>
                           </div>
-                        </div>
 
-                        <DragOverlay>
-                          {activeId ? (
-                            <DraggableField
-                              field={availableFields.find(f => f.id === activeId)}
-                              isDragOverlay={true}
-                            />
-                          ) : null}
-                        </DragOverlay>
-                      </DndContext>
+                          <DragOverlay>
+                            {activeId ? (
+                              <DraggableField
+                                field={availableFields.find(f => f.id === activeId)}
+                                isDragOverlay={true}
+                              />
+                            ) : null}
+                          </DragOverlay>
+                        </DndContext>
+                      )}
 
                       <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
                         <div className="flex items-center space-x-2">
