@@ -1584,7 +1584,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                                 description=""
                                 isEmpty={false}
                               >
-                                <div className="space-y-2">
+                                <div className="space-y-2 max-h-96 overflow-y-auto">
                                   {Object.entries(fieldCategories).map(([categoryId, category]) => {
                                     const categoryFields = availableFields.filter(
                                       field => 
@@ -1638,25 +1638,27 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                                 description=""
                                 isEmpty={webhookForm.selectedFields.length === 0}
                               >
-                                <SortableContext
-                                  items={webhookForm.selectedFields}
-                                  strategy={verticalListSortingStrategy}
-                                >
-                                  {webhookForm.selectedFields.length === 0 ? null : (
-                                    <div className="space-y-2">
-                                      {webhookForm.selectedFields.map((fieldId) => {
-                                        const field = availableFields.find(f => f.id === fieldId);
-                                        return field ? (
-                                          <DraggableField
-                                            key={field.id}
-                                            field={field}
-                                            isInSelected={true}
-                                          />
-                                        ) : null;
-                                      })}
-                                    </div>
-                                  )}
-                                </SortableContext>
+                                <div className="max-h-96 overflow-y-auto">
+                                  <SortableContext
+                                    items={webhookForm.selectedFields}
+                                    strategy={verticalListSortingStrategy}
+                                  >
+                                    {webhookForm.selectedFields.length === 0 ? null : (
+                                      <div className="space-y-2">
+                                        {webhookForm.selectedFields.map((fieldId) => {
+                                          const field = availableFields.find(f => f.id === fieldId);
+                                          return field ? (
+                                            <DraggableField
+                                              key={field.id}
+                                              field={field}
+                                              isInSelected={true}
+                                            />
+                                          ) : null;
+                                        })}
+                                      </div>
+                                    )}
+                                  </SortableContext>
+                                </div>
                               </DroppableZone>
                             </div>
                           </div>
