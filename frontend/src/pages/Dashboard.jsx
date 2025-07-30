@@ -1366,9 +1366,14 @@ export default function Dashboard() {
             <div className="flex items-center space-x-3 md:space-x-4">
               {/* Mobile Menu Button */}
               <button
-                onClick={() => setIsMobileDrawerOpen(true)}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsMobileDrawerOpen(true);
+                }}
                 className="lg:hidden p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors touch-manipulation"
                 aria-label="Abrir menu"
+                type="button"
               >
                 <Bars3Icon className="w-6 h-6 text-foreground" />
               </button>
@@ -1495,16 +1500,25 @@ export default function Dashboard() {
             <>
               {/* Backdrop */}
               <motion.div
-                className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+                className="fixed inset-0 bg-black/50 z-[9998] lg:hidden"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
-                onClick={() => setIsMobileDrawerOpen(false)}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsMobileDrawerOpen(false);
+                }}
+                onTouchEnd={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setIsMobileDrawerOpen(false);
+                }}
               />
               
               {/* Drawer */}
               <motion.div
-                className="fixed left-0 top-0 bottom-0 w-80 bg-card border-r z-50 lg:hidden overflow-y-auto"
+                className="fixed left-0 top-0 bottom-0 w-80 bg-card border-r z-[9999] lg:hidden overflow-y-auto"
                 initial={{ x: -320 }}
                 animate={{ x: 0 }}
                 exit={{ x: -320 }}
@@ -1523,9 +1537,14 @@ export default function Dashboard() {
                       </div>
                     </div>
                     <button
-                      onClick={() => setIsMobileDrawerOpen(false)}
-                      className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        setIsMobileDrawerOpen(false);
+                      }}
+                      className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors touch-manipulation"
                       aria-label="Fechar menu"
+                      type="button"
                     >
                       <XCircleIcon className="w-5 h-5 text-foreground" />
                     </button>
@@ -1538,7 +1557,9 @@ export default function Dashboard() {
                       return (
                         <motion.button
                           key={tab.id}
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
                             setActiveTab(tab.id);
                             setIsMobileDrawerOpen(false);
                           }}
@@ -1548,6 +1569,7 @@ export default function Dashboard() {
                               : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
                           }`}
                           whileTap={{ scale: 0.98 }}
+                          type="button"
                         >
                           <Icon className="w-5 h-5" />
                           <span className="font-medium">{tab.name}</span>
