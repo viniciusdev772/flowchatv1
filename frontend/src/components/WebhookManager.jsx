@@ -1685,13 +1685,33 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                           <button
                             type="button"
                             onClick={() => setShowFieldMapping(!showFieldMapping)}
-                            className="flex items-center space-x-1 text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded hover:bg-purple-200 transition-colors touch-manipulation"
+                            className={`flex items-center space-x-1 text-xs px-3 py-2 rounded-lg transition-all touch-manipulation ${
+                              showFieldMapping
+                                ? 'bg-purple-500 text-white shadow-md'
+                                : 'bg-gradient-to-r from-purple-100 to-pink-100 text-purple-700 hover:from-purple-200 hover:to-pink-200 border border-purple-200'
+                            }`}
                           >
-                            <CodeBracketIcon className="h-3 w-3" />
-                            <span className="hidden sm:inline">Personalizar Nomes</span>
-                            <span className="sm:hidden">Nomes</span>
+                            <CodeBracketIcon className="h-4 w-4" />
+                            <span className="hidden sm:inline font-medium">
+                              {showFieldMapping ? 'Fechar Personalização' : 'Personalizar Nomes'}
+                            </span>
+                            <span className="sm:hidden font-medium">
+                              {showFieldMapping ? 'Fechar' : 'Nomes'}
+                            </span>
+                            <SparklesIcon className="h-3 w-3 animate-pulse" />
                           </button>
                         </div>
+                        
+                        {/* Feature highlight when not shown */}
+                        {!showFieldMapping && (
+                          <div className="mt-2 flex items-center space-x-2 text-xs">
+                            <SparklesIcon className="h-3 w-3 text-purple-500 animate-pulse" />
+                            <span className="text-purple-600 font-medium">NOVO:</span>
+                            <span className="text-purple-700">
+                              Personalize os nomes dos campos no webhook
+                            </span>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
