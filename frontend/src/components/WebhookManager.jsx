@@ -402,6 +402,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
     ignoreGroups: false,
     version: 'v1',
     selectedFields: [],
+    fieldMapping: {}, // Custom field name mappings
   });
   
   const [testingWebhook, setTestingWebhook] = useState(null);
@@ -811,6 +812,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
       ignoreGroups: false,
       version: 'v1',
       selectedFields: [],
+      fieldMapping: {},
     });
   };
 
@@ -831,6 +833,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
       ignoreGroups: webhook.ignoreGroups || false,
       version: webhook.version || 'v1',
       selectedFields: webhook.selectedFields || [],
+      fieldMapping: webhook.fieldMapping || {},
     });
   };
 
@@ -997,6 +1000,31 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
         selectedFields: newSelectedFields,
       };
     });
+  };
+
+  // Field mapping management functions
+  const handleFieldMappingChange = (originalField, customName) => {
+    setWebhookForm((prev) => {
+      const newFieldMapping = { ...prev.fieldMapping };
+      
+      if (customName && customName.trim() !== '') {
+        newFieldMapping[originalField] = customName.trim();
+      } else {
+        delete newFieldMapping[originalField];
+      }
+
+      return {
+        ...prev,
+        fieldMapping: newFieldMapping,
+      };
+    });
+  };
+
+  const resetFieldMapping = () => {
+    setWebhookForm((prev) => ({
+      ...prev,
+      fieldMapping: {},
+    }));
   };
 
   if (tokenLoading || loading) {
@@ -1655,6 +1683,87 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                   )}
                 </div>
               </div>
+
+              {/* Field Mapping Section for v2 */}
+              {webhookForm.version === 'v2' && (
+                <div className=\"space-y-4\">
+                  <div className=\"flex items-center justify-between\">
+                    <div className=\"flex items-center space-x-2\">
+                      <CodeBracketIcon className=\"h-4 w-4 text-purple-600\" />
+                      <h4 className=\"text-base sm:text-lg font-semibold text-gray-900\">
+                        Personalizar Nomes dos Campos
+                      </h4>
+                    </div>
+                    <button
+                      type=\"button\"
+                      onClick={resetFieldMapping}
+                      className=\"text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded hover:bg-gray-200 transition-colors touch-manipulation\"
+                    >
+                      Resetar
+                    </button>
+                  </div>
+
+                  <div className=\"bg-purple-50 p-3 rounded-lg border border-purple-200\">
+                    <p className=\"text-sm text-purple-700\">
+                      <strong>Personalize os nomes:</strong> Altere como os campos aparecem no webhook.
+                      Exemplo: \"remoteJid\" → \"numeroRemetente\" ou \"pushName\" → \"nomeContato\".
+                    </p>
+                  </div>
+
+                  <div className=\"space-y-3 max-h-64 overflow-y-auto\">
+                    {availableFields
+                      .filter(field => 
+                        webhookForm.selectedFields.length === 0 || 
+                        webhookForm.selectedFields.includes(field.id)
+                      )
+                      .map((field) => (
+                      <div key={field.id} className=\"flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-3 p-3 bg-gray-50 rounded-lg\">
+                        <div className=\"flex-1 min-w-0\">
+                          <div className=\"flex items-center space-x-2 flex-wrap\">
+                            <span className=\"text-sm font-medium text-gray-900\">{field.name}</span>
+                            {field.isGroupField && (
+                              <span className=\"px-1.5 py-0.5 bg-orange-100 text-orange-700 text-xs rounded flex-shrink-0\">
+                                grupo
+                              </span>
+                            )}
+                          </div>
+                          <p className=\"text-xs text-gray-600 mt-1\">{field.description}</p>
+                          <p className=\"text-xs text-purple-600 font-mono mt-1\">Campo: {field.id}</p>
+                        </div>
+                        <div className=\"flex-shrink-0 w-full sm:w-48\">
+                          <input
+                            type=\"text\"
+                            placeholder={`Personalizar \"${field.id}\"`}
+                            value={webhookForm.fieldMapping[field.id] || ''}
+                            onChange={(e) => handleFieldMappingChange(field.id, e.target.value)}
+                            className=\"w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-purple-500 focus:border-purple-500\"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className=\"bg-green-50 p-3 rounded-lg border border-green-200\">
+                    <div className=\"flex items-center space-x-2 mb-2\">
+                      <span className=\"text-sm font-medium text-green-700\">Mapeamentos ativos:</span>
+                      <span className=\"text-sm text-green-600\">
+                        {Object.keys(webhookForm.fieldMapping).length} campo(s) personalizados
+                      </span>
+                    </div>
+                    {Object.keys(webhookForm.fieldMapping).length > 0 && (
+                      <div className=\"space-y-1\">
+                        {Object.entries(webhookForm.fieldMapping).map(([original, custom]) => (
+                          <div key={original} className=\"flex items-center justify-between text-xs bg-white p-2 rounded\">
+                            <span className=\"font-mono text-gray-600\">{original}</span>
+                            <span className=\"mx-2 text-gray-400\">→</span>
+                            <span className=\"font-mono text-green-700 font-semibold\">{custom}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Footer */}
               <div className="bg-white border-t px-4 py-3">

@@ -1095,6 +1095,43 @@ function getMessageType(message) {
   return 'unknown';
 }
 
+// Function to apply field mapping to webhook payload
+function applyFieldMapping(data, fieldMapping) {
+  if (!fieldMapping || Object.keys(fieldMapping).length === 0) {
+    return data;
+  }
+
+  // If data is an array, apply mapping to each item
+  if (Array.isArray(data)) {
+    return data.map(item => applyFieldMapping(item, fieldMapping));
+  }
+
+  // If data is an object, apply field mapping
+  if (typeof data === 'object' && data !== null) {
+    const mappedData = {};
+    
+    Object.keys(data).forEach(originalKey => {
+      // Check if this field has a custom mapping
+      const customKey = fieldMapping[originalKey] || originalKey;
+      
+      // Apply mapping recursively for nested objects
+      if (typeof data[originalKey] === 'object' && data[originalKey] !== null && !Array.isArray(data[originalKey])) {
+        mappedData[customKey] = applyFieldMapping(data[originalKey], fieldMapping);
+      } else if (Array.isArray(data[originalKey])) {
+        mappedData[customKey] = data[originalKey].map(item => 
+          typeof item === 'object' ? applyFieldMapping(item, fieldMapping) : item
+        );
+      } else {
+        mappedData[customKey] = data[originalKey];
+      }
+    });
+    
+    return mappedData;
+  }
+
+  return data;
+}
+
 // Função para carregar sessões existentes na inicialização
 async function loadExistingSessions() {
   try {
@@ -2195,6 +2232,11 @@ async function sendWebhookV2Direct(
         // Create custom payload based on selected fields for webhook v2
         let finalPayload = payload;
 
+        // Apply field mapping first if configured
+        if (webhook.fieldMapping && Object.keys(webhook.fieldMapping).length > 0) {
+          finalPayload = applyFieldMapping(finalPayload, webhook.fieldMapping);
+        }
+
         if (webhook.selectedFields && webhook.selectedFields.length > 0) {
           // Custom field selection - create simplified payload
           finalPayload = {
@@ -2298,6 +2340,9 @@ async function sendWebhookV2Direct(
             'X-Selected-Fields': webhook.selectedFields
               ? webhook.selectedFields.join(',')
               : 'all',
+            'X-Field-Mapping': webhook.fieldMapping
+              ? JSON.stringify(webhook.fieldMapping)
+              : 'none',
           },
           body: JSON.stringify(finalPayload),
           timeout: 15000,
@@ -6238,6 +6283,7 @@ app.post(
         ignoreGroups: ignoreGroups || false,
         version: version || 'v1', // Default to v1 for backward compatibility
         selectedFields: selectedFields || [], // Store selected fields for webhook v2
+        fieldMapping: req.body.fieldMapping || {}, // Custom field name mappings
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -6394,6 +6440,8 @@ app.put(
       if (version !== undefined) updateData.version = version;
       if (selectedFields !== undefined)
         updateData.selectedFields = selectedFields;
+      if (req.body.fieldMapping !== undefined)
+        updateData.fieldMapping = req.body.fieldMapping;
 
       // Search by both id field and _id field for compatibility
       const result = await webhooksCollection.updateOne(
