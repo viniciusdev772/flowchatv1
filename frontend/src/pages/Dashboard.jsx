@@ -1485,6 +1485,133 @@ export default function Dashboard() {
         </div>
       </motion.header>
 
+      {/* Mobile Drawer Navigation */}
+      <AnimatePresence>
+        {isMobileDrawerOpen && (
+          <>
+            {/* Backdrop */}
+            <motion.div
+              className="fixed inset-0 bg-black/50 z-[9998] lg:hidden"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsMobileDrawerOpen(false);
+              }}
+              onTouchEnd={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsMobileDrawerOpen(false);
+              }}
+            />
+            
+            {/* Drawer */}
+            <motion.div
+              className="fixed left-0 top-0 bottom-0 w-80 bg-card border-r z-[9999] lg:hidden overflow-y-auto"
+              initial={{ x: -320 }}
+              animate={{ x: 0 }}
+              exit={{ x: -320 }}
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+            >
+              <div className="p-4">
+                {/* Drawer Header */}
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
+                      <ChatBubbleLeftRightIcon className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-bold text-foreground">FlowChat API</h2>
+                      <p className="text-xs text-muted-foreground">Menu de Navegação</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setIsMobileDrawerOpen(false);
+                    }}
+                    className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors touch-manipulation"
+                    aria-label="Fechar menu"
+                    type="button"
+                  >
+                    <XCircleIcon className="w-5 h-5 text-foreground" />
+                  </button>
+                </div>
+
+                {/* Navigation Items */}
+                <div className="space-y-2 mb-6">
+                  {tabs.map((tab) => {
+                    const Icon = tab.icon;
+                    return (
+                      <motion.button
+                        key={tab.id}
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setActiveTab(tab.id);
+                          setIsMobileDrawerOpen(false);
+                        }}
+                        className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 touch-manipulation ${
+                          activeTab === tab.id
+                            ? 'bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-foreground border border-blue-500/30'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
+                        }`}
+                        whileTap={{ scale: 0.98 }}
+                        type="button"
+                      >
+                        <Icon className="w-5 h-5" />
+                        <span className="font-medium">{tab.name}</span>
+                        {tab.exclusive && (
+                          <span className="text-xs bg-gradient-to-r from-yellow-400 to-orange-400 text-black px-2 py-0.5 rounded-full font-bold ml-auto">
+                            EXCLUSIVO
+                          </span>
+                        )}
+                      </motion.button>
+                    );
+                  })}
+                </div>
+
+                {/* Quick Stats in Drawer */}
+                <div className="bg-card border rounded-lg p-4">
+                  <h3 className="text-sm font-semibold text-muted-foreground mb-3">
+                    Estatísticas Rápidas
+                  </h3>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-foreground/60">Sessões Ativas</span>
+                      <span className="text-sm font-medium text-green-400">
+                        {stats.activeSessions}/{stats.totalSessions}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-foreground/60">Mensagens</span>
+                      <span className="text-sm font-medium text-blue-400">
+                        {stats.totalMessages}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-foreground/60">Webhooks</span>
+                      <span className="text-sm font-medium text-purple-400">
+                        {stats.activeWebhooks}
+                      </span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-foreground/60">Uptime</span>
+                      <span className="text-sm font-medium text-orange-400">
+                        {stats.uptime}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
       <div className="flex flex-col lg:flex-row">
         {/* Sidebar Navigation - Desktop */}
         <motion.nav
@@ -1493,134 +1620,6 @@ export default function Dashboard() {
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: 0.2 }}
         >
-        
-        {/* Mobile Drawer Navigation */}
-        <AnimatePresence>
-          {isMobileDrawerOpen && (
-            <>
-              {/* Backdrop */}
-              <motion.div
-                className="fixed inset-0 bg-black/50 z-[9998] lg:hidden"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setIsMobileDrawerOpen(false);
-                }}
-                onTouchEnd={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  setIsMobileDrawerOpen(false);
-                }}
-              />
-              
-              {/* Drawer */}
-              <motion.div
-                className="fixed left-0 top-0 bottom-0 w-80 bg-card border-r z-[9999] lg:hidden overflow-y-auto"
-                initial={{ x: -320 }}
-                animate={{ x: 0 }}
-                exit={{ x: -320 }}
-                transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              >
-                <div className="p-4">
-                  {/* Drawer Header */}
-                  <div className="flex items-center justify-between mb-6">
-                    <div className="flex items-center space-x-3">
-                      <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
-                        <ChatBubbleLeftRightIcon className="w-5 h-5 text-white" />
-                      </div>
-                      <div>
-                        <h2 className="text-lg font-bold text-foreground">FlowChat API</h2>
-                        <p className="text-xs text-muted-foreground">Menu de Navegação</p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={(e) => {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        setIsMobileDrawerOpen(false);
-                      }}
-                      className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors touch-manipulation"
-                      aria-label="Fechar menu"
-                      type="button"
-                    >
-                      <XCircleIcon className="w-5 h-5 text-foreground" />
-                    </button>
-                  </div>
-
-                  {/* Navigation Items */}
-                  <div className="space-y-2 mb-6">
-                    {tabs.map((tab) => {
-                      const Icon = tab.icon;
-                      return (
-                        <motion.button
-                          key={tab.id}
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            setActiveTab(tab.id);
-                            setIsMobileDrawerOpen(false);
-                          }}
-                          className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 touch-manipulation ${
-                            activeTab === tab.id
-                              ? 'bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-foreground border border-blue-500/30'
-                              : 'text-muted-foreground hover:text-foreground hover:bg-white/5'
-                          }`}
-                          whileTap={{ scale: 0.98 }}
-                          type="button"
-                        >
-                          <Icon className="w-5 h-5" />
-                          <span className="font-medium">{tab.name}</span>
-                          {tab.exclusive && (
-                            <span className="text-xs bg-gradient-to-r from-yellow-400 to-orange-400 text-black px-2 py-0.5 rounded-full font-bold ml-auto">
-                              EXCLUSIVO
-                            </span>
-                          )}
-                        </motion.button>
-                      );
-                    })}
-                  </div>
-
-                  {/* Quick Stats in Drawer */}
-                  <div className="bg-card border rounded-lg p-4">
-                    <h3 className="text-sm font-semibold text-muted-foreground mb-3">
-                      Estatísticas Rápidas
-                    </h3>
-                    <div className="space-y-3">
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-foreground/60">Sessões Ativas</span>
-                        <span className="text-sm font-medium text-green-400">
-                          {stats.activeSessions}/{stats.totalSessions}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-foreground/60">Mensagens</span>
-                        <span className="text-sm font-medium text-blue-400">
-                          {stats.totalMessages}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-foreground/60">Webhooks</span>
-                        <span className="text-sm font-medium text-purple-400">
-                          {stats.activeWebhooks}
-                        </span>
-                      </div>
-                      <div className="flex justify-between items-center">
-                        <span className="text-sm text-foreground/60">Uptime</span>
-                        <span className="text-sm font-medium text-orange-400">
-                          {stats.uptime}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
-            </>
-          )}
-        </AnimatePresence>
-
           <div className="space-y-2">
             {tabs.map((tab) => {
               const Icon = tab.icon;
