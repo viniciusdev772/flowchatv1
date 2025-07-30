@@ -342,6 +342,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
   const [editingWebhook, setEditingWebhook] = useState(null);
   const [activeId, setActiveId] = useState(null);
   const isMobile = useIsMobile();
+  const [showFieldMapping, setShowFieldMapping] = useState(false);
   
   // Available events configuration
   const availableEvents = [
@@ -814,6 +815,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
       selectedFields: [],
       fieldMapping: {},
     });
+    setShowFieldMapping(false);
   };
 
   const startEdit = (webhook) => {
@@ -835,6 +837,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
       selectedFields: webhook.selectedFields || [],
       fieldMapping: webhook.fieldMapping || {},
     });
+    setShowFieldMapping(Object.keys(webhook.fieldMapping || {}).length > 0);
   };
 
   const getPriorityColor = (priority) => {
@@ -1670,13 +1673,24 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                       )}
 
                       <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
-                        <div className="flex items-center space-x-2">
-                          <span className="text-sm font-medium text-blue-700">Status:</span>
-                          <span className="text-sm text-blue-600">
-                            {webhookForm.selectedFields.length === 0
-                              ? 'Payload completo será enviado'
-                              : `${webhookForm.selectedFields.length} campo(s) selecionado(s)`}
-                          </span>
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            <span className="text-sm font-medium text-blue-700">Status:</span>
+                            <span className="text-sm text-blue-600">
+                              {webhookForm.selectedFields.length === 0
+                                ? 'Payload completo será enviado'
+                                : `${webhookForm.selectedFields.length} campo(s) selecionado(s)`}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => setShowFieldMapping(!showFieldMapping)}
+                            className="flex items-center space-x-1 text-xs px-2 py-1 bg-purple-100 text-purple-700 rounded hover:bg-purple-200 transition-colors touch-manipulation"
+                          >
+                            <CodeBracketIcon className="h-3 w-3" />
+                            <span className="hidden sm:inline">Personalizar Nomes</span>
+                            <span className="sm:hidden">Nomes</span>
+                          </button>
                         </div>
                       </div>
                     </div>
@@ -1685,7 +1699,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
               </div>
 
               {/* Field Mapping Section for v2 */}
-              {webhookForm.version === 'v2' && (
+              {webhookForm.version === 'v2' && showFieldMapping && (
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center space-x-2">
