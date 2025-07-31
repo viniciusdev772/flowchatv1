@@ -32,6 +32,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { useEffect, useState } from 'react';
 import WebhookManager from '../components/WebhookManager';
 import MediaManager from '../components/MediaManager';
+import AITaskManager from '../components/AITaskManager';
 import { getApiUrl, apiRequest } from '../utils/api';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
@@ -451,6 +452,7 @@ export default function Dashboard() {
   const tabs = [
     { id: 'overview', name: 'Visão Geral', icon: ChartBarIcon },
     { id: 'ai-agent', name: 'Agente de IA', icon: ServerIcon, exclusive: true },
+    { id: 'ai-tasks', name: 'Tarefas com IA', icon: SparklesIcon },
     { id: 'sessions', name: 'Sessões', icon: PhoneIcon },
     { id: 'tokens', name: 'Tokens API', icon: KeyIcon },
     { id: 'messages', name: 'Mensagens', icon: ChatBubbleLeftRightIcon },
@@ -1890,6 +1892,19 @@ export default function Dashboard() {
                     Criar Agente de IA
                   </button>
                 </div>
+              </motion.div>
+            )}
+
+            {activeTab === 'ai-tasks' && (
+              <motion.div
+                key="ai-tasks"
+                initial={{ opacity: 0, x: performanceMode ? 0 : 10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: performanceMode ? 0 : -10 }}
+                transition={{ duration: performanceMode ? 0.1 : 0.2 }}
+                className="h-full"
+              >
+                <AITaskManager />
               </motion.div>
             )}
 
