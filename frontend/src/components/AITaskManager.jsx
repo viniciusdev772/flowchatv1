@@ -149,6 +149,7 @@ const AITaskManager = ({ tokenId }) => {
 
   useEffect(() => {
     if (token) {
+      setLoading(true);
       loadTasks();
       loadSessions();
     } else if (!tokenLoading) {
@@ -165,6 +166,7 @@ const AITaskManager = ({ tokenId }) => {
     if (savedTasks) {
       setTasks(JSON.parse(savedTasks));
     }
+    setLoading(false);
   };
 
   const fetchToken = async () => {
@@ -235,11 +237,13 @@ const AITaskManager = ({ tokenId }) => {
         if (result.success && result.sessions) {
           setSessions(result.sessions);
           // Load groups for active sessions
-          loadGroupsForSessions(result.sessions.filter(s => s.status === 'connected'));
+          await loadGroupsForSessions(result.sessions.filter(s => s.status === 'connected'));
         }
       }
     } catch (error) {
       console.error('Erro ao carregar sessões:', error);
+    } finally {
+      setLoading(false);
     }
   };
 
