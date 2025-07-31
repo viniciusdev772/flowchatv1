@@ -230,7 +230,7 @@ const DateTimePicker = ({
         dateFormat={dateFormat}
         locale={ptBR}
         minDate={minDate}
-        customInput={<customInput />}
+        customInput={customInput}
         placeholderText={placeholderText}
         onCalendarOpen={() => setIsOpen(true)}
         onCalendarClose={() => setIsOpen(false)}
