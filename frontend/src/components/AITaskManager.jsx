@@ -49,7 +49,7 @@ const AITaskManager = ({ tokenId }) => {
   const [sortBy, setSortBy] = useState('created');
   const [sortOrder, setSortOrder] = useState('desc');
   const [editingTask, setEditingTask] = useState(null);
-  const [selectedTemplate, setSelectedTemplate] = useState('');
+  const [selectedTemplate, setSelectedTemplate] = useState('none');
   const [token, setToken] = useState('');
   const [tokenLoading, setTokenLoading] = useState(true);
   const [loading, setLoading] = useState(true);
@@ -65,7 +65,7 @@ const AITaskManager = ({ tokenId }) => {
     type: 'send_message',
     sessionId: '',
     targetType: 'group', // 'group' or 'contact'
-    targetId: '',
+    targetId: 'none',
     message: '',
     scheduleType: 'once', // 'once', 'daily', 'weekly', 'monthly'
     scheduledTime: '',
@@ -346,6 +346,15 @@ const AITaskManager = ({ tokenId }) => {
       return;
     }
 
+    if (!newTask.targetId || newTask.targetId === 'none') {
+      toast({
+        title: "Erro",
+        description: newTask.targetType === 'group' ? "Selecione um grupo" : "Informe o contato de destino",
+        variant: "destructive"
+      });
+      return;
+    }
+
     // Add FlowChat signature if enabled
     let finalMessage = newTask.message;
     if (newTask.addSignature) {
@@ -382,7 +391,7 @@ const AITaskManager = ({ tokenId }) => {
       type: 'send_message',
       sessionId: '',
       targetType: 'group',
-      targetId: '',
+      targetId: 'none',
       message: '',
       scheduleType: 'once',
       scheduledTime: '',
@@ -394,7 +403,7 @@ const AITaskManager = ({ tokenId }) => {
       repeatCount: 1,
       timezone: userTimezone
     });
-    setSelectedTemplate('');
+    setSelectedTemplate('none');
   };
 
   const calculateNextExecution = (task) => {
@@ -680,13 +689,13 @@ const AITaskManager = ({ tokenId }) => {
                           <Label>Template Pré-definido (Opcional)</Label>
                           <Select value={selectedTemplate} onValueChange={(value) => {
                             setSelectedTemplate(value);
-                            if (value) applyTemplate(value);
+                            if (value && value !== 'none') applyTemplate(value);
                           }}>
                             <SelectTrigger>
                               <SelectValue placeholder="Escolha um template ou crie do zero" />
                             </SelectTrigger>
                             <SelectContent>
-                              <SelectItem value="">Criar do zero</SelectItem>
+                              <SelectItem value="none">Criar do zero</SelectItem>
                               {taskTemplates.map(template => (
                                 <SelectItem key={template.id} value={template.id}>
                                   {template.name}
@@ -749,7 +758,7 @@ const AITaskManager = ({ tokenId }) => {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div className="space-y-2">
                             <Label>Tipo de Destino</Label>
-                            <Select value={newTask.targetType} onValueChange={(value) => setNewTask({...newTask, targetType: value, targetId: ''})}>
+                            <Select value={newTask.targetType} onValueChange={(value) => setNewTask({...newTask, targetType: value, targetId: 'none'})}>
                               <SelectTrigger>
                                 <SelectValue />
                               </SelectTrigger>
