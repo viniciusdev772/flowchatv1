@@ -959,6 +959,57 @@ async function deleteWebhookData(sessionId, userId = null) {
   }
 }
 
+// Function to check if webhook URL is already used by other sessions
+async function checkWebhookUrlDuplication(
+  url,
+  excludeSessionId = null,
+  excludeUserId = null
+) {
+  const db = database.getDb();
+  if (!db) return { isDuplicate: false, sessions: [] };
+
+  try {
+    const webhooksCollection = db.collection('webhooks');
+
+    // Build query to find webhooks with the same URL but different sessions
+    const query = { url: url };
+
+    // Exclude current session if provided
+    if (excludeSessionId) {
+      query.sessionId = { $ne: excludeSessionId };
+    }
+
+    const duplicateWebhooks = await webhooksCollection.find(query).toArray();
+
+    if (duplicateWebhooks.length === 0) {
+      return { isDuplicate: false, sessions: [] };
+    }
+
+    // Group by session and extract relevant info
+    const sessionInfo = duplicateWebhooks.reduce((acc, webhook) => {
+      if (!acc.find((s) => s.sessionId === webhook.sessionId)) {
+        acc.push({
+          sessionId: webhook.sessionId,
+          userId: webhook.userId,
+          webhookName: webhook.name,
+          createdAt: webhook.createdAt,
+        });
+      }
+      return acc;
+    }, []);
+
+    return {
+      isDuplicate: true,
+      sessions: sessionInfo,
+      count: duplicateWebhooks.length,
+      message: `Esta URL já está sendo usada por ${sessionInfo.length} sessão(ões). Isso pode causar eventos duplicados.`,
+    };
+  } catch (error) {
+    logger.warn(`Failed to check webhook URL duplication: ${error.message}`);
+    return { isDuplicate: false, sessions: [], error: error.message };
+  }
+}
+
 // Function to save message to MongoDB
 async function saveMessageToMongoDB(sessionId, messageId, messageData) {
   const db = database.getDb();
@@ -5942,6 +5993,13 @@ app.post(
         });
       }
 
+      // Verificar se a URL já está sendo usada por outras sessões
+      const duplicationCheck = await checkWebhookUrlDuplication(
+        webhookUrl,
+        sessionId,
+        userId
+      );
+
       const session = sessions.get(sessionId);
       if (!session) {
         return res.status(404).json({
@@ -5983,7 +6041,8 @@ app.post(
 
       await webhooksCollection.insertOne(newWebhook);
 
-      res.json({
+      // Preparar resposta com aviso de duplicação se necessário
+      const response = {
         success: true,
         message: 'Webhook configurado com sucesso',
         webhookUrl,
@@ -5993,7 +6052,24 @@ app.post(
           name: newWebhook.name,
           note: 'Endpoint legado - use /webhooks para gerenciamento completo',
         },
-      });
+      };
+
+      // Adicionar aviso se há duplicação de URL
+      if (duplicationCheck.isDuplicate) {
+        response.warning = {
+          type: 'duplicate_url',
+          message: duplicationCheck.message,
+          duplicatedSessions: duplicationCheck.sessions.map((session) => ({
+            sessionId: session.sessionId.substring(0, 8) + '...', // Mostrar apenas primeiros 8 caracteres por privacidade
+            webhookName: session.webhookName,
+            createdAt: session.createdAt,
+          })),
+          recommendation:
+            'Recomendamos usar URLs únicas para cada sessão para evitar eventos duplicados e facilitar o debugging.',
+        };
+      }
+
+      res.json(response);
     } catch (error) {
       logger.error(`Erro ao configurar webhook: ${error.message}`);
       res.status(500).json({
@@ -6259,6 +6335,13 @@ app.post(
         });
       }
 
+      // Verificar se a URL já está sendo usada por outras sessões
+      const duplicationCheck = await checkWebhookUrlDuplication(
+        url,
+        sessionId,
+        userId
+      );
+
       const db = database.getDb();
       if (!db) {
         return res.status(503).json({
@@ -6307,7 +6390,8 @@ app.post(
 
       await webhooksCollection.insertOne(newWebhook);
 
-      res.json({
+      // Preparar resposta com aviso de duplicação se necessário
+      const response = {
         success: true,
         message: 'Webhook adicionado com sucesso',
         webhook: {
@@ -6315,7 +6399,24 @@ app.post(
           id: newWebhook.id,
         },
         sessionId,
-      });
+      };
+
+      // Adicionar aviso se há duplicação de URL
+      if (duplicationCheck.isDuplicate) {
+        response.warning = {
+          type: 'duplicate_url',
+          message: duplicationCheck.message,
+          duplicatedSessions: duplicationCheck.sessions.map((session) => ({
+            sessionId: session.sessionId.substring(0, 8) + '...', // Mostrar apenas primeiros 8 caracteres por privacidade
+            webhookName: session.webhookName,
+            createdAt: session.createdAt,
+          })),
+          recommendation:
+            'Recomendamos usar URLs únicas para cada sessão para evitar eventos duplicados e facilitar o debugging.',
+        };
+      }
+
+      res.json(response);
     } catch (error) {
       logger.error(`Erro ao adicionar webhook: ${error.message}`);
       res.status(400).json({
