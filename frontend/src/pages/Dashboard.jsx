@@ -1904,7 +1904,9 @@ export default function Dashboard() {
                 transition={{ duration: performanceMode ? 0.1 : 0.2 }}
                 className="h-full"
               >
-                <AITaskManager />
+                <AITaskManager 
+                  tokenId={apiTokens.find(token => token.isActive && !token.isExpired)?._id || ''}
+                />
               </motion.div>
             )}
 
