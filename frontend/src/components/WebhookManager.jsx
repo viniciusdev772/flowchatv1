@@ -1,56 +1,52 @@
 import {
-  ArrowPathIcon,
-  BoltIcon,
-  ChatBubbleLeftRightIcon,
-  CogIcon,
-  ExclamationTriangleIcon,
-  LinkIcon,
-  NoSymbolIcon,
-  PauseIcon,
-  PencilIcon,
-  PlayIcon,
-  PlusIcon,
-  TrashIcon,
-  UserGroupIcon,
-  XCircleIcon,
-  Squares2X2Icon,
-  ClipboardDocumentListIcon,
-  EyeIcon,
-  CodeBracketIcon,
-  DocumentTextIcon,
-  SparklesIcon,
-  ChevronUpIcon,
-  ChevronDownIcon,
-  MinusIcon,
-} from '@heroicons/react/24/outline';
-import { useEffect, useState } from 'react';
-import { Button } from './ui/button';
-import {
-  DndContext,
   closestCenter,
+  DndContext,
+  DragOverlay,
   KeyboardSensor,
   PointerSensor,
   TouchSensor,
+  useDroppable,
   useSensor,
   useSensors,
-  DragOverlay,
 } from '@dnd-kit/core';
 import {
   arrayMove,
   SortableContext,
   sortableKeyboardCoordinates,
-  verticalListSortingStrategy,
-  rectSortingStrategy,
-} from '@dnd-kit/sortable';
-import {
   useSortable,
-  SortableContext as SortableContextProvider,
+  verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { useDroppable } from '@dnd-kit/core';
+import {
+  ArrowPathIcon,
+  BoltIcon,
+  ChatBubbleLeftRightIcon,
+  ChevronDownIcon,
+  ChevronUpIcon,
+  CodeBracketIcon,
+  CogIcon,
+  ExclamationTriangleIcon,
+  LinkIcon,
+  MinusIcon,
+  NoSymbolIcon,
+  PauseIcon,
+  PencilIcon,
+  PlayIcon,
+  PlusIcon,
+  SparklesIcon,
+  Squares2X2Icon,
+  TrashIcon,
+  UserGroupIcon,
+  XCircleIcon,
+} from '@heroicons/react/24/outline';
+import { useEffect, useState } from 'react';
 
 // Draggable Field Component
-function DraggableField({ field, isInSelected = false, isDragOverlay = false }) {
+function DraggableField({
+  field,
+  isInSelected = false,
+  isDragOverlay = false,
+}) {
   const {
     attributes,
     listeners,
@@ -83,12 +79,20 @@ function DraggableField({ field, isInSelected = false, isDragOverlay = false }) 
       className={`
         bg-white border rounded-lg p-3 cursor-grab select-none touch-manipulation
         ${isDragging ? 'opacity-50' : ''}
-        ${isInSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-300 hover:border-gray-400 active:border-gray-500'}
+        ${
+          isInSelected
+            ? 'border-blue-500 bg-blue-50'
+            : 'border-gray-300 hover:border-gray-400 active:border-gray-500'
+        }
         active:cursor-grabbing active:scale-[1.02] transition-transform
       `}
     >
       <div className="flex items-center space-x-2">
-        <div className={`w-3 h-3 rounded-full flex-shrink-0 ${isInSelected ? 'bg-blue-500' : 'bg-gray-400'}`} />
+        <div
+          className={`w-3 h-3 rounded-full flex-shrink-0 ${
+            isInSelected ? 'bg-blue-500' : 'bg-gray-400'
+          }`}
+        />
         <div className="flex-1 min-w-0">
           <div className="flex items-center space-x-1 flex-wrap">
             <span className="text-sm font-medium text-gray-900 min-w-0 break-words">
@@ -110,21 +114,21 @@ function DraggableField({ field, isInSelected = false, isDragOverlay = false }) 
 }
 
 // Mobile Field Selector Component
-function MobileFieldSelector({ 
-  availableFields, 
-  selectedFields, 
-  onFieldToggle, 
-  onFieldReorder, 
+function MobileFieldSelector({
+  availableFields,
+  selectedFields,
+  onFieldToggle,
+  onFieldReorder,
   ignoreGroups,
-  fieldCategories 
+  fieldCategories,
 }) {
   const moveField = (fieldId, direction) => {
     const currentIndex = selectedFields.indexOf(fieldId);
     if (currentIndex === -1) return;
-    
+
     const newIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
     if (newIndex < 0 || newIndex >= selectedFields.length) return;
-    
+
     onFieldReorder(fieldId, newIndex);
   };
 
@@ -135,16 +139,21 @@ function MobileFieldSelector({
         <h5 className="text-md font-medium text-gray-900 mb-3">
           Campos Disponíveis
           <span className="ml-2 px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
-            {availableFields.filter(f => !selectedFields.includes(f.id) && 
-              !(ignoreGroups && f.isGroupField)).length}
+            {
+              availableFields.filter(
+                (f) =>
+                  !selectedFields.includes(f.id) &&
+                  !(ignoreGroups && f.isGroupField)
+              ).length
+            }
           </span>
         </h5>
-        
+
         <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 max-h-64 overflow-y-auto">
           {Object.entries(fieldCategories).map(([categoryId, category]) => {
             const categoryFields = availableFields.filter(
-              field => 
-                field.category === categoryId && 
+              (field) =>
+                field.category === categoryId &&
                 !selectedFields.includes(field.id) &&
                 !(ignoreGroups && field.isGroupField)
             );
@@ -190,9 +199,12 @@ function MobileFieldSelector({
               </div>
             );
           })}
-          
-          {availableFields.filter(f => !selectedFields.includes(f.id) && 
-            !(ignoreGroups && f.isGroupField)).length === 0 && (
+
+          {availableFields.filter(
+            (f) =>
+              !selectedFields.includes(f.id) &&
+              !(ignoreGroups && f.isGroupField)
+          ).length === 0 && (
             <div className="text-center py-8 text-gray-500">
               <p className="text-sm">Todos os campos foram selecionados</p>
             </div>
@@ -208,7 +220,7 @@ function MobileFieldSelector({
             {selectedFields.length}
           </span>
         </h5>
-        
+
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 min-h-32">
           {selectedFields.length === 0 ? (
             <div className="text-center py-8 text-blue-500">
@@ -218,7 +230,7 @@ function MobileFieldSelector({
           ) : (
             <div className="space-y-2">
               {selectedFields.map((fieldId, index) => {
-                const field = availableFields.find(f => f.id === fieldId);
+                const field = availableFields.find((f) => f.id === fieldId);
                 if (!field) return null;
 
                 return (
@@ -241,7 +253,7 @@ function MobileFieldSelector({
                         {field.description}
                       </p>
                     </div>
-                    
+
                     <div className="flex items-center space-x-1 ml-2 flex-shrink-0">
                       {/* Move Up */}
                       <button
@@ -252,7 +264,7 @@ function MobileFieldSelector({
                       >
                         <ChevronUpIcon className="h-4 w-4" />
                       </button>
-                      
+
                       {/* Move Down */}
                       <button
                         onClick={() => moveField(field.id, 'down')}
@@ -262,7 +274,7 @@ function MobileFieldSelector({
                       >
                         <ChevronDownIcon className="h-4 w-4" />
                       </button>
-                      
+
                       {/* Remove */}
                       <button
                         onClick={() => onFieldToggle(field.id, false)}
@@ -290,25 +302,93 @@ function DroppableZone({ children, title, description, isEmpty = false, id }) {
   });
 
   return (
-    <div 
+    <div
       ref={setNodeRef}
       className={`
         border-2 border-dashed rounded-lg p-3 min-h-[200px] sm:min-h-[300px] touch-manipulation
         ${isEmpty ? 'border-gray-300 bg-gray-50' : 'border-blue-300 bg-blue-50'}
-        ${isOver ? 'border-blue-500 bg-blue-100 scale-[1.01] transition-transform' : ''}
+        ${
+          isOver
+            ? 'border-blue-500 bg-blue-100 scale-[1.01] transition-transform'
+            : ''
+        }
       `}
     >
       {isEmpty ? (
         <div className="h-full flex flex-col items-center justify-center text-center py-6 sm:py-8">
           <div className="w-8 h-8 border-2 border-dashed border-gray-400 rounded mb-2" />
           <p className="text-gray-500 text-sm px-2">Arraste campos aqui</p>
-          <p className="text-gray-400 text-xs mt-1 px-2">👆 Toque e arraste no mobile</p>
+          <p className="text-gray-400 text-xs mt-1 px-2">
+            👆 Toque e arraste no mobile
+          </p>
         </div>
       ) : (
-        <div className="space-y-2">
-          {children}
-        </div>
+        <div className="space-y-2">{children}</div>
       )}
+    </div>
+  );
+}
+
+// Warning Alert Component
+function WarningAlert({ warning, onDismiss }) {
+  if (!warning) return null;
+
+  return (
+    <div className="fixed top-4 right-4 z-[70] max-w-md w-full mx-4">
+      <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-orange-200 rounded-lg p-4 shadow-lg">
+        <div className="flex items-start">
+          <div className="flex-shrink-0">
+            <ExclamationTriangleIcon className="h-5 w-5 text-orange-500" />
+          </div>
+          <div className="ml-3 flex-1">
+            <h3 className="text-sm font-medium text-orange-800">
+              {warning.type === 'duplicate_url'
+                ? 'URL Duplicada Detectada'
+                : 'Aviso'}
+            </h3>
+            <div className="mt-2 text-sm text-orange-700">
+              <p className="mb-2">{warning.message}</p>
+
+              {warning.duplicatedSessions &&
+                warning.duplicatedSessions.length > 0 && (
+                  <div className="mt-3">
+                    <p className="font-medium mb-2">Sessões com a mesma URL:</p>
+                    <div className="space-y-1">
+                      {warning.duplicatedSessions.map((session, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between bg-white/60 px-2 py-1 rounded text-xs"
+                        >
+                          <span className="font-mono text-orange-800">
+                            {session.sessionId}
+                          </span>
+                          <span className="text-orange-600">
+                            {session.webhookName}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+              {warning.recommendation && (
+                <div className="mt-3 p-2 bg-orange-100/60 rounded text-xs">
+                  <p className="font-medium text-orange-800">Recomendação:</p>
+                  <p>{warning.recommendation}</p>
+                </div>
+              )}
+            </div>
+          </div>
+          <div className="ml-4 flex-shrink-0">
+            <button
+              onClick={onDismiss}
+              className="inline-flex text-orange-400 hover:text-orange-600 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-orange-500"
+            >
+              <XCircleIcon className="h-5 w-5" />
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
@@ -320,10 +400,14 @@ function useIsMobile() {
   useEffect(() => {
     const checkIsMobile = () => {
       const userAgent = navigator.userAgent.toLowerCase();
-      const isMobileUA = /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/.test(userAgent);
+      const isMobileUA =
+        /android|webos|iphone|ipad|ipod|blackberry|iemobile|opera mini/.test(
+          userAgent
+        );
       const isSmallScreen = window.innerWidth <= 768;
-      const hasTouchScreen = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-      
+      const hasTouchScreen =
+        'ontouchstart' in window || navigator.maxTouchPoints > 0;
+
       setIsMobile(isMobileUA || (isSmallScreen && hasTouchScreen));
     };
 
@@ -343,7 +427,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
   const [activeId, setActiveId] = useState(null);
   const isMobile = useIsMobile();
   const [showFieldMapping, setShowFieldMapping] = useState(false);
-  
+
   // Available events configuration
   const availableEvents = [
     {
@@ -405,11 +489,12 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
     selectedFields: [],
     fieldMapping: {}, // Custom field name mappings
   });
-  
+
   const [testingWebhook, setTestingWebhook] = useState(null);
   const [testResults, setTestResults] = useState({});
   const [token, setToken] = useState('');
   const [tokenLoading, setTokenLoading] = useState(true);
+  const [lastWarning, setLastWarning] = useState(null);
 
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -683,6 +768,13 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
           await loadWebhooks();
           setShowCreateModal(false);
           resetForm();
+
+          // Mostrar aviso se houver URL duplicada
+          if (result.warning) {
+            setLastWarning(result.warning);
+            // Auto-dismiss após 10 segundos
+            setTimeout(() => setLastWarning(null), 10000);
+          }
         }
       }
     } catch (error) {
@@ -710,6 +802,13 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
           await loadWebhooks();
           setEditingWebhook(null);
           resetForm();
+
+          // Mostrar aviso se houver URL duplicada
+          if (result.warning) {
+            setLastWarning(result.warning);
+            // Auto-dismiss após 10 segundos
+            setTimeout(() => setLastWarning(null), 10000);
+          }
         }
       }
     } catch (error) {
@@ -908,38 +1007,44 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
 
     if (!over) return;
 
-    const activeField = availableFields.find(f => f.id === active.id);
+    const activeField = availableFields.find((f) => f.id === active.id);
     if (!activeField) return;
 
-    console.log('Drag end:', { activeId: active.id, overId: over.id, overData: over.data?.current });
+    console.log('Drag end:', {
+      activeId: active.id,
+      overId: over.id,
+      overData: over.data?.current,
+    });
 
     // Check if field is being dropped in selected area
     if (over.id === 'selected-drop-zone') {
       // Add field to selected if not already there
       if (!webhookForm.selectedFields.includes(activeField.id)) {
         console.log('Adding field to selected:', activeField.id);
-        setWebhookForm(prev => ({
+        setWebhookForm((prev) => ({
           ...prev,
-          selectedFields: [...prev.selectedFields, activeField.id]
+          selectedFields: [...prev.selectedFields, activeField.id],
         }));
       }
     } else if (over.id === 'available-drop-zone') {
       // Remove field from selected
       console.log('Removing field from selected:', activeField.id);
-      setWebhookForm(prev => ({
+      setWebhookForm((prev) => ({
         ...prev,
-        selectedFields: prev.selectedFields.filter(id => id !== activeField.id)
+        selectedFields: prev.selectedFields.filter(
+          (id) => id !== activeField.id
+        ),
       }));
     } else if (over.data?.current?.type === 'field') {
       // Reordering within selected fields
       const oldIndex = webhookForm.selectedFields.indexOf(active.id);
       const newIndex = webhookForm.selectedFields.indexOf(over.id);
-      
+
       if (oldIndex !== -1 && newIndex !== -1) {
         console.log('Reordering fields:', { oldIndex, newIndex });
-        setWebhookForm(prev => ({
+        setWebhookForm((prev) => ({
           ...prev,
-          selectedFields: arrayMove(prev.selectedFields, oldIndex, newIndex)
+          selectedFields: arrayMove(prev.selectedFields, oldIndex, newIndex),
         }));
       }
     }
@@ -982,7 +1087,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
         // Remove field
         return {
           ...prev,
-          selectedFields: prev.selectedFields.filter(id => id !== fieldId),
+          selectedFields: prev.selectedFields.filter((id) => id !== fieldId),
         };
       }
       return prev;
@@ -1009,7 +1114,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
   const handleFieldMappingChange = (originalField, customName) => {
     setWebhookForm((prev) => {
       const newFieldMapping = { ...prev.fieldMapping };
-      
+
       if (customName && customName.trim() !== '') {
         newFieldMapping[originalField] = customName.trim();
       } else {
@@ -1028,6 +1133,10 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
       ...prev,
       fieldMapping: {},
     }));
+  };
+
+  const dismissWarning = () => {
+    setLastWarning(null);
   };
 
   if (tokenLoading || loading) {
@@ -1096,8 +1205,12 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                   <LinkIcon className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
                 </div>
                 <div className="min-w-0">
-                  <h2 className="text-lg sm:text-xl font-bold text-gray-900 truncate">Webhook Manager</h2>
-                  <p className="text-xs sm:text-sm text-gray-600 truncate">Sessão: {sessionId}</p>
+                  <h2 className="text-lg sm:text-xl font-bold text-gray-900 truncate">
+                    Webhook Manager
+                  </h2>
+                  <p className="text-xs sm:text-sm text-gray-600 truncate">
+                    Sessão: {sessionId}
+                  </p>
                 </div>
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
@@ -1133,7 +1246,8 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                     Nenhum webhook configurado
                   </h3>
                   <p className="text-gray-600 mb-6">
-                    Configure webhooks para receber eventos em tempo real do WhatsApp
+                    Configure webhooks para receber eventos em tempo real do
+                    WhatsApp
                   </p>
                   <button
                     onClick={() => setShowCreateModal(true)}
@@ -1182,29 +1296,40 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
 
                         <div className="space-y-2 text-sm">
                           <div>
-                            <span className="font-medium text-gray-700">URL:</span>
+                            <span className="font-medium text-gray-700">
+                              URL:
+                            </span>
                             <div className="font-mono bg-gray-50 px-2 py-1 rounded text-xs text-gray-800 break-all mt-1">
                               {webhook.url}
                             </div>
                           </div>
-                          
+
                           <div>
-                            <span className="font-medium text-gray-700">Eventos:</span>
+                            <span className="font-medium text-gray-700">
+                              Eventos:
+                            </span>
                             <div className="flex flex-wrap gap-1 mt-1">
                               {webhook.events.map((event, index) => (
                                 <span
                                   key={index}
-                                  className={`px-2 py-1 rounded text-xs ${getEventColor(event)}`}
-                                  title={availableEvents.find((e) => e.id === event)?.description || event}
+                                  className={`px-2 py-1 rounded text-xs ${getEventColor(
+                                    event
+                                  )}`}
+                                  title={
+                                    availableEvents.find((e) => e.id === event)
+                                      ?.description || event
+                                  }
                                 >
                                   {getEventName(event)}
                                 </span>
                               ))}
                             </div>
                           </div>
-                          
+
                           <div className="flex items-center space-x-4">
-                            <span className="font-medium text-gray-700">Grupos:</span>
+                            <span className="font-medium text-gray-700">
+                              Grupos:
+                            </span>
                             <span
                               className={`px-2 py-1 rounded text-xs ${
                                 webhook.ignoreGroups
@@ -1214,10 +1339,12 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                             >
                               {webhook.ignoreGroups ? 'Ignorados' : 'Incluídos'}
                             </span>
-                            
+
                             {testResults[webhook.id] && (
                               <>
-                                <span className="font-medium text-gray-700">Teste:</span>
+                                <span className="font-medium text-gray-700">
+                                  Teste:
+                                </span>
                                 <span
                                   className={`px-2 py-1 rounded text-xs ${
                                     testResults[webhook.id].success
@@ -1225,7 +1352,9 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                                       : 'bg-red-100 text-red-700'
                                   }`}
                                 >
-                                  {testResults[webhook.id].success ? 'OK' : 'Erro'}
+                                  {testResults[webhook.id].success
+                                    ? 'OK'
+                                    : 'Erro'}
                                 </span>
                               </>
                             )}
@@ -1291,7 +1420,8 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                 <div className="flex items-center">
                   <ExclamationTriangleIcon className="h-4 w-4 text-yellow-600 mr-2" />
                   <span className="text-yellow-700 text-sm">
-                    Máximo de 3 webhooks por sessão. {3 - webhooks.length} restante(s).
+                    Máximo de 3 webhooks por sessão. {3 - webhooks.length}{' '}
+                    restante(s).
                   </span>
                 </div>
               </div>
@@ -1316,287 +1446,314 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
             style={{
               borderRadius: '12px',
               margin: window.innerWidth <= 768 ? '8px' : '16px',
-              height: window.innerWidth <= 768 ? 'calc(100vh - 16px)' : 'calc(100vh - 32px)',
+              height:
+                window.innerWidth <= 768
+                  ? 'calc(100vh - 16px)'
+                  : 'calc(100vh - 32px)',
             }}
           >
-              {/* Header */}
-              <div className="bg-white border-b px-4 py-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-2 min-w-0 flex-1">
-                    <div className="p-2 bg-blue-500 rounded flex-shrink-0">
-                      {editingWebhook ? (
-                        <PencilIcon className="h-4 w-4 text-white" />
-                      ) : (
-                        <PlusIcon className="h-4 w-4 text-white" />
-                      )}
-                    </div>
-                    <h3 className="text-base sm:text-lg font-semibold text-gray-900 truncate">
-                      {editingWebhook ? 'Editar Webhook' : 'Novo Webhook'}
-                    </h3>
+            {/* Header */}
+            <div className="bg-white border-b px-4 py-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2 min-w-0 flex-1">
+                  <div className="p-2 bg-blue-500 rounded flex-shrink-0">
+                    {editingWebhook ? (
+                      <PencilIcon className="h-4 w-4 text-white" />
+                    ) : (
+                      <PlusIcon className="h-4 w-4 text-white" />
+                    )}
                   </div>
-                  <button
-                    onClick={() => {
-                      setShowCreateModal(false);
-                      setEditingWebhook(null);
-                      resetForm();
-                    }}
-                    className="p-2 bg-red-500 text-white rounded hover:bg-red-600 flex-shrink-0 touch-manipulation"
-                  >
-                    <XCircleIcon className="h-4 w-4" />
-                  </button>
+                  <h3 className="text-base sm:text-lg font-semibold text-gray-900 truncate">
+                    {editingWebhook ? 'Editar Webhook' : 'Novo Webhook'}
+                  </h3>
                 </div>
+                <button
+                  onClick={() => {
+                    setShowCreateModal(false);
+                    setEditingWebhook(null);
+                    resetForm();
+                  }}
+                  className="p-2 bg-red-500 text-white rounded hover:bg-red-600 flex-shrink-0 touch-manipulation"
+                >
+                  <XCircleIcon className="h-4 w-4" />
+                </button>
               </div>
+            </div>
 
-              {/* Content */}
-              <div className="flex-1 overflow-y-auto px-4 py-4">
-                <div className="space-y-6">
-                  {/* Basic Configuration */}
-                  <div className="space-y-4">
-                    <h4 className="text-lg font-semibold text-gray-900 flex items-center">
-                      <CogIcon className="h-4 w-4 mr-2 text-blue-600" />
-                      Configuração Básica
-                    </h4>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Nome (opcional)
-                        </label>
-                        <input
-                          type="text"
-                          value={webhookForm.name}
-                          onChange={(e) =>
-                            setWebhookForm((prev) => ({
-                              ...prev,
-                              name: e.target.value,
-                            }))
-                          }
-                          placeholder="Ex: Webhook Principal"
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:outline-none focus:border-blue-500"
-                        />
-                      </div>
+            {/* Content */}
+            <div className="flex-1 overflow-y-auto px-4 py-4">
+              <div className="space-y-6">
+                {/* Basic Configuration */}
+                <div className="space-y-4">
+                  <h4 className="text-lg font-semibold text-gray-900 flex items-center">
+                    <CogIcon className="h-4 w-4 mr-2 text-blue-600" />
+                    Configuração Básica
+                  </h4>
 
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2">
-                          Prioridade
-                        </label>
-                        <select
-                          value={webhookForm.priority}
-                          onChange={(e) =>
-                            setWebhookForm((prev) => ({
-                              ...prev,
-                              priority: parseInt(e.target.value),
-                            }))
-                          }
-                          className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-blue-500 focus:outline-none focus:border-blue-500"
-                        >
-                          <option value={1}>1 - Alta</option>
-                          <option value={2}>2 - Média</option>
-                          <option value={3}>3 - Baixa</option>
-                        </select>
-                      </div>
-                    </div>
-
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        URL do Webhook *
+                        Nome (opcional)
                       </label>
                       <input
-                        type="url"
-                        value={webhookForm.url}
+                        type="text"
+                        value={webhookForm.name}
                         onChange={(e) =>
                           setWebhookForm((prev) => ({
                             ...prev,
-                            url: e.target.value,
+                            name: e.target.value,
                           }))
                         }
-                        placeholder="https://meusite.com/webhook"
+                        placeholder="Ex: Webhook Principal"
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:outline-none focus:border-blue-500"
-                        required
                       />
                     </div>
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-2">
-                        Versão do Webhook
+                        Prioridade
                       </label>
                       <select
-                        value={webhookForm.version}
+                        value={webhookForm.priority}
                         onChange={(e) =>
                           setWebhookForm((prev) => ({
                             ...prev,
-                            version: e.target.value,
+                            priority: parseInt(e.target.value),
                           }))
                         }
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-blue-500 focus:outline-none focus:border-blue-500"
                       >
-                        <option value="v1">v1 - Webhook Original</option>
-                        <option value="v2">v2 - Webhook Avançado (Baileys Enhanced)</option>
+                        <option value={1}>1 - Alta</option>
+                        <option value={2}>2 - Média</option>
+                        <option value={3}>3 - Baixa</option>
                       </select>
-                      <p className="text-sm text-gray-600 mt-2 bg-blue-50 p-2 rounded border border-blue-200">
-                        v2 oferece estrutura de eventos aprimorada com suporte completo a @lid e drag-and-drop
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      URL do Webhook *
+                    </label>
+                    <input
+                      type="url"
+                      value={webhookForm.url}
+                      onChange={(e) =>
+                        setWebhookForm((prev) => ({
+                          ...prev,
+                          url: e.target.value,
+                        }))
+                      }
+                      placeholder="https://meusite.com/webhook"
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:outline-none focus:border-blue-500"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Versão do Webhook
+                    </label>
+                    <select
+                      value={webhookForm.version}
+                      onChange={(e) =>
+                        setWebhookForm((prev) => ({
+                          ...prev,
+                          version: e.target.value,
+                        }))
+                      }
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-blue-500 focus:outline-none focus:border-blue-500"
+                    >
+                      <option value="v1">v1 - Webhook Original</option>
+                      <option value="v2">
+                        v2 - Webhook Avançado (Baileys Enhanced)
+                      </option>
+                    </select>
+                    <p className="text-sm text-gray-600 mt-2 bg-blue-50 p-2 rounded border border-blue-200">
+                      v2 oferece estrutura de eventos aprimorada com suporte
+                      completo a @lid e drag-and-drop
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col space-y-2">
+                    <label className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={webhookForm.active}
+                        onChange={(e) =>
+                          setWebhookForm((prev) => ({
+                            ...prev,
+                            active: e.target.checked,
+                          }))
+                        }
+                        className="rounded border-gray-300 text-blue-600"
+                      />
+                      <span className="ml-2 text-sm text-gray-700">
+                        Webhook ativo
+                      </span>
+                    </label>
+
+                    <label className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={webhookForm.ignoreGroups}
+                        onChange={(e) =>
+                          handleIgnoreGroupsChange(e.target.checked)
+                        }
+                        className="rounded border-gray-300 text-blue-600"
+                      />
+                      <span className="ml-2 text-sm text-gray-700">
+                        Ignorar mensagens de grupos
+                      </span>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Events Configuration */}
+                <div className="space-y-4">
+                  <h4 className="text-lg font-semibold text-gray-900 flex items-center">
+                    <BoltIcon className="h-4 w-4 mr-2 text-blue-600" />
+                    Eventos para Escutar
+                  </h4>
+
+                  <div className="grid grid-cols-1 gap-2">
+                    {availableEvents.map((event) => {
+                      const isSelected = webhookForm.events.includes(event.id);
+
+                      return (
+                        <div
+                          key={event.id}
+                          className={`p-3 rounded-lg border cursor-pointer ${
+                            isSelected
+                              ? 'bg-blue-50 border-blue-300'
+                              : 'bg-white border-gray-200 hover:border-gray-300'
+                          }`}
+                          onClick={() => toggleEventSelection(event.id)}
+                        >
+                          <div className="flex items-center">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => toggleEventSelection(event.id)}
+                              className="rounded border-gray-300 text-blue-600"
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                            <div className="ml-3 flex-1">
+                              <div className="flex items-center">
+                                <span className="text-sm font-medium text-gray-900">
+                                  {event.name}
+                                </span>
+                                <span className="ml-2 px-2 py-1 rounded text-xs bg-gray-100 text-gray-600">
+                                  {event.category}
+                                </span>
+                              </div>
+                              <p className="text-xs text-gray-600 mt-1">
+                                {event.description}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Field Selection for v2 */}
+                {webhookForm.version === 'v2' && (
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-2">
+                      <Squares2X2Icon className="h-4 w-4 text-blue-600" />
+                      <h4 className="text-base sm:text-lg font-semibold text-gray-900">
+                        Campos do Webhook v2 -
+                        {isMobile ? 'Toque & Botões' : 'Drag & Drop'}
+                      </h4>
+                    </div>
+
+                    <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                      <p className="text-sm text-blue-700">
+                        <strong>Como usar:</strong>{' '}
+                        {isMobile
+                          ? 'Toque nos botões + para adicionar campos e use as setas para reordenar.'
+                          : 'Arraste campos da área "Disponíveis" para "Selecionados"'}{' '}
+                        Deixe vazio para enviar payload completo.
                       </p>
                     </div>
 
-                    <div className="flex flex-col space-y-2">
-                      <label className="flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={webhookForm.active}
-                          onChange={(e) =>
-                            setWebhookForm((prev) => ({
-                              ...prev,
-                              active: e.target.checked,
-                            }))
-                          }
-                          className="rounded border-gray-300 text-blue-600"
-                        />
-                        <span className="ml-2 text-sm text-gray-700">
-                          Webhook ativo
-                        </span>
-                      </label>
-
-                      <label className="flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={webhookForm.ignoreGroups}
-                          onChange={(e) => handleIgnoreGroupsChange(e.target.checked)}
-                          className="rounded border-gray-300 text-blue-600"
-                        />
-                        <span className="ml-2 text-sm text-gray-700">
-                          Ignorar mensagens de grupos
-                        </span>
-                      </label>
-                    </div>
-                  </div>
-
-                  {/* Events Configuration */}
-                  <div className="space-y-4">
-                    <h4 className="text-lg font-semibold text-gray-900 flex items-center">
-                      <BoltIcon className="h-4 w-4 mr-2 text-blue-600" />
-                      Eventos para Escutar
-                    </h4>
-                    
-                    <div className="grid grid-cols-1 gap-2">
-                      {availableEvents.map((event) => {
-                        const isSelected = webhookForm.events.includes(event.id);
-
-                        return (
-                          <div
-                            key={event.id}
-                            className={`p-3 rounded-lg border cursor-pointer ${
-                              isSelected
-                                ? 'bg-blue-50 border-blue-300'
-                                : 'bg-white border-gray-200 hover:border-gray-300'
-                            }`}
-                            onClick={() => toggleEventSelection(event.id)}
-                          >
-                            <div className="flex items-center">
-                              <input
-                                type="checkbox"
-                                checked={isSelected}
-                                onChange={() => toggleEventSelection(event.id)}
-                                className="rounded border-gray-300 text-blue-600"
-                                onClick={(e) => e.stopPropagation()}
-                              />
-                              <div className="ml-3 flex-1">
-                                <div className="flex items-center">
-                                  <span className="text-sm font-medium text-gray-900">
-                                    {event.name}
-                                  </span>
-                                  <span className="ml-2 px-2 py-1 rounded text-xs bg-gray-100 text-gray-600">
-                                    {event.category}
-                                  </span>
-                                </div>
-                                <p className="text-xs text-gray-600 mt-1">
-                                  {event.description}
-                                </p>
+                    {isMobile ? (
+                      /* Mobile Interface */
+                      <MobileFieldSelector
+                        availableFields={availableFields}
+                        selectedFields={webhookForm.selectedFields}
+                        onFieldToggle={handleMobileFieldToggle}
+                        onFieldReorder={handleMobileFieldReorder}
+                        ignoreGroups={webhookForm.ignoreGroups}
+                        fieldCategories={fieldCategories}
+                      />
+                    ) : (
+                      /* Desktop Drag & Drop Interface */
+                      <DndContext
+                        sensors={sensors}
+                        collisionDetection={closestCenter}
+                        onDragStart={handleDragStart}
+                        onDragEnd={handleDragEnd}
+                      >
+                        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                          {/* Available Fields */}
+                          <div>
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="flex items-center space-x-2">
+                                <h5 className="text-sm sm:text-md font-medium text-gray-900">
+                                  Disponíveis
+                                </h5>
+                                <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
+                                  {
+                                    availableFields.filter(
+                                      (f) =>
+                                        !webhookForm.selectedFields.includes(
+                                          f.id
+                                        ) &&
+                                        !(
+                                          webhookForm.ignoreGroups &&
+                                          f.isGroupField
+                                        )
+                                    ).length
+                                  }
+                                </span>
+                              </div>
+                              <div className="text-xs text-gray-500 hidden sm:block">
+                                🖱️ Arraste campos
                               </div>
                             </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
 
-                  {/* Field Selection for v2 */}
-                  {webhookForm.version === 'v2' && (
-                    <div className="space-y-4">
-                      <div className="flex items-center space-x-2">
-                        <Squares2X2Icon className="h-4 w-4 text-blue-600" />
-                        <h4 className="text-base sm:text-lg font-semibold text-gray-900">
-                          Campos do Webhook v2 - 
-                          {isMobile ? 'Toque & Botões' : 'Drag & Drop'}
-                        </h4>
-                      </div>
-                      
-                      <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
-                        <p className="text-sm text-blue-700">
-                          <strong>Como usar:</strong> {' '}
-                          {isMobile ? (
-                            'Toque nos botões + para adicionar campos e use as setas para reordenar.'
-                          ) : (
-                            'Arraste campos da área "Disponíveis" para "Selecionados"'
-                          )}
-                          {' '}Deixe vazio para enviar payload completo.
-                        </p>
-                      </div>
+                            <DroppableZone
+                              id="available-drop-zone"
+                              title=""
+                              description=""
+                              isEmpty={false}
+                            >
+                              <div className="space-y-2 max-h-96 overflow-y-auto">
+                                {Object.entries(fieldCategories).map(
+                                  ([categoryId, category]) => {
+                                    const categoryFields =
+                                      availableFields.filter(
+                                        (field) =>
+                                          field.category === categoryId &&
+                                          !webhookForm.selectedFields.includes(
+                                            field.id
+                                          ) &&
+                                          !(
+                                            webhookForm.ignoreGroups &&
+                                            field.isGroupField
+                                          )
+                                      );
 
-                      {isMobile ? (
-                        /* Mobile Interface */
-                        <MobileFieldSelector
-                          availableFields={availableFields}
-                          selectedFields={webhookForm.selectedFields}
-                          onFieldToggle={handleMobileFieldToggle}
-                          onFieldReorder={handleMobileFieldReorder}
-                          ignoreGroups={webhookForm.ignoreGroups}
-                          fieldCategories={fieldCategories}
-                        />
-                      ) : (
-                        /* Desktop Drag & Drop Interface */
-                        <DndContext
-                          sensors={sensors}
-                          collisionDetection={closestCenter}
-                          onDragStart={handleDragStart}
-                          onDragEnd={handleDragEnd}
-                        >
-                          <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-                            {/* Available Fields */}
-                            <div>
-                              <div className="flex items-center justify-between mb-3">
-                                <div className="flex items-center space-x-2">
-                                  <h5 className="text-sm sm:text-md font-medium text-gray-900">
-                                    Disponíveis
-                                  </h5>
-                                  <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
-                                    {availableFields.filter(f => !webhookForm.selectedFields.includes(f.id) && 
-                                      !(webhookForm.ignoreGroups && f.isGroupField)).length}
-                                  </span>
-                                </div>
-                                <div className="text-xs text-gray-500 hidden sm:block">
-                                  🖱️ Arraste campos
-                                </div>
-                              </div>
-                              
-                              <DroppableZone 
-                                id="available-drop-zone"
-                                title=""
-                                description=""
-                                isEmpty={false}
-                              >
-                                <div className="space-y-2 max-h-96 overflow-y-auto">
-                                  {Object.entries(fieldCategories).map(([categoryId, category]) => {
-                                    const categoryFields = availableFields.filter(
-                                      field => 
-                                        field.category === categoryId && 
-                                        !webhookForm.selectedFields.includes(field.id) &&
-                                        !(webhookForm.ignoreGroups && field.isGroupField)
-                                    );
-
-                                    if (categoryFields.length === 0) return null;
+                                    if (categoryFields.length === 0)
+                                      return null;
 
                                     return (
-                                      <div key={categoryId} className="space-y-1">
+                                      <div
+                                        key={categoryId}
+                                        className="space-y-1"
+                                      >
                                         <h6 className="text-xs font-medium text-gray-600 px-2 py-1 bg-gray-100 rounded sticky top-0 z-10">
                                           {category.name}
                                         </h6>
@@ -1611,42 +1768,47 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                                         </div>
                                       </div>
                                     );
-                                  })}
-                                </div>
-                              </DroppableZone>
+                                  }
+                                )}
+                              </div>
+                            </DroppableZone>
+                          </div>
+
+                          {/* Selected Fields */}
+                          <div>
+                            <div className="flex items-center justify-between mb-3">
+                              <div className="flex items-center space-x-2">
+                                <h5 className="text-sm sm:text-md font-medium text-gray-900">
+                                  Selecionados
+                                </h5>
+                                <span className="px-2 py-1 bg-blue-100 text-blue-600 text-xs rounded">
+                                  {webhookForm.selectedFields.length}
+                                </span>
+                              </div>
+                              <div className="text-xs text-gray-500 hidden sm:block">
+                                🔄 Reordene aqui
+                              </div>
                             </div>
 
-                            {/* Selected Fields */}
-                            <div>
-                              <div className="flex items-center justify-between mb-3">
-                                <div className="flex items-center space-x-2">
-                                  <h5 className="text-sm sm:text-md font-medium text-gray-900">
-                                    Selecionados
-                                  </h5>
-                                  <span className="px-2 py-1 bg-blue-100 text-blue-600 text-xs rounded">
-                                    {webhookForm.selectedFields.length}
-                                  </span>
-                                </div>
-                                <div className="text-xs text-gray-500 hidden sm:block">
-                                  🔄 Reordene aqui
-                                </div>
-                              </div>
-                              
-                              <DroppableZone 
-                                id="selected-drop-zone"
-                                title=""
-                                description=""
-                                isEmpty={webhookForm.selectedFields.length === 0}
-                              >
-                                <div className="max-h-96 overflow-y-auto">
-                                  <SortableContext
-                                    items={webhookForm.selectedFields}
-                                    strategy={verticalListSortingStrategy}
-                                  >
-                                    {webhookForm.selectedFields.length === 0 ? null : (
-                                      <div className="space-y-2">
-                                        {webhookForm.selectedFields.map((fieldId) => {
-                                          const field = availableFields.find(f => f.id === fieldId);
+                            <DroppableZone
+                              id="selected-drop-zone"
+                              title=""
+                              description=""
+                              isEmpty={webhookForm.selectedFields.length === 0}
+                            >
+                              <div className="max-h-96 overflow-y-auto">
+                                <SortableContext
+                                  items={webhookForm.selectedFields}
+                                  strategy={verticalListSortingStrategy}
+                                >
+                                  {webhookForm.selectedFields.length ===
+                                  0 ? null : (
+                                    <div className="space-y-2">
+                                      {webhookForm.selectedFields.map(
+                                        (fieldId) => {
+                                          const field = availableFields.find(
+                                            (f) => f.id === fieldId
+                                          );
                                           return field ? (
                                             <DraggableField
                                               key={field.id}
@@ -1654,185 +1816,224 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                                               isInSelected={true}
                                             />
                                           ) : null;
-                                        })}
-                                      </div>
-                                    )}
-                                  </SortableContext>
-                                </div>
-                              </DroppableZone>
+                                        }
+                                      )}
+                                    </div>
+                                  )}
+                                </SortableContext>
+                              </div>
+                            </DroppableZone>
+                          </div>
+                        </div>
+
+                        <DragOverlay>
+                          {activeId ? (
+                            <DraggableField
+                              field={availableFields.find(
+                                (f) => f.id === activeId
+                              )}
+                              isDragOverlay={true}
+                            />
+                          ) : null}
+                        </DragOverlay>
+                      </DndContext>
+                    )}
+
+                    <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-2">
+                          <span className="text-sm font-medium text-blue-700">
+                            Status:
+                          </span>
+                          <span className="text-sm text-blue-600">
+                            {webhookForm.selectedFields.length === 0
+                              ? 'Payload completo será enviado'
+                              : `${webhookForm.selectedFields.length} campo(s) selecionado(s)`}
+                          </span>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setShowFieldMapping(!showFieldMapping)}
+                          className={`flex items-center space-x-1 text-xs px-3 py-2 rounded-lg transition-all touch-manipulation ${
+                            showFieldMapping
+                              ? 'bg-purple-500 text-white shadow-md'
+                              : 'bg-gradient-to-r from-purple-100 to-pink-100 text-purple-700 hover:from-purple-200 hover:to-pink-200 border border-purple-200'
+                          }`}
+                        >
+                          <CodeBracketIcon className="h-4 w-4" />
+                          <span className="hidden sm:inline font-medium">
+                            {showFieldMapping
+                              ? 'Fechar Personalização'
+                              : 'Personalizar Nomes'}
+                          </span>
+                          <span className="sm:hidden font-medium">
+                            {showFieldMapping ? 'Fechar' : 'Nomes'}
+                          </span>
+                          <SparklesIcon className="h-3 w-3 animate-pulse" />
+                        </button>
+                      </div>
+
+                      {/* Feature highlight when not shown */}
+                      {!showFieldMapping && (
+                        <div className="mt-2 flex items-center space-x-2 text-xs">
+                          <SparklesIcon className="h-3 w-3 text-purple-500 animate-pulse" />
+                          <span className="text-purple-600 font-medium">
+                            NOVO:
+                          </span>
+                          <span className="text-purple-700">
+                            Personalize os nomes dos campos no webhook
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Field Mapping Section for v2 */}
+                {webhookForm.version === 'v2' && showFieldMapping && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-2">
+                        <CodeBracketIcon className="h-4 w-4 text-purple-600" />
+                        <h4 className="text-base sm:text-lg font-semibold text-gray-900">
+                          Personalizar Nomes dos Campos
+                        </h4>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={resetFieldMapping}
+                        className="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded hover:bg-gray-200 transition-colors touch-manipulation"
+                      >
+                        Resetar
+                      </button>
+                    </div>
+
+                    <div className="bg-purple-50 p-3 rounded-lg border border-purple-200">
+                      <p className="text-sm text-purple-700">
+                        <strong>Personalize os nomes:</strong> Altere como os
+                        campos aparecem no webhook. Exemplo: "remoteJid" →
+                        "numeroRemetente" ou "pushName" → "nomeContato".
+                      </p>
+                    </div>
+
+                    <div className="space-y-3 max-h-64 overflow-y-auto">
+                      {availableFields
+                        .filter(
+                          (field) =>
+                            webhookForm.selectedFields.length === 0 ||
+                            webhookForm.selectedFields.includes(field.id)
+                        )
+                        .map((field) => (
+                          <div
+                            key={field.id}
+                            className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-3 p-3 bg-gray-50 rounded-lg"
+                          >
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center space-x-2 flex-wrap">
+                                <span className="text-sm font-medium text-gray-900">
+                                  {field.name}
+                                </span>
+                                {field.isGroupField && (
+                                  <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 text-xs rounded flex-shrink-0">
+                                    grupo
+                                  </span>
+                                )}
+                              </div>
+                              <p className="text-xs text-gray-600 mt-1">
+                                {field.description}
+                              </p>
+                              <p className="text-xs text-purple-600 font-mono mt-1">
+                                Campo: {field.id}
+                              </p>
+                            </div>
+                            <div className="flex-shrink-0 w-full sm:w-48">
+                              <input
+                                type="text"
+                                placeholder={`Personalizar "${field.id}"`}
+                                value={webhookForm.fieldMapping[field.id] || ''}
+                                onChange={(e) =>
+                                  handleFieldMappingChange(
+                                    field.id,
+                                    e.target.value
+                                  )
+                                }
+                                className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-purple-500 focus:border-purple-500"
+                              />
                             </div>
                           </div>
-
-                          <DragOverlay>
-                            {activeId ? (
-                              <DraggableField
-                                field={availableFields.find(f => f.id === activeId)}
-                                isDragOverlay={true}
-                              />
-                            ) : null}
-                          </DragOverlay>
-                        </DndContext>
-                      )}
-
-                      <div className="bg-blue-50 p-3 rounded-lg border border-blue-200">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center space-x-2">
-                            <span className="text-sm font-medium text-blue-700">Status:</span>
-                            <span className="text-sm text-blue-600">
-                              {webhookForm.selectedFields.length === 0
-                                ? 'Payload completo será enviado'
-                                : `${webhookForm.selectedFields.length} campo(s) selecionado(s)`}
-                            </span>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => setShowFieldMapping(!showFieldMapping)}
-                            className={`flex items-center space-x-1 text-xs px-3 py-2 rounded-lg transition-all touch-manipulation ${
-                              showFieldMapping
-                                ? 'bg-purple-500 text-white shadow-md'
-                                : 'bg-gradient-to-r from-purple-100 to-pink-100 text-purple-700 hover:from-purple-200 hover:to-pink-200 border border-purple-200'
-                            }`}
-                          >
-                            <CodeBracketIcon className="h-4 w-4" />
-                            <span className="hidden sm:inline font-medium">
-                              {showFieldMapping ? 'Fechar Personalização' : 'Personalizar Nomes'}
-                            </span>
-                            <span className="sm:hidden font-medium">
-                              {showFieldMapping ? 'Fechar' : 'Nomes'}
-                            </span>
-                            <SparklesIcon className="h-3 w-3 animate-pulse" />
-                          </button>
-                        </div>
-                        
-                        {/* Feature highlight when not shown */}
-                        {!showFieldMapping && (
-                          <div className="mt-2 flex items-center space-x-2 text-xs">
-                            <SparklesIcon className="h-3 w-3 text-purple-500 animate-pulse" />
-                            <span className="text-purple-600 font-medium">NOVO:</span>
-                            <span className="text-purple-700">
-                              Personalize os nomes dos campos no webhook
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Field Mapping Section for v2 */}
-                  {webhookForm.version === 'v2' && showFieldMapping && (
-                    <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-2">
-                      <CodeBracketIcon className="h-4 w-4 text-purple-600" />
-                      <h4 className="text-base sm:text-lg font-semibold text-gray-900">
-                        Personalizar Nomes dos Campos
-                      </h4>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={resetFieldMapping}
-                      className="text-xs px-2 py-1 bg-gray-100 text-gray-600 rounded hover:bg-gray-200 transition-colors touch-manipulation"
-                    >
-                      Resetar
-                    </button>
-                  </div>
-
-                  <div className="bg-purple-50 p-3 rounded-lg border border-purple-200">
-                    <p className="text-sm text-purple-700">
-                      <strong>Personalize os nomes:</strong> Altere como os campos aparecem no webhook.
-                      Exemplo: "remoteJid" → "numeroRemetente" ou "pushName" → "nomeContato".
-                    </p>
-                  </div>
-
-                  <div className="space-y-3 max-h-64 overflow-y-auto">
-                    {availableFields
-                      .filter(field => 
-                        webhookForm.selectedFields.length === 0 || 
-                        webhookForm.selectedFields.includes(field.id)
-                      )
-                      .map((field) => (
-                      <div key={field.id} className="flex flex-col sm:flex-row sm:items-center space-y-2 sm:space-y-0 sm:space-x-3 p-3 bg-gray-50 rounded-lg">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center space-x-2 flex-wrap">
-                            <span className="text-sm font-medium text-gray-900">{field.name}</span>
-                            {field.isGroupField && (
-                              <span className="px-1.5 py-0.5 bg-orange-100 text-orange-700 text-xs rounded flex-shrink-0">
-                                grupo
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-xs text-gray-600 mt-1">{field.description}</p>
-                          <p className="text-xs text-purple-600 font-mono mt-1">Campo: {field.id}</p>
-                        </div>
-                        <div className="flex-shrink-0 w-full sm:w-48">
-                          <input
-                            type="text"
-                            placeholder={`Personalizar "${field.id}"`}
-                            value={webhookForm.fieldMapping[field.id] || ''}
-                            onChange={(e) => handleFieldMappingChange(field.id, e.target.value)}
-                            className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-1 focus:ring-purple-500 focus:border-purple-500"
-                          />
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div className="bg-green-50 p-3 rounded-lg border border-green-200">
-                    <div className="flex items-center space-x-2 mb-2">
-                      <span className="text-sm font-medium text-green-700">Mapeamentos ativos:</span>
-                      <span className="text-sm text-green-600">
-                        {Object.keys(webhookForm.fieldMapping).length} campo(s) personalizados
-                      </span>
-                    </div>
-                    {Object.keys(webhookForm.fieldMapping).length > 0 && (
-                      <div className="space-y-1">
-                        {Object.entries(webhookForm.fieldMapping).map(([original, custom]) => (
-                          <div key={original} className="flex items-center justify-between text-xs bg-white p-2 rounded">
-                            <span className="font-mono text-gray-600">{original}</span>
-                            <span className="mx-2 text-gray-400">→</span>
-                            <span className="font-mono text-green-700 font-semibold">{custom}</span>
-                          </div>
                         ))}
+                    </div>
+
+                    <div className="bg-green-50 p-3 rounded-lg border border-green-200">
+                      <div className="flex items-center space-x-2 mb-2">
+                        <span className="text-sm font-medium text-green-700">
+                          Mapeamentos ativos:
+                        </span>
+                        <span className="text-sm text-green-600">
+                          {Object.keys(webhookForm.fieldMapping).length}{' '}
+                          campo(s) personalizados
+                        </span>
                       </div>
-                    )}
+                      {Object.keys(webhookForm.fieldMapping).length > 0 && (
+                        <div className="space-y-1">
+                          {Object.entries(webhookForm.fieldMapping).map(
+                            ([original, custom]) => (
+                              <div
+                                key={original}
+                                className="flex items-center justify-between text-xs bg-white p-2 rounded"
+                              >
+                                <span className="font-mono text-gray-600">
+                                  {original}
+                                </span>
+                                <span className="mx-2 text-gray-400">→</span>
+                                <span className="font-mono text-green-700 font-semibold">
+                                  {custom}
+                                </span>
+                              </div>
+                            )
+                          )}
+                        </div>
+                      )}
                     </div>
                   </div>
-                  )}
-                </div>
+                )}
               </div>
+            </div>
 
-              {/* Footer */}
-              <div className="bg-white border-t px-4 py-3">
-                <div className="flex flex-col sm:flex-row gap-3">
-                  <button
-                    onClick={() => {
-                      if (editingWebhook) {
-                        updateWebhook(editingWebhook);
-                      } else {
-                        createWebhook();
-                      }
-                    }}
-                    disabled={!webhookForm.url}
-                    className="flex-1 py-3 sm:py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium touch-manipulation"
-                  >
-                    {editingWebhook ? 'Atualizar' : 'Criar'}
-                  </button>
-                  <button
-                    onClick={() => {
-                      setShowCreateModal(false);
-                      setEditingWebhook(null);
-                      resetForm();
-                    }}
-                    className="flex-1 py-3 sm:py-2 px-4 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium touch-manipulation"
-                  >
-                    Cancelar
-                  </button>
-                </div>
+            {/* Footer */}
+            <div className="bg-white border-t px-4 py-3">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button
+                  onClick={() => {
+                    if (editingWebhook) {
+                      updateWebhook(editingWebhook);
+                    } else {
+                      createWebhook();
+                    }
+                  }}
+                  disabled={!webhookForm.url}
+                  className="flex-1 py-3 sm:py-2 px-4 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed font-medium touch-manipulation"
+                >
+                  {editingWebhook ? 'Atualizar' : 'Criar'}
+                </button>
+                <button
+                  onClick={() => {
+                    setShowCreateModal(false);
+                    setEditingWebhook(null);
+                    resetForm();
+                  }}
+                  className="flex-1 py-3 sm:py-2 px-4 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-medium touch-manipulation"
+                >
+                  Cancelar
+                </button>
               </div>
             </div>
           </div>
-        )
-      }
+        </div>
+      )}
+
+      {/* Warning Alert */}
+      <WarningAlert warning={lastWarning} onDismiss={dismissWarning} />
     </>
   );
 }
