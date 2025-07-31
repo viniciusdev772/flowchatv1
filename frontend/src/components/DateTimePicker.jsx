@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
+import React from 'react';
 import DatePicker from 'react-datepicker';
-import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { Calendar, Clock } from 'lucide-react';
 import 'react-datepicker/dist/react-datepicker.css';
@@ -16,9 +15,8 @@ const DateTimePicker = ({
   timeFormat = "HH:mm",
   timeIntervals = 15
 }) => {
-  const [isOpen, setIsOpen] = useState(false);
-
-  const customInput = React.forwardRef(({ value, onClick }, ref) => (
+  // Componente de input customizado
+  const CustomInput = React.forwardRef(({ value, onClick }, ref) => (
     <div 
       className={`relative w-full cursor-pointer ${className}`}
       onClick={onClick}
@@ -36,7 +34,7 @@ const DateTimePicker = ({
     </div>
   ));
 
-  customInput.displayName = 'CustomInput';
+  CustomInput.displayName = 'CustomInput';
 
   return (
     <>
@@ -230,10 +228,8 @@ const DateTimePicker = ({
         dateFormat={dateFormat}
         locale={ptBR}
         minDate={minDate}
-        customInput={customInput}
+        customInput={<CustomInput />}
         placeholderText={placeholderText}
-        onCalendarOpen={() => setIsOpen(true)}
-        onCalendarClose={() => setIsOpen(false)}
         popperClassName="react-datepicker-popper"
         calendarClassName="react-datepicker-calendar"
         showPopperArrow={false}
