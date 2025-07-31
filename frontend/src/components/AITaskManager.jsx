@@ -29,13 +29,12 @@ import {
   ArrowUpDown,
   Sparkles,
   Send,
-  UserGroup,
   MessageCircle,
   Image,
   File,
   Timer,
   Repeat,
-  PhoneIcon
+  Phone
 } from 'lucide-react';
 
 const AITaskManager = ({ tokenId }) => {
@@ -84,7 +83,7 @@ const AITaskManager = ({ tokenId }) => {
     { value: 'send_message', label: 'Enviar Mensagem', icon: Send },
     { value: 'send_media', label: 'Enviar Mídia', icon: Image },
     { value: 'send_document', label: 'Enviar Documento', icon: File },
-    { value: 'group_announcement', label: 'Anúncio no Grupo', icon: UserGroup },
+    { value: 'group_announcement', label: 'Anúncio no Grupo', icon: Users },
     { value: 'broadcast_message', label: 'Mensagem em Massa', icon: MessageCircle },
     { value: 'group_invite', label: 'Convite para Grupo', icon: Users },
   ];
@@ -733,7 +732,7 @@ const AITaskManager = ({ tokenId }) => {
                                 {sessions.filter(s => s.status === 'connected').map(session => (
                                   <SelectItem key={session.sessionId} value={session.sessionId}>
                                     <div className="flex items-center gap-2">
-                                      <PhoneIcon className="w-4 h-4 text-green-500" />
+                                      <Phone className="w-4 h-4 text-green-500" />
                                       {session.sessionId}
                                     </div>
                                   </SelectItem>
@@ -753,7 +752,7 @@ const AITaskManager = ({ tokenId }) => {
                               <SelectContent>
                                 <SelectItem value="group">
                                   <div className="flex items-center gap-2">
-                                    <UserGroup className="w-4 h-4" />
+                                    <Users className="w-4 h-4" />
                                     Grupo
                                   </div>
                                 </SelectItem>
@@ -983,11 +982,11 @@ const AITaskManager = ({ tokenId }) => {
                       </div>
                       <CardDescription className="space-y-2">
                         <div className="flex items-center gap-2 text-sm">
-                          <PhoneIcon className="w-4 h-4 text-green-500" />
+                          <Phone className="w-4 h-4 text-green-500" />
                           <span>{getSessionName(task.sessionId)}</span>
                         </div>
                         <div className="flex items-center gap-2 text-sm">
-                          <UserGroup className="w-4 h-4 text-blue-500" />
+                          <Users className="w-4 h-4 text-blue-500" />
                           <span>{getTargetName(task)}</span>
                         </div>
                         <p className="line-clamp-2 text-gray-600">
