@@ -236,8 +236,8 @@ const AITaskManager = ({ tokenId }) => {
         const result = await response.json();
         if (result.success && result.sessions) {
           setSessions(result.sessions);
-          // Load groups for active sessions
-          await loadGroupsForSessions(result.sessions.filter(s => s.status === 'connected'));
+          // Load groups for connected sessions (isConnected = true)
+          await loadGroupsForSessions(result.sessions.filter(s => s.isConnected === true));
         }
       }
     } catch (error) {
@@ -253,7 +253,7 @@ const AITaskManager = ({ tokenId }) => {
       for (const session of activeSessions) {
         try {
           const response = await fetch(
-            `${apiUrl}/api/baileys/groups/list/${session.sessionId}`,
+            `${apiUrl}/api/baileys/groups/${session.sessionId}/list`,
             {
               method: 'GET',
               headers: {
@@ -265,11 +265,13 @@ const AITaskManager = ({ tokenId }) => {
           
           if (response.ok) {
             const result = await response.json();
-            if (result.success) {
+            if (result.success && result.groups) {
               const sessionGroups = result.groups.map(group => ({
-                ...group,
+                id: group.jid,
+                subject: group.name,
                 sessionId: session.sessionId,
-                sessionName: session.sessionId
+                sessionName: session.sessionId,
+                ...group
               }));
               allGroups.push(...sessionGroups);
             }
@@ -742,7 +744,7 @@ const AITaskManager = ({ tokenId }) => {
                                 <SelectValue placeholder="Selecione uma sessão" />
                               </SelectTrigger>
                               <SelectContent>
-                                {sessions.filter(s => s.status === 'connected').map(session => (
+                                {sessions.filter(s => s.isConnected === true).map(session => (
                                   <SelectItem key={session.sessionId} value={session.sessionId}>
                                     <div className="flex items-center gap-2">
                                       <Phone className="w-4 h-4 text-green-500" />
