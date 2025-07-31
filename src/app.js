@@ -534,6 +534,12 @@ const aiSummaryRouter = require('./api/aiSummary');
 // Importar rotas de agentes de IA
 const { router: aiAgentsRouter } = require('./routes/aiAgents');
 
+// Importar rotas de tarefas WhatsApp
+const whatsappTasksRouter = require('./api/whatsappTasks');
+
+// Importar Task Scheduler
+const taskScheduler = require('./scheduler/taskScheduler');
+
 // Configurações de comportamento humano
 const HUMAN_BEHAVIOR = {
   MIN_TYPING_TIME: 1000, // Tempo mínimo digitando (1s)
@@ -8087,6 +8093,9 @@ app.use('/api/baileys/groups', groupsRouter);
 // Usar rotas de agentes de IA
 app.use('/api/baileys/agents', aiAgentsRouter);
 
+// Usar rotas de tarefas WhatsApp
+app.use('/api/baileys/tasks', whatsappTasksRouter);
+
 // Usar rotas de LID resolver
 const lidResolverRouter = require('./api/lidResolver');
 app.use('/api/baileys/session', lidResolverRouter);
@@ -8182,11 +8191,28 @@ async function initializeApp() {
   } catch (error) {
     logger.error(`Erro ao integrar sistema de coleta: ${error.message}`);
   }
+
+  // Inicializar Task Scheduler
+  logger.info('Inicializando Task Scheduler...');
+  try {
+    await taskScheduler.initialize();
+    logger.info('Task Scheduler inicializado com sucesso!');
+  } catch (error) {
+    logger.error(`Erro ao inicializar Task Scheduler: ${error.message}`);
+  }
 }
 
 // Limpeza ao fechar aplicação
 process.on('SIGINT', async () => {
   logger.info('Fechando aplicação...');
+
+  // Parar Task Scheduler
+  try {
+    taskScheduler.stopAll();
+    logger.info('Task Scheduler parado com sucesso');
+  } catch (error) {
+    logger.error(`Erro ao parar Task Scheduler: ${error.message}`);
+  }
 
   // Fechar todas as sessões
   for (const [sessionId, session] of sessions) {

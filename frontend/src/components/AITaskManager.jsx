@@ -12,6 +12,7 @@ import { Switch } from './ui/switch';
 import { Label } from './ui/label';
 import { useToast } from '../hooks/use-toast';
 import { apiRequest } from '../utils/api';
+import DateTimePicker from './DateTimePicker';
 import { 
   Plus, 
   MessageSquare, 
@@ -67,8 +68,8 @@ const AITaskManager = ({ tokenId }) => {
     targetType: 'group', // 'group' or 'contact'
     targetId: 'none',
     message: '',
-    scheduleType: 'once', // 'once', 'daily', 'weekly', 'monthly'
-    scheduledTime: '',
+    scheduleType: 'once', // 'once', 'daily', 'weekly'
+    scheduledTime: null, // Date object
     cronExpression: '',
     isActive: true,
     addSignature: true,
@@ -89,11 +90,9 @@ const AITaskManager = ({ tokenId }) => {
   ];
 
   const scheduleTypes = [
-    { value: 'once', label: 'Uma vez', icon: Clock },
-    { value: 'daily', label: 'Diariamente', icon: Repeat },
-    { value: 'weekly', label: 'Semanalmente', icon: Calendar },
-    { value: 'monthly', label: 'Mensalmente', icon: Calendar },
-    { value: 'custom', label: 'Personalizado (Cron)', icon: Timer }
+    { value: 'once', label: 'Executar uma vez', icon: Clock, description: 'Na data e hora específica' },
+    { value: 'daily', label: 'Repetir diariamente', icon: Repeat, description: 'Todo dia no mesmo horário' },
+    { value: 'weekly', label: 'Repetir semanalmente', icon: Calendar, description: 'Toda semana no mesmo dia/hora' }
   ];
 
   const statusColors = {
@@ -161,12 +160,39 @@ const AITaskManager = ({ tokenId }) => {
     filterAndSortTasks();
   }, [tasks, searchTerm, filterStatus, filterType, sortBy, sortOrder]);
 
-  const loadTasks = () => {
-    const savedTasks = localStorage.getItem('whatsappTasks');
-    if (savedTasks) {
-      setTasks(JSON.parse(savedTasks));
+  const loadTasks = async () => {
+    if (!token) {
+      setLoading(false);
+      return;
     }
-    setLoading(false);
+
+    try {
+      const response = await fetch(
+        `${apiUrl}/api/baileys/tasks`,
+        {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.tasks) {
+          setTasks(result.tasks);
+        } else {
+          console.error('Erro ao carregar tarefas:', result.message);
+        }
+      } else {
+        console.error('Erro ao carregar tarefas:', response.status);
+      }
+    } catch (error) {
+      console.error('Erro ao carregar tarefas:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const fetchToken = async () => {
@@ -286,10 +312,6 @@ const AITaskManager = ({ tokenId }) => {
     }
   };
 
-  const saveTasks = (updatedTasks) => {
-    localStorage.setItem('whatsappTasks', JSON.stringify(updatedTasks));
-    setTasks(updatedTasks);
-  };
 
   const filterAndSortTasks = () => {
     let filtered = tasks.filter(task => {
@@ -320,7 +342,7 @@ const AITaskManager = ({ tokenId }) => {
     setFilteredTasks(filtered);
   };
 
-  const createTask = () => {
+  const createTask = async () => {
     if (!newTask.title.trim()) {
       toast({
         title: "Erro",
@@ -357,34 +379,60 @@ const AITaskManager = ({ tokenId }) => {
       return;
     }
 
-    // Add FlowChat signature if enabled
-    let finalMessage = newTask.message;
-    if (newTask.addSignature) {
-      finalMessage += '\n\n_Esta mensagem foi enviada usando o FlowChat Task Runners_';
+    try {
+      // Convert Date object to ISO string for API
+      const taskData = {
+        ...newTask,
+        scheduledTime: newTask.scheduledTime ? newTask.scheduledTime.toISOString() : null
+      };
+
+      const response = await fetch(
+        `${apiUrl}/api/baileys/tasks`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(taskData)
+        }
+      );
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.task) {
+          // Reload tasks to get the updated list
+          await loadTasks();
+          setIsCreateModalOpen(false);
+          resetNewTask();
+          
+          toast({
+            title: "Tarefa Criada",
+            description: `Tarefa "${result.task.title}" foi criada com sucesso`,
+          });
+        } else {
+          toast({
+            title: "Erro",
+            description: result.message || "Erro ao criar tarefa",
+            variant: "destructive"
+          });
+        }
+      } else {
+        const error = await response.json();
+        toast({
+          title: "Erro",
+          description: error.message || "Erro ao criar tarefa",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao criar tarefa:', error);
+      toast({
+        title: "Erro",
+        description: "Erro interno ao criar tarefa",
+        variant: "destructive"
+      });
     }
-
-    const task = {
-      id: Date.now().toString(),
-      ...newTask,
-      message: finalMessage,
-      status: newTask.scheduledTime ? 'scheduled' : 'active',
-      created: new Date().toISOString(),
-      updated: new Date().toISOString(),
-      lastExecution: null,
-      nextExecution: calculateNextExecution(newTask),
-      executionLog: [],
-      executionCount: 0
-    };
-
-    const updatedTasks = [task, ...tasks];
-    saveTasks(updatedTasks);
-    setIsCreateModalOpen(false);
-    resetNewTask();
-    
-    toast({
-      title: "Tarefa Criada",
-      description: `Tarefa "${task.title}" foi criada com sucesso`,
-    });
   };
 
   const resetNewTask = () => {
@@ -396,7 +444,7 @@ const AITaskManager = ({ tokenId }) => {
       targetId: 'none',
       message: '',
       scheduleType: 'once',
-      scheduledTime: '',
+      scheduledTime: null,
       cronExpression: '',
       isActive: true,
       addSignature: true,
@@ -408,39 +456,6 @@ const AITaskManager = ({ tokenId }) => {
     setSelectedTemplate('none');
   };
 
-  const calculateNextExecution = (task) => {
-    if (!task.scheduledTime) return null;
-    
-    const now = new Date();
-    const scheduled = new Date(task.scheduledTime);
-    
-    if (task.scheduleType === 'once') {
-      return scheduled > now ? scheduled.toISOString() : null;
-    }
-    
-    // Calculate next execution based on schedule type
-    let next = new Date(scheduled);
-    
-    switch (task.scheduleType) {
-      case 'daily':
-        while (next <= now) {
-          next.setDate(next.getDate() + 1);
-        }
-        break;
-      case 'weekly':
-        while (next <= now) {
-          next.setDate(next.getDate() + 7);
-        }
-        break;
-      case 'monthly':
-        while (next <= now) {
-          next.setMonth(next.getMonth() + 1);
-        }
-        break;
-    }
-    
-    return next.toISOString();
-  };
 
   const applyTemplate = (templateId) => {
     const template = taskTemplates.find(t => t.id === templateId);
@@ -456,36 +471,109 @@ const AITaskManager = ({ tokenId }) => {
     }
   };
 
-  const updateTaskStatus = (taskId, newStatus) => {
-    const updatedTasks = tasks.map(task => 
-      task.id === taskId 
-        ? { ...task, status: newStatus, updated: new Date().toISOString() }
-        : task
-    );
-    saveTasks(updatedTasks);
-    
-    const statusLabels = {
-      active: 'ativa',
-      paused: 'pausada',
-      completed: 'concluída',
-      failed: 'falhada',
-      scheduled: 'agendada'
-    };
-    
-    toast({
-      title: "Status Atualizado",
-      description: `Tarefa alterada para ${statusLabels[newStatus] || newStatus}`,
-    });
+  const updateTaskStatus = async (taskId, newStatus) => {
+    try {
+      const response = await fetch(
+        `${apiUrl}/api/baileys/tasks/${taskId}/status`,
+        {
+          method: 'PATCH',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ status: newStatus })
+        }
+      );
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success) {
+          // Reload tasks to get the updated list
+          await loadTasks();
+          
+          const statusLabels = {
+            active: 'ativa',
+            paused: 'pausada',
+            completed: 'concluída',
+            failed: 'falhada',
+            scheduled: 'agendada'
+          };
+          
+          toast({
+            title: "Status Atualizado",
+            description: `Tarefa alterada para ${statusLabels[newStatus] || newStatus}`,
+          });
+        } else {
+          toast({
+            title: "Erro",
+            description: result.message || "Erro ao atualizar status da tarefa",
+            variant: "destructive"
+          });
+        }
+      } else {
+        const error = await response.json();
+        toast({
+          title: "Erro",
+          description: error.message || "Erro ao atualizar status da tarefa",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao atualizar status da tarefa:', error);
+      toast({
+        title: "Erro",
+        description: "Erro interno ao atualizar status da tarefa",
+        variant: "destructive"
+      });
+    }
   };
 
-  const deleteTask = (taskId) => {
-    const updatedTasks = tasks.filter(task => task.id !== taskId);
-    saveTasks(updatedTasks);
-    
-    toast({
-      title: "Tarefa Removida",
-      description: "Tarefa foi removida com sucesso",
-    });
+  const deleteTask = async (taskId) => {
+    try {
+      const response = await fetch(
+        `${apiUrl}/api/baileys/tasks/${taskId}`,
+        {
+          method: 'DELETE',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          }
+        }
+      );
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success) {
+          // Reload tasks to get the updated list
+          await loadTasks();
+          
+          toast({
+            title: "Tarefa Removida",
+            description: "Tarefa foi removida com sucesso",
+          });
+        } else {
+          toast({
+            title: "Erro",
+            description: result.message || "Erro ao remover tarefa",
+            variant: "destructive"
+          });
+        }
+      } else {
+        const error = await response.json();
+        toast({
+          title: "Erro",
+          description: error.message || "Erro ao remover tarefa",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao remover tarefa:', error);
+      toast({
+        title: "Erro",
+        description: "Erro interno ao remover tarefa",
+        variant: "destructive"
+      });
+    }
   };
 
   const getStatusIcon = (status) => {
@@ -832,53 +920,77 @@ const AITaskManager = ({ tokenId }) => {
                           </div>
                         )}
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <Label>Tipo de Agendamento</Label>
-                            <Select value={newTask.scheduleType} onValueChange={(value) => setNewTask({...newTask, scheduleType: value})}>
-                              <SelectTrigger>
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent>
-                                {scheduleTypes.map(type => (
-                                  <SelectItem key={type.value} value={type.value}>
-                                    <div className="flex items-center gap-2">
-                                      <type.icon className="w-4 h-4" />
-                                      {type.label}
+                        {/* Seção de Agendamento Simplificada */}
+                        <div className="space-y-4">
+                          <div className="space-y-3">
+                            <Label className="text-base font-medium">📅 Quando executar?</Label>
+                            <div className="grid grid-cols-1 gap-3">
+                              {scheduleTypes.map(type => (
+                                <div 
+                                  key={type.value}
+                                  className={`p-4 border-2 rounded-xl cursor-pointer transition-all ${
+                                    newTask.scheduleType === type.value 
+                                      ? 'border-blue-500 bg-blue-50' 
+                                      : 'border-gray-200 hover:border-gray-300 bg-white'
+                                  }`}
+                                  onClick={() => setNewTask({...newTask, scheduleType: type.value})}
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <type.icon className={`w-5 h-5 ${
+                                      newTask.scheduleType === type.value ? 'text-blue-600' : 'text-gray-500'
+                                    }`} />
+                                    <div className="flex-1">
+                                      <div className={`font-medium ${
+                                        newTask.scheduleType === type.value ? 'text-blue-900' : 'text-gray-900'
+                                      }`}>
+                                        {type.label}
+                                      </div>
+                                      <div className="text-sm text-gray-500">
+                                        {type.description}
+                                      </div>
                                     </div>
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                                    <div className={`w-4 h-4 rounded-full border-2 ${
+                                      newTask.scheduleType === type.value 
+                                        ? 'border-blue-500 bg-blue-500' 
+                                        : 'border-gray-300'
+                                    }`}>
+                                      {newTask.scheduleType === type.value && (
+                                        <div className="w-2 h-2 bg-white rounded-full m-auto mt-0.5"></div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
                           </div>
 
                           <div className="space-y-2">
                             <Label htmlFor="scheduledTime">
-                              {newTask.scheduleType === 'once' ? 'Data e Hora' : 'Hora de Início'}
+                              🕐 {newTask.scheduleType === 'once' ? 'Data e hora para executar' : 'Primeiro horário de execução'}
                             </Label>
-                            <Input
-                              id="scheduledTime"
-                              type="datetime-local"
-                              value={newTask.scheduledTime}
-                              onChange={(e) => setNewTask({...newTask, scheduledTime: e.target.value})}
+                            <DateTimePicker
+                              selected={newTask.scheduledTime}
+                              onChange={(date) => setNewTask({...newTask, scheduledTime: date})}
+                              placeholderText={
+                                newTask.scheduleType === 'once' 
+                                  ? 'Clique para escolher data e hora' 
+                                  : 'Clique para definir primeiro horário'
+                              }
+                              minDate={new Date()}
+                              showTimeSelect={true}
+                              timeIntervals={15}
+                              dateFormat="dd/MM/yyyy HH:mm"
                             />
+                            <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                              <div className="text-blue-600 text-sm font-medium">💡</div>
+                              <p className="text-sm text-blue-700">
+                                {newTask.scheduleType === 'once' && 'A tarefa será executada apenas uma vez neste horário.'}
+                                {newTask.scheduleType === 'daily' && 'A tarefa será repetida todos os dias neste mesmo horário.'}
+                                {newTask.scheduleType === 'weekly' && 'A tarefa será repetida toda semana no mesmo dia e horário.'}
+                              </p>
+                            </div>
                           </div>
                         </div>
-
-                        {newTask.scheduleType === 'custom' && (
-                          <div className="space-y-2">
-                            <Label htmlFor="cronExpression">Expressão Cron</Label>
-                            <Input
-                              id="cronExpression"
-                              placeholder="Ex: 0 9 * * 1-5 (Segunda a sexta às 9h)"
-                              value={newTask.cronExpression}
-                              onChange={(e) => setNewTask({...newTask, cronExpression: e.target.value})}
-                            />
-                            <p className="text-sm text-gray-500">
-                              Use <a href="https://crontab.guru/" target="_blank" className="text-blue-500 hover:underline">crontab.guru</a> para ajuda com expressões cron
-                            </p>
-                          </div>
-                        )}
 
                         <div className="space-y-4">
                           <div className="flex items-center justify-between">
