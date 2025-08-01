@@ -181,6 +181,9 @@ class Server {
     // Serve temporary images
     this.app.use('/temp-images', express.static(path.join(__dirname, 'temp-images')));
 
+    // Serve uploaded task files
+    this.app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
+
     // Serve static files from frontend build
     this.app.use(express.static(path.join(__dirname, 'frontend/dist')));
 

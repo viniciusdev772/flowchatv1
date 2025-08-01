@@ -2,8 +2,70 @@ const express = require('express');
 const { ObjectId } = require('mongodb');
 const database = require('../config/database');
 const taskScheduler = require('../scheduler/taskScheduler');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
 
 const router = express.Router();
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadDir = path.join(__dirname, '../../uploads/tasks');
+    
+    // Create directory if it doesn't exist
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    
+    cb(null, uploadDir);
+  },
+  filename: function (req, file, cb) {
+    // Generate unique filename with timestamp
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    const extension = path.extname(file.originalname);
+    const filename = `task-${uniqueSuffix}${extension}`;
+    cb(null, filename);
+  }
+});
+
+// File filter for allowed types
+const fileFilter = (req, file, cb) => {
+  // Allowed file types
+  const allowedTypes = {
+    'image/jpeg': true,
+    'image/jpg': true,
+    'image/png': true,
+    'image/gif': true,
+    'image/webp': true,
+    'application/pdf': true,
+    'application/msword': true,
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document': true,
+    'application/vnd.ms-excel': true,
+    'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': true,
+    'text/plain': true,
+    'audio/mpeg': true,
+    'audio/mp4': true,
+    'audio/wav': true,
+    'video/mp4': true,
+    'video/avi': true,
+    'video/mkv': true
+  };
+
+  if (allowedTypes[file.mimetype]) {
+    cb(null, true);
+  } else {
+    cb(new Error(`Tipo de arquivo não permitido: ${file.mimetype}`), false);
+  }
+};
+
+const upload = multer({
+  storage: storage,
+  fileFilter: fileFilter,
+  limits: {
+    fileSize: 50 * 1024 * 1024 // 50MB limit
+  }
+});
 
 // Middleware para verificar autenticação
 const checkAuth = (req, res, next) => {
@@ -139,6 +201,52 @@ router.get('/', checkAuth, async (req, res) => {
   }
 });
 
+// POST /api/baileys/tasks/upload - Upload de arquivo para tarefa
+router.post('/upload', checkAuth, upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        message: 'Nenhum arquivo foi enviado'
+      });
+    }
+
+    const fileInfo = {
+      filename: req.file.filename,
+      originalName: req.file.originalname,
+      mimetype: req.file.mimetype,
+      size: req.file.size,
+      path: req.file.path,
+      url: `/uploads/tasks/${req.file.filename}`
+    };
+
+    console.log('📁 Arquivo uploadado:', fileInfo);
+
+    res.json({
+      success: true,
+      message: 'Arquivo uploadado com sucesso',
+      file: fileInfo
+    });
+
+  } catch (error) {
+    console.error('Erro no upload do arquivo:', error);
+    
+    // Clean up file if upload failed
+    if (req.file && req.file.path) {
+      try {
+        fs.unlinkSync(req.file.path);
+      } catch (cleanupError) {
+        console.error('Erro ao limpar arquivo:', cleanupError);
+      }
+    }
+    
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Erro interno no upload do arquivo'
+    });
+  }
+});
+
 // POST /api/baileys/tasks - Criar nova tarefa
 router.post('/', checkAuth, checkSessionOwnership, async (req, res) => {
   try {
@@ -164,6 +272,8 @@ router.post('/', checkAuth, checkSessionOwnership, async (req, res) => {
       addSignature,
       mediaUrl,
       mediaType,
+      mediaPath,
+      fileName,
       repeatCount,
       timezone
     } = req.body;
@@ -212,6 +322,8 @@ router.post('/', checkAuth, checkSessionOwnership, async (req, res) => {
       addSignature: addSignature !== false,
       mediaUrl: mediaUrl || null,
       mediaType: mediaType || null,
+      mediaPath: mediaPath || null,
+      fileName: fileName || null,
       repeatCount: repeatCount || 1,
       timezone: timezone || 'America/Sao_Paulo',
       created: now,
@@ -509,7 +621,44 @@ router.post('/:taskId/execute', checkAuth, async (req, res) => {
   }
 });
 
-// Função para executar uma tarefa
+// Calculate typing delay based on message length (simulate human typing)
+function calculateTypingDelay(message) {
+  const baseDelay = 1000; // 1 second base delay
+  const wordsPerMinute = 60; // Average typing speed
+  const charactersPerSecond = (wordsPerMinute * 5) / 60; // ~5 chars per word
+  
+  const messageLength = message ? message.length : 0;
+  const typingTime = Math.max(messageLength / charactersPerSecond * 1000, baseDelay);
+  
+  // Add some randomness to make it more human-like (±20%)
+  const randomFactor = 0.8 + (Math.random() * 0.4);
+  return Math.floor(typingTime * randomFactor);
+}
+
+// Simulate typing presence
+async function simulateTyping(sock, targetJid, duration) {
+  try {
+    console.log(`🔤 Simulando digitação por ${duration}ms para ${targetJid}`);
+    
+    // Send typing indicator
+    await sock.sendPresenceUpdate('composing', targetJid);
+    
+    // Wait for the calculated duration
+    await new Promise(resolve => setTimeout(resolve, duration));
+    
+    // Stop typing indicator
+    await sock.sendPresenceUpdate('paused', targetJid);
+    
+    // Small pause before sending message
+    await new Promise(resolve => setTimeout(resolve, 300 + Math.random() * 700));
+    
+  } catch (error) {
+    console.warn('Erro ao simular digitação:', error.message);
+    // Continue even if typing simulation fails
+  }
+}
+
+// Função para executar uma tarefa com medidas anti-ban
 async function executeTask(task) {
   try {
     const sessions = global.whatsappSessions;
@@ -540,6 +689,14 @@ async function executeTask(task) {
       targetJid = `${targetJid}@s.whatsapp.net`;
     }
 
+    // Calculate typing delay based on message content
+    const typingDelay = calculateTypingDelay(task.message);
+    
+    // Simulate typing for text-based messages
+    if (['send_message', 'group_announcement', 'broadcast_message'].includes(task.type)) {
+      await simulateTyping(sock, targetJid, typingDelay);
+    }
+
     let result;
 
     switch (task.type) {
@@ -550,25 +707,40 @@ async function executeTask(task) {
         break;
 
       case 'send_media':
-        if (task.mediaUrl) {
+        if (task.mediaUrl || task.mediaPath) {
+          const mediaSource = task.mediaPath ? { url: `file://${task.mediaPath}` } : { url: task.mediaUrl };
+          
+          // Simulate typing for media with caption
+          if (task.message && task.message.trim()) {
+            await simulateTyping(sock, targetJid, calculateTypingDelay(task.message));
+          }
+          
           result = await sock.sendMessage(targetJid, {
-            image: { url: task.mediaUrl },
-            caption: task.message
+            image: mediaSource,
+            caption: task.message || ''
           });
         } else {
-          throw new Error('URL da mídia não fornecida');
+          throw new Error('URL ou arquivo da mídia não fornecida');
         }
         break;
 
       case 'send_document':
-        if (task.mediaUrl) {
+        if (task.mediaUrl || task.mediaPath) {
+          const mediaSource = task.mediaPath ? { url: `file://${task.mediaPath}` } : { url: task.mediaUrl };
+          
+          // Simulate typing for document with caption
+          if (task.message && task.message.trim()) {
+            await simulateTyping(sock, targetJid, calculateTypingDelay(task.message));
+          }
+          
           result = await sock.sendMessage(targetJid, {
-            document: { url: task.mediaUrl },
-            caption: task.message,
-            mimetype: task.mediaType || 'application/pdf'
+            document: mediaSource,
+            caption: task.message || '',
+            mimetype: task.mediaType || 'application/pdf',
+            fileName: task.fileName || 'document.pdf'
           });
         } else {
-          throw new Error('URL do documento não fornecida');
+          throw new Error('URL ou arquivo do documento não fornecida');
         }
         break;
 
@@ -576,13 +748,16 @@ async function executeTask(task) {
         throw new Error(`Tipo de tarefa não suportado: ${task.type}`);
     }
 
+    console.log(`✅ Mensagem enviada com sucesso para ${targetJid}`);
+
     return {
       success: true,
       message: 'Tarefa executada com sucesso',
       details: {
         messageId: result?.key?.id,
         targetJid,
-        timestamp: new Date()
+        timestamp: new Date(),
+        typingDelay: typingDelay
       }
     };
 

@@ -192,7 +192,44 @@ class TaskScheduler {
     }
   }
 
-  // Execute task logic (similar to the API endpoint)
+  // Calculate typing delay based on message length (simulate human typing)
+  calculateTypingDelay(message) {
+    const baseDelay = 1000; // 1 second base delay
+    const wordsPerMinute = 60; // Average typing speed
+    const charactersPerSecond = (wordsPerMinute * 5) / 60; // ~5 chars per word
+    
+    const messageLength = message ? message.length : 0;
+    const typingTime = Math.max(messageLength / charactersPerSecond * 1000, baseDelay);
+    
+    // Add some randomness to make it more human-like (±20%)
+    const randomFactor = 0.8 + (Math.random() * 0.4);
+    return Math.floor(typingTime * randomFactor);
+  }
+
+  // Simulate typing presence
+  async simulateTyping(sock, targetJid, duration) {
+    try {
+      console.log(`🔤 Simulando digitação por ${duration}ms para ${targetJid}`);
+      
+      // Send typing indicator
+      await sock.sendPresenceUpdate('composing', targetJid);
+      
+      // Wait for the calculated duration
+      await new Promise(resolve => setTimeout(resolve, duration));
+      
+      // Stop typing indicator
+      await sock.sendPresenceUpdate('paused', targetJid);
+      
+      // Small pause before sending message
+      await new Promise(resolve => setTimeout(resolve, 300 + Math.random() * 700));
+      
+    } catch (error) {
+      console.warn('Erro ao simular digitação:', error.message);
+      // Continue even if typing simulation fails
+    }
+  }
+
+  // Execute task logic with anti-ban measures
   async executeTask(task) {
     try {
       const sessions = global.whatsappSessions;
@@ -223,6 +260,14 @@ class TaskScheduler {
         targetJid = `${targetJid}@s.whatsapp.net`;
       }
 
+      // Calculate typing delay based on message content
+      const typingDelay = this.calculateTypingDelay(task.message);
+      
+      // Simulate typing for text-based messages
+      if (['send_message', 'group_announcement', 'broadcast_message'].includes(task.type)) {
+        await this.simulateTyping(sock, targetJid, typingDelay);
+      }
+
       let result;
 
       switch (task.type) {
@@ -233,25 +278,40 @@ class TaskScheduler {
           break;
 
         case 'send_media':
-          if (task.mediaUrl) {
+          if (task.mediaUrl || task.mediaPath) {
+            const mediaSource = task.mediaPath ? { url: `file://${task.mediaPath}` } : { url: task.mediaUrl };
+            
+            // Simulate typing for media with caption
+            if (task.message && task.message.trim()) {
+              await this.simulateTyping(sock, targetJid, this.calculateTypingDelay(task.message));
+            }
+            
             result = await sock.sendMessage(targetJid, {
-              image: { url: task.mediaUrl },
-              caption: task.message
+              image: mediaSource,
+              caption: task.message || ''
             });
           } else {
-            throw new Error('URL da mídia não fornecida');
+            throw new Error('URL ou arquivo da mídia não fornecida');
           }
           break;
 
         case 'send_document':
-          if (task.mediaUrl) {
+          if (task.mediaUrl || task.mediaPath) {
+            const mediaSource = task.mediaPath ? { url: `file://${task.mediaPath}` } : { url: task.mediaUrl };
+            
+            // Simulate typing for document with caption
+            if (task.message && task.message.trim()) {
+              await this.simulateTyping(sock, targetJid, this.calculateTypingDelay(task.message));
+            }
+            
             result = await sock.sendMessage(targetJid, {
-              document: { url: task.mediaUrl },
-              caption: task.message,
-              mimetype: task.mediaType || 'application/pdf'
+              document: mediaSource,
+              caption: task.message || '',
+              mimetype: task.mediaType || 'application/pdf',
+              fileName: task.fileName || 'document.pdf'
             });
           } else {
-            throw new Error('URL do documento não fornecida');
+            throw new Error('URL ou arquivo do documento não fornecida');
           }
           break;
 
@@ -259,13 +319,16 @@ class TaskScheduler {
           throw new Error(`Tipo de tarefa não suportado: ${task.type}`);
       }
 
+      console.log(`✅ Mensagem enviada com sucesso para ${targetJid}`);
+
       return {
         success: true,
         message: 'Tarefa executada com sucesso',
         details: {
           messageId: result?.key?.id,
           targetJid,
-          timestamp: new Date()
+          timestamp: new Date(),
+          typingDelay: typingDelay
         }
       };
 

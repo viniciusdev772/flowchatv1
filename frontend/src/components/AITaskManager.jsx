@@ -35,7 +35,9 @@ import {
   File,
   Timer,
   Repeat,
-  Phone
+  Phone,
+  Upload,
+  X
 } from 'lucide-react';
 
 const AITaskManager = ({ tokenId }) => {
@@ -54,6 +56,8 @@ const AITaskManager = ({ tokenId }) => {
   const [token, setToken] = useState('');
   const [tokenLoading, setTokenLoading] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [uploadedFile, setUploadedFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
   const { toast } = useToast();
 
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -75,6 +79,8 @@ const AITaskManager = ({ tokenId }) => {
     addSignature: true,
     mediaUrl: '',
     mediaType: '',
+    mediaPath: '',
+    fileName: '',
     repeatCount: 1,
     timezone: userTimezone
   });
@@ -342,6 +348,68 @@ const AITaskManager = ({ tokenId }) => {
     setFilteredTasks(filtered);
   };
 
+  const handleFileUpload = async (file) => {
+    if (!file) return;
+
+    setUploading(true);
+    
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch(`${apiUrl}/api/baileys/tasks/upload`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.file) {
+          setUploadedFile(result.file);
+          setNewTask({
+            ...newTask,
+            mediaPath: result.file.path,
+            fileName: result.file.originalName,
+            mediaType: result.file.mimetype,
+            mediaUrl: '' // Clear URL if file is uploaded
+          });
+          
+          toast({
+            title: "Arquivo Enviado",
+            description: `${result.file.originalName} foi enviado com sucesso`,
+          });
+        } else {
+          throw new Error(result.message || 'Erro no upload');
+        }
+      } else {
+        const error = await response.json();
+        throw new Error(error.message || 'Erro no upload');
+      }
+    } catch (error) {
+      console.error('Erro no upload:', error);
+      toast({
+        title: "Erro no Upload",
+        description: error.message || "Erro interno no upload do arquivo",
+        variant: "destructive"
+      });
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const removeUploadedFile = () => {
+    setUploadedFile(null);
+    setNewTask({
+      ...newTask,
+      mediaPath: '',
+      fileName: '',
+      mediaType: '',
+    });
+  };
+
   const createTask = async () => {
     if (!newTask.title.trim()) {
       toast({
@@ -450,10 +518,13 @@ const AITaskManager = ({ tokenId }) => {
       addSignature: true,
       mediaUrl: '',
       mediaType: '',
+      mediaPath: '',
+      fileName: '',
       repeatCount: 1,
       timezone: userTimezone
     });
     setSelectedTemplate('none');
+    setUploadedFile(null);
   };
 
 
@@ -909,14 +980,91 @@ const AITaskManager = ({ tokenId }) => {
 
                         {/* Media Upload for media tasks */}
                         {(newTask.type === 'send_media' || newTask.type === 'send_document') && (
-                          <div className="space-y-2">
-                            <Label htmlFor="mediaUrl">URL da Mídia</Label>
-                            <Input
-                              id="mediaUrl"
-                              placeholder="https://exemplo.com/arquivo.jpg"
-                              value={newTask.mediaUrl}
-                              onChange={(e) => setNewTask({...newTask, mediaUrl: e.target.value})}
-                            />
+                          <div className="space-y-4">
+                            <div className="space-y-3">
+                              <Label>Mídia</Label>
+                              <div className="flex items-center gap-3 text-sm text-gray-600">
+                                <span>Escolha uma das opções:</span>
+                              </div>
+                              
+                              {/* File Upload Option */}
+                              <div className="space-y-2">
+                                <Label className="text-sm font-medium">📁 Upload de Arquivo</Label>
+                                {!uploadedFile ? (
+                                  <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
+                                    <input
+                                      type="file"
+                                      id="fileUpload"
+                                      className="hidden"
+                                      accept="image/*,audio/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+                                      onChange={(e) => {
+                                        const file = e.target.files[0];
+                                        if (file) handleFileUpload(file);
+                                      }}
+                                      disabled={uploading}
+                                    />
+                                    <label
+                                      htmlFor="fileUpload"
+                                      className={`cursor-pointer flex flex-col items-center gap-2 ${uploading ? 'opacity-50' : ''}`}
+                                    >
+                                      {uploading ? (
+                                        <>
+                                          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+                                          <span className="text-sm text-gray-600">Enviando arquivo...</span>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Upload className="w-8 h-8 text-gray-400" />
+                                          <span className="text-sm text-gray-600">
+                                            Clique para selecionar um arquivo
+                                          </span>
+                                          <span className="text-xs text-gray-500">
+                                            Imagens, vídeos, áudios, documentos (máx. 50MB)
+                                          </span>
+                                        </>
+                                      )}
+                                    </label>
+                                  </div>
+                                ) : (
+                                  <div className="flex items-center gap-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+                                    <File className="w-5 h-5 text-green-600" />
+                                    <div className="flex-1">
+                                      <p className="text-sm font-medium text-green-800">
+                                        {uploadedFile.originalName}
+                                      </p>
+                                      <p className="text-xs text-green-600">
+                                        {(uploadedFile.size / 1024 / 1024).toFixed(2)} MB
+                                      </p>
+                                    </div>
+                                    <Button
+                                      type="button"
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={removeUploadedFile}
+                                      className="text-red-500 hover:text-red-700"
+                                    >
+                                      <X className="w-4 h-4" />
+                                    </Button>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* URL Option */}
+                              <div className="space-y-2">
+                                <Label className="text-sm font-medium">🔗 Ou informe a URL</Label>
+                                <Input
+                                  placeholder="https://exemplo.com/arquivo.jpg"
+                                  value={newTask.mediaUrl}
+                                  onChange={(e) => setNewTask({...newTask, mediaUrl: e.target.value})}
+                                  disabled={!!uploadedFile}
+                                />
+                                {uploadedFile && (
+                                  <p className="text-xs text-gray-500">
+                                    Remova o arquivo acima para usar URL
+                                  </p>
+                                )}
+                              </div>
+                            </div>
                           </div>
                         )}
 
