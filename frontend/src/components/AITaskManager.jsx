@@ -7,11 +7,9 @@ import { Textarea } from './ui/textarea';
 import { Badge } from './ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
-import { Progress } from './ui/progress';
 import { Switch } from './ui/switch';
 import { Label } from './ui/label';
 import { useToast } from '../hooks/use-toast';
-import { apiRequest } from '../utils/api';
 import DateTimePicker from './DateTimePicker';
 import { 
   Plus, 
@@ -25,10 +23,8 @@ import {
   Edit3,
   Calendar,
   Users,
-  Filter,
   Search,
   ArrowUpDown,
-  Sparkles,
   Send,
   MessageCircle,
   Image,
@@ -701,53 +697,52 @@ const AITaskManager = ({ tokenId }) => {
   // Loading states
   if (tokenLoading || loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center p-3 sm:p-6">
-        <div className="bg-white/95 backdrop-blur-xl border border-gray-200 p-4 sm:p-8 max-w-md w-full mx-2 sm:mx-4 rounded-2xl shadow-2xl">
-          <div className="flex items-center justify-center">
-            <Timer className="h-6 w-6 sm:h-8 sm:w-8 animate-spin text-blue-600" />
-            <span className="ml-3 text-base sm:text-lg font-medium text-gray-900">
-              {tokenLoading ? 'Autenticando...' : 'Carregando tarefas...'}
-            </span>
-          </div>
-        </div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center p-6">
+        <Card className="bg-white/95 backdrop-blur-xl border-white/20 shadow-2xl max-w-md w-full">
+          <CardContent className="p-8">
+            <div className="flex items-center justify-center">
+              <Timer className="h-8 w-8 animate-spin text-blue-600" />
+              <span className="ml-3 text-lg font-medium text-gray-900">
+                {tokenLoading ? 'Autenticando...' : 'Carregando tarefas...'}
+              </span>
+            </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   if (!token) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center p-3 sm:p-6">
-        <div className="bg-white/95 backdrop-blur-xl border border-gray-200 p-4 sm:p-8 max-w-md w-full mx-2 sm:mx-4 rounded-2xl shadow-2xl">
-          <div className="flex items-center justify-center text-center">
-            <div>
-              <AlertCircle className="h-12 w-12 sm:h-16 sm:w-16 text-red-500 mx-auto mb-4" />
-              <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2">
-                Erro de Autenticação
-              </h3>
-              <p className="text-sm sm:text-base text-gray-600 mb-6">
-                Não foi possível obter o token de acesso. O token pode ter
-                expirado ou sido excluído.
-                <br />
-                <span className="text-xs sm:text-sm text-gray-500">
-                  Crie um novo token na aba "Tokens de API".
-                </span>
-              </p>
-              <button
-                onClick={() => window.location.reload()}
-                className="px-4 sm:px-6 py-2 sm:py-3 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-colors border border-red-200 text-sm sm:text-base"
-              >
-                Recarregar
-              </button>
-            </div>
-          </div>
-        </div>
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center p-6">
+        <Card className="bg-white/95 backdrop-blur-xl border-white/20 shadow-2xl max-w-md w-full">
+          <CardContent className="p-8 text-center">
+            <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
+            <CardTitle className="text-lg mb-2">Erro de Autenticação</CardTitle>
+            <CardDescription className="mb-6">
+              Não foi possível obter o token de acesso. O token pode ter
+              expirado ou sido excluído.
+              <br />
+              <span className="text-sm text-muted-foreground">
+                Crie um novo token na aba "Tokens de API".
+              </span>
+            </CardDescription>
+            <Button
+              onClick={() => window.location.reload()}
+              variant="outline"
+              className="border-red-200 text-red-600 hover:bg-red-50"
+            >
+              Recarregar
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 p-6">
-      <div className="max-w-7xl mx-auto space-y-8">
+      <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <motion.div
           initial={{ opacity: 0, y: -20 }}
@@ -755,14 +750,14 @@ const AITaskManager = ({ tokenId }) => {
           className="text-center space-y-4"
         >
           <div className="flex items-center justify-center gap-3">
-            <div className="p-3 bg-gradient-to-r from-green-500 to-blue-500 rounded-2xl shadow-lg">
+            <div className="p-3 bg-gradient-to-r from-green-500 to-blue-500 rounded-xl shadow-lg">
               <MessageSquare className="w-8 h-8 text-white" />
             </div>
             <h1 className="text-4xl font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent">
               WhatsApp Task Runners
             </h1>
           </div>
-          <p className="text-gray-600 text-lg max-w-2xl mx-auto">
+          <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
             Automatize suas mensagens WhatsApp com agendamentos inteligentes e execução programável.
           </p>
         </motion.div>
@@ -778,17 +773,17 @@ const AITaskManager = ({ tokenId }) => {
               <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
                 <div className="flex flex-col sm:flex-row gap-3 flex-1">
                   <div className="relative flex-1 max-w-md">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
                     <Input
                       placeholder="Pesquisar tarefas..."
                       value={searchTerm}
                       onChange={(e) => setSearchTerm(e.target.value)}
-                      className="pl-10 bg-white/50 border-white/30"
+                      className="pl-10"
                     />
                   </div>
                   
                   <Select value={filterStatus} onValueChange={setFilterStatus}>
-                    <SelectTrigger className="w-40 bg-white/50 border-white/30">
+                    <SelectTrigger className="w-40">
                       <SelectValue placeholder="Status" />
                     </SelectTrigger>
                     <SelectContent>
@@ -802,7 +797,7 @@ const AITaskManager = ({ tokenId }) => {
                   </Select>
 
                   <Select value={filterType} onValueChange={setFilterType}>
-                    <SelectTrigger className="w-40 bg-white/50 border-white/30">
+                    <SelectTrigger className="w-40">
                       <SelectValue placeholder="Tipo" />
                     </SelectTrigger>
                     <SelectContent>
@@ -820,7 +815,6 @@ const AITaskManager = ({ tokenId }) => {
                   <Button
                     variant="outline"
                     onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
-                    className="bg-white/50 border-white/30 hover:bg-white/70"
                   >
                     <ArrowUpDown className="w-4 h-4 mr-2" />
                     {sortOrder === 'asc' ? 'Crescente' : 'Decrescente'}
