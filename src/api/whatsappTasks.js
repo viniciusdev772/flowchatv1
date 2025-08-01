@@ -720,7 +720,8 @@ async function executeTask(task) {
             if (!fs.existsSync(task.mediaPath)) {
               throw new Error(`Arquivo não encontrado: ${task.mediaPath}`);
             }
-            mediaSource = { url: `file://${task.mediaPath}` };
+            // Read file as buffer for Baileys
+            mediaSource = fs.readFileSync(task.mediaPath);
             console.log(`📁 Usando arquivo local: ${task.mediaPath}`);
           } else {
             mediaSource = { url: task.mediaUrl };
@@ -742,7 +743,8 @@ async function executeTask(task) {
           if (isVideo) {
             result = await sock.sendMessage(targetJid, {
               video: mediaSource,
-              caption: task.message || ''
+              caption: task.message || '',
+              ...(task.mediaPath && { mimetype: task.mediaType })
             });
           } else if (isAudio) {
             result = await sock.sendMessage(targetJid, {
@@ -774,7 +776,8 @@ async function executeTask(task) {
             // Default to image
             result = await sock.sendMessage(targetJid, {
               image: mediaSource,
-              caption: task.message || ''
+              caption: task.message || '',
+              ...(task.mediaPath && { mimetype: task.mediaType })
             });
           }
         } else {
@@ -790,7 +793,8 @@ async function executeTask(task) {
             if (!fs.existsSync(task.mediaPath)) {
               throw new Error(`Arquivo não encontrado: ${task.mediaPath}`);
             }
-            mediaSource = { url: `file://${task.mediaPath}` };
+            // Read file as buffer for Baileys
+            mediaSource = fs.readFileSync(task.mediaPath);
             console.log(`📁 Usando documento local: ${task.mediaPath}`);
           } else {
             mediaSource = { url: task.mediaUrl };
