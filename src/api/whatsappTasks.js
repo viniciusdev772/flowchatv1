@@ -720,8 +720,8 @@ async function executeTask(task) {
             if (!fs.existsSync(task.mediaPath)) {
               throw new Error(`Arquivo não encontrado: ${task.mediaPath}`);
             }
-            // Read file as buffer for Baileys
-            mediaSource = fs.readFileSync(task.mediaPath);
+            // Use file path for Baileys (documentation: { url: "./path/to/file" })
+            mediaSource = { url: task.mediaPath };
             console.log(`📁 Usando arquivo local: ${task.mediaPath}`);
           } else {
             mediaSource = { url: task.mediaUrl };
@@ -793,8 +793,8 @@ async function executeTask(task) {
             if (!fs.existsSync(task.mediaPath)) {
               throw new Error(`Arquivo não encontrado: ${task.mediaPath}`);
             }
-            // Read file as buffer for Baileys
-            mediaSource = fs.readFileSync(task.mediaPath);
+            // Use file path for Baileys (documentation: { url: "./path/to/file" })
+            mediaSource = { url: task.mediaPath };
             console.log(`📁 Usando documento local: ${task.mediaPath}`);
           } else {
             mediaSource = { url: task.mediaUrl };
@@ -825,6 +825,31 @@ async function executeTask(task) {
 
     console.log(`✅ Mensagem enviada com sucesso para ${targetJid}`);
 
+    // Save execution to MongoDB
+    try {
+      const db = database.getDb();
+      if (db) {
+        const executionsCollection = db.collection('task_executions');
+        await executionsCollection.insertOne({
+          taskId: task._id || task.id,
+          taskType: task.type,
+          targetJid,
+          messageId: result?.key?.id,
+          executedAt: new Date(),
+          success: true,
+          details: {
+            typingDelay,
+            mediaType: task.mediaType || null,
+            hasMedia: !!(task.mediaPath || task.mediaUrl),
+            messageText: task.message || null
+          }
+        });
+        console.log(`💾 Execução salva no MongoDB para tarefa ${task._id || task.id}`);
+      }
+    } catch (dbError) {
+      console.warn(`Erro ao salvar execução no MongoDB: ${dbError.message}`);
+    }
+
     return {
       success: true,
       message: 'Tarefa executada com sucesso',
@@ -838,6 +863,33 @@ async function executeTask(task) {
 
   } catch (error) {
     console.error('Erro na execução da tarefa:', error);
+    
+    // Save error execution to MongoDB
+    try {
+      const db = database.getDb();
+      if (db) {
+        const executionsCollection = db.collection('task_executions');
+        await executionsCollection.insertOne({
+          taskId: task._id || task.id,
+          taskType: task.type,
+          targetJid,
+          messageId: null,
+          executedAt: new Date(),
+          success: false,
+          error: error.message,
+          details: {
+            errorStack: error.stack,
+            mediaType: task.mediaType || null,
+            hasMedia: !!(task.mediaPath || task.mediaUrl),
+            messageText: task.message || null
+          }
+        });
+        console.log(`💾 Erro de execução salvo no MongoDB para tarefa ${task._id || task.id}`);
+      }
+    } catch (dbError) {
+      console.warn(`Erro ao salvar erro de execução no MongoDB: ${dbError.message}`);
+    }
+
     return {
       success: false,
       message: error.message,
