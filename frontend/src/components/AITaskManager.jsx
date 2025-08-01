@@ -977,9 +977,10 @@ const AITaskManager = ({ tokenId }) => {
                             rows={4}
                           />
                           {(newTask.type === 'send_media' || newTask.type === 'send_document') && (
-                            <p className="text-xs text-gray-500">
-                              💡 Esta mensagem será enviada como legenda do arquivo
-                            </p>
+                            <div className="text-xs text-gray-500 space-y-1">
+                              <p>💡 <strong>Legenda para:</strong> Imagens, Vídeos e Documentos</p>
+                              <p>📝 <strong>Mensagem separada para:</strong> Áudios e Stickers</p>
+                            </div>
                           )}
                         </div>
 
@@ -1003,7 +1004,7 @@ const AITaskManager = ({ tokenId }) => {
                                       type="file"
                                       id="fileUpload"
                                       className="hidden"
-                                      accept="image/*,audio/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.txt"
+                                      accept="image/*,audio/*,video/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.webp"
                                       onChange={(e) => {
                                         const file = e.target.files[0];
                                         if (file) handleFileUpload(file);
@@ -1027,7 +1028,7 @@ const AITaskManager = ({ tokenId }) => {
                                           </span>
                                           <span className="text-xs text-gray-500">
                                             {newTask.type === 'send_media' 
-                                              ? 'Imagens, vídeos, áudios (máx. 50MB)'
+                                              ? 'Imagens, vídeos, áudios, stickers (máx. 50MB)'
                                               : 'Documentos PDF, DOC, XLS, TXT (máx. 50MB)'
                                             }
                                           </span>
@@ -1212,7 +1213,7 @@ const AITaskManager = ({ tokenId }) => {
                                 {newTask.message && (
                                   <p className="text-sm text-gray-600 mt-1">
                                     <strong>
-                                      {(newTask.type === 'send_media' || newTask.type === 'send_document') ? 'Caption:' : 'Mensagem:'}
+                                      {(newTask.type === 'send_media' || newTask.type === 'send_document') ? 'Caption/Mensagem:' : 'Mensagem:'}
                                     </strong> {newTask.message.length > 50 ? newTask.message.substring(0, 50) + '...' : newTask.message}
                                   </p>
                                 )}

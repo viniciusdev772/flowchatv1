@@ -5,6 +5,7 @@ const taskScheduler = require('../scheduler/taskScheduler');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const { delay } = require('@whiskeysockets/baileys');
 
 const router = express.Router();
 
@@ -585,30 +586,34 @@ router.post('/:taskId/execute', checkAuth, async (req, res) => {
     const executionResult = await executeTask(task);
 
     // Atualizar contador e log de execução
-    await tasksCollection.updateOne(
-      { _id: new ObjectId(taskId) },
-      {
-        $set: {
-          lastExecution: new Date(),
-          updated: new Date()
-        },
-        $inc: {
-          executionCount: 1
-        },
-        $push: {
-          executionLog: {
-            timestamp: new Date(),
-            status: executionResult.success ? 'success' : 'error',
-            message: executionResult.message,
-            details: executionResult.details || null
-          }
+    const updateData = {
+      $set: {
+        lastExecution: new Date(),
+        updated: new Date()
+      },
+      $push: {
+        executionLog: {
+          timestamp: new Date(),
+          status: executionResult.success ? 'success' : 'error',
+          message: executionResult.message,
+          details: executionResult.details || null
         }
       }
+    };
+
+    // Only increment counter if execution was successful
+    if (executionResult.success) {
+      updateData.$inc = { executionCount: 1 };
+    }
+
+    await tasksCollection.updateOne(
+      { _id: new ObjectId(taskId) },
+      updateData
     );
 
     res.json({
-      success: true,
-      message: 'Tarefa executada',
+      success: executionResult.success,
+      message: executionResult.success ? 'Tarefa executada com sucesso' : 'Falha na execução da tarefa',
       execution: executionResult
     });
 
@@ -708,7 +713,19 @@ async function executeTask(task) {
 
       case 'send_media':
         if (task.mediaUrl || task.mediaPath) {
-          const mediaSource = task.mediaPath ? { url: `file://${task.mediaPath}` } : { url: task.mediaUrl };
+          let mediaSource;
+          
+          if (task.mediaPath) {
+            // Check if file exists
+            if (!fs.existsSync(task.mediaPath)) {
+              throw new Error(`Arquivo não encontrado: ${task.mediaPath}`);
+            }
+            mediaSource = { url: `file://${task.mediaPath}` };
+            console.log(`📁 Usando arquivo local: ${task.mediaPath}`);
+          } else {
+            mediaSource = { url: task.mediaUrl };
+            console.log(`🔗 Usando URL externa: ${task.mediaUrl}`);
+          }
           
           // Simulate typing for media with caption
           if (task.message && task.message.trim()) {
@@ -718,6 +735,9 @@ async function executeTask(task) {
           // Detect media type and send accordingly
           const isVideo = task.mediaType && task.mediaType.startsWith('video/');
           const isAudio = task.mediaType && task.mediaType.startsWith('audio/');
+          const isSticker = task.mediaType && task.mediaType === 'image/webp';
+          
+          console.log(`📤 Enviando mídia tipo: ${isVideo ? 'video' : isAudio ? 'audio' : isSticker ? 'sticker' : 'image'} para ${targetJid}`);
           
           if (isVideo) {
             result = await sock.sendMessage(targetJid, {
@@ -728,8 +748,28 @@ async function executeTask(task) {
             result = await sock.sendMessage(targetJid, {
               audio: mediaSource,
               mimetype: task.mediaType,
-              caption: task.message || ''
+              ptt: false // false = áudio regular, true = mensagem de voz
             });
+            
+            // Áudio não suporta caption, enviar mensagem separada se houver texto
+            if (task.message && task.message.trim()) {
+              await delay(500); // pequeno delay entre as mensagens
+              result = await sock.sendMessage(targetJid, {
+                text: task.message
+              });
+            }
+          } else if (isSticker) {
+            result = await sock.sendMessage(targetJid, {
+              sticker: mediaSource
+            });
+            
+            // Sticker não suporta caption, enviar mensagem separada se houver texto
+            if (task.message && task.message.trim()) {
+              await delay(500);
+              result = await sock.sendMessage(targetJid, {
+                text: task.message
+              });
+            }
           } else {
             // Default to image
             result = await sock.sendMessage(targetJid, {
@@ -744,12 +784,25 @@ async function executeTask(task) {
 
       case 'send_document':
         if (task.mediaUrl || task.mediaPath) {
-          const mediaSource = task.mediaPath ? { url: `file://${task.mediaPath}` } : { url: task.mediaUrl };
+          let mediaSource;
+          
+          if (task.mediaPath) {
+            if (!fs.existsSync(task.mediaPath)) {
+              throw new Error(`Arquivo não encontrado: ${task.mediaPath}`);
+            }
+            mediaSource = { url: `file://${task.mediaPath}` };
+            console.log(`📁 Usando documento local: ${task.mediaPath}`);
+          } else {
+            mediaSource = { url: task.mediaUrl };
+            console.log(`🔗 Usando documento URL: ${task.mediaUrl}`);
+          }
           
           // Simulate typing for document with caption
           if (task.message && task.message.trim()) {
             await simulateTyping(sock, targetJid, calculateTypingDelay(task.message));
           }
+          
+          console.log(`📄 Enviando documento para ${targetJid}`);
           
           result = await sock.sendMessage(targetJid, {
             document: mediaSource,
