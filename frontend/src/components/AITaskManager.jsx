@@ -630,11 +630,11 @@ const AITaskManager = ({ tokenId }) => {
   // Loading states
   if (tokenLoading || loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center p-6">
-        <div className="bg-white/95 backdrop-blur-xl border border-gray-200 p-8 max-w-md w-full mx-4 rounded-2xl shadow-2xl">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center p-3 sm:p-6">
+        <div className="bg-white/95 backdrop-blur-xl border border-gray-200 p-4 sm:p-8 max-w-md w-full mx-2 sm:mx-4 rounded-2xl shadow-2xl">
           <div className="flex items-center justify-center">
-            <Timer className="h-8 w-8 animate-spin text-blue-600" />
-            <span className="ml-3 text-lg font-medium text-gray-900">
+            <Timer className="h-6 w-6 sm:h-8 sm:w-8 animate-spin text-blue-600" />
+            <span className="ml-3 text-base sm:text-lg font-medium text-gray-900">
               {tokenLoading ? 'Autenticando...' : 'Carregando tarefas...'}
             </span>
           </div>
@@ -645,25 +645,25 @@ const AITaskManager = ({ tokenId }) => {
 
   if (!token) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center p-6">
-        <div className="bg-white/95 backdrop-blur-xl border border-gray-200 p-8 max-w-md w-full mx-4 rounded-2xl shadow-2xl">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center p-3 sm:p-6">
+        <div className="bg-white/95 backdrop-blur-xl border border-gray-200 p-4 sm:p-8 max-w-md w-full mx-2 sm:mx-4 rounded-2xl shadow-2xl">
           <div className="flex items-center justify-center text-center">
             <div>
-              <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
-              <h3 className="text-lg font-medium text-gray-900 mb-2">
+              <AlertCircle className="h-12 w-12 sm:h-16 sm:w-16 text-red-500 mx-auto mb-4" />
+              <h3 className="text-base sm:text-lg font-medium text-gray-900 mb-2">
                 Erro de Autenticação
               </h3>
-              <p className="text-gray-600 mb-6">
+              <p className="text-sm sm:text-base text-gray-600 mb-6">
                 Não foi possível obter o token de acesso. O token pode ter
                 expirado ou sido excluído.
                 <br />
-                <span className="text-sm text-gray-500">
+                <span className="text-xs sm:text-sm text-gray-500">
                   Crie um novo token na aba "Tokens de API".
                 </span>
               </p>
               <button
                 onClick={() => window.location.reload()}
-                className="px-6 py-3 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-colors border border-red-200"
+                className="px-4 sm:px-6 py-2 sm:py-3 bg-red-50 text-red-600 rounded-xl hover:bg-red-100 transition-colors border border-red-200 text-sm sm:text-base"
               >
                 Recarregar
               </button>
@@ -1030,19 +1030,21 @@ const AITaskManager = ({ tokenId }) => {
                           </div>
                         </div>
 
-                        <div className="flex justify-end gap-3 pt-4 border-t">
+                        <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t">
                           <Button 
                             variant="outline" 
                             onClick={() => setIsCreateModalOpen(false)}
+                            className="w-full sm:w-auto"
                           >
                             Cancelar
                           </Button>
                           <Button 
                             onClick={createTask}
-                            className="bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600"
+                            className="bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 w-full sm:w-auto"
                           >
                             <MessageSquare className="w-4 h-4 mr-2" />
-                            Criar Tarefa WhatsApp
+                            <span className="hidden sm:inline">Criar Tarefa WhatsApp</span>
+                            <span className="sm:hidden">Criar Tarefa</span>
                           </Button>
                         </div>
                       </div>
@@ -1076,7 +1078,7 @@ const AITaskManager = ({ tokenId }) => {
               </p>
             </motion.div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {filteredTasks.map((task, index) => (
                 <motion.div
                   key={task.id}
@@ -1086,83 +1088,84 @@ const AITaskManager = ({ tokenId }) => {
                   transition={{ delay: index * 0.1 }}
                 >
                   <Card className="backdrop-blur-lg bg-white/80 border-white/20 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
-                    <CardHeader>
+                    <CardHeader className="p-4 sm:p-6">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
-                          <CardTitle className="text-lg mb-2 flex items-center gap-2">
+                          <CardTitle className="text-base sm:text-lg mb-2 flex items-center gap-2">
                             {getTaskTypeIcon(task.type)}
-                            {task.title}
+                            <span className="truncate">{task.title}</span>
                           </CardTitle>
-                          <div className="flex flex-wrap gap-2 mb-3">
+                          <div className="flex flex-wrap gap-1 sm:gap-2 mb-3">
                             <Badge className={`${statusColors[task.status]} text-xs`}>
                               {getStatusIcon(task.status)}
                               <span className="ml-1">{task.status}</span>
                             </Badge>
-                            <Badge variant="outline" className="text-xs">
+                            <Badge variant="outline" className="text-xs hidden sm:inline-flex">
                               {getTaskTypeLabel(task.type)}
                             </Badge>
-                            <Badge variant="outline" className="text-xs">
+                            <Badge variant="outline" className="text-xs hidden sm:inline-flex">
                               {getScheduleTypeLabel(task.scheduleType)}
                             </Badge>
                           </div>
                         </div>
                       </div>
                       <CardDescription className="space-y-2">
-                        <div className="flex items-center gap-2 text-sm">
-                          <Phone className="w-4 h-4 text-green-500" />
-                          <span>{getSessionName(task.sessionId)}</span>
+                        <div className="flex items-center gap-2 text-xs sm:text-sm">
+                          <Phone className="w-3 h-3 sm:w-4 sm:h-4 text-green-500 flex-shrink-0" />
+                          <span className="truncate">{getSessionName(task.sessionId)}</span>
                         </div>
-                        <div className="flex items-center gap-2 text-sm">
-                          <Users className="w-4 h-4 text-blue-500" />
-                          <span>{getTargetName(task)}</span>
+                        <div className="flex items-center gap-2 text-xs sm:text-sm">
+                          <Users className="w-3 h-3 sm:w-4 sm:h-4 text-blue-500 flex-shrink-0" />
+                          <span className="truncate">{getTargetName(task)}</span>
                         </div>
-                        <p className="line-clamp-2 text-gray-600">
+                        <p className="line-clamp-2 text-gray-600 text-xs sm:text-sm">
                           {task.message}
                         </p>
                       </CardDescription>
                     </CardHeader>
                     
-                    <CardContent>
-                      <div className="space-y-4">
+                    <CardContent className="p-4 sm:p-6">
+                      <div className="space-y-3 sm:space-y-4">
                         {/* Execution Info */}
-                        <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div className="grid grid-cols-2 gap-2 sm:gap-4 text-xs sm:text-sm">
                           <div>
-                            <p className="text-gray-500">Próxima Execução</p>
-                            <p className="font-medium">
+                            <p className="text-gray-500 text-xs">Próxima Execução</p>
+                            <p className="font-medium text-xs sm:text-sm break-words">
                               {task.nextExecution ? formatDate(task.nextExecution) : 'N/A'}
                             </p>
                           </div>
                           <div>
-                            <p className="text-gray-500">Execuções</p>
-                            <p className="font-medium">{task.executionCount || 0}</p>
+                            <p className="text-gray-500 text-xs">Execuções</p>
+                            <p className="font-medium text-xs sm:text-sm">{task.executionCount || 0}</p>
                           </div>
                         </div>
 
                         {/* Schedule Info */}
-                        <div className="flex items-center justify-between text-sm text-gray-500">
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-0 text-xs text-gray-500">
                           <div className="flex items-center gap-1">
-                            <Timer className="w-4 h-4" />
-                            <span>Timezone: {task.timezone}</span>
+                            <Timer className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                            <span className="truncate">Timezone: {task.timezone}</span>
                           </div>
                           {task.lastExecution && (
                             <div className="flex items-center gap-1">
-                              <Clock className="w-4 h-4" />
-                              <span>Última: {formatDate(task.lastExecution)}</span>
+                              <Clock className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
+                              <span className="truncate">Última: {formatDate(task.lastExecution)}</span>
                             </div>
                           )}
                         </div>
 
-                        <div className="flex justify-between pt-3 border-t border-gray-100">
-                          <div className="flex gap-2">
+                        <div className="flex flex-col sm:flex-row sm:justify-between gap-2 sm:gap-0 pt-3 border-t border-gray-100">
+                          <div className="flex flex-wrap gap-1 sm:gap-2">
                             {task.status === 'scheduled' && (
                               <Button
                                 size="sm"
                                 variant="outline"
                                 onClick={() => updateTaskStatus(task.id, 'active')}
-                                className="bg-green-50 hover:bg-green-100 text-green-600 border-green-200"
+                                className="bg-green-50 hover:bg-green-100 text-green-600 border-green-200 text-xs"
                               >
                                 <Play className="w-3 h-3 mr-1" />
-                                Ativar
+                                <span className="hidden sm:inline">Ativar</span>
+                                <span className="sm:hidden">On</span>
                               </Button>
                             )}
                             {task.status === 'active' && (
@@ -1171,10 +1174,11 @@ const AITaskManager = ({ tokenId }) => {
                                   size="sm"
                                   variant="outline"
                                   onClick={() => updateTaskStatus(task.id, 'paused')}
-                                  className="bg-orange-50 hover:bg-orange-100 text-orange-600 border-orange-200"
+                                  className="bg-orange-50 hover:bg-orange-100 text-orange-600 border-orange-200 text-xs"
                                 >
                                   <Pause className="w-3 h-3 mr-1" />
-                                  Pausar
+                                  <span className="hidden sm:inline">Pausar</span>
+                                  <span className="sm:hidden">Off</span>
                                 </Button>
                               </>
                             )}
@@ -1183,10 +1187,11 @@ const AITaskManager = ({ tokenId }) => {
                                 size="sm"
                                 variant="outline"
                                 onClick={() => updateTaskStatus(task.id, 'active')}
-                                className="bg-green-50 hover:bg-green-100 text-green-600 border-green-200"
+                                className="bg-green-50 hover:bg-green-100 text-green-600 border-green-200 text-xs"
                               >
                                 <Play className="w-3 h-3 mr-1" />
-                                Reativar
+                                <span className="hidden sm:inline">Reativar</span>
+                                <span className="sm:hidden">On</span>
                               </Button>
                             )}
                             {(task.status === 'active' || task.status === 'scheduled') && (
@@ -1194,20 +1199,21 @@ const AITaskManager = ({ tokenId }) => {
                                 size="sm"
                                 variant="outline"
                                 onClick={() => updateTaskStatus(task.id, 'completed')}
-                                className="bg-blue-50 hover:bg-blue-100 text-blue-600 border-blue-200"
+                                className="bg-blue-50 hover:bg-blue-100 text-blue-600 border-blue-200 text-xs"
                               >
                                 <CheckCircle2 className="w-3 h-3 mr-1" />
-                                Finalizar
+                                <span className="hidden sm:inline">Finalizar</span>
+                                <span className="sm:hidden">Done</span>
                               </Button>
                             )}
                           </div>
                           
-                          <div className="flex gap-1">
+                          <div className="flex gap-1 justify-end sm:justify-start">
                             <Button
                               size="sm"
                               variant="ghost"
                               onClick={() => setEditingTask(task)}
-                              className="text-gray-500 hover:text-gray-700"
+                              className="text-gray-500 hover:text-gray-700 p-1 sm:p-2"
                             >
                               <Edit3 className="w-3 h-3" />
                             </Button>
@@ -1215,7 +1221,7 @@ const AITaskManager = ({ tokenId }) => {
                               size="sm"
                               variant="ghost"
                               onClick={() => deleteTask(task.id)}
-                              className="text-red-500 hover:text-red-700"
+                              className="text-red-500 hover:text-red-700 p-1 sm:p-2"
                             >
                               <Trash2 className="w-3 h-3" />
                             </Button>
@@ -1238,35 +1244,35 @@ const AITaskManager = ({ tokenId }) => {
             transition={{ delay: 0.3 }}
           >
             <Card className="backdrop-blur-lg bg-white/80 border-white/20 shadow-xl">
-              <CardContent className="p-6">
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-center">
+              <CardContent className="p-4 sm:p-6">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 text-center">
                   <div>
-                    <div className="text-2xl font-bold text-gray-800">{tasks.length}</div>
-                    <div className="text-sm text-gray-500">Total</div>
+                    <div className="text-xl sm:text-2xl font-bold text-gray-800">{tasks.length}</div>
+                    <div className="text-xs sm:text-sm text-gray-500">Total</div>
                   </div>
                   <div>
-                    <div className="text-2xl font-bold text-green-600">
+                    <div className="text-xl sm:text-2xl font-bold text-green-600">
                       {tasks.filter(t => t.status === 'active').length}
                     </div>
-                    <div className="text-sm text-gray-500">Ativas</div>
+                    <div className="text-xs sm:text-sm text-gray-500">Ativas</div>
                   </div>
-                  <div>
-                    <div className="text-2xl font-bold text-purple-600">
+                  <div className="hidden sm:block">
+                    <div className="text-xl sm:text-2xl font-bold text-purple-600">
                       {tasks.filter(t => t.status === 'scheduled').length}
                     </div>
-                    <div className="text-sm text-gray-500">Agendadas</div>
+                    <div className="text-xs sm:text-sm text-gray-500">Agendadas</div>
                   </div>
                   <div>
-                    <div className="text-2xl font-bold text-blue-600">
+                    <div className="text-xl sm:text-2xl font-bold text-blue-600">
                       {tasks.filter(t => t.status === 'completed').length}
                     </div>
-                    <div className="text-sm text-gray-500">Concluídas</div>
+                    <div className="text-xs sm:text-sm text-gray-500">Concluídas</div>
                   </div>
                   <div>
-                    <div className="text-2xl font-bold text-orange-600">
+                    <div className="text-xl sm:text-2xl font-bold text-orange-600">
                       {tasks.reduce((sum, t) => sum + (t.executionCount || 0), 0)}
                     </div>
-                    <div className="text-sm text-gray-500">Execuções</div>
+                    <div className="text-xs sm:text-sm text-gray-500">Execuções</div>
                   </div>
                 </div>
               </CardContent>
