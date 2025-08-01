@@ -962,21 +962,34 @@ const AITaskManager = ({ tokenId }) => {
                         </div>
 
                         <div className="space-y-2">
-                          <Label htmlFor="message">Mensagem *</Label>
+                          <Label htmlFor="message">
+                            {(newTask.type === 'send_media' || newTask.type === 'send_document') ? 'Caption (Legenda)' : 'Mensagem'} *
+                          </Label>
                           <Textarea
                             id="message"
-                            placeholder="Digite a mensagem que será enviada..."
+                            placeholder={
+                              (newTask.type === 'send_media' || newTask.type === 'send_document') 
+                                ? "Digite a legenda que acompanha o arquivo..." 
+                                : "Digite a mensagem que será enviada..."
+                            }
                             value={newTask.message}
                             onChange={(e) => setNewTask({...newTask, message: e.target.value})}
                             rows={4}
                           />
+                          {(newTask.type === 'send_media' || newTask.type === 'send_document') && (
+                            <p className="text-xs text-gray-500">
+                              💡 Esta mensagem será enviada como legenda do arquivo
+                            </p>
+                          )}
                         </div>
 
                         {/* Media Upload for media tasks */}
                         {(newTask.type === 'send_media' || newTask.type === 'send_document') && (
                           <div className="space-y-4">
                             <div className="space-y-3">
-                              <Label>Mídia</Label>
+                              <Label>
+                                {newTask.type === 'send_media' ? 'Arquivo de Mídia' : 'Documento'}
+                              </Label>
                               <div className="flex items-center gap-3 text-sm text-gray-600">
                                 <span>Escolha uma das opções:</span>
                               </div>
@@ -1013,7 +1026,10 @@ const AITaskManager = ({ tokenId }) => {
                                             Clique para selecionar um arquivo
                                           </span>
                                           <span className="text-xs text-gray-500">
-                                            Imagens, vídeos, áudios, documentos (máx. 50MB)
+                                            {newTask.type === 'send_media' 
+                                              ? 'Imagens, vídeos, áudios (máx. 50MB)'
+                                              : 'Documentos PDF, DOC, XLS, TXT (máx. 50MB)'
+                                            }
                                           </span>
                                         </>
                                       )}
@@ -1047,7 +1063,11 @@ const AITaskManager = ({ tokenId }) => {
                               <div className="space-y-2">
                                 <Label className="text-sm font-medium">🔗 Ou informe a URL</Label>
                                 <Input
-                                  placeholder="https://exemplo.com/arquivo.jpg"
+                                  placeholder={
+                                    newTask.type === 'send_media' 
+                                      ? "https://exemplo.com/imagem.jpg" 
+                                      : "https://exemplo.com/documento.pdf"
+                                  }
                                   value={newTask.mediaUrl}
                                   onChange={(e) => setNewTask({...newTask, mediaUrl: e.target.value})}
                                   disabled={!!uploadedFile}
@@ -1162,7 +1182,7 @@ const AITaskManager = ({ tokenId }) => {
                           </div>
                         </div>
 
-                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                           <div className="flex items-start gap-2">
                             <Clock className="w-5 h-5 text-blue-500 mt-0.5" />
                             <div>
@@ -1171,6 +1191,35 @@ const AITaskManager = ({ tokenId }) => {
                             </div>
                           </div>
                         </div>
+
+                        {/* Task Summary Preview */}
+                        {(newTask.title || newTask.message || uploadedFile || newTask.mediaUrl) && (
+                          <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                            <div className="flex items-start gap-2">
+                              <MessageSquare className="w-5 h-5 text-gray-500 mt-0.5" />
+                              <div className="flex-1">
+                                <p className="text-sm font-medium text-gray-800">Resumo da Tarefa</p>
+                                {newTask.title && (
+                                  <p className="text-sm text-gray-600 mt-1">
+                                    <strong>Título:</strong> {newTask.title}
+                                  </p>
+                                )}
+                                {(uploadedFile || newTask.mediaUrl) && (
+                                  <p className="text-sm text-gray-600 mt-1">
+                                    <strong>Arquivo:</strong> {uploadedFile?.originalName || 'URL fornecida'}
+                                  </p>
+                                )}
+                                {newTask.message && (
+                                  <p className="text-sm text-gray-600 mt-1">
+                                    <strong>
+                                      {(newTask.type === 'send_media' || newTask.type === 'send_document') ? 'Caption:' : 'Mensagem:'}
+                                    </strong> {newTask.message.length > 50 ? newTask.message.substring(0, 50) + '...' : newTask.message}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        )}
 
                         <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t">
                           <Button 

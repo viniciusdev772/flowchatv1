@@ -11,7 +11,7 @@ const router = express.Router();
 // Configure multer for file uploads
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    const uploadDir = path.join(__dirname, '../../uploads/tasks');
+    const uploadDir = path.join(__dirname, '../../downloads');
     
     // Create directory if it doesn't exist
     if (!fs.existsSync(uploadDir)) {
@@ -217,7 +217,7 @@ router.post('/upload', checkAuth, upload.single('file'), async (req, res) => {
       mimetype: req.file.mimetype,
       size: req.file.size,
       path: req.file.path,
-      url: `/uploads/tasks/${req.file.filename}`
+      url: `/downloads/${req.file.filename}`
     };
 
     console.log('📁 Arquivo uploadado:', fileInfo);
@@ -715,10 +715,28 @@ async function executeTask(task) {
             await simulateTyping(sock, targetJid, calculateTypingDelay(task.message));
           }
           
-          result = await sock.sendMessage(targetJid, {
-            image: mediaSource,
-            caption: task.message || ''
-          });
+          // Detect media type and send accordingly
+          const isVideo = task.mediaType && task.mediaType.startsWith('video/');
+          const isAudio = task.mediaType && task.mediaType.startsWith('audio/');
+          
+          if (isVideo) {
+            result = await sock.sendMessage(targetJid, {
+              video: mediaSource,
+              caption: task.message || ''
+            });
+          } else if (isAudio) {
+            result = await sock.sendMessage(targetJid, {
+              audio: mediaSource,
+              mimetype: task.mediaType,
+              caption: task.message || ''
+            });
+          } else {
+            // Default to image
+            result = await sock.sendMessage(targetJid, {
+              image: mediaSource,
+              caption: task.message || ''
+            });
+          }
         } else {
           throw new Error('URL ou arquivo da mídia não fornecida');
         }
