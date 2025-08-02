@@ -195,23 +195,7 @@ router.get('/:sessionId/:groupId/info', checkSession, async (req, res) => {
 
     res.json({
       success: true,
-      groupInfo: {
-        id: groupMetadata.id,
-        subject: groupMetadata.subject,
-        description: groupMetadata.desc || null,
-        owner: groupMetadata.owner,
-        creation: groupMetadata.creation,
-        size: groupMetadata.size,
-        participants: groupMetadata.participants.map((p) => ({
-          id: p.id,
-          isAdmin: p.admin === 'admin',
-          isSuperAdmin: p.admin === 'superadmin',
-        })),
-        settings: {
-          announce: groupMetadata.announce,
-          restrict: groupMetadata.restrict,
-        },
-      },
+      groupMetadata,
     });
   } catch (error) {
     console.error('Erro ao obter informações do grupo:', error);
@@ -574,35 +558,46 @@ router.get('/:sessionId/list', checkSession, async (req, res) => {
         // Buscar informações adicionais dos participantes se solicitado
         let enrichedParticipants = participants;
         if (includeParticipants) {
-          enrichedParticipants = await Promise.all(participants.map(async (p) => {
-            try {
-              // Buscar foto de perfil
-              const profilePicUrl = await sock.profilePictureUrl(p.id, 'preview').catch(() => null);
-              
-              // Buscar status do usuário
-              const statusResult = await sock.fetchStatus(p.id).catch(() => null);
-              
-              // Verificar se o número está no WhatsApp
-              const onWhatsAppResult = await sock.onWhatsApp(p.id.split('@')[0]).catch(() => null);
+          enrichedParticipants = await Promise.all(
+            participants.map(async (p) => {
+              try {
+                // Buscar foto de perfil
+                const profilePicUrl = await sock
+                  .profilePictureUrl(p.id, 'preview')
+                  .catch(() => null);
 
-              return {
-                ...p,
-                profilePicture: profilePicUrl,
-                statusResult: statusResult,
-                onWhatsAppResult: onWhatsAppResult,
-                number: p.id.includes('@') ? p.id.split('@')[0] : p.id,
-              };
-            } catch (error) {
-              console.warn(`Erro ao buscar dados do participante ${p.id}:`, error.message);
-              return {
-                ...p,
-                profilePicture: null,
-                statusResult: null,
-                onWhatsAppResult: null,
-                number: p.id.includes('@') ? p.id.split('@')[0] : p.id,
-              };
-            }
-          }));
+                // Buscar status do usuário
+                const statusResult = await sock
+                  .fetchStatus(p.id)
+                  .catch(() => null);
+
+                // Verificar se o número está no WhatsApp
+                const onWhatsAppResult = await sock
+                  .onWhatsApp(p.id.split('@')[0])
+                  .catch(() => null);
+
+                return {
+                  ...p,
+                  profilePicture: profilePicUrl,
+                  statusResult: statusResult,
+                  onWhatsAppResult: onWhatsAppResult,
+                  number: p.id.includes('@') ? p.id.split('@')[0] : p.id,
+                };
+              } catch (error) {
+                console.warn(
+                  `Erro ao buscar dados do participante ${p.id}:`,
+                  error.message
+                );
+                return {
+                  ...p,
+                  profilePicture: null,
+                  statusResult: null,
+                  onWhatsAppResult: null,
+                  number: p.id.includes('@') ? p.id.split('@')[0] : p.id,
+                };
+              }
+            })
+          );
         }
 
         // Separar participantes por tipo
@@ -1429,30 +1424,35 @@ router.get('/:sessionId/contacts', checkSession, async (req, res) => {
       const contactsStore = sock.store.contacts;
       contacts = Object.entries(contactsStore).map(([jid, contact]) => ({
         jid,
-        name: contact.name || contact.notify || contact.verifiedName || 'Contato sem nome',
+        name:
+          contact.name ||
+          contact.notify ||
+          contact.verifiedName ||
+          'Contato sem nome',
         notify: contact.notify || '',
         status: contact.status || '',
         imgUrl: contact.imgUrl || null,
         lid: contact.lid || null, // Local ID para multi-device
-        isContact: true
+        isContact: true,
       }));
     } else {
       // Fallback: Extrair contatos de chats existentes
       console.log('📞 Store não disponível, extraindo contatos dos chats...');
-      
+
       try {
         // Obter todos os chats
         const chats = await sock.fetchChats();
-        
+
         // Filtrar apenas contatos individuais (não grupos)
-        const individualChats = chats.filter(chat => 
-          chat.id.endsWith('@s.whatsapp.net') && 
-          !chat.id.endsWith('@g.us') &&
-          !chat.id.endsWith('@broadcast')
+        const individualChats = chats.filter(
+          (chat) =>
+            chat.id.endsWith('@s.whatsapp.net') &&
+            !chat.id.endsWith('@g.us') &&
+            !chat.id.endsWith('@broadcast')
         );
 
         // Criar lista de contatos básica
-        contacts = individualChats.map(chat => ({
+        contacts = individualChats.map((chat) => ({
           jid: chat.id,
           name: chat.name || chat.notify || extractPhoneFromJid(chat.id),
           notify: chat.notify || '',
@@ -1460,22 +1460,24 @@ router.get('/:sessionId/contacts', checkSession, async (req, res) => {
           imgUrl: null,
           lid: null, // Não disponível no fallback
           isContact: true,
-          lastMessage: chat.lastMessage ? {
-            timestamp: chat.lastMessage.messageTimestamp,
-            text: extractMessageText(chat.lastMessage) || '[Mídia]'
-          } : null
+          lastMessage: chat.lastMessage
+            ? {
+                timestamp: chat.lastMessage.messageTimestamp,
+                text: extractMessageText(chat.lastMessage) || '[Mídia]',
+              }
+            : null,
         }));
-
       } catch (error) {
         console.warn('Erro ao buscar chats para contatos:', error.message);
-        
+
         // Último fallback: lista vazia com instruções
         return res.json({
           success: true,
           contacts: [],
           total: 0,
           returned: 0,
-          message: 'Nenhum contato encontrado. Envie algumas mensagens primeiro para que os contatos apareçam.'
+          message:
+            'Nenhum contato encontrado. Envie algumas mensagens primeiro para que os contatos apareçam.',
         });
       }
     }
@@ -1483,7 +1485,7 @@ router.get('/:sessionId/contacts', checkSession, async (req, res) => {
     // Aplicar busca por nome/número se fornecida
     if (search) {
       const searchLower = search.toLowerCase();
-      contacts = contacts.filter(contact => {
+      contacts = contacts.filter((contact) => {
         const name = (contact.name || '').toLowerCase();
         const phone = extractPhoneFromJid(contact.jid);
         return name.includes(searchLower) || phone.includes(search);
@@ -1516,16 +1518,15 @@ router.get('/:sessionId/contacts', checkSession, async (req, res) => {
       pagination: {
         limit,
         offset,
-        hasMore: offset + limit < totalContacts
-      }
+        hasMore: offset + limit < totalContacts,
+      },
     });
-
   } catch (error) {
     console.error('Erro ao listar contatos:', error);
     res.status(500).json({
       success: false,
       message: 'Erro interno do servidor ao listar contatos',
-      error: error.message
+      error: error.message,
     });
   }
 });
