@@ -33,7 +33,8 @@ import {
   Repeat,
   Phone,
   Upload,
-  X
+  X,
+  Zap
 } from 'lucide-react';
 
 const AITaskManager = ({ tokenId }) => {
@@ -447,7 +448,9 @@ const AITaskManager = ({ tokenId }) => {
       // Convert Date object to ISO string for API
       const taskData = {
         ...newTask,
-        scheduledTime: newTask.scheduledTime ? newTask.scheduledTime.toISOString() : null
+        scheduledTime: newTask.scheduledTime ? newTask.scheduledTime.toISOString() : null,
+        // Sempre criar como ativa, independente do agendamento
+        isActive: true
       };
 
       const response = await fetch(
@@ -638,6 +641,60 @@ const AITaskManager = ({ tokenId }) => {
       toast({
         title: "Erro",
         description: "Erro interno ao remover tarefa",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const executeTaskNow = async (taskId, taskTitle) => {
+    try {
+      // Show loading toast
+      toast({
+        title: "Executando Tarefa",
+        description: `Executando "${taskTitle}" agora...`,
+      });
+
+      const response = await fetch(
+        `${apiUrl}/api/baileys/tasks/${taskId}/execute`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          }
+        }
+      );
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success) {
+          // Reload tasks to get the updated execution count
+          await loadTasks();
+          
+          toast({
+            title: "Tarefa Executada",
+            description: `Tarefa "${taskTitle}" foi executada com sucesso!`,
+          });
+        } else {
+          toast({
+            title: "Falha na Execução",
+            description: result.message || "Erro ao executar tarefa",
+            variant: "destructive"
+          });
+        }
+      } else {
+        const error = await response.json();
+        toast({
+          title: "Erro na Execução",
+          description: error.message || "Erro ao executar tarefa",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error('Erro ao executar tarefa:', error);
+      toast({
+        title: "Erro na Execução",
+        description: "Erro interno ao executar tarefa",
         variant: "destructive"
       });
     }
@@ -1141,16 +1198,21 @@ const AITaskManager = ({ tokenId }) => {
                               }
                               minDate={new Date()}
                               showTimeSelect={true}
-                              timeIntervals={15}
+                              timeIntervals={60}
                               dateFormat="dd/MM/yyyy HH:mm"
                             />
                             <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                               <div className="text-blue-600 text-sm font-medium">💡</div>
-                              <p className="text-sm text-blue-700">
-                                {newTask.scheduleType === 'once' && 'A tarefa será executada apenas uma vez neste horário.'}
-                                {newTask.scheduleType === 'daily' && 'A tarefa será repetida todos os dias neste mesmo horário.'}
-                                {newTask.scheduleType === 'weekly' && 'A tarefa será repetida toda semana no mesmo dia e horário.'}
-                              </p>
+                              <div className="text-sm text-blue-700">
+                                <p className="mb-2">
+                                  {newTask.scheduleType === 'once' && 'A tarefa será executada apenas uma vez neste horário.'}
+                                  {newTask.scheduleType === 'daily' && 'A tarefa será repetida todos os dias neste mesmo horário.'}
+                                  {newTask.scheduleType === 'weekly' && 'A tarefa será repetida toda semana no mesmo dia e horário.'}
+                                </p>
+                                <p className="text-purple-700 font-medium">
+                                  ⚡ Você também pode executar a tarefa manualmente a qualquer momento usando o botão "Executar Agora"!
+                                </p>
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -1173,12 +1235,13 @@ const AITaskManager = ({ tokenId }) => {
                             <div className="space-y-1">
                               <Label>Tarefa Ativa</Label>
                               <p className="text-sm text-gray-500">
-                                A tarefa será executada automaticamente conforme agendado
+                                A tarefa será executada automaticamente conforme agendado + botão "Executar Agora" sempre disponível
                               </p>
                             </div>
                             <Switch
-                              checked={newTask.isActive}
-                              onCheckedChange={(checked) => setNewTask({...newTask, isActive: checked})}
+                              checked={true}
+                              disabled={true}
+                              className="opacity-75"
                             />
                           </div>
                         </div>
@@ -1348,6 +1411,20 @@ const AITaskManager = ({ tokenId }) => {
 
                         <div className="flex flex-col sm:flex-row sm:justify-between gap-2 sm:gap-0 pt-3 border-t border-gray-100">
                           <div className="flex flex-wrap gap-1 sm:gap-2">
+                            {/* Botão Executar Agora - sempre visível para tarefas ativas */}
+                            {(task.status === 'active' || task.status === 'scheduled' || task.status === 'paused') && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => executeTaskNow(task.id, task.title)}
+                                className="bg-purple-50 hover:bg-purple-100 text-purple-600 border-purple-200 text-xs font-medium"
+                              >
+                                <Zap className="w-3 h-3 mr-1" />
+                                <span className="hidden sm:inline">Executar Agora</span>
+                                <span className="sm:hidden">Run</span>
+                              </Button>
+                            )}
+                            
                             {task.status === 'scheduled' && (
                               <Button
                                 size="sm"

@@ -697,9 +697,15 @@ async function executeTask(task) {
     // Calculate typing delay based on message content
     const typingDelay = calculateTypingDelay(task.message);
     
-    // Simulate typing for text-based messages
+    // Simulate typing for all message types (but media will have specific handling)
     if (['send_message', 'group_announcement', 'broadcast_message'].includes(task.type)) {
       await simulateTyping(sock, targetJid, typingDelay);
+    } else if (['send_media', 'send_document'].includes(task.type)) {
+      // Simulate "uploading" presence for media
+      console.log(`📤 Simulando upload de mídia para ${targetJid}`);
+      await sock.sendPresenceUpdate('recording', targetJid);
+      await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
+      await sock.sendPresenceUpdate('paused', targetJid);
     }
 
     let result;
@@ -720,6 +726,15 @@ async function executeTask(task) {
             if (!fs.existsSync(task.mediaPath)) {
               throw new Error(`Arquivo não encontrado: ${task.mediaPath}`);
             }
+            
+            // Get file stats for additional validation
+            const stats = fs.statSync(task.mediaPath);
+            console.log(`📁 Arquivo encontrado - Tamanho: ${(stats.size / 1024 / 1024).toFixed(2)}MB`);
+            
+            if (stats.size === 0) {
+              throw new Error(`Arquivo está vazio: ${task.mediaPath}`);
+            }
+            
             // Use file path for Baileys (documentation: { url: "./path/to/file" })
             mediaSource = { url: task.mediaPath };
             console.log(`📁 Usando arquivo local: ${task.mediaPath}`);
@@ -728,8 +743,9 @@ async function executeTask(task) {
             console.log(`🔗 Usando URL externa: ${task.mediaUrl}`);
           }
           
-          // Simulate typing for media with caption
+          // Additional typing simulation for caption if present
           if (task.message && task.message.trim()) {
+            console.log(`✍️ Simulando digitação da caption: "${task.message.substring(0, 30)}..."`);
             await simulateTyping(sock, targetJid, calculateTypingDelay(task.message));
           }
           
@@ -739,46 +755,65 @@ async function executeTask(task) {
           const isSticker = task.mediaType && task.mediaType === 'image/webp';
           
           console.log(`📤 Enviando mídia tipo: ${isVideo ? 'video' : isAudio ? 'audio' : isSticker ? 'sticker' : 'image'} para ${targetJid}`);
+          console.log(`📄 Detalhes da mídia:`, {
+            mediaPath: task.mediaPath,
+            mediaUrl: task.mediaUrl,
+            mediaType: task.mediaType,
+            fileName: task.fileName,
+            message: task.message
+          });
           
           if (isVideo) {
+            console.log(`🎥 Enviando vídeo com caption: "${task.message || 'sem caption'}"`);
             result = await sock.sendMessage(targetJid, {
               video: mediaSource,
               caption: task.message || '',
               ...(task.mediaPath && { mimetype: task.mediaType })
             });
+            console.log(`✅ Vídeo enviado com sucesso:`, result?.key);
           } else if (isAudio) {
+            console.log(`🔊 Enviando áudio (${task.mediaType})`);
             result = await sock.sendMessage(targetJid, {
               audio: mediaSource,
               mimetype: task.mediaType,
               ptt: false // false = áudio regular, true = mensagem de voz
             });
+            console.log(`✅ Áudio enviado com sucesso:`, result?.key);
             
             // Áudio não suporta caption, enviar mensagem separada se houver texto
             if (task.message && task.message.trim()) {
+              console.log(`📝 Enviando texto separado para áudio: "${task.message}"`);
               await delay(500); // pequeno delay entre as mensagens
               result = await sock.sendMessage(targetJid, {
                 text: task.message
               });
+              console.log(`✅ Mensagem de texto enviada:`, result?.key);
             }
           } else if (isSticker) {
+            console.log(`🎯 Enviando sticker`);
             result = await sock.sendMessage(targetJid, {
               sticker: mediaSource
             });
+            console.log(`✅ Sticker enviado com sucesso:`, result?.key);
             
             // Sticker não suporta caption, enviar mensagem separada se houver texto
             if (task.message && task.message.trim()) {
+              console.log(`📝 Enviando texto separado para sticker: "${task.message}"`);
               await delay(500);
               result = await sock.sendMessage(targetJid, {
                 text: task.message
               });
+              console.log(`✅ Mensagem de texto enviada:`, result?.key);
             }
           } else {
             // Default to image
+            console.log(`🖼️ Enviando imagem com caption: "${task.message || 'sem caption'}"`);
             result = await sock.sendMessage(targetJid, {
               image: mediaSource,
               caption: task.message || '',
               ...(task.mediaPath && { mimetype: task.mediaType })
             });
+            console.log(`✅ Imagem enviada com sucesso:`, result?.key);
           }
         } else {
           throw new Error('URL ou arquivo da mídia não fornecida');
@@ -793,6 +828,15 @@ async function executeTask(task) {
             if (!fs.existsSync(task.mediaPath)) {
               throw new Error(`Arquivo não encontrado: ${task.mediaPath}`);
             }
+            
+            // Get file stats for additional validation
+            const stats = fs.statSync(task.mediaPath);
+            console.log(`📁 Documento encontrado - Tamanho: ${(stats.size / 1024 / 1024).toFixed(2)}MB`);
+            
+            if (stats.size === 0) {
+              throw new Error(`Documento está vazio: ${task.mediaPath}`);
+            }
+            
             // Use file path for Baileys (documentation: { url: "./path/to/file" })
             mediaSource = { url: task.mediaPath };
             console.log(`📁 Usando documento local: ${task.mediaPath}`);
@@ -801,12 +845,20 @@ async function executeTask(task) {
             console.log(`🔗 Usando documento URL: ${task.mediaUrl}`);
           }
           
-          // Simulate typing for document with caption
+          // Additional typing simulation for document caption if present
           if (task.message && task.message.trim()) {
+            console.log(`✍️ Simulando digitação da caption do documento: "${task.message.substring(0, 30)}..."`);
             await simulateTyping(sock, targetJid, calculateTypingDelay(task.message));
           }
           
           console.log(`📄 Enviando documento para ${targetJid}`);
+          console.log(`📄 Detalhes do documento:`, {
+            mediaPath: task.mediaPath,
+            mediaUrl: task.mediaUrl,
+            mediaType: task.mediaType,
+            fileName: task.fileName,
+            message: task.message
+          });
           
           result = await sock.sendMessage(targetJid, {
             document: mediaSource,
@@ -814,6 +866,7 @@ async function executeTask(task) {
             mimetype: task.mediaType || 'application/pdf',
             fileName: task.fileName || 'document.pdf'
           });
+          console.log(`✅ Documento enviado com sucesso:`, result?.key);
         } else {
           throw new Error('URL ou arquivo do documento não fornecida');
         }
@@ -823,7 +876,12 @@ async function executeTask(task) {
         throw new Error(`Tipo de tarefa não suportado: ${task.type}`);
     }
 
-    console.log(`✅ Mensagem enviada com sucesso para ${targetJid}`);
+    console.log(`🎯 Tarefa executada com sucesso para ${targetJid}:`, {
+      taskType: task.type,
+      hasMedia: !!(task.mediaPath || task.mediaUrl),
+      messageId: result?.key?.id,
+      targetJid
+    });
 
     // Save execution to MongoDB
     try {
