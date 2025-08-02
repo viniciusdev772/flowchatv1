@@ -1399,7 +1399,13 @@ async function getContactOrGroupInfo(jid, sock) {
       logger.warn(`getContactOrGroupInfo chamado com jid inválido: ${jid}`);
       return {
         type: 'unknown',
+        id: jid || 'unknown',
+        lid: null,
         name: 'ID inválido',
+        notify: null,
+        verifiedName: null,
+        imgUrl: null,
+        status: null,
         number: 'unknown',
         exists: false,
         isRegistered: false,
@@ -1427,8 +1433,14 @@ async function getContactOrGroupInfo(jid, sock) {
 
         return {
           type: 'group',
-          jid: jid,
+          id: jid,
+          lid: null,
           name: groupMetadata.subject || 'Grupo sem nome',
+          notify: null,
+          verifiedName: null,
+          imgUrl: null,
+          status: null,
+          jid: jid,
           participants: groupMetadata.participants?.length || 0,
           description: groupMetadata.desc || null,
           createdAt: groupMetadata.creation
@@ -1453,8 +1465,14 @@ async function getContactOrGroupInfo(jid, sock) {
         );
         return {
           type: 'group',
-          jid: jid,
+          id: jid,
+          lid: null,
           name: `Grupo ${jid.includes('@') ? jid.split('@')[0] : jid}`,
+          notify: null,
+          verifiedName: null,
+          imgUrl: null,
+          status: null,
+          jid: jid,
           participants: 0,
           description: null,
           createdAt: null,
@@ -1469,43 +1487,94 @@ async function getContactOrGroupInfo(jid, sock) {
         };
       }
     } else if (jid.endsWith('@s.whatsapp.net')) {
-      // É um contato individual - buscar nome
+      // É um contato individual - buscar informações seguindo interface Contact
       try {
-        // Tentar buscar nome do contato na agenda
+        let contactData = {
+          id: jid,
+          lid: null,
+          name: null,
+          notify: null,
+          verifiedName: null,
+          imgUrl: null,
+          status: null
+        };
+
+        // Try to get contact from store first
+        if (sock.store && sock.store.contacts && sock.store.contacts[jid]) {
+          const storeContact = sock.store.contacts[jid];
+          contactData.name = storeContact.name || null;
+          contactData.notify = storeContact.notify || null;
+          contactData.verifiedName = storeContact.verifiedName || null;
+          contactData.imgUrl = storeContact.imgUrl || null;
+          contactData.status = storeContact.status || null;
+          contactData.lid = storeContact.lid || null;
+        }
+
+        // Try to get more info from onWhatsApp
         const contactInfo = await sock.onWhatsApp(
           jid.includes('@') ? jid.split('@')[0] : jid
         );
+        
         if (contactInfo && contactInfo.length > 0) {
+          const whatsappContact = contactInfo[0];
+          
+          // Update with onWhatsApp info if not already set
+          if (!contactData.name && whatsappContact.name) {
+            contactData.name = whatsappContact.name;
+          }
+          if (!contactData.notify && whatsappContact.notify) {
+            contactData.notify = whatsappContact.notify;
+          }
+
           return {
             type: 'contact',
-            name:
-              contactInfo[0].name ||
-              contactInfo[0].notify ||
-              (jid.includes('@') ? jid.split('@')[0] : jid),
+            ...contactData,
             number: jid.includes('@') ? jid.split('@')[0] : jid,
-            exists: contactInfo[0].exists,
+            exists: whatsappContact.exists || false,
             isRegistered: true,
+          };
+        } else {
+          // Fallback if onWhatsApp fails
+          return {
+            type: 'contact',
+            ...contactData,
+            name: contactData.name || (jid.includes('@') ? jid.split('@')[0] : jid),
+            number: jid.includes('@') ? jid.split('@')[0] : jid,
+            exists: true,
+            isRegistered: false,
           };
         }
       } catch (error) {
         logger.warn(
           `Erro ao buscar informações do contato ${jid}: ${error.message}`
         );
+        
+        // Fallback with Contact interface compliance
+        return {
+          type: 'contact',
+          id: jid,
+          lid: null,
+          name: jid.includes('@') ? jid.split('@')[0] : jid,
+          notify: null,
+          verifiedName: null,
+          imgUrl: null,
+          status: null,
+          number: jid.includes('@') ? jid.split('@')[0] : jid,
+          exists: true,
+          isRegistered: false,
+        };
       }
-
-      // Fallback para número apenas
-      return {
-        type: 'contact',
-        name: jid.includes('@') ? jid.split('@')[0] : jid,
-        number: jid.includes('@') ? jid.split('@')[0] : jid,
-        exists: true,
-        isRegistered: false,
-      };
     }
 
     return {
       type: 'unknown',
+      id: jid,
+      lid: null,
       name: jid,
+      notify: null,
+      verifiedName: null,
+      imgUrl: null,
+      status: null,
       number: jid,
       exists: false,
       isRegistered: false,
@@ -1514,7 +1583,13 @@ async function getContactOrGroupInfo(jid, sock) {
     logger.error(`Erro ao buscar informações para ${jid}: ${error.message}`);
     return {
       type: 'unknown',
+      id: jid,
+      lid: null,
       name: jid,
+      notify: null,
+      verifiedName: null,
+      imgUrl: null,
+      status: null,
       number: jid,
       exists: false,
       isRegistered: false,

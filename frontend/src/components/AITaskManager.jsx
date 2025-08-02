@@ -43,6 +43,8 @@ const AITaskManager = ({ tokenId }) => {
   const [sessions, setSessions] = useState([]);
   const [groups, setGroups] = useState([]);
   const [contacts, setContacts] = useState([]);
+  const [contactInfo, setContactInfo] = useState(null);
+  const [fetchingContactInfo, setFetchingContactInfo] = useState(false);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -360,6 +362,43 @@ const AITaskManager = ({ tokenId }) => {
     }
   };
 
+  const fetchContactInfo = async (jid, sessionId) => {
+    if (!jid || !sessionId || !token) return null;
+    
+    setFetchingContactInfo(true);
+    
+    try {
+      const response = await fetch(
+        `${apiUrl}/api/baileys/session/${sessionId}/contacts/info`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            contacts: [jid]
+          })
+        }
+      );
+
+      if (response.ok) {
+        const result = await response.json();
+        if (result.success && result.contacts && result.contacts.length > 0) {
+          const contactData = result.contacts[0];
+          setContactInfo(contactData);
+          return contactData;
+        }
+      }
+      return null;
+    } catch (error) {
+      console.error('Erro ao buscar informações do contato:', error);
+      return null;
+    } finally {
+      setFetchingContactInfo(false);
+    }
+  };
+
 
   const filterAndSortTasks = () => {
     let filtered = tasks.filter(task => {
@@ -569,6 +608,7 @@ const AITaskManager = ({ tokenId }) => {
     });
     setSelectedTemplate('none');
     setUploadedFile(null);
+    setContactInfo(null); // Limpar informações do contato
   };
 
 
@@ -1114,12 +1154,52 @@ const AITaskManager = ({ tokenId }) => {
                                 </Select>
                                 <div className="text-xs text-gray-500 space-y-1">
                                   <p>💡 <strong>Ou digite manualmente:</strong></p>
-                                  <Input
-                                    placeholder="Ex: 5511999999999@s.whatsapp.net"
-                                    value={newTask.targetId === 'none' ? '' : newTask.targetId}
-                                    onChange={(e) => setNewTask({...newTask, targetId: e.target.value || 'none'})}
-                                    className="text-xs"
-                                  />
+                                  <div className="flex gap-2">
+                                    <Input
+                                      placeholder="Ex: 5511999999999@s.whatsapp.net"
+                                      value={newTask.targetId === 'none' ? '' : newTask.targetId}
+                                      onChange={(e) => {
+                                        setNewTask({...newTask, targetId: e.target.value || 'none'});
+                                        setContactInfo(null); // Limpar info anterior
+                                      }}
+                                      className="text-xs"
+                                    />
+                                    <Button
+                                      type="button"
+                                      size="sm"
+                                      variant="outline"
+                                      onClick={() => {
+                                        if (newTask.targetId && newTask.targetId !== 'none' && newTask.sessionId) {
+                                          fetchContactInfo(newTask.targetId, newTask.sessionId);
+                                        }
+                                      }}
+                                      disabled={!newTask.targetId || newTask.targetId === 'none' || !newTask.sessionId || fetchingContactInfo}
+                                      className="text-xs px-2"
+                                    >
+                                      {fetchingContactInfo ? (
+                                        <div className="w-3 h-3 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600"></div>
+                                      ) : (
+                                        '🔍'
+                                      )}
+                                    </Button>
+                                  </div>
+                                  
+                                  {/* Mostrar informações do contato buscado */}
+                                  {contactInfo && (
+                                    <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-xs space-y-1">
+                                      <div className="font-medium text-blue-800">Informações do Contato:</div>
+                                      <div className="space-y-0.5 font-mono text-blue-700">
+                                        <div>JID: {contactInfo.jid}</div>
+                                        {contactInfo.name && <div>Nome: {contactInfo.name}</div>}
+                                        {contactInfo.notify && <div>Notify: {contactInfo.notify}</div>}
+                                        {contactInfo.verifiedName && <div>Verified: {contactInfo.verifiedName}</div>}
+                                        {contactInfo.status && <div>Status: {contactInfo.status}</div>}
+                                        {contactInfo.lid && <div className="text-orange-600">LID: {contactInfo.lid}</div>}
+                                        <div>Tipo: {contactInfo.type || 'unknown'}</div>
+                                        <div>Existe: {contactInfo.exists ? 'Sim' : 'Não'}</div>
+                                      </div>
+                                    </div>
+                                  )}
                                 </div>
                               </div>
                             )}
