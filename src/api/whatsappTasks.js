@@ -265,6 +265,7 @@ router.post('/', checkAuth, checkSessionOwnership, async (req, res) => {
       sessionId,
       targetType,
       targetId,
+      targetIds, // New: array of target IDs for multiple destinations
       message,
       scheduleType,
       scheduledTime,
@@ -287,18 +288,26 @@ router.post('/', checkAuth, checkSessionOwnership, async (req, res) => {
       });
     }
 
-    if (!targetId || targetId === 'none') {
+    // Support both single target (targetId) and multiple targets (targetIds)
+    let finalTargetIds = [];
+    if (targetIds && Array.isArray(targetIds) && targetIds.length > 0) {
+      // Multiple targets mode
+      finalTargetIds = targetIds.filter(id => id && id !== 'none');
+    } else if (targetId && targetId !== 'none') {
+      // Single target mode (backward compatibility)
+      finalTargetIds = [targetId];
+    }
+    
+    if (finalTargetIds.length === 0) {
       return res.status(400).json({
         success: false,
-        message: targetType === 'group' ? 'Selecione um grupo' : 'Informe o contato de destino'
+        message: targetType === 'group' ? 'Selecione pelo menos um grupo' : 'Informe pelo menos um contato de destino'
       });
     }
 
-    // Preparar mensagem com assinatura se necessário
+    // Preparar mensagem com assinatura obrigatória
     let finalMessage = message;
-    if (addSignature) {
-      finalMessage += '\n\n_Esta mensagem foi enviada usando o FlowChat Task Runners_';
-    }
+    finalMessage += '\n\n_Esta mensagem foi enviada usando o FlowChat Task Runners v3_';
 
     const now = new Date();
     const nextExecution = calculateNextExecution({
@@ -312,7 +321,9 @@ router.post('/', checkAuth, checkSessionOwnership, async (req, res) => {
       type,
       sessionId,
       targetType,
-      targetId,
+      targetId: finalTargetIds[0], // Keep first target for backward compatibility
+      targetIds: finalTargetIds, // New: array of all target IDs
+      targetCount: finalTargetIds.length, // New: count of targets
       message: finalMessage,
       originalMessage: message,
       scheduleType,
@@ -320,7 +331,7 @@ router.post('/', checkAuth, checkSessionOwnership, async (req, res) => {
       cronExpression: cronExpression || null,
       status: scheduledTime && nextExecution ? 'scheduled' : 'active',
       isActive: isActive !== false,
-      addSignature: addSignature !== false,
+      addSignature: true, // Always true now
       mediaUrl: mediaUrl || null,
       mediaType: mediaType || null,
       mediaPath: mediaPath || null,

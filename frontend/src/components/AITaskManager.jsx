@@ -72,12 +72,12 @@ const AITaskManager = ({ tokenId }) => {
     sessionId: '',
     targetType: 'group', // 'group' or 'contact'
     targetId: 'none',
+    targetIds: [], // New: array for multiple targets
     message: '',
     scheduleType: 'once', // 'once', 'daily', 'weekly'
     scheduledTime: null, // Date object
     cronExpression: '',
     isActive: true,
-    addSignature: true,
     mediaUrl: '',
     mediaType: '',
     mediaPath: '',
@@ -519,10 +519,12 @@ const AITaskManager = ({ tokenId }) => {
       return;
     }
 
-    if (!newTask.targetId || newTask.targetId === 'none') {
+    // Check if we have at least one target (single or multiple)
+    const hasTargets = (newTask.targetIds && newTask.targetIds.length > 0) || (newTask.targetId && newTask.targetId !== 'none');
+    if (!hasTargets) {
       toast({
         title: "Erro",
-        description: newTask.targetType === 'group' ? "Selecione um grupo" : "Informe o contato de destino",
+        description: newTask.targetType === 'group' ? "Selecione pelo menos um grupo" : "Informe pelo menos um contato de destino",
         variant: "destructive"
       });
       return;
@@ -534,7 +536,9 @@ const AITaskManager = ({ tokenId }) => {
         ...newTask,
         scheduledTime: newTask.scheduledTime ? newTask.scheduledTime.toISOString() : null,
         // Sempre criar como ativa, independente do agendamento
-        isActive: true
+        isActive: true,
+        // Include both single and multiple targets for API compatibility
+        targetIds: newTask.targetIds && newTask.targetIds.length > 0 ? newTask.targetIds : (newTask.targetId && newTask.targetId !== 'none' ? [newTask.targetId] : [])
       };
 
       const response = await fetch(
@@ -593,12 +597,12 @@ const AITaskManager = ({ tokenId }) => {
       sessionId: '',
       targetType: 'group',
       targetId: 'none',
+      targetIds: [], // Reset multiple targets
       message: '',
       scheduleType: 'once',
       scheduledTime: null,
       cronExpression: '',
       isActive: true,
-      addSignature: true,
       mediaUrl: '',
       mediaType: '',
       mediaPath: '',
@@ -1406,17 +1410,14 @@ const AITaskManager = ({ tokenId }) => {
                         </div>
 
                         <div className="space-y-4">
-                          <div className="flex items-center justify-between">
-                            <div className="space-y-1">
-                              <Label>Adicionar Assinatura FlowChat</Label>
-                              <p className="text-sm text-gray-500">
-                                Adiciona "Esta mensagem foi enviada usando o FlowChat Task Runners" ao final
-                              </p>
+                          <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                            <div className="flex items-start gap-2">
+                              <div className="text-blue-600 text-sm font-medium">ℹ️</div>
+                              <div className="text-sm text-blue-700">
+                                <p className="font-medium">Assinatura Automática v3</p>
+                                <p>Todas as mensagens incluem automaticamente: "Esta mensagem foi enviada usando o FlowChat Task Runners v3"</p>
+                              </div>
                             </div>
-                            <Switch
-                              checked={newTask.addSignature}
-                              onCheckedChange={(checked) => setNewTask({...newTask, addSignature: checked})}
-                            />
                           </div>
 
                           <div className="flex items-center justify-between">
