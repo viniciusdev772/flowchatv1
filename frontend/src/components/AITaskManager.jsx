@@ -1386,7 +1386,7 @@ const AITaskManager = ({ tokenId }) => {
                               }
                               minDate={new Date()}
                               showTimeSelect={true}
-                              timeIntervals={60}
+                              timeIntervals={5}
                               dateFormat="dd/MM/yyyy HH:mm"
                             />
                             <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
