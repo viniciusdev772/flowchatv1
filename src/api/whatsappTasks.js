@@ -701,10 +701,37 @@ async function executeTask(task) {
     if (['send_message', 'group_announcement', 'broadcast_message'].includes(task.type)) {
       await simulateTyping(sock, targetJid, typingDelay);
     } else if (['send_media', 'send_document'].includes(task.type)) {
-      // Simulate "uploading" presence for media
-      console.log(`📤 Simulando upload de mídia para ${targetJid}`);
-      await sock.sendPresenceUpdate('recording', targetJid);
-      await new Promise(resolve => setTimeout(resolve, 1000 + Math.random() * 2000));
+      // Detect media type for proper presence simulation
+      const isVideo = task.mediaType && task.mediaType.startsWith('video/');
+      const isAudio = task.mediaType && task.mediaType.startsWith('audio/');
+      const isImage = task.mediaType && (task.mediaType.startsWith('image/') || !task.mediaType);
+      const isDocument = task.type === 'send_document';
+      
+      // Use appropriate presence type based on media (only valid Baileys presence states)
+      let presenceType = 'composing'; // default for most media (text-like activity)
+      let mediaTypeText = 'mídia';
+      
+      if (isVideo) {
+        mediaTypeText = 'vídeo';
+        // For video, use 'composing' to simulate activity
+        presenceType = 'composing';
+      } else if (isAudio) {
+        mediaTypeText = 'áudio';
+        // For audio, use 'recording' to simulate voice message recording
+        presenceType = 'recording';
+      } else if (isImage) {
+        mediaTypeText = 'imagem';
+        // For images, use 'composing' to simulate activity
+        presenceType = 'composing';
+      } else if (isDocument) {
+        mediaTypeText = 'documento';
+        // For documents, use 'composing' to simulate activity
+        presenceType = 'composing';
+      }
+      
+      console.log(`📤 Simulando ${presenceType} de ${mediaTypeText} para ${targetJid}`);
+      await sock.sendPresenceUpdate(presenceType, targetJid);
+      await new Promise(resolve => setTimeout(resolve, 1500 + Math.random() * 2500));
       await sock.sendPresenceUpdate('paused', targetJid);
     }
 

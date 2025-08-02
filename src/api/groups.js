@@ -1406,4 +1406,134 @@ router.get('/:sessionId/messages/search', checkSession, async (req, res) => {
   }
 });
 
+// Listar contatos
+router.get('/:sessionId/contacts', checkSession, async (req, res) => {
+  try {
+    const sock = req.whatsappSession.sock;
+
+    // Parâmetros de paginação e busca
+    const limit = Math.min(Math.max(parseInt(req.query.limit) || 50, 1), 100);
+    const offset = Math.max(parseInt(req.query.offset) || 0, 0);
+    const search = req.query.search?.trim();
+
+    console.log(
+      `📞 Listing contacts - limit: ${limit}, offset: ${offset}, search: "${
+        search || 'none'
+      }"`
+    );
+
+    let contacts = [];
+
+    // Tentar obter contatos do store se disponível
+    if (sock.store && sock.store.contacts) {
+      const contactsStore = sock.store.contacts;
+      contacts = Object.entries(contactsStore).map(([jid, contact]) => ({
+        jid,
+        name: contact.name || contact.notify || contact.verifiedName || 'Contato sem nome',
+        notify: contact.notify || '',
+        status: contact.status || '',
+        imgUrl: contact.imgUrl || null,
+        lid: contact.lid || null, // Local ID para multi-device
+        isContact: true
+      }));
+    } else {
+      // Fallback: Extrair contatos de chats existentes
+      console.log('📞 Store não disponível, extraindo contatos dos chats...');
+      
+      try {
+        // Obter todos os chats
+        const chats = await sock.fetchChats();
+        
+        // Filtrar apenas contatos individuais (não grupos)
+        const individualChats = chats.filter(chat => 
+          chat.id.endsWith('@s.whatsapp.net') && 
+          !chat.id.endsWith('@g.us') &&
+          !chat.id.endsWith('@broadcast')
+        );
+
+        // Criar lista de contatos básica
+        contacts = individualChats.map(chat => ({
+          jid: chat.id,
+          name: chat.name || chat.notify || extractPhoneFromJid(chat.id),
+          notify: chat.notify || '',
+          status: '',
+          imgUrl: null,
+          lid: null, // Não disponível no fallback
+          isContact: true,
+          lastMessage: chat.lastMessage ? {
+            timestamp: chat.lastMessage.messageTimestamp,
+            text: extractMessageText(chat.lastMessage) || '[Mídia]'
+          } : null
+        }));
+
+      } catch (error) {
+        console.warn('Erro ao buscar chats para contatos:', error.message);
+        
+        // Último fallback: lista vazia com instruções
+        return res.json({
+          success: true,
+          contacts: [],
+          total: 0,
+          returned: 0,
+          message: 'Nenhum contato encontrado. Envie algumas mensagens primeiro para que os contatos apareçam.'
+        });
+      }
+    }
+
+    // Aplicar busca por nome/número se fornecida
+    if (search) {
+      const searchLower = search.toLowerCase();
+      contacts = contacts.filter(contact => {
+        const name = (contact.name || '').toLowerCase();
+        const phone = extractPhoneFromJid(contact.jid);
+        return name.includes(searchLower) || phone.includes(search);
+      });
+      console.log(
+        `🔍 Search "${search}" filtered to ${contacts.length} contacts`
+      );
+    }
+
+    // Ordenar por nome
+    contacts.sort((a, b) => {
+      const nameA = (a.name || '').toLowerCase();
+      const nameB = (b.name || '').toLowerCase();
+      return nameA.localeCompare(nameB);
+    });
+
+    // Aplicar paginação
+    const totalContacts = contacts.length;
+    const paginatedContacts = contacts.slice(offset, offset + limit);
+
+    console.log(
+      `📞 Retrieved ${paginatedContacts.length} contacts (${totalContacts} total)`
+    );
+
+    res.json({
+      success: true,
+      contacts: paginatedContacts,
+      total: totalContacts,
+      returned: paginatedContacts.length,
+      pagination: {
+        limit,
+        offset,
+        hasMore: offset + limit < totalContacts
+      }
+    });
+
+  } catch (error) {
+    console.error('Erro ao listar contatos:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro interno do servidor ao listar contatos',
+      error: error.message
+    });
+  }
+});
+
+// Função auxiliar para extrair telefone do JID
+function extractPhoneFromJid(jid) {
+  if (!jid) return '';
+  return jid.split('@')[0] || '';
+}
+
 module.exports = router;

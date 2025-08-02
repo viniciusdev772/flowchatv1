@@ -42,6 +42,7 @@ const AITaskManager = ({ tokenId }) => {
   const [filteredTasks, setFilteredTasks] = useState([]);
   const [sessions, setSessions] = useState([]);
   const [groups, setGroups] = useState([]);
+  const [contacts, setContacts] = useState([]);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -55,6 +56,7 @@ const AITaskManager = ({ tokenId }) => {
   const [loading, setLoading] = useState(true);
   const [uploadedFile, setUploadedFile] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [executingTasks, setExecutingTasks] = useState(new Set());
   const { toast } = useToast();
 
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -265,8 +267,10 @@ const AITaskManager = ({ tokenId }) => {
         const result = await response.json();
         if (result.success && result.sessions) {
           setSessions(result.sessions);
-          // Load groups for connected sessions (isConnected = true)
-          await loadGroupsForSessions(result.sessions.filter(s => s.isConnected === true));
+          // Load groups and contacts for connected sessions (isConnected = true)
+          const activeSessions = result.sessions.filter(s => s.isConnected === true);
+          await loadGroupsForSessions(activeSessions);
+          await loadContactsForSessions(activeSessions);
         }
       }
     } catch (error) {
@@ -312,6 +316,47 @@ const AITaskManager = ({ tokenId }) => {
       setGroups(allGroups);
     } catch (error) {
       console.error('Erro ao carregar grupos:', error);
+    }
+  };
+
+  const loadContactsForSessions = async (activeSessions) => {
+    try {
+      const allContacts = [];
+      for (const session of activeSessions) {
+        try {
+          const response = await fetch(
+            `${apiUrl}/api/baileys/groups/${session.sessionId}/contacts`,
+            {
+              method: 'GET',
+              headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'application/json',
+              },
+            }
+          );
+          
+          if (response.ok) {
+            const result = await response.json();
+            if (result.success && result.contacts) {
+              const sessionContacts = result.contacts.map(contact => ({
+                id: contact.jid,
+                name: contact.name,
+                phone: contact.jid.split('@')[0],
+                sessionId: session.sessionId,
+                sessionName: session.sessionId,
+                lid: contact.lid, // Local ID para multi-device
+                ...contact
+              }));
+              allContacts.push(...sessionContacts);
+            }
+          }
+        } catch (error) {
+          console.error(`Erro ao carregar contatos da sessão ${session.sessionId}:`, error);
+        }
+      }
+      setContacts(allContacts);
+    } catch (error) {
+      console.error('Erro ao carregar contatos:', error);
     }
   };
 
@@ -648,9 +693,12 @@ const AITaskManager = ({ tokenId }) => {
 
   const executeTaskNow = async (taskId, taskTitle) => {
     try {
+      // Add task to executing set
+      setExecutingTasks(prev => new Set([...prev, taskId]));
+      
       // Show loading toast
       toast({
-        title: "Executando Tarefa",
+        title: "🚀 Executando Tarefa",
         description: `Executando "${taskTitle}" agora...`,
       });
 
@@ -672,12 +720,12 @@ const AITaskManager = ({ tokenId }) => {
           await loadTasks();
           
           toast({
-            title: "Tarefa Executada",
+            title: "✅ Tarefa Executada",
             description: `Tarefa "${taskTitle}" foi executada com sucesso!`,
           });
         } else {
           toast({
-            title: "Falha na Execução",
+            title: "❌ Falha na Execução",
             description: result.message || "Erro ao executar tarefa",
             variant: "destructive"
           });
@@ -685,7 +733,7 @@ const AITaskManager = ({ tokenId }) => {
       } else {
         const error = await response.json();
         toast({
-          title: "Erro na Execução",
+          title: "❌ Erro na Execução",
           description: error.message || "Erro ao executar tarefa",
           variant: "destructive"
         });
@@ -693,9 +741,16 @@ const AITaskManager = ({ tokenId }) => {
     } catch (error) {
       console.error('Erro ao executar tarefa:', error);
       toast({
-        title: "Erro na Execução",
+        title: "❌ Erro na Execução",
         description: "Erro interno ao executar tarefa",
         variant: "destructive"
+      });
+    } finally {
+      // Remove task from executing set
+      setExecutingTasks(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(taskId);
+        return newSet;
       });
     }
   };
@@ -747,8 +802,30 @@ const AITaskManager = ({ tokenId }) => {
     if (task.targetType === 'group') {
       const group = groups.find(g => g.id === task.targetId && g.sessionId === task.sessionId);
       return group ? group.subject : task.targetId;
+    } else {
+      // Para contatos
+      const contact = contacts.find(c => c.id === task.targetId && c.sessionId === task.sessionId);
+      if (contact) {
+        return (
+          <div className="flex flex-col">
+            <span>{contact.name} ({contact.phone})</span>
+            <div className="text-xs text-gray-400 font-mono space-y-0.5">
+              <div>ID: {contact.id}</div>
+              {contact.lid && (
+                <div className="text-orange-400">LID: {contact.lid}</div>
+              )}
+            </div>
+          </div>
+        );
+      }
+      // Fallback: mostrar JID completo para testes
+      return (
+        <div className="flex flex-col">
+          <span>{task.targetId.split('@')[0] || task.targetId}</span>
+          <span className="text-xs text-gray-400 font-mono">ID: {task.targetId}</span>
+        </div>
+      );
     }
-    return task.targetId;
   };
 
   // Loading states
@@ -1009,11 +1086,42 @@ const AITaskManager = ({ tokenId }) => {
                                 </SelectContent>
                               </Select>
                             ) : (
-                              <Input
-                                placeholder="Ex: 5511999999999@s.whatsapp.net"
-                                value={newTask.targetId}
-                                onChange={(e) => setNewTask({...newTask, targetId: e.target.value})}
-                              />
+                              <div className="space-y-2">
+                                <Select value={newTask.targetId} onValueChange={(value) => setNewTask({...newTask, targetId: value})}>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Selecione um contato" />
+                                  </SelectTrigger>
+                                  <SelectContent>
+                                    {contacts
+                                      .filter(c => c.sessionId === newTask.sessionId)
+                                      .map(contact => (
+                                      <SelectItem key={contact.id} value={contact.id}>
+                                        <div className="flex flex-col gap-1">
+                                          <div className="flex items-center gap-2">
+                                            <span className="font-medium">{contact.name}</span>
+                                            <span className="text-xs text-gray-500">({contact.phone})</span>
+                                          </div>
+                                          <div className="text-xs text-gray-400 font-mono space-y-0.5">
+                                            <div>ID: {contact.id}</div>
+                                            {contact.lid && (
+                                              <div className="text-orange-400">LID: {contact.lid}</div>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </SelectItem>
+                                    ))}
+                                  </SelectContent>
+                                </Select>
+                                <div className="text-xs text-gray-500 space-y-1">
+                                  <p>💡 <strong>Ou digite manualmente:</strong></p>
+                                  <Input
+                                    placeholder="Ex: 5511999999999@s.whatsapp.net"
+                                    value={newTask.targetId === 'none' ? '' : newTask.targetId}
+                                    onChange={(e) => setNewTask({...newTask, targetId: e.target.value || 'none'})}
+                                    className="text-xs"
+                                  />
+                                </div>
+                              </div>
                             )}
                           </div>
                         </div>
@@ -1342,13 +1450,23 @@ const AITaskManager = ({ tokenId }) => {
                   exit={{ opacity: 0, y: -20 }}
                   transition={{ delay: index * 0.1 }}
                 >
-                  <Card className="backdrop-blur-lg bg-white/80 border-white/20 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
+                  <Card className={`backdrop-blur-lg border-white/20 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 ${
+                    executingTasks.has(task.id) 
+                      ? 'bg-purple-50/90 border-purple-200 animate-pulse' 
+                      : 'bg-white/80'
+                  }`}>
                     <CardHeader className="p-4 sm:p-6">
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <CardTitle className="text-base sm:text-lg mb-2 flex items-center gap-2">
                             {getTaskTypeIcon(task.type)}
                             <span className="truncate">{task.title}</span>
+                            {executingTasks.has(task.id) && (
+                              <div className="flex items-center gap-1">
+                                <div className="w-2 h-2 bg-purple-500 rounded-full animate-pulse"></div>
+                                <span className="text-xs text-purple-600 font-medium">Executando</span>
+                              </div>
+                            )}
                           </CardTitle>
                           <div className="flex flex-wrap gap-1 sm:gap-2 mb-3">
                             <Badge className={`${statusColors[task.status]} text-xs`}>
@@ -1417,11 +1535,26 @@ const AITaskManager = ({ tokenId }) => {
                                 size="sm"
                                 variant="outline"
                                 onClick={() => executeTaskNow(task.id, task.title)}
-                                className="bg-purple-50 hover:bg-purple-100 text-purple-600 border-purple-200 text-xs font-medium"
+                                disabled={executingTasks.has(task.id)}
+                                className={`text-xs font-medium transition-all ${
+                                  executingTasks.has(task.id)
+                                    ? 'bg-purple-100 text-purple-500 border-purple-300 cursor-not-allowed'
+                                    : 'bg-purple-50 hover:bg-purple-100 text-purple-600 border-purple-200 hover:scale-105'
+                                }`}
                               >
-                                <Zap className="w-3 h-3 mr-1" />
-                                <span className="hidden sm:inline">Executar Agora</span>
-                                <span className="sm:hidden">Run</span>
+                                {executingTasks.has(task.id) ? (
+                                  <>
+                                    <div className="w-3 h-3 mr-1 animate-spin rounded-full border-2 border-purple-300 border-t-purple-600"></div>
+                                    <span className="hidden sm:inline">Executando...</span>
+                                    <span className="sm:hidden">...</span>
+                                  </>
+                                ) : (
+                                  <>
+                                    <Zap className="w-3 h-3 mr-1" />
+                                    <span className="hidden sm:inline">Executar Agora</span>
+                                    <span className="sm:hidden">Run</span>
+                                  </>
+                                )}
                               </Button>
                             )}
                             
