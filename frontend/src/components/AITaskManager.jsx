@@ -45,6 +45,9 @@ const AITaskManager = ({ tokenId }) => {
   const [contacts, setContacts] = useState([]);
   const [contactInfo, setContactInfo] = useState(null);
   const [fetchingContactInfo, setFetchingContactInfo] = useState(false);
+  const [selectedGroups, setSelectedGroups] = useState([]);
+  const [selectedContacts, setSelectedContacts] = useState([]);
+  const [manualContacts, setManualContacts] = useState(['']); // Array for manual contact inputs
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -491,6 +494,54 @@ const AITaskManager = ({ tokenId }) => {
     });
   };
 
+  // Functions for managing multiple selections
+  const toggleGroupSelection = (groupId) => {
+    setSelectedGroups(prev => 
+      prev.includes(groupId) 
+        ? prev.filter(id => id !== groupId)
+        : [...prev, groupId]
+    );
+  };
+
+  const toggleContactSelection = (contactId) => {
+    setSelectedContacts(prev => 
+      prev.includes(contactId) 
+        ? prev.filter(id => id !== contactId)
+        : [...prev, contactId]
+    );
+  };
+
+  const addManualContact = () => {
+    setManualContacts(prev => [...prev, '']);
+  };
+
+  const removeManualContact = (index) => {
+    setManualContacts(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const updateManualContact = (index, value) => {
+    setManualContacts(prev => prev.map((contact, i) => i === index ? value : contact));
+  };
+
+  // Helper function to format manual contacts (add @s.whatsapp.net if needed)
+  const formatManualContacts = (contacts) => {
+    return contacts
+      .filter(contact => contact.trim() !== '')
+      .map(contact => {
+        const trimmed = contact.trim();
+        // If it doesn't include @ and looks like a phone number, add @s.whatsapp.net
+        if (!trimmed.includes('@') && /^\+?[1-9]\d{1,14}$/.test(trimmed.replace(/\s+/g, ''))) {
+          return `${trimmed}@s.whatsapp.net`;
+        }
+        // If it already has @s.whatsapp.net or @g.us, return as is
+        if (trimmed.includes('@s.whatsapp.net') || trimmed.includes('@g.us')) {
+          return trimmed;
+        }
+        // For any other format, assume it needs @s.whatsapp.net
+        return `${trimmed}@s.whatsapp.net`;
+      });
+  };
+
   const createTask = async () => {
     if (!newTask.title.trim()) {
       toast({
@@ -519,9 +570,15 @@ const AITaskManager = ({ tokenId }) => {
       return;
     }
 
-    // Check if we have at least one target (single or multiple)
-    const hasTargets = (newTask.targetIds && newTask.targetIds.length > 0) || (newTask.targetId && newTask.targetId !== 'none');
-    if (!hasTargets) {
+    // Check if we have at least one target (single, multiple, or manual)
+    const formattedManualContacts = formatManualContacts(manualContacts);
+    const hasMultipleTargets = newTask.targetType === 'group' 
+      ? selectedGroups.length > 0 
+      : selectedContacts.length > 0 || formattedManualContacts.length > 0;
+    
+    const hasSingleTarget = (newTask.targetIds && newTask.targetIds.length > 0) || (newTask.targetId && newTask.targetId !== 'none');
+    
+    if (!hasMultipleTargets && !hasSingleTarget) {
       toast({
         title: "Erro",
         description: newTask.targetType === 'group' ? "Selecione pelo menos um grupo" : "Informe pelo menos um contato de destino",
@@ -532,13 +589,35 @@ const AITaskManager = ({ tokenId }) => {
 
     try {
       // Convert Date object to ISO string for API
+      // Prepare target IDs from multiple selections
+      let finalTargetIds = [];
+      
+      if (newTask.targetType === 'group') {
+        finalTargetIds = selectedGroups;
+      } else {
+        // For contacts: combine selected contacts + formatted manual contacts
+        finalTargetIds = [
+          ...selectedContacts,
+          ...formattedManualContacts
+        ];
+      }
+      
+      // Fallback to single target if no multiple targets selected
+      if (finalTargetIds.length === 0) {
+        if (newTask.targetIds && newTask.targetIds.length > 0) {
+          finalTargetIds = newTask.targetIds;
+        } else if (newTask.targetId && newTask.targetId !== 'none') {
+          finalTargetIds = [newTask.targetId];
+        }
+      }
+
       const taskData = {
         ...newTask,
         scheduledTime: newTask.scheduledTime ? newTask.scheduledTime.toISOString() : null,
         // Sempre criar como ativa, independente do agendamento
         isActive: true,
-        // Include both single and multiple targets for API compatibility
-        targetIds: newTask.targetIds && newTask.targetIds.length > 0 ? newTask.targetIds : (newTask.targetId && newTask.targetId !== 'none' ? [newTask.targetId] : [])
+        // Include multiple targets for API
+        targetIds: finalTargetIds
       };
 
       const response = await fetch(
@@ -613,6 +692,9 @@ const AITaskManager = ({ tokenId }) => {
     setSelectedTemplate('none');
     setUploadedFile(null);
     setContactInfo(null); // Limpar informações do contato
+    setSelectedGroups([]);
+    setSelectedContacts([]);
+    setManualContacts(['']); // Reset manual contacts
   };
 
 
@@ -843,6 +925,48 @@ const AITaskManager = ({ tokenId }) => {
   };
 
   const getTargetName = (task) => {
+    // Check if task has multiple targets
+    if (task.targetIds && task.targetIds.length > 1) {
+      const targetCount = task.targetCount || task.targetIds.length;
+      if (task.targetType === 'group') {
+        return (
+          <div className="flex flex-col">
+            <span className="font-medium text-blue-600">
+              {targetCount} Grupo(s) Selecionado(s)
+            </span>
+            <div className="text-xs text-gray-500">
+              {task.targetIds.slice(0, 2).map(targetId => {
+                const group = groups.find(g => g.id === targetId && g.sessionId === task.sessionId);
+                return group ? group.subject : targetId.split('@')[0];
+              }).join(', ')}
+              {task.targetIds.length > 2 && ` +${task.targetIds.length - 2} mais`}
+            </div>
+          </div>
+        );
+      } else {
+        return (
+          <div className="flex flex-col">
+            <span className="font-medium text-green-600">
+              {targetCount} Contato(s) Selecionado(s)
+            </span>
+            <div className="text-xs text-gray-500">
+              {task.targetIds.slice(0, 2).map(targetId => {
+                const contact = contacts.find(c => c.id === targetId && c.sessionId === task.sessionId);
+                if (contact) {
+                  return contact.name;
+                } else {
+                  // Manual contact or not found in list
+                  return targetId.includes('@') ? targetId.split('@')[0] : targetId;
+                }
+              }).join(', ')}
+              {task.targetIds.length > 2 && ` +${task.targetIds.length - 2} mais`}
+            </div>
+          </div>
+        );
+      }
+    }
+    
+    // Single target (backward compatibility)
     if (task.targetType === 'group') {
       const group = groups.find(g => g.id === task.targetId && g.sessionId === task.sessionId);
       return group ? group.subject : task.targetId;
@@ -1088,10 +1212,15 @@ const AITaskManager = ({ tokenId }) => {
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-4">
                           <div className="space-y-2">
                             <Label>Tipo de Destino</Label>
-                            <Select value={newTask.targetType} onValueChange={(value) => setNewTask({...newTask, targetType: value, targetId: 'none'})}>
+                            <Select value={newTask.targetType} onValueChange={(value) => {
+                              setNewTask({...newTask, targetType: value, targetId: 'none'});
+                              setSelectedGroups([]);
+                              setSelectedContacts([]);
+                              setManualContacts(['']);
+                            }}>
                               <SelectTrigger>
                                 <SelectValue />
                               </SelectTrigger>
@@ -1099,115 +1228,225 @@ const AITaskManager = ({ tokenId }) => {
                                 <SelectItem value="group">
                                   <div className="flex items-center gap-2">
                                     <Users className="w-4 h-4" />
-                                    Grupo
+                                    Grupos (Seleção Múltipla)
                                   </div>
                                 </SelectItem>
                                 <SelectItem value="contact">
                                   <div className="flex items-center gap-2">
                                     <Users className="w-4 h-4" />
-                                    Contato
+                                    Contatos (Seleção Múltipla)
                                   </div>
                                 </SelectItem>
                               </SelectContent>
                             </Select>
                           </div>
 
-                          <div className="space-y-2">
-                            <Label>{newTask.targetType === 'group' ? 'Grupo' : 'Contato'} *</Label>
-                            {newTask.targetType === 'group' ? (
-                              <Select value={newTask.targetId} onValueChange={(value) => setNewTask({...newTask, targetId: value})}>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Selecione um grupo" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {groups
-                                    .filter(g => g.sessionId === newTask.sessionId)
-                                    .map(group => (
-                                    <SelectItem key={group.id} value={group.id}>
-                                      {group.subject}
-                                    </SelectItem>
+                          {/* Multiple Groups Selection */}
+                          {newTask.targetType === 'group' && (
+                            <div className="space-y-3">
+                              <div className="flex items-center justify-between">
+                                <Label>Selecionar Grupos *</Label>
+                                <span className="text-sm text-gray-500">
+                                  {selectedGroups.length} selecionado(s)
+                                </span>
+                              </div>
+                              
+                              <div className="border rounded-lg p-3 max-h-48 overflow-y-auto space-y-2">
+                                {groups
+                                  .filter(g => g.sessionId === newTask.sessionId)
+                                  .map(group => (
+                                    <div 
+                                      key={group.id}
+                                      className={`flex items-center justify-between p-2 rounded border cursor-pointer transition-colors ${
+                                        selectedGroups.includes(group.id)
+                                          ? 'bg-blue-50 border-blue-200'
+                                          : 'bg-white border-gray-200 hover:bg-gray-50'
+                                      }`}
+                                      onClick={() => toggleGroupSelection(group.id)}
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
+                                          selectedGroups.includes(group.id)
+                                            ? 'bg-blue-500 border-blue-500'
+                                            : 'border-gray-300'
+                                        }`}>
+                                          {selectedGroups.includes(group.id) && (
+                                            <span className="text-white text-xs">✓</span>
+                                          )}
+                                        </div>
+                                        <span className="font-medium">{group.subject}</span>
+                                      </div>
+                                      <span className="text-xs text-gray-500">{group.id.split('@')[0]}</span>
+                                    </div>
                                   ))}
-                                </SelectContent>
-                              </Select>
-                            ) : (
-                              <div className="space-y-2">
-                                <Select value={newTask.targetId} onValueChange={(value) => setNewTask({...newTask, targetId: value})}>
-                                  <SelectTrigger>
-                                    <SelectValue placeholder="Selecione um contato" />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {contacts
-                                      .filter(c => c.sessionId === newTask.sessionId)
-                                      .map(contact => (
-                                      <SelectItem key={contact.id} value={contact.id}>
-                                        <div className="flex flex-col gap-1">
-                                          <div className="flex items-center gap-2">
-                                            <span className="font-medium">{contact.name}</span>
-                                            <span className="text-xs text-gray-500">({contact.phone})</span>
+                                {groups.filter(g => g.sessionId === newTask.sessionId).length === 0 && (
+                                  <div className="text-center text-gray-500 py-4">
+                                    Nenhum grupo disponível para esta sessão
+                                  </div>
+                                )}
+                              </div>
+                              
+                              {selectedGroups.length > 0 && (
+                                <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                                  <div className="text-sm font-medium text-green-800 mb-2">
+                                    Grupos Selecionados ({selectedGroups.length}):
+                                  </div>
+                                  <div className="flex flex-wrap gap-1">
+                                    {selectedGroups.map(groupId => {
+                                      const group = groups.find(g => g.id === groupId);
+                                      return (
+                                        <Badge key={groupId} variant="outline" className="bg-white">
+                                          {group ? group.subject : groupId}
+                                          <Button
+                                            type="button"
+                                            variant="ghost"
+                                            size="sm"
+                                            className="h-4 w-4 p-0 ml-1 hover:bg-red-100"
+                                            onClick={(e) => {
+                                              e.stopPropagation();
+                                              toggleGroupSelection(groupId);
+                                            }}
+                                          >
+                                            <X className="h-3 w-3" />
+                                          </Button>
+                                        </Badge>
+                                      );
+                                    })}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Multiple Contacts Selection */}
+                          {newTask.targetType === 'contact' && (
+                            <div className="space-y-4">
+                              <div className="space-y-3">
+                                <div className="flex items-center justify-between">
+                                  <Label>Selecionar Contatos da Lista</Label>
+                                  <span className="text-sm text-gray-500">
+                                    {selectedContacts.length} selecionado(s)
+                                  </span>
+                                </div>
+                                
+                                <div className="border rounded-lg p-3 max-h-48 overflow-y-auto space-y-2">
+                                  {contacts
+                                    .filter(c => c.sessionId === newTask.sessionId)
+                                    .map(contact => (
+                                      <div 
+                                        key={contact.id}
+                                        className={`flex items-center justify-between p-2 rounded border cursor-pointer transition-colors ${
+                                          selectedContacts.includes(contact.id)
+                                            ? 'bg-blue-50 border-blue-200'
+                                            : 'bg-white border-gray-200 hover:bg-gray-50'
+                                        }`}
+                                        onClick={() => toggleContactSelection(contact.id)}
+                                      >
+                                        <div className="flex items-center gap-2">
+                                          <div className={`w-4 h-4 rounded border-2 flex items-center justify-center ${
+                                            selectedContacts.includes(contact.id)
+                                              ? 'bg-blue-500 border-blue-500'
+                                              : 'border-gray-300'
+                                          }`}>
+                                            {selectedContacts.includes(contact.id) && (
+                                              <span className="text-white text-xs">✓</span>
+                                            )}
                                           </div>
-                                          <div className="text-xs text-gray-400 font-mono space-y-0.5">
-                                            <div>ID: {contact.id}</div>
+                                          <div>
+                                            <div className="font-medium">{contact.name}</div>
+                                            <div className="text-xs text-gray-500">({contact.phone})</div>
                                             {contact.lid && (
-                                              <div className="text-orange-400">LID: {contact.lid}</div>
+                                              <div className="text-xs text-orange-500">LID: {contact.lid}</div>
                                             )}
                                           </div>
                                         </div>
-                                      </SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
-                                <div className="text-xs text-gray-500 space-y-1">
-                                  <p>💡 <strong>Ou digite manualmente:</strong></p>
-                                  <div className="flex gap-2">
-                                    <Input
-                                      placeholder="Ex: 5511999999999@s.whatsapp.net"
-                                      value={newTask.targetId === 'none' ? '' : newTask.targetId}
-                                      onChange={(e) => {
-                                        setNewTask({...newTask, targetId: e.target.value || 'none'});
-                                        setContactInfo(null); // Limpar info anterior
-                                      }}
-                                      className="text-xs"
-                                    />
-                                    <Button
-                                      type="button"
-                                      size="sm"
-                                      variant="outline"
-                                      onClick={() => {
-                                        if (newTask.targetId && newTask.targetId !== 'none' && newTask.sessionId) {
-                                          fetchContactInfo(newTask.targetId, newTask.sessionId);
-                                        }
-                                      }}
-                                      disabled={!newTask.targetId || newTask.targetId === 'none' || !newTask.sessionId || fetchingContactInfo}
-                                      className="text-xs px-2"
-                                    >
-                                      {fetchingContactInfo ? (
-                                        <div className="w-3 h-3 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600"></div>
-                                      ) : (
-                                        '🔍'
-                                      )}
-                                    </Button>
-                                  </div>
-                                  
-                                  {/* Mostrar informações do contato buscado */}
-                                  {contactInfo && (
-                                    <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-xs space-y-1">
-                                      <div className="font-medium text-blue-800">Informações do Contato:</div>
-                                      <div className="space-y-0.5 font-mono text-blue-700">
-                                        <div>JID: {contactInfo.jid}</div>
-                                        {contactInfo.name && <div>Nome: {contactInfo.name}</div>}
-                                        {contactInfo.notify && <div>Notify: {contactInfo.notify}</div>}
-                                        {contactInfo.verifiedName && <div>Verified: {contactInfo.verifiedName}</div>}
-                                        {contactInfo.status && <div>Status: {contactInfo.status}</div>}
-                                        {contactInfo.lid && <div className="text-orange-600">LID: {contactInfo.lid}</div>}
-                                        <div>Tipo: {contactInfo.type || 'unknown'}</div>
-                                        <div>Existe: {contactInfo.exists ? 'Sim' : 'Não'}</div>
+                                        <span className="text-xs text-gray-400 font-mono">{contact.id.split('@')[0]}</span>
                                       </div>
+                                    ))}
+                                  {contacts.filter(c => c.sessionId === newTask.sessionId).length === 0 && (
+                                    <div className="text-center text-gray-500 py-4">
+                                      Nenhum contato disponível para esta sessão
                                     </div>
                                   )}
                                 </div>
+                                
+                                {selectedContacts.length > 0 && (
+                                  <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                                    <div className="text-sm font-medium text-green-800 mb-2">
+                                      Contatos Selecionados ({selectedContacts.length}):
+                                    </div>
+                                    <div className="flex flex-wrap gap-1">
+                                      {selectedContacts.map(contactId => {
+                                        const contact = contacts.find(c => c.id === contactId);
+                                        return (
+                                          <Badge key={contactId} variant="outline" className="bg-white">
+                                            {contact ? contact.name : contactId}
+                                            <Button
+                                              type="button"
+                                              variant="ghost"
+                                              size="sm"
+                                              className="h-4 w-4 p-0 ml-1 hover:bg-red-100"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                toggleContactSelection(contactId);
+                                              }}
+                                            >
+                                              <X className="h-3 w-3" />
+                                            </Button>
+                                          </Badge>
+                                        );
+                                      })}
+                                    </div>
+                                  </div>
+                                )}
                               </div>
-                            )}
-                          </div>
+
+                              {/* Manual Contacts Input */}
+                              <div className="space-y-3">
+                                <div className="flex items-center justify-between">
+                                  <Label>Adicionar Contatos Manualmente</Label>
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={addManualContact}
+                                    className="text-xs"
+                                  >
+                                    <Plus className="w-3 h-3 mr-1" />
+                                    Adicionar
+                                  </Button>
+                                </div>
+                                
+                                <div className="space-y-2">
+                                  {manualContacts.map((contact, index) => (
+                                    <div key={index} className="flex gap-2">
+                                      <Input
+                                        placeholder="Ex: 5511999999999@s.whatsapp.net"
+                                        value={contact}
+                                        onChange={(e) => updateManualContact(index, e.target.value)}
+                                        className="text-xs"
+                                      />
+                                      {manualContacts.length > 1 && (
+                                        <Button
+                                          type="button"
+                                          size="sm"
+                                          variant="outline"
+                                          onClick={() => removeManualContact(index)}
+                                          className="text-xs px-2 text-red-500 hover:text-red-700"
+                                        >
+                                          <X className="w-3 h-3" />
+                                        </Button>
+                                      )}
+                                    </div>
+                                  ))}
+                                </div>
+                                
+                                <div className="text-xs text-gray-500">
+                                  💡 <strong>Formato:</strong> número@s.whatsapp.net ou apenas o número (ex: 5511999999999)
+                                </div>
+                              </div>
+                            </div>
+                          )}
                         </div>
 
                         <div className="space-y-2">
@@ -1446,24 +1685,92 @@ const AITaskManager = ({ tokenId }) => {
                         </div>
 
                         {/* Task Summary Preview */}
-                        {(newTask.title || newTask.message || uploadedFile || newTask.mediaUrl) && (
+                        {(newTask.title || newTask.message || uploadedFile || newTask.mediaUrl || selectedGroups.length > 0 || selectedContacts.length > 0 || formatManualContacts(manualContacts).length > 0) && (
                           <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
                             <div className="flex items-start gap-2">
                               <MessageSquare className="w-5 h-5 text-gray-500 mt-0.5" />
-                              <div className="flex-1">
+                              <div className="flex-1 space-y-2">
                                 <p className="text-sm font-medium text-gray-800">Resumo da Tarefa</p>
+                                
                                 {newTask.title && (
-                                  <p className="text-sm text-gray-600 mt-1">
+                                  <p className="text-sm text-gray-600">
                                     <strong>Título:</strong> {newTask.title}
                                   </p>
                                 )}
+                                
+                                {/* Show multiple destinations */}
+                                {(selectedGroups.length > 0 || selectedContacts.length > 0 || formatManualContacts(manualContacts).length > 0) && (
+                                  <div className="text-sm text-gray-600">
+                                    <strong>Destinos:</strong>
+                                    <div className="mt-1 space-y-1">
+                                      {selectedGroups.length > 0 && (
+                                        <div>
+                                          <span className="text-blue-600 font-medium">{selectedGroups.length} Grupo(s):</span>
+                                          <div className="ml-2 text-xs">
+                                            {selectedGroups.slice(0, 3).map(groupId => {
+                                              const group = groups.find(g => g.id === groupId);
+                                              return (
+                                                <div key={groupId}>• {group ? group.subject : groupId}</div>
+                                              );
+                                            })}
+                                            {selectedGroups.length > 3 && (
+                                              <div className="text-gray-500">... e mais {selectedGroups.length - 3} grupo(s)</div>
+                                            )}
+                                          </div>
+                                        </div>
+                                      )}
+                                      
+                                      {selectedContacts.length > 0 && (
+                                        <div>
+                                          <span className="text-green-600 font-medium">{selectedContacts.length} Contato(s) da Lista:</span>
+                                          <div className="ml-2 text-xs">
+                                            {selectedContacts.slice(0, 3).map(contactId => {
+                                              const contact = contacts.find(c => c.id === contactId);
+                                              return (
+                                                <div key={contactId}>• {contact ? contact.name : contactId}</div>
+                                              );
+                                            })}
+                                            {selectedContacts.length > 3 && (
+                                              <div className="text-gray-500">... e mais {selectedContacts.length - 3} contato(s)</div>
+                                            )}
+                                          </div>
+                                        </div>
+                                      )}
+                                      
+                                      {(() => {
+                                        const formattedManual = formatManualContacts(manualContacts);
+                                        return formattedManual.length > 0 && (
+                                          <div>
+                                            <span className="text-purple-600 font-medium">{formattedManual.length} Contato(s) Manual(is):</span>
+                                            <div className="ml-2 text-xs">
+                                              {formattedManual.slice(0, 3).map((contact, index) => (
+                                                <div key={index}>• {contact}</div>
+                                              ))}
+                                              {formattedManual.length > 3 && (
+                                                <div className="text-gray-500">... e mais {formattedManual.length - 3} contato(s)</div>
+                                              )}
+                                            </div>
+                                          </div>
+                                        );
+                                      })()}
+                                      
+                                      <div className="bg-blue-50 border border-blue-200 rounded p-2 mt-2">
+                                        <span className="text-blue-700 font-medium text-xs">
+                                          Total de Destinos: {selectedGroups.length + selectedContacts.length + formatManualContacts(manualContacts).length}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                )}
+                                
                                 {(uploadedFile || newTask.mediaUrl) && (
-                                  <p className="text-sm text-gray-600 mt-1">
+                                  <p className="text-sm text-gray-600">
                                     <strong>Arquivo:</strong> {uploadedFile?.originalName || 'URL fornecida'}
                                   </p>
                                 )}
+                                
                                 {newTask.message && (
-                                  <p className="text-sm text-gray-600 mt-1">
+                                  <p className="text-sm text-gray-600">
                                     <strong>
                                       {(newTask.type === 'send_media' || newTask.type === 'send_document') ? 'Caption/Mensagem:' : 'Mensagem:'}
                                     </strong> {newTask.message.length > 50 ? newTask.message.substring(0, 50) + '...' : newTask.message}

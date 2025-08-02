@@ -674,7 +674,7 @@ async function simulateTyping(sock, targetJid, duration) {
   }
 }
 
-// Função para executar uma tarefa com medidas anti-ban
+// Função para executar uma tarefa com medidas anti-ban e suporte a múltiplos destinos
 async function executeTask(task) {
   try {
     const sessions = global.whatsappSessions;
@@ -695,15 +695,110 @@ async function executeTask(task) {
     }
 
     const sock = session.sock;
-    let targetJid = task.targetId;
+    
+    // Support both single target (targetId) and multiple targets (targetIds)
+    let finalTargetIds = [];
+    if (task.targetIds && Array.isArray(task.targetIds) && task.targetIds.length > 0) {
+      finalTargetIds = task.targetIds.filter(id => id && id !== 'none');
+    } else if (task.targetId && task.targetId !== 'none') {
+      finalTargetIds = [task.targetId];
+    }
+    
+    if (finalTargetIds.length === 0) {
+      return {
+        success: false,
+        message: 'Nenhum destino válido encontrado'
+      };
+    }
 
-    // Formatar JID se necessário
-    if (task.targetType === 'group' && !targetJid.includes('@g.us')) {
-      targetJid = `${targetJid}@g.us`;
+    console.log(`🎯 Executando tarefa para ${finalTargetIds.length} destino(s):`, finalTargetIds.map(id => id.split('@')[0]));
+    
+    const results = [];
+    const successCount = { value: 0 };
+    const errorCount = { value: 0 };
+    
+    // Execute for each target with anti-spam delays
+    for (let i = 0; i < finalTargetIds.length; i++) {
+      const targetId = finalTargetIds[i];
+      let targetJid = targetId;
+
+      // Formatar JID se necessário
+      if (task.targetType === 'group' && !targetJid.includes('@g.us')) {
+        targetJid = `${targetJid}@g.us`;
+      }
+      if (task.targetType === 'contact' && !targetJid.includes('@s.whatsapp.net')) {
+        targetJid = `${targetJid}@s.whatsapp.net`;
+      }
+
+      console.log(`📱 [${i + 1}/${finalTargetIds.length}] Processando destino: ${targetJid}`);
+      
+      try {
+        const executionResult = await executeSingleTarget(sock, task, targetJid);
+        results.push(executionResult);
+        
+        if (executionResult.success) {
+          successCount.value++;
+          console.log(`✅ [${i + 1}/${finalTargetIds.length}] Sucesso para ${targetJid}`);
+        } else {
+          errorCount.value++;
+          console.log(`❌ [${i + 1}/${finalTargetIds.length}] Erro para ${targetJid}: ${executionResult.message}`);
+        }
+        
+        // Anti-spam delay between targets (but not after the last one)
+        if (i < finalTargetIds.length - 1) {
+          const delayMs = 2000 + Math.random() * 3000; // 2-5 seconds
+          console.log(`⏳ Aguardando ${Math.round(delayMs)}ms antes do próximo destino...`);
+          await new Promise(resolve => setTimeout(resolve, delayMs));
+        }
+        
+      } catch (targetError) {
+        console.error(`❌ Erro na execução para ${targetJid}:`, targetError);
+        errorCount.value++;
+        results.push({
+          success: false,
+          targetJid,
+          message: targetError.message,
+          details: { error: targetError.message }
+        });
+      }
     }
-    if (task.targetType === 'contact' && !targetJid.includes('@s.whatsapp.net')) {
-      targetJid = `${targetJid}@s.whatsapp.net`;
-    }
+    
+    // Summary of execution results
+    const overallSuccess = successCount.value > 0;
+    const totalTargets = finalTargetIds.length;
+    
+    console.log(`🏁 Execução completa: ${successCount.value}/${totalTargets} sucessos, ${errorCount.value}/${totalTargets} erros`);
+
+    return {
+      success: overallSuccess,
+      message: overallSuccess 
+        ? `Tarefa executada para ${successCount.value}/${totalTargets} destinos com sucesso`
+        : `Falha na execução da tarefa para todos os ${totalTargets} destinos`,
+      details: {
+        totalTargets,
+        successCount: successCount.value,
+        errorCount: errorCount.value,
+        results,
+        timestamp: new Date()
+      }
+    };
+
+  } catch (error) {
+    console.error('Erro na execução da tarefa:', error);
+    return {
+      success: false,
+      message: error.message,
+      details: {
+        error: error.message,
+        timestamp: new Date()
+      }
+    };
+  }
+}
+
+// Helper function to execute task for a single target
+async function executeSingleTarget(sock, task, targetJid) {
+  try {
 
     // Calculate typing delay based on message content
     const typingDelay = calculateTypingDelay(task.message);
