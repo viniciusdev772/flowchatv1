@@ -86,6 +86,13 @@ export default function MessageCollectorManager() {
   });
   const [isGeneratingPendingResume, setIsGeneratingPendingResume] = useState(false);
   
+  // Estados para exclusão de coletores
+  const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
+  const [isDeletingAll, setIsDeletingAll] = useState(false);
+  const [collectorToDelete, setCollectorToDelete] = useState(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  
   // Form states
   const [formData, setFormData] = useState({
     sessionId: '',
@@ -498,6 +505,67 @@ export default function MessageCollectorManager() {
       alert('Erro ao parar coletor');
     } finally {
       setIsGeneratingResume(false);
+    }
+  };
+
+  // Função para excluir um coletor específico
+  const deleteCollector = async (collectorId) => {
+    setIsDeleting(true);
+    try {
+      const response = await fetch(`${apiUrl}/api/management/message-collector/delete/${collectorId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setShowDeleteModal(false);
+          setCollectorToDelete(null);
+          loadCollectors();
+          alert(`Coletor excluído com sucesso! ${data.deletedMessages} mensagens removidas.`);
+        } else {
+          alert(`Erro: ${data.message}`);
+        }
+      } else {
+        const error = await response.json();
+        alert(`Erro: ${error.message}`);
+      }
+    } catch (error) {
+      console.error('Erro ao excluir coletor:', error);
+      alert('Erro ao excluir coletor');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // Função para excluir todos os coletores
+  const deleteAllCollectors = async () => {
+    setIsDeletingAll(true);
+    try {
+      const response = await fetch(`${apiUrl}/api/management/message-collector/delete-all`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.success) {
+          setShowDeleteAllModal(false);
+          loadCollectors();
+          alert(`Todos os coletores foram excluídos! ${data.deletedCount} coletores e ${data.deletedMessages} mensagens removidas.`);
+        } else {
+          alert(`Erro: ${data.message}`);
+        }
+      } else {
+        const error = await response.json();
+        alert(`Erro: ${error.message}`);
+      }
+    } catch (error) {
+      console.error('Erro ao excluir todos os coletores:', error);
+      alert('Erro ao excluir todos os coletores');
+    } finally {
+      setIsDeletingAll(false);
     }
   };
 
@@ -1085,6 +1153,18 @@ export default function MessageCollectorManager() {
               </motion.button>
             )}
             
+            {collectors.length > 0 && (
+              <motion.button
+                onClick={() => setShowDeleteAllModal(true)}
+                className="flex items-center px-3 py-2 bg-red-100 text-red-700 rounded-lg hover:bg-red-200 text-sm font-medium"
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+              >
+                <TrashIcon className="w-4 h-4 mr-1" />
+                Excluir Todos
+              </motion.button>
+            )}
+            
             <motion.button
               onClick={() => setShowCreateModal(true)}
               className="flex items-center px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
@@ -1307,6 +1387,21 @@ export default function MessageCollectorManager() {
                         >
                           <EyeIcon className="w-4 h-4" />
                         </motion.button>
+                        
+                        {collector.status !== 'active' && (
+                          <motion.button
+                            onClick={() => {
+                              setCollectorToDelete(collector);
+                              setShowDeleteModal(true);
+                            }}
+                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            title="Excluir coletor"
+                          >
+                            <TrashIcon className="w-4 h-4" />
+                          </motion.button>
+                        )}
                       </div>
                     </div>
                   </motion.div>
@@ -2868,6 +2963,170 @@ export default function MessageCollectorManager() {
                     Cancelar
                   </motion.button>
                 </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal de Confirmação para Excluir Coletor Individual */}
+      <AnimatePresence>
+        {showDeleteModal && collectorToDelete && (
+          <motion.div
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowDeleteModal(false)}
+          >
+            <motion.div
+              className="bg-white p-6 rounded-2xl max-w-md w-full shadow-2xl border border-gray-200"
+              initial={{ opacity: 0, scale: 0.8, y: 50 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.8, y: 50 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="flex items-center justify-center w-10 h-10 bg-red-100 rounded-full">
+                  <TrashIcon className="w-5 h-5 text-red-600" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900">
+                  Confirmar Exclusão
+                </h3>
+              </div>
+              
+              <p className="text-gray-600 mb-6">
+                Tem certeza que deseja excluir o coletor <strong>"{collectorToDelete.config?.name || collectorToDelete.sessionId}"</strong>?
+              </p>
+              
+              {collectorToDelete.totalMessages > 0 && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-6">
+                  <div className="flex items-start space-x-2">
+                    <ExclamationTriangleIcon className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                    <div className="text-sm text-amber-700">
+                      <strong>{collectorToDelete.totalMessages} mensagens</strong> coletadas serão excluídas permanentemente.
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-3">
+                <motion.button
+                  onClick={() => {
+                    setShowDeleteModal(false);
+                    setCollectorToDelete(null);
+                  }}
+                  disabled={isDeleting}
+                  className="flex-1 py-2 px-4 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  Cancelar
+                </motion.button>
+                <motion.button
+                  onClick={() => deleteCollector(collectorToDelete._id)}
+                  disabled={isDeleting}
+                  className="flex-1 py-2 px-4 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  {isDeleting ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Excluindo...
+                    </>
+                  ) : (
+                    <>
+                      <TrashIcon className="w-4 h-4 mr-2" />
+                      Excluir
+                    </>
+                  )}
+                </motion.button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal de Confirmação para Excluir Todos */}
+      <AnimatePresence>
+        {showDeleteAllModal && (
+          <motion.div
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={() => setShowDeleteAllModal(false)}
+          >
+            <motion.div
+              className="bg-white p-6 rounded-2xl max-w-md w-full shadow-2xl border border-gray-200"
+              initial={{ opacity: 0, scale: 0.8, y: 50 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.8, y: 50 }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center space-x-3 mb-4">
+                <div className="flex items-center justify-center w-10 h-10 bg-red-100 rounded-full">
+                  <TrashIcon className="w-5 h-5 text-red-600" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900">
+                  Excluir Todos os Coletores
+                </h3>
+              </div>
+              
+              <p className="text-gray-600 mb-6">
+                Tem certeza que deseja excluir <strong>TODOS os {collectors.length} coletores</strong> e suas mensagens?
+              </p>
+              
+              <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-6">
+                <div className="flex items-start space-x-2">
+                  <ExclamationTriangleIcon className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />
+                  <div className="text-sm text-red-700">
+                    <strong>Atenção!</strong> Esta ação é irreversível. Todos os coletores e mensagens coletadas serão excluídos permanentemente.
+                  </div>
+                </div>
+              </div>
+
+              {activeCollectors.length > 0 && (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-6">
+                  <div className="flex items-start space-x-2">
+                    <ExclamationTriangleIcon className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                    <div className="text-sm text-amber-700">
+                      Existem <strong>{activeCollectors.length} coletores ativos</strong> que serão parados e excluídos.
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-3">
+                <motion.button
+                  onClick={() => setShowDeleteAllModal(false)}
+                  disabled={isDeletingAll}
+                  className="flex-1 py-2 px-4 text-gray-600 bg-gray-100 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  Cancelar
+                </motion.button>
+                <motion.button
+                  onClick={deleteAllCollectors}
+                  disabled={isDeletingAll}
+                  className="flex-1 py-2 px-4 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                >
+                  {isDeletingAll ? (
+                    <>
+                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                      Excluindo Todos...
+                    </>
+                  ) : (
+                    <>
+                      <TrashIcon className="w-4 h-4 mr-2" />
+                      Excluir Todos
+                    </>
+                  )}
+                </motion.button>
               </div>
             </motion.div>
           </motion.div>

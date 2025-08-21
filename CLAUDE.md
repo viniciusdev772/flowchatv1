@@ -61,7 +61,13 @@ npm run frontend:build
 npm run frontend:preview
 
 # Install frontend dependencies
-npm install:frontend
+npm run install:frontend
+
+# Frontend development commands
+cd frontend && npm run dev               # Frontend dev server only
+cd frontend && npm run build             # Build frontend for production
+cd frontend && npm run preview           # Preview built frontend
+cd frontend && npm run lint              # Lint frontend code
 
 # Docker commands (if using containers)
 docker-compose up -d                    # Start all services
@@ -72,6 +78,9 @@ docker-compose down                     # Stop services
 # Syntax validation
 node -c src/app.js                      # Check app.js syntax
 node -c main.js                         # Check main entry point
+
+# Test scraping functionality (development utility)
+node test-scraping.js                   # Test web scraping and ZIP generation tools
 ```
 
 ## Key Technical Details
@@ -128,6 +137,7 @@ Required environment variables:
 - **Groups API**: `/api/baileys/groups/*` - Group management with comprehensive operations
 - **Message Collector API**: `/api/message-collector/*` - Automated group message collection
 - **AI Summary API**: `/api/ai-summary/*` - AI-powered message summarization and analysis
+- **AI Agents API**: `/api/ai-agents/*` - AI agent management with web search capabilities
 - **Documentation**: `/api-docs` - Swagger UI with complete API reference
 - **Health Check**: `/api/management/health` - Server status endpoint
 
@@ -140,7 +150,9 @@ Required environment variables:
 
 ### Testing & Quality
 - **No formal test suite** - Only placeholder test script in package.json
-- ESLint configuration for frontend code quality
+- **Frontend linting**: ESLint configuration for code quality (`npm run lint` in frontend/)
+- **Manual testing utilities**: test-scraping.js for testing web scraping functionality
+- **Webhook testing**: Built-in test endpoints for webhook validation
 - Development-focused error handling with Pino logging
 - Comprehensive API documentation via Swagger
 
@@ -259,3 +271,9 @@ Advanced group message monitoring and intelligent analysis:
 - Webhook delivery happens asynchronously after message processing
 - Media downloads run in parallel with message processing
 - Database operations have fallback mechanisms for development mode
+
+### Key Development Utilities
+- **test-scraping.js**: Standalone utility for testing web scraping, search, and ZIP generation features
+- **Frontend Hot Reload**: Vite development server with instant updates
+- **Database Graceful Fallback**: Continues operation without MongoDB in development mode
+- **Class-based Server Architecture**: Server class in main.js with proper lifecycle management

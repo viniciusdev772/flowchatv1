@@ -992,6 +992,147 @@ router.post('/generate-pending-summary', authenticateToken, async (req, res) => 
   }
 });
 
+// DELETE /api/message-collector/delete-all
+// Excluir todos os coletores do usuário
+router.delete('/delete-all', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user._id;
+    
+    const db = database.getDb();
+    if (!db) {
+      return res.status(500).json({
+        success: false,
+        message: 'Banco de dados não disponível'
+      });
+    }
+
+    // Buscar todos os coletores do usuário
+    const collectors = await db.collection('messageCollectors')
+      .find({ userId: new ObjectId(userId) })
+      .toArray();
+    
+    if (collectors.length === 0) {
+      return res.json({
+        success: true,
+        message: 'Nenhum coletor encontrado para excluir',
+        deletedCount: 0
+      });
+    }
+
+    // Parar todos os cron jobs ativos
+    let stoppedJobs = 0;
+    for (const collector of collectors) {
+      const cronJobs = activeCronJobs.get(collector._id);
+      if (cronJobs) {
+        if (Array.isArray(cronJobs)) {
+          cronJobs.forEach(job => job.stop());
+        } else {
+          // Compatibilidade com formato antigo
+          if (cronJobs.startJob) cronJobs.startJob.stop();
+          if (cronJobs.stopJob) cronJobs.stopJob.stop();
+        }
+        activeCronJobs.delete(collector._id);
+        stoppedJobs++;
+      }
+    }
+
+    // Coletar IDs dos coletores
+    const collectorIds = collectors.map(c => c._id);
+
+    // Excluir todas as mensagens coletadas
+    const messagesResult = await db.collection('collectedMessages')
+      .deleteMany({ collectorId: { $in: collectorIds } });
+
+    // Excluir todos os coletores
+    const collectorsResult = await db.collection('messageCollectors')
+      .deleteMany({ userId: new ObjectId(userId) });
+
+    logger.info(`🗑️ Usuário ${userId} excluiu todos os coletores: ${collectorsResult.deletedCount} coletores, ${messagesResult.deletedCount} mensagens`);
+
+    res.json({
+      success: true,
+      message: 'Todos os coletores foram excluídos com sucesso',
+      deletedCount: collectorsResult.deletedCount,
+      deletedMessages: messagesResult.deletedCount,
+      stoppedJobs
+    });
+
+  } catch (error) {
+    logger.error('Erro ao excluir todos os coletores:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao excluir coletores',
+      error: error.message
+    });
+  }
+});
+
+// DELETE /api/message-collector/delete/:collectorId
+// Excluir um coletor específico
+router.delete('/delete/:collectorId', authenticateToken, async (req, res) => {
+  try {
+    const { collectorId } = req.params;
+    const userId = req.user._id;
+    
+    const db = database.getDb();
+    if (!db) {
+      return res.status(500).json({
+        success: false,
+        message: 'Banco de dados não disponível'
+      });
+    }
+
+    // Buscar coletor para verificar permissão
+    const collector = await db.collection('messageCollectors')
+      .findOne({ _id: collectorId, userId: new ObjectId(userId) });
+    
+    if (!collector) {
+      return res.status(404).json({
+        success: false,
+        message: 'Coletor não encontrado ou sem permissão'
+      });
+    }
+
+    // Parar cron jobs se estiverem ativos
+    const cronJobs = activeCronJobs.get(collectorId);
+    if (cronJobs) {
+      if (Array.isArray(cronJobs)) {
+        cronJobs.forEach(job => job.stop());
+      } else {
+        // Compatibilidade com formato antigo
+        if (cronJobs.startJob) cronJobs.startJob.stop();
+        if (cronJobs.stopJob) cronJobs.stopJob.stop();
+      }
+      activeCronJobs.delete(collectorId);
+      logger.info(`🛑 Cron jobs parados para coletor ${collectorId}`);
+    }
+
+    // Excluir mensagens coletadas
+    const messagesResult = await db.collection('collectedMessages')
+      .deleteMany({ collectorId });
+
+    // Excluir o coletor
+    const collectorResult = await db.collection('messageCollectors')
+      .deleteOne({ _id: collectorId });
+
+    logger.info(`🗑️ Coletor ${collectorId} excluído: ${messagesResult.deletedCount} mensagens removidas`);
+
+    res.json({
+      success: true,
+      message: 'Coletor excluído com sucesso',
+      deletedMessages: messagesResult.deletedCount
+    });
+
+  } catch (error) {
+    logger.error('Erro ao excluir coletor:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao excluir coletor',
+      error: error.message
+    });
+  }
+});
+
 // GET /api/message-collector/messages/:collectorId
 // Obter mensagens coletadas
 router.get('/messages/:collectorId', authenticateToken, async (req, res) => {
