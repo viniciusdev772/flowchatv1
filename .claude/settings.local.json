@@ -38,7 +38,8 @@
       "Bash(cp:*)",
       "WebFetch(domain:waha.devlike.pro)",
       "mcp__memory-bank__list_projects",
-      "WebFetch(domain:docs.dndkit.com)"
+      "WebFetch(domain:docs.dndkit.com)",
+      "Bash(where:*)"
     ],
     "deny": []
   },
