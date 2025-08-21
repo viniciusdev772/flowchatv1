@@ -20,15 +20,17 @@ COPY package*.json ./
 
 # Install dependencies
 FROM base AS dependencies
-RUN --mount=type=cache,target=/root/.npm \
-    npm ci --omit=dev && npm cache clean --force
+# Remover cache mount problemático e usar estratégia mais simples
+RUN npm ci --omit=dev --prefer-offline --no-audit --progress=false || \
+    (rm -rf /root/.npm && npm ci --omit=dev --prefer-offline --no-audit --progress=false)
 
 # Frontend build stage
 FROM base AS frontend-build
 COPY frontend/package*.json frontend/
 WORKDIR /app/frontend
-RUN --mount=type=cache,target=/root/.npm \
-    npm ci
+# Remover cache mount problemático aqui também
+RUN npm ci --prefer-offline --no-audit --progress=false || \
+    (rm -rf /root/.npm && npm ci --prefer-offline --no-audit --progress=false)
 COPY frontend/ .
 RUN npm run build
 

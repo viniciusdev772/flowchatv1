@@ -53,16 +53,12 @@ jobs:
           org.opencontainers.image.description=FlowChat API - Fluxo inteligente de mensagens WhatsApp com multi-sessões e automação segura
           org.opencontainers.image.vendor=FlowChat
     
-    - name: Cache Docker layers
-      uses: actions/cache@v4
-      with:
-        path: /tmp/.buildx-cache
-        key: ${{ runner.os }}-buildx-${{ github.sha }}
-        restore-keys: |
-          ${{ runner.os }}-buildx-
-    
     - name: Clean up old caches
       run: |
+        # Clean npm cache to avoid ENOTEMPTY errors
+        npm cache clean --force || true
+        rm -rf ~/.npm/_cacache || true
+        
         # Remove old GitHub Actions cache entries (keep only last 10)
         gh api repos/${{ github.repository }}/actions/caches \
           --jq '.actions_caches[10:] | .[].id' \
@@ -79,16 +75,7 @@ jobs:
         push: ${{ github.event_name != 'pull_request' }}
         tags: ${{ steps.meta.outputs.tags }}
         labels: ${{ steps.meta.outputs.labels }}
-        cache-from: |
-          type=gha
-          type=local,src=/tmp/.buildx-cache
-        cache-to: |
-          type=gha,mode=max
-          type=local,dest=/tmp/.buildx-cache-new,mode=max
+        cache-from: type=gha
+        cache-to: type=gha,mode=max
         build-args: |
           BUILDKIT_INLINE_CACHE=1
-    
-    - name: Move cache
-      run: |
-        rm -rf /tmp/.buildx-cache
-        mv /tmp/.buildx-cache-new /tmp/.buildx-cache
