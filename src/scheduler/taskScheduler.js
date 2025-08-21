@@ -229,7 +229,7 @@ class TaskScheduler {
     }
   }
 
-  // Execute task logic with anti-ban measures
+  // Execute task logic with anti-ban measures and multiple targets support
   async executeTask(task) {
     try {
       const sessions = global.whatsappSessions;
@@ -250,22 +250,148 @@ class TaskScheduler {
       }
 
       const sock = session.sock;
-      let targetJid = task.targetId;
-
-      // Format JID if necessary
-      if (task.targetType === 'group' && !targetJid.includes('@g.us')) {
-        targetJid = `${targetJid}@g.us`;
+      
+      // Support both single target (targetId) and multiple targets (targetIds)
+      let finalTargetIds = [];
+      if (task.targetIds && Array.isArray(task.targetIds) && task.targetIds.length > 0) {
+        finalTargetIds = task.targetIds.filter(id => id && id !== 'none');
+      } else if (task.targetId && task.targetId !== 'none') {
+        finalTargetIds = [task.targetId];
       }
-      if (task.targetType === 'contact' && !targetJid.includes('@s.whatsapp.net')) {
-        targetJid = `${targetJid}@s.whatsapp.net`;
+      
+      if (finalTargetIds.length === 0) {
+        return {
+          success: false,
+          message: 'Nenhum destino válido encontrado'
+        };
       }
 
+      console.log(`🎯 [SCHEDULER] Executando tarefa para ${finalTargetIds.length} destino(s):`, finalTargetIds.map(id => id.split('@')[0]));
+      
+      const results = [];
+      const successCount = { value: 0 };
+      const errorCount = { value: 0 };
+      
+      // Execute for each target with anti-spam delays
+      for (let i = 0; i < finalTargetIds.length; i++) {
+        const targetId = finalTargetIds[i];
+        let targetJid = targetId;
+
+        // Format JID if necessary
+        if (task.targetType === 'group' && !targetJid.includes('@g.us')) {
+          targetJid = `${targetJid}@g.us`;
+        }
+        if (task.targetType === 'contact' && !targetJid.includes('@s.whatsapp.net')) {
+          targetJid = `${targetJid}@s.whatsapp.net`;
+        }
+
+        console.log(`📱 [SCHEDULER] [${i + 1}/${finalTargetIds.length}] Processando destino: ${targetJid}`);
+        
+        try {
+          const executionResult = await this.executeSingleTarget(sock, task, targetJid);
+          results.push(executionResult);
+          
+          if (executionResult.success) {
+            successCount.value++;
+            console.log(`✅ [SCHEDULER] [${i + 1}/${finalTargetIds.length}] Sucesso para ${targetJid}`);
+          } else {
+            errorCount.value++;
+            console.log(`❌ [SCHEDULER] [${i + 1}/${finalTargetIds.length}] Erro para ${targetJid}: ${executionResult.message}`);
+          }
+          
+          // Anti-spam delay between targets (but not after the last one)
+          if (i < finalTargetIds.length - 1) {
+            const delayMs = 2000 + Math.random() * 3000; // 2-5 seconds
+            console.log(`⏳ [SCHEDULER] Aguardando ${Math.round(delayMs)}ms antes do próximo destino...`);
+            await new Promise(resolve => setTimeout(resolve, delayMs));
+          }
+          
+        } catch (targetError) {
+          console.error(`❌ [SCHEDULER] Erro na execução para ${targetJid}:`, targetError);
+          errorCount.value++;
+          results.push({
+            success: false,
+            targetJid,
+            message: targetError.message,
+            details: { error: targetError.message }
+          });
+        }
+      }
+      
+      // Summary of execution results
+      const overallSuccess = successCount.value > 0;
+      const totalTargets = finalTargetIds.length;
+      
+      console.log(`🏁 [SCHEDULER] Execução completa: ${successCount.value}/${totalTargets} sucessos, ${errorCount.value}/${totalTargets} erros`);
+
+      return {
+        success: overallSuccess,
+        message: overallSuccess 
+          ? `Tarefa executada para ${successCount.value}/${totalTargets} destinos com sucesso`
+          : `Falha na execução da tarefa para todos os ${totalTargets} destinos`,
+        details: {
+          totalTargets,
+          successCount: successCount.value,
+          errorCount: errorCount.value,
+          results,
+          timestamp: new Date()
+        }
+      };
+
+    } catch (error) {
+      console.error('[SCHEDULER] Erro na execução da tarefa:', error);
+      return {
+        success: false,
+        message: error.message,
+        details: {
+          error: error.message,
+          timestamp: new Date()
+        }
+      };
+    }
+  }
+
+  // Helper function to execute task for a single target
+  async executeSingleTarget(sock, task, targetJid) {
+    const fs = require('fs');
+    const { delay } = require('@whiskeysockets/baileys');
+    
+    try {
       // Calculate typing delay based on message content
       const typingDelay = this.calculateTypingDelay(task.message);
       
-      // Simulate typing for text-based messages
+      // Simulate typing for all message types (but media will have specific handling)
       if (['send_message', 'group_announcement', 'broadcast_message'].includes(task.type)) {
         await this.simulateTyping(sock, targetJid, typingDelay);
+      } else if (['send_media', 'send_document'].includes(task.type)) {
+        // Detect media type for proper presence simulation
+        const isVideo = task.mediaType && task.mediaType.startsWith('video/');
+        const isAudio = task.mediaType && task.mediaType.startsWith('audio/');
+        const isImage = task.mediaType && (task.mediaType.startsWith('image/') || !task.mediaType);
+        const isDocument = task.type === 'send_document';
+        
+        // Use appropriate presence type based on media
+        let presenceType = 'composing'; // default
+        let mediaTypeText = 'mídia';
+        
+        if (isVideo) {
+          mediaTypeText = 'vídeo';
+          presenceType = 'composing';
+        } else if (isAudio) {
+          mediaTypeText = 'áudio';
+          presenceType = 'recording';
+        } else if (isImage) {
+          mediaTypeText = 'imagem';
+          presenceType = 'composing';
+        } else if (isDocument) {
+          mediaTypeText = 'documento';
+          presenceType = 'composing';
+        }
+        
+        console.log(`📤 [SCHEDULER] Simulando ${presenceType} de ${mediaTypeText} para ${targetJid}`);
+        await sock.sendPresenceUpdate(presenceType, targetJid);
+        await new Promise(resolve => setTimeout(resolve, 1500 + Math.random() * 2500));
+        await sock.sendPresenceUpdate('paused', targetJid);
       }
 
       let result;
@@ -279,17 +405,89 @@ class TaskScheduler {
 
         case 'send_media':
           if (task.mediaUrl || task.mediaPath) {
-            const mediaSource = task.mediaPath ? { url: `file://${task.mediaPath}` } : { url: task.mediaUrl };
+            let mediaSource;
             
-            // Simulate typing for media with caption
+            if (task.mediaPath) {
+              // Check if file exists
+              if (!fs.existsSync(task.mediaPath)) {
+                throw new Error(`Arquivo não encontrado: ${task.mediaPath}`);
+              }
+              
+              // Get file stats for additional validation
+              const stats = fs.statSync(task.mediaPath);
+              console.log(`📁 [SCHEDULER] Arquivo encontrado - Tamanho: ${(stats.size / 1024 / 1024).toFixed(2)}MB`);
+              
+              if (stats.size === 0) {
+                throw new Error(`Arquivo está vazio: ${task.mediaPath}`);
+              }
+              
+              // Use file path for Baileys (fixed format)
+              mediaSource = { url: task.mediaPath };
+              console.log(`📁 [SCHEDULER] Usando arquivo local: ${task.mediaPath}`);
+            } else {
+              mediaSource = { url: task.mediaUrl };
+              console.log(`🔗 [SCHEDULER] Usando URL externa: ${task.mediaUrl}`);
+            }
+            
+            // Additional typing simulation for caption if present
             if (task.message && task.message.trim()) {
+              console.log(`✍️ [SCHEDULER] Simulando digitação da caption: "${task.message.substring(0, 30)}..."`);
               await this.simulateTyping(sock, targetJid, this.calculateTypingDelay(task.message));
             }
             
-            result = await sock.sendMessage(targetJid, {
-              image: mediaSource,
-              caption: task.message || ''
-            });
+            // Detect media type and send accordingly (proper media type handling)
+            const isVideo = task.mediaType && task.mediaType.startsWith('video/');
+            const isAudio = task.mediaType && task.mediaType.startsWith('audio/');
+            const isSticker = task.mediaType && task.mediaType === 'image/webp';
+            
+            console.log(`📤 [SCHEDULER] Enviando mídia tipo: ${isVideo ? 'video' : isAudio ? 'audio' : isSticker ? 'sticker' : 'image'} para ${targetJid}`);
+            
+            if (isVideo) {
+              console.log(`🎥 [SCHEDULER] Enviando vídeo com caption: "${task.message || 'sem caption'}"`);
+              result = await sock.sendMessage(targetJid, {
+                video: mediaSource,
+                caption: task.message || '',
+                ...(task.mediaPath && { mimetype: task.mediaType })
+              });
+            } else if (isAudio) {
+              console.log(`🔊 [SCHEDULER] Enviando áudio (${task.mediaType})`);
+              result = await sock.sendMessage(targetJid, {
+                audio: mediaSource,
+                mimetype: task.mediaType,
+                ptt: false
+              });
+              
+              // Audio doesn't support caption, send separate message if there's text
+              if (task.message && task.message.trim()) {
+                console.log(`📝 [SCHEDULER] Enviando texto separado para áudio: "${task.message}"`);
+                await delay(500);
+                result = await sock.sendMessage(targetJid, {
+                  text: task.message
+                });
+              }
+            } else if (isSticker) {
+              console.log(`🎯 [SCHEDULER] Enviando sticker`);
+              result = await sock.sendMessage(targetJid, {
+                sticker: mediaSource
+              });
+              
+              // Sticker doesn't support caption, send separate message if there's text
+              if (task.message && task.message.trim()) {
+                console.log(`📝 [SCHEDULER] Enviando texto separado para sticker: "${task.message}"`);
+                await delay(500);
+                result = await sock.sendMessage(targetJid, {
+                  text: task.message
+                });
+              }
+            } else {
+              // Default to image
+              console.log(`🖼️ [SCHEDULER] Enviando imagem com caption: "${task.message || 'sem caption'}"`);
+              result = await sock.sendMessage(targetJid, {
+                image: mediaSource,
+                caption: task.message || '',
+                ...(task.mediaPath && { mimetype: task.mediaType })
+              });
+            }
           } else {
             throw new Error('URL ou arquivo da mídia não fornecida');
           }
@@ -297,12 +495,36 @@ class TaskScheduler {
 
         case 'send_document':
           if (task.mediaUrl || task.mediaPath) {
-            const mediaSource = task.mediaPath ? { url: `file://${task.mediaPath}` } : { url: task.mediaUrl };
+            let mediaSource;
             
-            // Simulate typing for document with caption
+            if (task.mediaPath) {
+              if (!fs.existsSync(task.mediaPath)) {
+                throw new Error(`Arquivo não encontrado: ${task.mediaPath}`);
+              }
+              
+              // Get file stats for additional validation
+              const stats = fs.statSync(task.mediaPath);
+              console.log(`📁 [SCHEDULER] Documento encontrado - Tamanho: ${(stats.size / 1024 / 1024).toFixed(2)}MB`);
+              
+              if (stats.size === 0) {
+                throw new Error(`Documento está vazio: ${task.mediaPath}`);
+              }
+              
+              // Use file path for Baileys (fixed format)
+              mediaSource = { url: task.mediaPath };
+              console.log(`📁 [SCHEDULER] Usando documento local: ${task.mediaPath}`);
+            } else {
+              mediaSource = { url: task.mediaUrl };
+              console.log(`🔗 [SCHEDULER] Usando documento URL: ${task.mediaUrl}`);
+            }
+            
+            // Additional typing simulation for document caption if present
             if (task.message && task.message.trim()) {
+              console.log(`✍️ [SCHEDULER] Simulando digitação da caption do documento: "${task.message.substring(0, 30)}..."`);
               await this.simulateTyping(sock, targetJid, this.calculateTypingDelay(task.message));
             }
+            
+            console.log(`📄 [SCHEDULER] Enviando documento para ${targetJid}`);
             
             result = await sock.sendMessage(targetJid, {
               document: mediaSource,
@@ -310,6 +532,7 @@ class TaskScheduler {
               mimetype: task.mediaType || 'application/pdf',
               fileName: task.fileName || 'document.pdf'
             });
+            console.log(`✅ [SCHEDULER] Documento enviado com sucesso:`, result?.key);
           } else {
             throw new Error('URL ou arquivo do documento não fornecida');
           }
@@ -319,7 +542,12 @@ class TaskScheduler {
           throw new Error(`Tipo de tarefa não suportado: ${task.type}`);
       }
 
-      console.log(`✅ Mensagem enviada com sucesso para ${targetJid}`);
+      console.log(`🎯 [SCHEDULER] Tarefa executada com sucesso para ${targetJid}:`, {
+        taskType: task.type,
+        hasMedia: !!(task.mediaPath || task.mediaUrl),
+        messageId: result?.key?.id,
+        targetJid
+      });
 
       return {
         success: true,
@@ -333,7 +561,7 @@ class TaskScheduler {
       };
 
     } catch (error) {
-      console.error('Erro na execução da tarefa:', error);
+      console.error('[SCHEDULER] Erro na execução da tarefa:', error);
       return {
         success: false,
         message: error.message,
