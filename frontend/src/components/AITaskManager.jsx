@@ -999,79 +999,62 @@ const AITaskManager = ({ tokenId }) => {
   // Loading states
   if (tokenLoading || loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center p-6">
-        <Card className="bg-white/95 backdrop-blur-xl border-white/20 shadow-2xl max-w-md w-full">
-          <CardContent className="p-8">
-            <div className="flex items-center justify-center">
-              <Timer className="h-8 w-8 animate-spin text-blue-600" />
-              <span className="ml-3 text-lg font-medium text-gray-900">
-                {tokenLoading ? 'Autenticando...' : 'Carregando tarefas...'}
-              </span>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="bg-card border rounded-lg shadow-sm p-8 text-center rounded-xl">
+        <div className="flex items-center justify-center">
+          <Timer className="h-8 w-8 animate-spin text-blue-600" />
+          <span className="ml-3 text-lg font-medium text-foreground">
+            {tokenLoading ? 'Autenticando...' : 'Carregando tarefas...'}
+          </span>
+        </div>
       </div>
     );
   }
 
   if (!token) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex items-center justify-center p-6">
-        <Card className="bg-white/95 backdrop-blur-xl border-white/20 shadow-2xl max-w-md w-full">
-          <CardContent className="p-8 text-center">
-            <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
-            <CardTitle className="text-lg mb-2">Erro de Autenticação</CardTitle>
-            <CardDescription className="mb-6">
-              Não foi possível obter o token de acesso. O token pode ter
-              expirado ou sido excluído.
-              <br />
-              <span className="text-sm text-muted-foreground">
-                Crie um novo token na aba "Tokens de API".
-              </span>
-            </CardDescription>
-            <Button
-              onClick={() => window.location.reload()}
-              variant="outline"
-              className="border-red-200 text-red-600 hover:bg-red-50"
-            >
-              Recarregar
-            </Button>
-          </CardContent>
-        </Card>
+      <div className="bg-card border rounded-lg shadow-sm p-8 text-center rounded-xl">
+        <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
+        <h3 className="text-lg font-semibold text-foreground mb-2">Erro de Autenticação</h3>
+        <p className="text-muted-foreground mb-6">
+          Não foi possível obter o token de acesso. O token pode ter
+          expirado ou sido excluído.
+          <br />
+          <span className="text-sm">
+            Crie um novo token na aba "Tokens de API".
+          </span>
+        </p>
+        <Button
+          onClick={() => window.location.reload()}
+          variant="outline"
+          className="border-red-200 text-red-600 hover:bg-red-50"
+        >
+          Recarregar
+        </Button>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center space-y-4"
-        >
-          <div className="flex items-center justify-center gap-3">
-            <div className="p-3 bg-gradient-to-r from-green-500 to-blue-500 rounded-xl shadow-lg">
-              <MessageSquare className="w-8 h-8 text-white" />
-            </div>
-            <h1 className="text-4xl font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent">
-              WhatsApp Task Runners
-            </h1>
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-4">
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
+            <MessageSquare className="w-6 h-6 text-foreground" />
           </div>
-          <p className="text-muted-foreground text-lg max-w-2xl mx-auto">
-            Automatize suas mensagens WhatsApp com agendamentos inteligentes e execução programável.
-          </p>
-        </motion.div>
+          <div>
+            <h2 className="text-2xl font-bold text-foreground">
+              Tarefas com IA
+            </h2>
+            <p className="text-muted-foreground">
+              Automatize suas mensagens WhatsApp com agendamentos inteligentes
+            </p>
+          </div>
+        </div>
+      </div>
 
         {/* Controls */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-        >
-          <Card className="backdrop-blur-lg bg-white/80 border-white/20 shadow-xl">
-            <CardContent className="p-6">
+        <div className="bg-card border rounded-lg shadow-sm p-6 rounded-xl">
               <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
                 <div className="flex flex-col sm:flex-row gap-3 flex-1">
                   <div className="relative flex-1 max-w-md">
@@ -1803,31 +1786,25 @@ const AITaskManager = ({ tokenId }) => {
                   </Dialog>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        </motion.div>
+            </div>
 
         {/* Tasks Grid */}
-        <AnimatePresence>
+        <div>
           {filteredTasks.length === 0 ? (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="text-center py-16"
-            >
-              <div className="p-4 bg-gray-100 rounded-full w-24 h-24 mx-auto mb-4 flex items-center justify-center">
-                <MessageSquare className="w-12 h-12 text-gray-400" />
+            <div className="text-center py-16">
+              <div className="p-4 bg-muted rounded-full w-24 h-24 mx-auto mb-4 flex items-center justify-center">
+                <MessageSquare className="w-12 h-12 text-muted-foreground" />
               </div>
-              <h3 className="text-xl font-semibold text-gray-600 mb-2">
+              <h3 className="text-xl font-semibold text-foreground mb-2">
                 {tasks.length === 0 ? 'Nenhuma tarefa WhatsApp criada' : 'Nenhuma tarefa encontrada'}
               </h3>
-              <p className="text-gray-500">
+              <p className="text-muted-foreground">
                 {tasks.length === 0 
                   ? 'Crie sua primeira tarefa automatizada para WhatsApp'
                   : 'Tente ajustar os filtros de pesquisa'
                 }
               </p>
-            </motion.div>
+            </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {filteredTasks.map((task, index) => (
@@ -1838,10 +1815,10 @@ const AITaskManager = ({ tokenId }) => {
                   exit={{ opacity: 0, y: -20 }}
                   transition={{ delay: index * 0.1 }}
                 >
-                  <Card className={`backdrop-blur-lg border-white/20 shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1 ${
+                  <Card className={`bg-card border rounded-lg shadow-sm hover:shadow-md transition-all duration-200 ${
                     executingTasks.has(task.id) 
-                      ? 'bg-purple-50/90 border-purple-200 animate-pulse' 
-                      : 'bg-white/80'
+                      ? 'border-purple-200 animate-pulse' 
+                      : ''
                   }`}>
                     <CardHeader className="p-4 sm:p-6">
                       <div className="flex items-start justify-between">
@@ -2024,50 +2001,42 @@ const AITaskManager = ({ tokenId }) => {
               ))}
             </div>
           )}
-        </AnimatePresence>
+        </div>
 
         {/* Stats Footer */}
         {tasks.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-          >
-            <Card className="backdrop-blur-lg bg-white/80 border-white/20 shadow-xl">
-              <CardContent className="p-4 sm:p-6">
+          <div className="bg-card border rounded-lg shadow-sm p-6 rounded-xl">
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 text-center">
                   <div>
-                    <div className="text-xl sm:text-2xl font-bold text-gray-800">{tasks.length}</div>
-                    <div className="text-xs sm:text-sm text-gray-500">Total</div>
+                    <div className="text-xl sm:text-2xl font-bold text-foreground">{tasks.length}</div>
+                    <div className="text-xs sm:text-sm text-muted-foreground">Total</div>
                   </div>
                   <div>
                     <div className="text-xl sm:text-2xl font-bold text-green-600">
                       {tasks.filter(t => t.status === 'active').length}
                     </div>
-                    <div className="text-xs sm:text-sm text-gray-500">Ativas</div>
+                    <div className="text-xs sm:text-sm text-muted-foreground">Ativas</div>
                   </div>
                   <div className="hidden sm:block">
                     <div className="text-xl sm:text-2xl font-bold text-purple-600">
                       {tasks.filter(t => t.status === 'scheduled').length}
                     </div>
-                    <div className="text-xs sm:text-sm text-gray-500">Agendadas</div>
+                    <div className="text-xs sm:text-sm text-muted-foreground">Agendadas</div>
                   </div>
                   <div>
                     <div className="text-xl sm:text-2xl font-bold text-blue-600">
                       {tasks.filter(t => t.status === 'completed').length}
                     </div>
-                    <div className="text-xs sm:text-sm text-gray-500">Concluídas</div>
+                    <div className="text-xs sm:text-sm text-muted-foreground">Concluídas</div>
                   </div>
                   <div>
                     <div className="text-xl sm:text-2xl font-bold text-orange-600">
                       {tasks.reduce((sum, t) => sum + (t.executionCount || 0), 0)}
                     </div>
-                    <div className="text-xs sm:text-sm text-gray-500">Execuções</div>
+                    <div className="text-xs sm:text-sm text-muted-foreground">Execuções</div>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
-          </motion.div>
+            </div>
         )}
       </div>
     </div>

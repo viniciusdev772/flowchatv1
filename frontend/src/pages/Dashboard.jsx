@@ -1902,7 +1902,7 @@ export default function Dashboard() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: performanceMode ? 0 : -10 }}
                 transition={{ duration: performanceMode ? 0.1 : 0.2 }}
-                className="h-full"
+                className="space-y-6"
               >
                 <AITaskManager 
                   tokenId={apiTokens.find(token => token.isActive && !token.isExpired)?._id || ''}
@@ -2519,6 +2519,8 @@ export default function Dashboard() {
 
             {/* Placeholder para outras abas */}
             {activeTab !== 'overview' &&
+              activeTab !== 'ai-agent' &&
+              activeTab !== 'ai-tasks' &&
               activeTab !== 'sessions' &&
               activeTab !== 'tokens' &&
               activeTab !== 'webhooks' &&
