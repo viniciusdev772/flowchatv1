@@ -6,6 +6,7 @@ const {
   DisconnectReason,
   downloadMediaMessage,
   delay,
+  makeCacheableSignalKeyStore,
 } = require('@whiskeysockets/baileys');
 
 // Dependências para proxy
@@ -3883,13 +3884,22 @@ async function createWhatsAppSession(
     const proxyAgent = createProxyAgent(proxyConfig);
     const { version, isLatest } = await fetchLatestBaileysVersion();
 
+    // External map to store retry counts of messages when decryption/encryption fails
+    // keep this out of the socket itself, so as to prevent a message decryption/encryption loop across socket restarts
+    const msgRetryCounterCache = new Map();
+
     // Configuração base do socket
     const socketConfig = {
-      auth: state,
+      auth: {
+        creds: state.creds,
+        /** caching makes the store faster to send/recv messages */
+        keys: makeCacheableSignalKeyStore(state.keys, logger.child({ session: sessionId })),
+      },
       version,
+      logger: logger.child({ session: sessionId }),
+      msgRetryCounterCache,
       fireInitQueries: true,
       qrTimeout: 45_000,
-      logger: logger.child({ session: sessionId }),
       printQRInTerminal: false,
       markOnlineOnConnect: false, // Importante para não receber notificações no app
       defaultQueryTimeoutMs: 60000,
