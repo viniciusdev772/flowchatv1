@@ -2013,19 +2013,19 @@ const AITaskManager = ({ tokenId }) => {
                   </div>
                   <div>
                     <div className="text-xl sm:text-2xl font-bold text-green-600">
-                      {tasks.filter(t => t.status === 'active').length}
+                      {tasks.filter((t) => t.status === 'active').length}
                     </div>
                     <div className="text-xs sm:text-sm text-muted-foreground">Ativas</div>
                   </div>
                   <div className="hidden sm:block">
                     <div className="text-xl sm:text-2xl font-bold text-purple-600">
-                      {tasks.filter(t => t.status === 'scheduled').length}
+                      {tasks.filter((t) => t.status === 'scheduled').length}
                     </div>
                     <div className="text-xs sm:text-sm text-muted-foreground">Agendadas</div>
                   </div>
                   <div>
                     <div className="text-xl sm:text-2xl font-bold text-blue-600">
-                      {tasks.filter(t => t.status === 'completed').length}
+                      {tasks.filter((t) => t.status === 'completed').length}
                     </div>
                     <div className="text-xs sm:text-sm text-muted-foreground">Concluídas</div>
                   </div>
