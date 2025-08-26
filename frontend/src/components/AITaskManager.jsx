@@ -2039,7 +2039,6 @@ const AITaskManager = ({ tokenId }) => {
             </div>
         )}
       </div>
-    </div>
   );
 };
 
