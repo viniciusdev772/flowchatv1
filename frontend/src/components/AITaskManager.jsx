@@ -530,7 +530,7 @@ const AITaskManager = ({ tokenId }) => {
       .map(contact => {
         const trimmed = contact.trim();
         // If it doesn't include @ and looks like a phone number, add @s.whatsapp.net
-        if (!trimmed.includes('@') && /^\+?[1-9]\d{1,14}$/.test(trimmed.replace(/\s+/g, ''))) {
+        if (!trimmed.includes('@') && /^[\+]?[1-9]\d{1,14}$/.test(trimmed.replace(/\s+/g, ''))) {
           return `${trimmed}@s.whatsapp.net`;
         }
         // If it already has @s.whatsapp.net or @g.us, return as is
