@@ -1,0 +1,23 @@
+{
+  "name": "flowchat-pdf-generator",
+  "version": "1.0.0",
+  "description": "PDF generator for FlowChat API deployment guide",
+  "main": "pdf-converter.js",
+  "scripts": {
+    "generate-pdf": "node pdf-converter.js",
+    "install-deps": "npm install marked puppeteer"
+  },
+  "dependencies": {
+    "marked": "^11.0.0",
+    "puppeteer": "^21.0.0"
+  },
+  "keywords": [
+    "pdf",
+    "markdown",
+    "documentation",
+    "flowchat",
+    "deployment"
+  ],
+  "author": "FlowChat API",
+  "license": "MIT"
+}

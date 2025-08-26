@@ -1,8 +1,7 @@
 services:
   # MongoDB Database
   mongodb:
-    image: mongo:7-jammy
-    container_name: baileys_mongodb
+    image: mongo:4.4
     restart: unless-stopped
     environment:
       MONGO_INITDB_ROOT_USERNAME: mongouser
@@ -16,31 +15,53 @@ services:
         max-size: '100m'
         max-file: '10'
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      test: ["CMD", "mongo", "--eval", "db.adminCommand('ping')"]
       interval: 30s
       timeout: 10s
-      retries: 3
-      start_period: 40s
+      retries: 5
+      start_period: 60s
 
   # Baileys WhatsApp API
   baileys-api:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: vinicius666/baileys-api
-    container_name: baileys_api
+    image: vinicius666/baileys-api:latest
     restart: unless-stopped
     environment:
+      # Application Configuration
       NODE_ENV: production
       PORT: 3000
       TZ: America/Sao_Paulo
+      
+      # Database Configuration
       MONGODB_URI: mongodb://mongouser:mongopassword@mongodb:27017/baileys?authSource=admin
       DB_NAME: baileys
+      
+      # Security Configuration (CRITICAL: Change in production!)
       SESSION_SECRET: baileys-default-session-secret-change-in-production
       COOKIE_SECRET: baileys-default-cookie-secret-change-in-production
+      JWT_SECRET: baileys-jwt-secret-change-in-production-with-strong-key
+      JWT_EXPIRES_IN: 24h
+      CSRF_SECRET: baileys-csrf-secret-change-in-production
+      
+      # CORS Configuration
       CORS_ORIGIN: http://localhost:3000
+      FRONTEND_URL: http://localhost:3000
+      
+      # AI Assistant Configuration (Required for AI features)
+      OPENAI_API_KEY: your-openai-api-key-here
+      
+      # API Token Configuration
+      BAILEYS_API_TOKEN: baileys_production_api_token_change_this
+      
+      # WhatsApp Behavior Configuration
+      AUTO_MARK_READ: true
+      
+      # MCP Server Configuration
+      BASE_URL: http://localhost:3000
+      BAILEYS_API_KEY: baileys_production_mcp_key_change_this
+      API_TIMEOUT: 30000
+      RATE_LIMIT: 100
     ports:
-      - '127.0.0.1:3000:3000/tcp'
+      - "8080:3000"
     volumes:
       - './sessions:/app/.sessions'
       - './.media:/app/.media'
