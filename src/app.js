@@ -3906,6 +3906,7 @@ async function createWhatsAppSession(
       // Configurações para evitar detecção e melhorar estabilidade
       generateHighQualityLinkPreview: true,
       syncFullHistory: false,
+      
       shouldSyncHistoryMessage: () => false, // Não sincronizar histórico
       shouldIgnoreJid: (jid) => false,
       // Configurações de getMessage para suporte adequado a replies
