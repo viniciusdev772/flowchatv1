@@ -7,9 +7,9 @@ const HtmlAnalyzer = require('../utils/htmlAnalyzer');
 const ZipGenerator = require('../utils/zipGenerator');
 const router = express.Router();
 
-// Using MongoDB only - no in-memory storage
 
-// Zod validation schemas
+
+
 const createAgentSchema = z.object({
   sessionId: z.string().min(1, 'Session ID é obrigatório'),
   name: z.string().min(1, 'Nome é obrigatório').max(100, 'Nome muito longo'),
@@ -39,19 +39,19 @@ const createAgentSchema = z.object({
   tools: z
     .array(z.string())
     .default(['web_search', 'web_scrape', 'html_analysis']),
-  replyToGroups: z.boolean().default(true), // Nova opção para responder grupos
-  customSystemPrompt: z.string().optional(), // System prompt personalizado
+  replyToGroups: z.boolean().default(true),
+  customSystemPrompt: z.string().optional(),
   userBehaviors: z.record(z.object({
     preferredName: z.string().optional(),
     communicationStyle: z.string().optional(),
     specialInstructions: z.string().optional(),
     responseMode: z.enum(['normal', 'brief', 'detailed', 'casual', 'formal']).optional(),
-  })).optional(), // Comportamentos específicos por usuário
+  })).optional(),
 });
 
-// Web Search Tool - now implemented directly in OpenAI SDK calls
 
-// Initialize utility instances
+
+
 const webSearchEngine = new WebSearchEngine({
   timeout: 12000,
   maxRetries: 2,
@@ -74,7 +74,7 @@ const zipGenerator = new ZipGenerator({
   compressionLevel: 6,
 });
 
-// Enhanced web search with multiple sources and robust error handling
+
 async function executeWebSearch(query) {
   try {
     console.log(`🔍 Starting enhanced multi-source search for: "${query}"`);
@@ -82,22 +82,22 @@ async function executeWebSearch(query) {
     console.log(
       `✅ Search completed: ${searchResults.total} results from ${searchResults.sources.length} sources`
     );
-    
-    // Enhance results with deep search suggestions
+
+
     if (searchResults.results && searchResults.results.length > 0) {
       searchResults.deepSearchSuggestions = generateDeepSearchSuggestions(query, searchResults.results);
       searchResults.relatedQueries = generateRelatedQueries(query, searchResults.results);
     }
-    
+
     return JSON.stringify(searchResults);
   } catch (error) {
     console.error(`❌ Enhanced search failed: ${error.message}`);
-    // Fallback to basic search
+
     try {
       return await executeBasicWebSearch(query);
     } catch (fallbackError) {
       console.error(`❌ Basic search also failed: ${fallbackError.message}`);
-      // Ultimate fallback - return helpful error message
+
       return JSON.stringify({
         query,
         results: [],
@@ -119,74 +119,74 @@ async function executeWebSearch(query) {
   }
 }
 
-// Generate deep search suggestions based on results
+
 function generateDeepSearchSuggestions(query, results) {
   const suggestions = [];
-  
-  // Suggest specific site analysis for top results
+
+
   if (results.length > 0) {
     suggestions.push(`Analisar detalhadamente: ${results[0].url}`);
   }
-  
-  // Suggest related searches based on content
+
+
   const commonTerms = extractCommonTerms(results);
   if (commonTerms.length > 0) {
     suggestions.push(`Buscar mais sobre: ${commonTerms.slice(0, 3).join(', ')}`);
   }
-  
-  // Suggest time-specific searches
+
+
   if (query.includes('hoje') || query.includes('atual') || query.includes('recente')) {
     suggestions.push(`Buscar histórico: ${query.replace(/hoje|atual|recente/g, '').trim()}`);
   }
-  
+
   return suggestions;
 }
 
-// Generate related queries for deeper search
+
 function generateRelatedQueries(query, results) {
   const relatedQueries = [];
-  
-  // Extract key terms from titles and descriptions
+
+
   const keyTerms = new Set();
   results.forEach(result => {
     const words = (result.title + ' ' + result.description).toLowerCase()
       .split(/\s+/)
       .filter(word => word.length > 4 && !['sobre', 'para', 'com', 'sem', 'mais', 'menos', 'como', 'quando', 'onde', 'porque'].includes(word));
-    
+
     words.forEach(word => keyTerms.add(word));
   });
-  
-  // Generate variations
+
+
   const terms = Array.from(keyTerms).slice(0, 5);
   terms.forEach(term => {
     if (!query.toLowerCase().includes(term)) {
       relatedQueries.push(`${query} ${term}`);
     }
   });
-  
+
   return relatedQueries.slice(0, 3);
 }
 
-// Extract common terms from search results
+
 function extractCommonTerms(results) {
   const termCount = {};
-  
+
   results.forEach(result => {
     const text = (result.title + ' ' + result.description).toLowerCase();
     const words = text.split(/\s+/).filter(word => word.length > 4);
-    
+
     words.forEach(word => {
       termCount[word] = (termCount[word] || 0) + 1;
     });
   });
-  
+
   return Object.entries(termCount)
     .sort((a, b) => b[1] - a[1])
     .slice(0, 5)
     .map(([term]) => term);
 }
 
-// AI-powered decision system for tool chaining
+
 async function shouldContinueWithTools(originalMessage, toolResults, context = {}) {
   try {
     const OpenAI = require('openai');
@@ -194,7 +194,7 @@ async function shouldContinueWithTools(originalMessage, toolResults, context = {
       apiKey: process.env.OPENAI_API_KEY || context.apiKey,
     });
 
-    // Prepare context about what tools were executed and their results
+
     const toolSummary = toolResults.map(result => {
       return `${result.toolName}: ${result.success ? 'OK' : 'ERRO'}`;
     }).join(', ');
@@ -205,14 +205,14 @@ Executado: ${toolSummary}
 
 Decidir se continuar com mais ferramentas:
 1. Análise site + só web_search → web_scrape
-2. URLs encontradas não analisadas → web_scrape  
+2. URLs encontradas não analisadas → web_scrape
 3. Resposta completa → parar
 
 JSON:
 {"shouldContinue": true/false, "nextTool": "web_search|web_scrape|html_analysis|null", "reason": "breve", "parameters": {"url": "se_aplicável"} ou null}`;
 
     const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini', // Modelo mais rápido e barato para decisões
+      model: 'gpt-4o-mini',
       messages: [
         {
           role: 'system',
@@ -223,21 +223,21 @@ JSON:
           content: decisionPrompt
         }
       ],
-      temperature: 0.1, // Baixa temperatura para decisões consistentes
+      temperature: 0.1,
       max_tokens: 150,
     });
 
     const decisionText = response.choices[0].message.content.trim();
-    
-    // Parse JSON response
+
+
     const decision = JSON.parse(decisionText);
-    
+
     console.log('🤖 AI Decision:', decision);
     return decision;
-    
+
   } catch (error) {
     console.error('❌ Error in AI decision system:', error);
-    // Fallback to safe decision
+
     return {
       shouldContinue: false,
       nextTool: null,
@@ -247,24 +247,24 @@ JSON:
   }
 }
 
-// Simplified message enhancement (no keywords)
+
 function enhanceMessageWithSearchContext(message) {
-  // Ensure we have a string
+
   if (typeof message !== 'string') {
     console.warn('enhanceMessageWithSearchContext received non-string:', typeof message, message);
     return String(message || '');
   }
-  
-  // Just return the message as-is, let AI decide what tools to use
+
+
   return message;
 }
 
-// Enhanced web scraping with robust error handling and multiple strategies
+
 async function executeWebScrape(url) {
   try {
     console.log(`🌐 AI Agent downloading website: "${url}"`);
 
-    // Validate URL
+
     const urlObj = new URL(url);
     if (!['http:', 'https:'].includes(urlObj.protocol)) {
       throw new Error('Only HTTP and HTTPS URLs are supported');
@@ -284,7 +284,7 @@ async function executeWebScrape(url) {
   } catch (error) {
     console.error(`❌ Enhanced web scraping failed: ${error.message}`);
 
-    // Return useful error information
+
     return JSON.stringify({
       error: `Não foi possível acessar o site: ${error.message}`,
       url: url,
@@ -295,7 +295,7 @@ async function executeWebScrape(url) {
   }
 }
 
-// Enhanced HTML analysis with specialized parsers
+
 async function executeHtmlAnalysis(url, analysisType = 'general') {
   try {
     console.log(
@@ -315,7 +315,7 @@ async function executeHtmlAnalysis(url, analysisType = 'general') {
   }
 }
 
-// Generate ZIP file with scraped data or search results
+
 async function generateZipFile(data, type = 'scraping') {
   try {
     console.log(`📦 Generating ZIP file for ${type} data`);
@@ -344,7 +344,7 @@ async function generateZipFile(data, type = 'scraping') {
   }
 }
 
-// Fallback basic web search
+
 async function executeBasicWebSearch(query) {
   const fetch = require('node-fetch');
   const cheerio = require('cheerio');
@@ -363,7 +363,7 @@ async function executeBasicWebSearch(query) {
     'Upgrade-Insecure-Requests': '1',
   };
 
-  // Specific analysis functions (moved outside to proper scope)
+
   function analyzeNewsArticle($) {
     return {
       headline: $('h1').first().text().trim(),
@@ -527,7 +527,7 @@ async function executeBasicWebSearch(query) {
     };
   }
 
-  // Helper functions for contact analysis
+
   function extractEmails(text) {
     const emailRegex = /[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}/g;
     return text.match(emailRegex) || [];
@@ -592,7 +592,7 @@ async function executeBasicWebSearch(query) {
   const searchSources = [];
   const searchPromises = [];
 
-  // Perform all searches in parallel for better performance
+
   searchPromises.push(
     searchDuckDuckGo(query, fetch, cheerio, headers)
       .then((results) => ({ source: 'duckduckgo', results, emoji: '🦆' }))
@@ -659,7 +659,7 @@ async function executeBasicWebSearch(query) {
       }))
   );
 
-  // Wait for all searches to complete (with timeout)
+
   const searchResponses = await Promise.allSettled(
     searchPromises.map((promise) =>
       Promise.race([
@@ -671,7 +671,7 @@ async function executeBasicWebSearch(query) {
     )
   );
 
-  // Process results
+
   for (const response of searchResponses) {
     if (response.status === 'fulfilled') {
       const { source, results, error, emoji } = response.value;
@@ -685,9 +685,9 @@ async function executeBasicWebSearch(query) {
     }
   }
 
-  // Remove duplicates and limit results
+
   const uniqueResults = removeDuplicateResults(allResults);
-  const finalResults = uniqueResults.slice(0, 12); // Max 12 results total
+  const finalResults = uniqueResults.slice(0, 12);
 
   const searchResults = {
     query,
@@ -703,7 +703,7 @@ async function executeBasicWebSearch(query) {
     `✅ Multi-source search completed: ${finalResults.length} unique results from ${searchSources.length} sources`
   );
 
-  // If no results were found, provide a helpful response
+
   if (finalResults.length === 0) {
     const fallbackResults = {
       query,
@@ -728,7 +728,7 @@ async function executeBasicWebSearch(query) {
   return JSON.stringify(searchResults);
 }
 
-// DuckDuckGo search function
+
 async function searchDuckDuckGo(query, fetch, cheerio, headers) {
   const searchUrl = `https://duckduckgo.com/html/?q=${encodeURIComponent(
     query
@@ -765,7 +765,7 @@ async function searchDuckDuckGo(query, fetch, cheerio, headers) {
   return results;
 }
 
-// Bing search function
+
 async function searchBing(query, fetch, cheerio, headers) {
   const searchUrl = `https://www.bing.com/search?q=${encodeURIComponent(
     query
@@ -806,7 +806,7 @@ async function searchBing(query, fetch, cheerio, headers) {
   return results;
 }
 
-// Yahoo search function
+
 async function searchYahoo(query, fetch, cheerio, headers) {
   const searchUrl = `https://search.yahoo.com/search?p=${encodeURIComponent(
     query
@@ -843,7 +843,7 @@ async function searchYahoo(query, fetch, cheerio, headers) {
   return results;
 }
 
-// Searx search function (open source metasearch engine)
+
 async function searchSearx(query, fetch, cheerio, headers) {
   const searchUrl = `https://searx.be/search?q=${encodeURIComponent(
     query
@@ -880,7 +880,7 @@ async function searchSearx(query, fetch, cheerio, headers) {
   return results;
 }
 
-// Brave search function
+
 async function searchBrave(query, fetch, cheerio, headers) {
   const searchUrl = `https://search.brave.com/search?q=${encodeURIComponent(
     query
@@ -917,7 +917,7 @@ async function searchBrave(query, fetch, cheerio, headers) {
   return results;
 }
 
-// Yandex search function
+
 async function searchYandex(query, fetch, cheerio, headers) {
   const searchUrl = `https://yandex.com/search/?text=${encodeURIComponent(
     query
@@ -954,13 +954,13 @@ async function searchYandex(query, fetch, cheerio, headers) {
   return results;
 }
 
-// Remove duplicate results based on URL and title similarity
+
 function removeDuplicateResults(results) {
   const seen = new Set();
   const unique = [];
 
   for (const result of results) {
-    // Create a key based on normalized URL and title
+
     const urlKey = result.url.replace(/^https?:\/\/(www\.)?/, '').toLowerCase();
     const titleKey = result.title.toLowerCase().substring(0, 50);
     const key = `${urlKey}|${titleKey}`;
@@ -974,7 +974,7 @@ function removeDuplicateResults(results) {
   return unique;
 }
 
-// AI Agent class
+
 class AIAgent {
   constructor(config) {
     this.id = config.id || Date.now().toString();
@@ -998,10 +998,10 @@ class AIAgent {
     this.messageCount = config.messageCount || 0;
     this.customSystemPrompt = config.customSystemPrompt || null;
     this.userBehaviors = config.userBehaviors || {};
-    // conversationHistory removed - now using MongoDB only for persistent history
+
   }
 
-  // Method to send tool execution notifications to user
+
   async sendToolNotification(message, chatId, whatsappClient) {
     if (!whatsappClient || !chatId) {
       console.log(`📱 Tool notification (no WhatsApp client): ${message}`);
@@ -1009,16 +1009,16 @@ class AIAgent {
     }
 
     try {
-      // Send typing indicator
+
       await whatsappClient.sendPresenceUpdate('composing', chatId);
 
-      // Small delay for natural feeling
+
       await new Promise((resolve) => setTimeout(resolve, 500));
 
-      // Send notification message
+
       await whatsappClient.sendMessage(chatId, { text: message });
 
-      // Return to available presence
+
       await whatsappClient.sendPresenceUpdate('available');
 
       console.log(`📱 Tool notification sent: ${message}`);
@@ -1032,19 +1032,19 @@ class AIAgent {
       this.messageCount++;
       this.updatedAt = new Date().toISOString();
 
-      // Extract rich message information
+
       const messageText =
         messageData.content || messageData.text || messageData.body || '';
       const isGroup = messageData.chat?.isGroup || false;
       const senderInfo = messageData.sender || {};
       const chatInfo = messageData.chat || {};
 
-      // Skip empty messages
+
       if (!messageText.trim()) {
         return { shouldReply: false };
       }
 
-      // Verificação robusta de grupo usando funções oficiais da Baileys
+
       const {
         isJidGroup,
         isJidBroadcast,
@@ -1058,16 +1058,16 @@ class AIAgent {
         !isJidStatusBroadcast(chatJid) &&
         !isJidNewsletter(chatJid);
 
-      // Use verificação mais rigorosa
+
       const finalIsGroup = isGroup || isRealGroup;
 
-      // Note: Group mention checking is now handled in app.js before calling processMessage
-      // This method only gets called when the agent should reply (either private message or mentioned in group)
 
-      // Marcar mensagem(ns) como lida se cliente WhatsApp estiver disponível
+
+
+
       if (whatsappClient && this.autoReply) {
         try {
-          // Se há múltiplas partes, marcar todas como lidas
+
           if (
             messageData.isMultiPart &&
             messageData.allMessageKeys &&
@@ -1091,7 +1091,7 @@ class AIAgent {
         }
       }
 
-      // Create rich conversation entry with comprehensive context
+
       const conversationEntry = {
         type: 'user',
         content: messageText,
@@ -1113,7 +1113,7 @@ class AIAgent {
         messageType: messageData.messageType || 'text',
         hasQuotedMessage: !!messageData.quotedMessage,
         quotedMessage: messageData.quotedMessage || null,
-        // Additional context for better conversation continuity
+
         isMultiPart: messageData.isMultiPart || false,
         partCount: messageData.partCount || 1,
         contextData: {
@@ -1123,18 +1123,18 @@ class AIAgent {
         },
       };
 
-      // Save to MongoDB instead of memory
+
       await this.saveConversationEntry(conversationEntry);
-      
-      // Detect and save user preferences from this message
+
+
       await this.detectAndSaveUserPreferences(
-        messageText, 
-        conversationEntry.chat.id, 
-        senderInfo.id, 
+        messageText,
+        conversationEntry.chat.id,
+        senderInfo.id,
         senderInfo.pushName
       );
 
-      // Generate AI response with rich context
+
       const response = await this.generateResponse(
         messageData,
         conversationEntry,
@@ -1145,7 +1145,7 @@ class AIAgent {
         throw new Error('Empty response generated');
       }
 
-      // Create response entry
+
       const responseEntry = {
         type: 'assistant',
         content: response,
@@ -1154,10 +1154,10 @@ class AIAgent {
         chat: conversationEntry.chat,
       };
 
-      // Save AI response to MongoDB
+
       await this.saveConversationEntry(responseEntry);
 
-      // Save updated agent state to database (async, don't wait)
+
       this.save().catch((err) =>
         console.error('Error saving agent state:', err)
       );
@@ -1173,7 +1173,7 @@ class AIAgent {
     } catch (error) {
       console.error('Error processing message:', error);
 
-      // Resposta de fallback baseada na personalidade do agente
+
       const fallbackResponses = {
         professional:
           'Sistema temporariamente indisponível. Posso ajudá-lo de outra forma?',
@@ -1200,13 +1200,13 @@ class AIAgent {
     conversationEntry,
     whatsappClient = null
   ) {
-    // Variable to store executed tool results - moved outside try-catch for proper scope
+
     const executedToolResults = [];
 
     try {
       const OpenAI = require('openai');
 
-      // Validate API key
+
       if (!this.openaiApiKey || this.openaiApiKey.trim() === '') {
         console.error(
           `❌ Agent ${this.id} missing OpenAI API key - response generation failed`
@@ -1219,12 +1219,12 @@ class AIAgent {
         timeout: 30000,
       });
 
-      // Log para debug
+
       console.log(
         `🤖 Agent ${this.id} generating response with model ${this.model}`
       );
 
-      // Build context prompt with rich message information
+
       const personalityPrompts = {
         professional: 'Você é um assistente profissional, formal e objetivo.',
         friendly: 'Você é um assistente amigável, caloroso e acolhedor.',
@@ -1246,7 +1246,7 @@ class AIAgent {
         finance: 'Você é especializado em finanças e consultoria.',
       };
 
-      // Rich context information
+
       const isGroup = conversationEntry.chat.isGroup;
       const senderName = conversationEntry.sender.pushName || 'Usuário';
       const chatName = conversationEntry.chat.name || '';
@@ -1260,37 +1260,37 @@ class AIAgent {
         ? `\nContexto: Você está em um grupo "${chatName}". A mensagem foi enviada por ${senderName}.${multiPartInfo}`
         : `\nContexto: Você está em uma conversa privada com ${senderName}.${multiPartInfo}`;
 
-      // Get user-specific behavior if configured
+
       const userBehavior = this.userBehaviors[conversationEntry.sender.id] || {};
-      
+
       let systemPrompt;
-      
+
       if (this.customSystemPrompt) {
-        // Use custom system prompt if available
+
         systemPrompt = this.customSystemPrompt;
-        
-        // Replace placeholders in custom prompt
+
+
         systemPrompt = systemPrompt
           .replace('{agentName}', this.name)
           .replace('{userName}', userBehavior.preferredName || senderName)
           .replace('{context}', contextInfo)
           .replace('{communicationStyle}', userBehavior.communicationStyle || 'natural')
           .replace('{responseMode}', userBehavior.responseMode || 'normal');
-          
-        // Add user-specific instructions if available
+
+
         if (userBehavior.specialInstructions) {
           systemPrompt += `\n\nINSTRUÇÕES ESPECIAIS PARA ${userBehavior.preferredName || senderName}: ${userBehavior.specialInstructions}`;
         }
       } else {
-        // Use default personality-based prompt
+
         systemPrompt = `${personalityPrompts[this.personality]} ${
           specializationPrompts[this.specialization]
         }
 
 Nome: ${this.name}
 ${contextInfo}`;
-        
-        // Add user behavior context if available
+
+
         if (Object.keys(userBehavior).length > 0) {
           const behaviorContext = [];
           if (userBehavior.preferredName) {
@@ -1302,7 +1302,7 @@ ${contextInfo}`;
           if (userBehavior.responseMode) {
             const responseModes = {
               brief: 'Seja conciso e direto',
-              detailed: 'Forneça respostas detalhadas e completas', 
+              detailed: 'Forneça respostas detalhadas e completas',
               casual: 'Use linguagem informal e descontraída',
               formal: 'Mantenha um tom profissional e formal'
             };
@@ -1311,13 +1311,13 @@ ${contextInfo}`;
           if (userBehavior.specialInstructions) {
             behaviorContext.push(`Instruções especiais: ${userBehavior.specialInstructions}`);
           }
-          
+
           if (behaviorContext.length > 0) {
             systemPrompt += `\n\n🎯 CONFIGURAÇÕES ESPECÍFICAS PARA ESTE USUÁRIO:\n${behaviorContext.join('\n')}`;
           }
         }
       }
-      
+
       systemPrompt += `
 
 FERRAMENTAS DISPONÍVEIS - Use automaticamente quando necessário:
@@ -1338,7 +1338,7 @@ SEJA PROATIVO: Execute ferramentas IMEDIATAMENTE quando detectar necessidade de 
 
 Regras:
 1. Responda em português brasileiro
-2. Seja útil e prestativo  
+2. Seja útil e prestativo
 3. Mantenha o tom de acordo com sua personalidade
 4. Use ferramentas para informações atualizadas
 5. ${
@@ -1360,20 +1360,20 @@ Regras:
       const messageText =
         messageData.content || messageData.text || messageData.body || '';
 
-      // Validate message content
+
       if (!messageText || messageText.trim() === '') {
         throw new Error('Empty message content');
       }
 
-      // Prepare messages array for OpenAI API
+
       const messages = [{ role: 'system', content: systemPrompt }];
 
-      // Load user preferences for this chat
+
       const senderId = conversationEntry.sender?.id;
-      const userPreferences = senderId ? 
+      const userPreferences = senderId ?
         await this.loadUserPreferences(conversationEntry.chat.id, senderId) : null;
-      
-      // Load conversation history from MongoDB for context (increased to 10 for better context)
+
+
       const recentHistory = await this.loadConversationHistory(
         conversationEntry.chat.id,
         10
@@ -1382,16 +1382,16 @@ Regras:
         `📚 Loaded ${recentHistory.length} previous messages for context from chat ${conversationEntry.chat.id}`
       );
 
-      // Add conversation history for context (with token optimization)
+
       let totalTokensEstimate = 0;
       recentHistory.forEach((msg) => {
-        // Estimate tokens (roughly 4 chars per token) and limit total context
+
         const contentLength = msg.content?.length || 0;
         const estimatedTokens = Math.ceil(contentLength / 4);
 
         if (totalTokensEstimate + estimatedTokens > 500) {
-          // Limit context to ~500 tokens
-          return; // Skip this message to stay within token limits
+
+          return;
         }
 
         if (msg.type === 'user' && msg.content && msg.content.trim() !== '') {
@@ -1411,12 +1411,12 @@ Regras:
           messages.push({ role: 'assistant', content: msg.content });
           totalTokensEstimate += estimatedTokens;
         } else if (msg.type === 'tool_call' && msg.toolResult) {
-          // Add simplified tool call context
+
           const toolContext =
             msg.toolResult.summary ||
             `[${msg.toolName}: ${msg.toolArgs?.query || 'executado'}]`;
           if (toolContext.length < 100) {
-            // Only add if short
+
             messages.push({ role: 'system', content: toolContext });
             totalTokensEstimate += Math.ceil(toolContext.length / 4);
           }
@@ -1425,13 +1425,13 @@ Regras:
 
       console.log(`🎯 Estimated context tokens: ~${totalTokensEstimate}`);
 
-      // Add current message with sender context and quoted message info
+
       const effectiveSenderName = userPreferences?.preferredName || senderName;
       let currentMessageContent = isGroup
         ? `${messageText} (enviado por ${effectiveSenderName})`
         : messageText;
-      
-      // Add user preferences context if available
+
+
       if (userPreferences && Object.keys(userPreferences).length > 0) {
         const preferencesText = [];
         if (userPreferences.preferredName && userPreferences.preferredName !== senderName) {
@@ -1443,25 +1443,25 @@ Regras:
         if (userPreferences.communicationStyle) {
           preferencesText.push(`Estilo de comunicação: ${userPreferences.communicationStyle}`);
         }
-        
+
         if (preferencesText.length > 0) {
           currentMessageContent += `\n\n[👤 PREFERÊNCIAS DO USUÁRIO: ${preferencesText.join(' | ')}]`;
         }
       }
-      
-      // Add quoted message context if available - check if user is replying to agent's message
+
+
       if (messageData.quotedMessage) {
         const quotedText = messageData.quotedMessage.text || messageData.quotedMessage.content || '[Mensagem não textual]';
-        const quotedSender = messageData.quotedMessage.participant 
-          ? messageData.quotedMessage.participant.split('@')[0] 
+        const quotedSender = messageData.quotedMessage.participant
+          ? messageData.quotedMessage.participant.split('@')[0]
           : 'Usuário';
-        
-        // Check if the quoted message is from this agent by looking at conversation history
+
+
         const isReplyingToAgent = await this.isQuotedMessageFromAgent(
-          messageData.quotedMessage.id, 
+          messageData.quotedMessage.id,
           conversationEntry.chat.id
         );
-        
+
         if (isReplyingToAgent) {
           currentMessageContent += `\n\n[🤖 CONTEXTO IMPORTANTE: O usuário está respondendo à minha mensagem anterior: "${quotedText}". Esta é uma resposta direta à minha resposta anterior, então devo considerar esse contexto para entender melhor o que o usuário quer dizer.]`;
           console.log(`🎯 Agent ${this.id} detected user replying to agent's message: ${quotedText.substring(0, 50)}...`);
@@ -1469,12 +1469,12 @@ Regras:
           currentMessageContent += `\n\n[Respondendo à mensagem de ${quotedSender}: "${quotedText}"]`;
         }
       }
-      
-      // Enhance message with search context if it contains search-worthy terms
+
+
       let enhancedMessage;
       try {
         enhancedMessage = enhanceMessageWithSearchContext(currentMessageContent);
-        
+
         if (typeof enhancedMessage !== 'string') {
           console.warn('enhanceMessageWithSearchContext returned non-string:', typeof enhancedMessage);
           enhancedMessage = String(currentMessageContent || '');
@@ -1483,20 +1483,20 @@ Regras:
         console.error('Error enhancing message with search context:', error);
         enhancedMessage = String(currentMessageContent || '');
       }
-      
-      // Ensure we have a valid string before calling trim
-      const finalMessage = (enhancedMessage && typeof enhancedMessage === 'string') 
-        ? enhancedMessage.trim() 
+
+
+      const finalMessage = (enhancedMessage && typeof enhancedMessage === 'string')
+        ? enhancedMessage.trim()
         : String(currentMessageContent || '').trim();
-      
+
       messages.push({ role: 'user', content: finalMessage });
 
-      // Create chat completion with tools
+
       console.log(
         `📨 Creating chat completion with ${messages.length} messages`
       );
 
-      // Check if we should attempt tool use (only for specific model versions)
+
       const supportsTools =
         this.model.includes('gpt-4') || this.model.includes('gpt-3.5-turbo');
 
@@ -1508,12 +1508,12 @@ Regras:
             `🔧 Attempting response with tools for model: ${this.model}`
           );
 
-          // Create chat completion with tools (optimized for quota management)
+
           response = await openai.chat.completions.create({
             model: this.model,
             messages: messages,
             temperature: this.creativity / 100,
-            max_tokens: 600, // Reduced for token limits
+            max_tokens: 600,
             tools: [
               {
                 type: 'function',
@@ -1585,7 +1585,7 @@ Regras:
               },
             ],
             tool_choice: 'auto',
-            // Configurações para tornar o modelo mais proativo e executar ferramentas em sequência
+
             presence_penalty: 0.2,
             frequency_penalty: 0.1,
           });
@@ -1596,20 +1596,20 @@ Regras:
             }`
           );
 
-          // Process tool calls if any
+
           let toolCalls = response.choices[0]?.message?.tool_calls;
 
           while (toolCalls && toolCalls.length > 0) {
             console.log(`🔧 Processing ${toolCalls.length} tool calls`);
 
-            // Add the AI message with tool calls to conversation
+
             messages.push({
               role: 'assistant',
               content: response.choices[0].message.content,
               tool_calls: toolCalls,
             });
 
-            // Execute tool calls
+
             for (const toolCall of toolCalls) {
               let toolResult = '';
 
@@ -1623,7 +1623,7 @@ Regras:
                   const args = JSON.parse(toolCall.function.arguments);
                   console.log(`🔍 Model requested web search: "${args.query}"`);
 
-                  // Send notification to user that search is starting
+
                   await this.sendToolNotification(
                     `🔍 Buscando em múltiplas fontes: "${args.query}"...\n🌐 Consultando: DuckDuckGo, Bing, Yahoo, Searx, Brave, Yandex`,
                     conversationEntry.chat.id,
@@ -1632,7 +1632,7 @@ Regras:
 
                   toolResult = await executeWebSearch(args.query);
 
-                  // Parse results to get count
+
                   const searchData = JSON.parse(toolResult);
                   const resultCount = searchData.results?.length || 0;
 
@@ -1640,7 +1640,7 @@ Regras:
                     `✅ Search completed, result length: ${toolResult.length}`
                   );
 
-                  // Store successful tool result
+
                   executedToolResults.push({
                     toolName: 'web_search',
                     args: args,
@@ -1648,7 +1648,7 @@ Regras:
                     success: !searchData.error,
                   });
 
-                  // Save tool call to conversation history for context
+
                   const toolCallEntry = {
                     type: 'tool_call',
                     toolName: toolCall.function.name,
@@ -1661,10 +1661,10 @@ Regras:
                   };
                   await this.saveConversationEntry(toolCallEntry);
 
-                  // Small delay before completion notification
+
                   await new Promise((resolve) => setTimeout(resolve, 1000));
 
-                  // Send completion notification with detailed info
+
                   const sourcesUsed = searchData.sources?.join(', ') || 'N/A';
                   const duplicatesInfo =
                     searchData.duplicatesRemoved > 0
@@ -1678,13 +1678,13 @@ Regras:
                     conversationEntry.chat.id,
                     whatsappClient
                   );
-                  
-                  // AI-based tool chaining is now handled in the main iteration loop below
+
+
                 } else if (toolCall.function.name === 'web_scrape') {
                   const args = JSON.parse(toolCall.function.arguments);
                   console.log(`🌐 Model requested web scraping: "${args.url}"`);
 
-                  // Send notification to user that scraping is starting
+
                   await this.sendToolNotification(
                     `🌐 Baixando e analisando site: "${args.url}"...\n📊 Extraindo conteúdo, links, imagens e estrutura\n📦 Preparando arquivo ZIP para download`,
                     conversationEntry.chat.id,
@@ -1693,12 +1693,12 @@ Regras:
 
                   toolResult = await executeWebScrape(args.url);
 
-                  // Parse results to get info
+
                   const scrapeData = JSON.parse(toolResult);
 
                   console.log(`✅ Web scraping completed for: ${args.url}`);
 
-                  // Auto-generate ZIP file after successful scraping
+
                   let zipData = null;
                   if (!scrapeData.error) {
                     try {
@@ -1708,11 +1708,11 @@ Regras:
                       console.log(`✅ ZIP file automatically generated: ${zipData.fileName}`);
                     } catch (zipError) {
                       console.error(`❌ ZIP generation failed: ${zipError.message}`);
-                      // Don't fail the entire scraping process if ZIP fails
+
                     }
                   }
 
-                  // Store successful tool result with ZIP info
+
                   executedToolResults.push({
                     toolName: 'web_scrape',
                     args: args,
@@ -1721,7 +1721,7 @@ Regras:
                     success: !scrapeData.error,
                   });
 
-                  // Save tool call to conversation history for context
+
                   const toolCallEntry = {
                     type: 'tool_call',
                     toolName: toolCall.function.name,
@@ -1735,10 +1735,10 @@ Regras:
                   };
                   await this.saveConversationEntry(toolCallEntry);
 
-                  // Small delay before completion notification
+
                   await new Promise((resolve) => setTimeout(resolve, 1000));
 
-                  // Send completion notification with detailed info
+
                   if (scrapeData.error) {
                     await this.sendToolNotification(
                       `❌ Erro ao baixar site:\n${scrapeData.error}`,
@@ -1753,14 +1753,14 @@ Regras:
                     } links encontrados\n🖼️ ${
                       scrapeData.stats?.totalImages || scrapeData.images?.length || 0
                     } imagens encontradas`;
-                    
-                    // Add ZIP information if available
+
+
                     if (zipData && zipData.success) {
                       notificationText += `\n📦 ZIP criado: ${zipData.fileName}\n💾 Tamanho: ${zipData.size || 'N/A'}\n🔗 Download: ${zipData.downloadUrl || 'Disponível via API'}`;
                     } else if (zipData && !zipData.success) {
                       notificationText += `\n⚠️ ZIP: Erro na criação (${zipData.error || 'Erro desconhecido'})`;
                     }
-                    
+
                     await this.sendToolNotification(
                       notificationText,
                       conversationEntry.chat.id,
@@ -1774,7 +1774,7 @@ Regras:
                     `🔍 Model requested HTML analysis: "${args.url}" (type: ${analysisType})`
                   );
 
-                  // Send notification to user that analysis is starting
+
                   await this.sendToolNotification(
                     `🔍 Analisando estrutura HTML: "${args.url}"...\n📋 Tipo de análise: ${analysisType}\n🔬 Extraindo informações específicas`,
                     conversationEntry.chat.id,
@@ -1786,14 +1786,14 @@ Regras:
                     analysisType
                   );
 
-                  // Parse results to get info
+
                   const analysisData = JSON.parse(toolResult);
 
                   console.log(
                     `✅ HTML analysis completed for: ${args.url} (${analysisType})`
                   );
 
-                  // Store successful tool result
+
                   executedToolResults.push({
                     toolName: 'html_analysis',
                     args: args,
@@ -1801,7 +1801,7 @@ Regras:
                     success: !analysisData.error,
                   });
 
-                  // Save tool call to conversation history for context
+
                   const toolCallEntry = {
                     type: 'tool_call',
                     toolName: toolCall.function.name,
@@ -1814,10 +1814,10 @@ Regras:
                   };
                   await this.saveConversationEntry(toolCallEntry);
 
-                  // Small delay before completion notification
+
                   await new Promise((resolve) => setTimeout(resolve, 1000));
 
-                  // Send completion notification with detailed info
+
                   if (analysisData.error) {
                     await this.sendToolNotification(
                       `❌ Erro na análise HTML:\n${analysisData.error}`,
@@ -1872,7 +1872,7 @@ Regras:
                   });
                   console.log(`❌ Unknown tool: ${toolCall.function.name}`);
 
-                  // Send error notification
+
                   await this.sendToolNotification(
                     `❌ Ferramenta desconhecida: ${toolCall.function.name}`,
                     conversationEntry.chat.id,
@@ -1889,7 +1889,7 @@ Regras:
                   toolName: toolCall.function.name,
                 });
 
-                // Send error notification
+
                 await this.sendToolNotification(
                   `❌ Erro na execução da ferramenta ${toolCall.function.name}:\n${toolExecutionError.message}`,
                   conversationEntry.chat.id,
@@ -1897,7 +1897,7 @@ Regras:
                 );
               }
 
-              // Add tool result to conversation - This is critical for OpenAI API
+
               messages.push({
                 role: 'tool',
                 content: toolResult,
@@ -1909,50 +1909,50 @@ Regras:
               );
             }
 
-            // Implement iterative tool chaining with AI decisions
-            let maxIterations = 1; // Reduced to prevent token overflow
+
+            let maxIterations = 1;
             let currentIteration = 0;
-            
+
             while (currentIteration < maxIterations) {
-              // Check token count before continuing
+
               const currentTokenCount = messages.reduce((total, msg) => {
                 return total + Math.ceil((msg.content?.length || 0) / 4);
               }, 0);
-              
-              if (currentTokenCount > 15000) { // More conservative limit
+
+              if (currentTokenCount > 15000) {
                 console.log(`🚫 Token limit approaching (${currentTokenCount}), stopping chaining`);
                 break;
               }
-              
-              // Get current tool results for AI decision
+
+
               const currentToolResults = executedToolResults.filter(result => result.success);
               const originalMessage = conversationEntry.messageText || '';
-              
+
               if (currentToolResults.length === 0) {
                 console.log(`🤖 No successful tools executed, stopping chaining`);
                 break;
               }
-              
-              // Ask AI if we should continue
+
+
               console.log(`🤖 Iteration ${currentIteration + 1}: Consulting AI decision system...`);
-              
-              // Add delay to prevent rate limiting
+
+
               await new Promise(resolve => setTimeout(resolve, 1000));
-              
+
               const aiDecision = await shouldContinueWithTools(originalMessage, currentToolResults, {
                 apiKey: this.openaiApiKey
               });
-              
+
               if (!aiDecision.shouldContinue) {
                 console.log(`🤖 AI decided to stop at iteration ${currentIteration + 1}: ${aiDecision.reason}`);
                 break;
               }
-              
+
               console.log(`🤖 AI decided to continue with ${aiDecision.nextTool}: ${aiDecision.reason}`);
-              
-              // Build tools array based on AI decision
+
+
               const availableTools = [];
-              
+
               if (aiDecision.nextTool === 'web_scrape') {
                 availableTools.push({
                   type: 'function',
@@ -1972,7 +1972,7 @@ Regras:
                   },
                 });
               }
-              
+
               if (aiDecision.nextTool === 'html_analysis') {
                 availableTools.push({
                   type: 'function',
@@ -1997,7 +1997,7 @@ Regras:
                   },
                 });
               }
-              
+
               if (aiDecision.nextTool === 'web_search') {
                 availableTools.push({
                   type: 'function',
@@ -2017,63 +2017,63 @@ Regras:
                   },
                 });
               }
-              
+
               if (availableTools.length === 0) {
                 console.log(`🤖 No tools available for AI decision: ${aiDecision.nextTool}`);
                 break;
               }
-              
-              // Add instruction to force tool execution
+
+
               const instructionMessage = `DECISÃO IA: ${aiDecision.reason}. Execute ${aiDecision.nextTool} IMEDIATAMENTE.`;
               if (aiDecision.parameters && aiDecision.parameters.url) {
                 instructionMessage += ` URL: ${aiDecision.parameters.url}`;
               }
-              
+
               messages.push({
                 role: 'system',
                 content: `${instructionMessage}\n\nIMPORTANTE: Execute a próxima ferramenta IMEDIATAMENTE. NÃO termine sua resposta sem executar a análise completa.`
               });
-              
-              // Make call to execute next tool
+
+
               const iterationResponse = await openai.chat.completions.create({
                 model: this.model,
                 messages: messages,
                 temperature: this.creativity / 100,
-                max_tokens: 500, // Reduced for chaining calls
+                max_tokens: 500,
                 tools: availableTools,
                 tool_choice: 'auto',
               });
-              
-              // Process iteration response
+
+
               if (iterationResponse.choices[0].message.tool_calls) {
                 const iterationToolCalls = iterationResponse.choices[0].message.tool_calls;
                 console.log(`🔄 Processing ${iterationToolCalls.length} iteration tool calls`);
-                
-                // Add iteration response to conversation
+
+
                 messages.push({
                   role: 'assistant',
                   content: iterationResponse.choices[0].message.content,
                   tool_calls: iterationToolCalls,
                 });
-                
-                // Execute iteration tools
+
+
                 for (const toolCall of iterationToolCalls) {
                   let toolResult = '';
-                  
+
                   if (toolCall.function.name === 'web_scrape') {
                     const args = JSON.parse(toolCall.function.arguments);
                     console.log(`🌐 Iteration web scraping: "${args.url}"`);
-                    
+
                     await this.sendToolNotification(
                       `🌐 Continuando análise: "${args.url}"...\n📊 Extraindo conteúdo completo`,
                       conversationEntry.chat.id,
                       whatsappClient
                     );
-                    
+
                     toolResult = await executeWebScrape(args.url);
                     const scrapeData = JSON.parse(toolResult);
-                    
-                    // Store iteration tool result
+
+
                     executedToolResults.push({
                       toolName: 'web_scrape',
                       args: args,
@@ -2081,43 +2081,43 @@ Regras:
                       zipData: scrapeData.zipData,
                       success: !scrapeData.error,
                     });
-                    
+
                   } else if (toolCall.function.name === 'html_analysis') {
                     const args = JSON.parse(toolCall.function.arguments);
                     const analysisType = args.analysisType || 'general';
                     console.log(`🔍 Iteration HTML analysis: "${args.url}" (${analysisType})`);
-                    
+
                     await this.sendToolNotification(
                       `🔍 Continuando análise especializada: "${args.url}"...\n📋 Tipo: ${analysisType}`,
                       conversationEntry.chat.id,
                       whatsappClient
                     );
-                    
+
                     toolResult = await executeHtmlAnalysis(args.url, analysisType);
                     const analysisData = JSON.parse(toolResult);
-                    
-                    // Store iteration tool result
+
+
                     executedToolResults.push({
                       toolName: 'html_analysis',
                       args: args,
                       result: analysisData,
                       success: !analysisData.error,
                     });
-                    
+
                   } else if (toolCall.function.name === 'web_search') {
                     const args = JSON.parse(toolCall.function.arguments);
                     console.log(`🔍 Iteration web search: "${args.query}"`);
-                    
+
                     await this.sendToolNotification(
                       `🔍 Continuando busca: "${args.query}"...\n🌐 Consultando múltiplas fontes`,
                       conversationEntry.chat.id,
                       whatsappClient
                     );
-                    
+
                     toolResult = await executeWebSearch(args.query);
                     const searchData = JSON.parse(toolResult);
-                    
-                    // Store iteration tool result
+
+
                     executedToolResults.push({
                       toolName: 'web_search',
                       args: args,
@@ -2125,8 +2125,8 @@ Regras:
                       success: !searchData.error,
                     });
                   }
-                  
-                  // Add tool result to conversation
+
+
                   messages.push({
                     role: 'tool',
                     content: toolResult,
@@ -2137,32 +2137,32 @@ Regras:
                 console.log(`🤖 No tool calls in iteration ${currentIteration + 1}, stopping`);
                 break;
               }
-              
+
               currentIteration++;
             }
-            
 
-            // Get response after tool execution
+
+
             console.log(`🔄 Getting final response after tool execution`);
             try {
               response = await openai.chat.completions.create({
                 model: this.model,
                 messages: messages,
                 temperature: this.creativity / 100,
-                max_tokens: 500, // Reduced for final response to save quota
+                max_tokens: 500,
               });
 
-              // Check again for more tool calls
+
               toolCalls = response.choices[0]?.message?.tool_calls;
             } catch (finalResponseError) {
               console.error(
                 'Error getting final response after tool execution:',
                 finalResponseError
               );
-              // Break the loop to prevent infinite attempts
+
               toolCalls = null;
 
-              // If we have tool results, use them for response
+
               if (executedToolResults.length > 0) {
                 console.log(
                   `🔧 Using tool results for response due to final response error`
@@ -2180,21 +2180,21 @@ Regras:
           );
           console.log(`Error stack:`, toolError.stack);
 
-          // If we have successful tool results, don't fallback completely
+
           if (executedToolResults.length > 0) {
             console.log(
               `🔧 Found ${executedToolResults.length} successful tool results, using them instead of fallback`
             );
-            // We'll handle this in the error handler below
+
             throw toolError;
           }
 
-          // Fallback to regular completion without tools
+
           response = await openai.chat.completions.create({
             model: this.model,
             messages: messages,
             temperature: this.creativity / 100,
-            max_tokens: 600, // Reduced to save quota
+            max_tokens: 600,
           });
         }
       } else {
@@ -2205,11 +2205,11 @@ Regras:
           model: this.model,
           messages: messages,
           temperature: this.creativity / 100,
-          max_tokens: 600, // Reduced to save quota
+          max_tokens: 600,
         });
       }
 
-      // Extract response content from OpenAI SDK format
+
       let responseContent = '';
 
       if (response && response.choices && response.choices[0]) {
@@ -2227,7 +2227,7 @@ Regras:
           response.choices?.[0]?.message?.content?.substring(0, 50) || 'NONE',
       });
 
-      // Se não conseguiu gerar resposta, criar uma resposta padrão baseada na personalidade
+
       if (!responseContent || responseContent.trim() === '') {
         console.log(
           `❌ Empty response detected, using fallback for personality: ${this.personality}`
@@ -2267,7 +2267,7 @@ Regras:
       console.error('Error details:', error.message);
       console.error('Error stack:', error.stack);
 
-      // First, check if we have any successful tool executions
+
       if (executedToolResults.length > 0) {
         console.log(
           `🔧 Found ${executedToolResults.length} executed tools, generating response from results`
@@ -2295,7 +2295,7 @@ Regras:
                   data.structure?.totalImages || data.images?.length || 0
                 }\n`;
 
-                // Add ZIP download information
+
                 if (toolResult.zipData && toolResult.zipData.success) {
                   responseFromTools += `📦 **ZIP criado**: ${toolResult.zipData.fileName}\n`;
                   responseFromTools += `💾 **Tamanho**: ${toolResult.zipData.size || 'N/A'}\n`;
@@ -2333,23 +2333,23 @@ Regras:
                       ', '
                     )}\n`;
                   }
-                  
-                  // Add deep search suggestions if available
+
+
                   if (data.deepSearchSuggestions && data.deepSearchSuggestions.length > 0) {
                     responseFromTools += `\n🎯 **Sugestões para busca profunda:**\n`;
                     data.deepSearchSuggestions.forEach((suggestion, index) => {
                       responseFromTools += `${index + 1}. ${suggestion}\n`;
                     });
                   }
-                  
-                  // Add related queries if available
+
+
                   if (data.relatedQueries && data.relatedQueries.length > 0) {
                     responseFromTools += `\n🔗 **Buscas relacionadas:**\n`;
                     data.relatedQueries.forEach((query, index) => {
                       responseFromTools += `${index + 1}. ${query}\n`;
                     });
                   }
-                  
+
                   responseFromTools += `\n`;
                 }
               } else if (toolResult.toolName === 'html_analysis') {
@@ -2418,24 +2418,24 @@ Regras:
         }
       }
 
-      // Try to handle the user's request manually if OpenAI fails
+
       const messageText =
         messageData.content || messageData.text || messageData.body || '';
       const lowerMessage = messageText.toLowerCase();
 
-      // Check if user is asking for web scraping or search
+
       if (
         lowerMessage.includes('http') ||
         lowerMessage.includes('www.') ||
         lowerMessage.includes('site') ||
         lowerMessage.includes('página')
       ) {
-        // Try to extract URL and perform scraping
+
         const urlMatch = messageText.match(/https?:\/\/[^\s]+/);
         if (urlMatch) {
           try {
             console.log(`🔄 Manual web scraping attempt for: ${urlMatch[0]}`);
-            // Fixed: Use the globally available function instead of undefined one
+
             const scrapingResult = await this.executeWebScrapeHelper(
               urlMatch[0]
             );
@@ -2463,7 +2463,7 @@ Regras:
         }
       }
 
-      // Check if user is asking for search
+
       if (
         lowerMessage.includes('buscar') ||
         lowerMessage.includes('pesquisar') ||
@@ -2488,7 +2488,7 @@ Regras:
         }
       }
 
-      // Specific error handling with quota management
+
       let errorMessage = 'Erro interno do sistema';
       let useExtendedFallback = false;
 
@@ -2520,13 +2520,13 @@ Regras:
 
       console.error(`AI Agent Error [${this.id}]:`, errorMessage);
 
-      // If tools were successfully executed, don't show generic fallback message
+
       if (executedToolResults.length > 0) {
         console.log(`🔧 Tools were executed, not showing generic fallback`);
         return 'Desculpe, não consegui processar completamente sua solicitação, mas executei as ferramentas solicitadas. Verifique os resultados acima.';
       }
 
-      // Resposta de fallback baseada na personalidade do agente - mais útil e menos genérica
+
       const fallbackResponses = {
         professional:
           'Posso ajudá-lo de forma alternativa. Qual informação específica você precisa?',
@@ -2542,7 +2542,7 @@ Regras:
           'Entendo sua necessidade. Vamos encontrar uma solução juntos. Como posso ajudar?',
       };
 
-      // Extended fallback for quota issues
+
       const quotaFallbackResponses = {
         professional:
           'Sistema operando em modo econômico. Posso analisar sites e fazer pesquisas na internet. Envie uma URL ou me diga o que precisa pesquisar.',
@@ -2563,7 +2563,7 @@ Regras:
           'Sistema em modo econômico. Como posso ajudá-lo de forma simples?'
         : fallbackResponses[this.personality] || 'Como posso ajudá-lo hoje?';
 
-      // Log quota issues for monitoring
+
       if (useExtendedFallback) {
         console.warn(
           `💰 Agent ${this.id} using quota fallback response. Consider upgrading OpenAI plan.`
@@ -2574,7 +2574,7 @@ Regras:
     }
   }
 
-  // Helper method to make executeWebScrape available in the class scope
+
   async executeWebScrapeHelper(url) {
     return await executeWebScrape(url);
   }
@@ -2596,7 +2596,7 @@ Regras:
     };
   }
 
-  // Save agent to database
+
   async save() {
     try {
       const db = database.getDb();
@@ -2623,9 +2623,9 @@ Regras:
         messageCount: this.messageCount,
         createdAt: this.createdAt,
         updatedAt: this.updatedAt,
-        // Save API key to preserve across server restarts (stored securely in database)
+
         openaiApiKey: this.openaiApiKey || '',
-        // conversationHistory now handled separately in ai_agent_conversations collection
+
       };
 
       await db
@@ -2655,33 +2655,33 @@ Regras:
     await this.save();
   }
 
-  // MongoDB conversation persistence methods with automatic summarization
-  // Check if the agent name is mentioned in the message
+
+
   isAgentMentioned(messageText) {
     if (!messageText || typeof messageText !== 'string') {
       return false;
     }
-    
+
     const text = messageText.toLowerCase();
     const agentName = this.name.toLowerCase();
-    
-    // Check for exact name match (case insensitive)
+
+
     if (text.includes(agentName)) {
       return true;
     }
-    
-    // Check for email pattern (if agent name contains @)
+
+
     if (agentName.includes('@') && text.includes(agentName)) {
       return true;
     }
-    
-    // Extract email from agent name if it exists
+
+
     const emailMatch = this.name.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
     if (emailMatch && text.includes(emailMatch[1].toLowerCase())) {
       return true;
     }
-    
-    // Check for variations and common mention patterns
+
+
     const mentionPatterns = [
       `@${agentName}`,
       `${agentName}:`,
@@ -2689,25 +2689,25 @@ Regras:
       `${agentName}.`,
       `${agentName}!`,
       `${agentName}?`,
-      // Also check for first word of agent name
+
       agentName.split(' ')[0]
     ];
-    
-    // Add email pattern if exists
+
+
     if (emailMatch) {
       mentionPatterns.push(emailMatch[1].toLowerCase());
     }
-    
+
     for (const pattern of mentionPatterns) {
       if (text.includes(pattern.toLowerCase())) {
         return true;
       }
     }
-    
+
     return false;
   }
 
-  // Check if a quoted message was sent by this agent
+
   async isQuotedMessageFromAgent(quotedMessageId, chatId) {
     try {
       const db = database.getDb();
@@ -2715,8 +2715,8 @@ Regras:
         return false;
       }
 
-      // Search for any assistant message from this agent in this chat
-      // that could match the quoted message ID
+
+
       const agentMessage = await db.collection('ai_agent_conversations').findOne({
         $or: [
           { sentMessageId: quotedMessageId },
@@ -2729,14 +2729,14 @@ Regras:
         expiresAt: { $gt: new Date() }
       });
 
-      // Enhanced debugging - log what we found
+
       if (agentMessage) {
         console.log(`✅ Agent ${this.id} found exact match for quoted message ID: ${quotedMessageId}`);
         return true;
       } else {
         console.log(`❌ Agent ${this.id} could NOT find match for quoted message ID: ${quotedMessageId} in chat: ${chatId}`);
-        
-        // Debug: Show recent agent messages for context
+
+
         const recentMessages = await db.collection('ai_agent_conversations')
           .find({
             agentId: this.id,
@@ -2747,7 +2747,7 @@ Regras:
           .sort({ createdAt: -1 })
           .limit(3)
           .toArray();
-          
+
         if (recentMessages.length > 0) {
           console.log(`🔍 Recent agent messages in this chat:`);
           recentMessages.forEach((msg, idx) => {
@@ -2756,7 +2756,7 @@ Regras:
         } else {
           console.log(`📭 No recent agent messages found in chat: ${chatId}`);
         }
-        
+
         return false;
       }
     } catch (error) {
@@ -2764,7 +2764,7 @@ Regras:
     }
   }
 
-  // Update conversation entry with the actual WhatsApp message ID after sending
+
   async updateConversationEntryWithMessageId(inResponseTo, sentMessageId, chatId) {
     try {
       const db = database.getDb();
@@ -2788,13 +2788,13 @@ Regras:
             updatedAt: new Date()
           }
         },
-        { 
+        {
           sort: { createdAt: -1 },
           returnDocument: 'after'
         }
       );
     } catch (error) {
-      // Silent fail
+
     }
   }
 
@@ -2806,10 +2806,10 @@ Regras:
         return;
       }
 
-      // Create a copy to avoid mutating the original
+
       let entryToSave = { ...conversationEntry };
 
-      // Summarize content if it's too long to save tokens
+
       if (entryToSave.content && entryToSave.content.length > 500) {
         entryToSave.originalLength = entryToSave.content.length;
         entryToSave.content = await this.summarizeContent(
@@ -2822,7 +2822,7 @@ Regras:
         );
       }
 
-      // Summarize tool results if they're too large
+
       if (
         entryToSave.toolResult &&
         typeof entryToSave.toolResult === 'object'
@@ -2843,7 +2843,7 @@ Regras:
         agentId: this.id,
         sessionId: this.sessionId,
         createdAt: new Date(),
-        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days TTL
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
       };
 
       await db.collection('ai_agent_conversations').insertOne(entryWithAgent);
@@ -2851,7 +2851,7 @@ Regras:
         `💾 Conversation entry saved: ${conversationEntry.type} message for agent ${this.id} in chat ${conversationEntry.chat?.id}`
       );
 
-      // Log additional details for debugging
+
       if (conversationEntry.type === 'tool_call') {
         console.log(
           `🔧 Tool call saved: ${conversationEntry.toolName} with ${
@@ -2870,31 +2870,31 @@ Regras:
     }
   }
 
-  // Summarize content to reduce token usage
+
   async summarizeContent(content, messageType) {
     try {
-      // Don't summarize if content is already short
+
       if (content.length <= 500) {
         return content;
       }
 
-      // For very short messages, just truncate
+
       if (content.length <= 800) {
         return content.substring(0, 400) + '... [mensagem truncada]';
       }
 
-      // Use a lightweight summarization approach to avoid API calls
-      // Extract key sentences based on punctuation and length
+
+
       const sentences = content
         .split(/[.!?]+/)
         .filter((s) => s.trim().length > 10);
 
       if (sentences.length <= 3) {
-        // If few sentences, just truncate
+
         return content.substring(0, 400) + '... [conteúdo resumido]';
       }
 
-      // Take first sentence, middle sentence, and last sentence
+
       const summary =
         [
           sentences[0]?.trim(),
@@ -2904,7 +2904,7 @@ Regras:
           .filter(Boolean)
           .join('. ') + '.';
 
-      // If summary is still too long, truncate
+
       if (summary.length > 400) {
         return summary.substring(0, 400) + '... [resumo]';
       }
@@ -2912,12 +2912,12 @@ Regras:
       return summary + ' [resumo automático]';
     } catch (error) {
       console.error('Error summarizing content:', error);
-      // Fallback to simple truncation
+
       return content.substring(0, 400) + '... [erro no resumo - truncado]';
     }
   }
 
-  // Summarize tool results to reduce token usage
+
   async summarizeToolResult(toolResult, toolName) {
     try {
       if (!toolResult || typeof toolResult !== 'object') {
@@ -2933,7 +2933,7 @@ Regras:
             summary: `Encontrados ${toolResult.total || 0} resultados de ${
               toolResult.sources?.length || 0
             } fontes`,
-            // Keep only first 3 results with limited content
+
             results: (toolResult.results || []).slice(0, 3).map((r) => ({
               title: r.title?.substring(0, 100) || '',
               snippet: r.snippet?.substring(0, 150) || '',
@@ -2953,7 +2953,7 @@ Regras:
             summary: `Site analisado: ${toolResult.textLength || 0} chars, ${
               toolResult.structure?.totalLinks || 0
             } links`,
-            // Summarize content
+
             content: toolResult.content?.substring(0, 300) + '...' || '',
             wasSummarized: true,
           };
@@ -2964,7 +2964,7 @@ Regras:
             analysisType: toolResult.analysisType,
             title: toolResult.title?.substring(0, 100) || '',
             summary: `Análise ${toolResult.analysisType} concluída para ${toolResult.url}`,
-            // Keep key fields but limit content
+
             keyFindings: this.extractKeyFindings(
               toolResult,
               toolResult.analysisType
@@ -2973,13 +2973,13 @@ Regras:
           };
 
         default:
-          // Generic summarization for unknown tool results
+
           const summary = {
             summary: `Resultado da ferramenta ${toolName}`,
             wasSummarized: true,
           };
 
-          // Keep only essential fields
+
           Object.keys(toolResult)
             .slice(0, 5)
             .forEach((key) => {
@@ -3005,7 +3005,7 @@ Regras:
     }
   }
 
-  // Extract key findings from HTML analysis
+
   extractKeyFindings(analysisData, analysisType) {
     switch (analysisType) {
       case 'news':
@@ -3058,7 +3058,7 @@ Regras:
         .limit(limit)
         .toArray();
 
-      // Log for debugging
+
       if (conversations.length > 0) {
         console.log(
           `📖 Found ${conversations.length} conversation entries for chat ${chatId}`
@@ -3069,7 +3069,7 @@ Regras:
           `📅 History span: ${oldestMsg.createdAt} to ${newestMsg.createdAt}`
         );
 
-        // Log types of messages for debugging
+
         const messageTypes = conversations.reduce((acc, msg) => {
           acc[msg.type] = (acc[msg.type] || 0) + 1;
           return acc;
@@ -3079,7 +3079,7 @@ Regras:
         console.log(`📖 No conversation history found for chat ${chatId}`);
       }
 
-      // Return in chronological order (oldest first)
+
       return conversations.reverse();
     } catch (error) {
       console.error('Error loading conversation history:', error);
@@ -3087,7 +3087,7 @@ Regras:
     }
   }
 
-  // Load user preferences for personalized interactions
+
   async loadUserPreferences(chatId, userId) {
     try {
       const db = database.getDb();
@@ -3119,7 +3119,7 @@ Regras:
     }
   }
 
-  // Save or update user preferences
+
   async saveUserPreferences(chatId, userId, preferences) {
     try {
       const db = database.getDb();
@@ -3129,7 +3129,7 @@ Regras:
       }
 
       const now = new Date();
-      const expiresAt = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000); // 90 days
+      const expiresAt = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
 
       await db.collection('ai_agent_user_preferences').updateOne(
         {
@@ -3159,32 +3159,32 @@ Regras:
     }
   }
 
-  // Update user behavior for this agent
+
   async updateUserBehavior(userId, behavior) {
     try {
       if (!userId || !behavior) return;
-      
+
       this.userBehaviors[userId] = {
         ...this.userBehaviors[userId],
         ...behavior,
         updatedAt: new Date().toISOString()
       };
-      
-      // Save to database
+
+
       await this.save();
-      
+
       console.log(`👤 Updated user behavior for ${userId}:`, behavior);
     } catch (error) {
       console.error('Error updating user behavior:', error);
     }
   }
 
-  // Get user behavior for this agent
+
   getUserBehavior(userId) {
     return this.userBehaviors[userId] || {};
   }
 
-  // Remove user behavior
+
   async removeUserBehavior(userId) {
     try {
       if (this.userBehaviors[userId]) {
@@ -3197,7 +3197,7 @@ Regras:
     }
   }
 
-  // Detect and save user preferences from conversations
+
   async detectAndSaveUserPreferences(messageText, chatId, userId, senderName) {
     if (!messageText || typeof messageText !== 'string' || !userId || !chatId) {
       return;
@@ -3206,7 +3206,7 @@ Regras:
     const text = messageText.toLowerCase();
     const updates = {};
 
-    // Detect preferred name changes
+
     const namePatterns = [
       /me chame de (.+?)(?:\.|,|$|\s)/i,
       /meu nome (?:é|eh) (.+?)(?:\.|,|$|\s)/i,
@@ -3227,7 +3227,7 @@ Regras:
       }
     }
 
-    // Detect interests (simple patterns)
+
     const interestPatterns = [
       /gosto de (.+?)(?:\.|,|$)/i,
       /meu interesse (?:é|eh) (.+?)(?:\.|,|$)/i,
@@ -3240,7 +3240,7 @@ Regras:
       if (match && match[1]) {
         const interest = match[1].trim();
         if (interest) {
-          // Load existing preferences to merge interests
+
           const existingPrefs = await this.loadUserPreferences(chatId, userId);
           const currentInterests = existingPrefs?.interests || [];
           if (!currentInterests.includes(interest)) {
@@ -3251,15 +3251,15 @@ Regras:
       }
     }
 
-    // Save updates if any were detected
+
     if (Object.keys(updates).length > 0) {
       await this.saveUserPreferences(chatId, userId, updates);
     }
-    
-    // Also detect behavior changes for this agent
+
+
     const behaviorUpdates = {};
-    
-    // Detect communication style preferences
+
+
     if (text.includes('seja mais formal') || text.includes('fale formal')) {
       behaviorUpdates.communicationStyle = 'formal';
       behaviorUpdates.responseMode = 'formal';
@@ -3271,30 +3271,30 @@ Regras:
     } else if (text.includes('seja mais breve') || text.includes('mais curto') || text.includes('respostas curtas')) {
       behaviorUpdates.responseMode = 'brief';
     }
-    
-    // Detect special instructions
+
+
     const instructionPatterns = [
       /sempre (.+?) quando eu falar/i,
       /nunca (.+?) comigo/i,
       /lembre-se (?:de|que) (.+?)(?:\.|,|$)/i,
       /importante: (.+?)(?:\.|,|$)/i
     ];
-    
+
     for (const pattern of instructionPatterns) {
       const match = messageText.match(pattern);
       if (match && match[1]) {
         const instruction = match[1].trim();
         if (instruction) {
           const currentInstructions = this.getUserBehavior(userId).specialInstructions || '';
-          behaviorUpdates.specialInstructions = currentInstructions ? 
+          behaviorUpdates.specialInstructions = currentInstructions ?
             `${currentInstructions}; ${instruction}` : instruction;
           console.log(`📝 Detected special instruction: ${instruction}`);
           break;
         }
       }
     }
-    
-    // Save behavior updates if any
+
+
     if (Object.keys(behaviorUpdates).length > 0) {
       await this.updateUserBehavior(userId, behaviorUpdates);
     }
@@ -3389,7 +3389,7 @@ Regras:
   }
 }
 
-// Database helper functions
+
 async function getAllAgentsFromDatabase() {
   try {
     const db = database.getDb();
@@ -3415,7 +3415,7 @@ async function getAllAgentsFromDatabase() {
   }
 }
 
-// Function to check agent health
+
 function checkAgentHealth(agent) {
   const hasApiKey = agent.openaiApiKey && agent.openaiApiKey.trim() !== '';
   const isActive = agent.isActive;
@@ -3434,9 +3434,9 @@ function checkAgentHealth(agent) {
   };
 }
 
-// Removed duplicate getAgentFromDatabase function
 
-// Function to get agent from database (no memory caching)
+
+
 async function getAgentFromDatabase(agentId) {
   try {
     const db = database.getDb();
@@ -3460,7 +3460,7 @@ async function getAgentFromDatabase(agentId) {
   }
 }
 
-// Function to find agent by sessionId
+
 async function findAgentBySessionId(sessionId, activeOnly = true) {
   try {
     const db = database.getDb();
@@ -3503,17 +3503,17 @@ async function deleteAgentFromDatabase(agentId) {
   }
 }
 
-// No initialization needed - agents loaded from database on demand
 
-// Routes
 
-// Create AI Agent
+
+
+
 router.post('/create', async (req, res) => {
   try {
-    // Validate request body
+
     const validatedData = createAgentSchema.parse(req.body);
 
-    // Check if agent already exists for this session
+
     const existingAgent = await findAgentBySessionId(
       validatedData.sessionId,
       true
@@ -3526,10 +3526,10 @@ router.post('/create', async (req, res) => {
       });
     }
 
-    // Create new AI agent
+
     const agent = new AIAgent(validatedData);
 
-    // Save to database
+
     await saveAgentToDatabase(agent);
 
     console.log(`AI Agent created: ${agent.id} for session ${agent.sessionId}`);
@@ -3557,7 +3557,7 @@ router.post('/create', async (req, res) => {
   }
 });
 
-// List AI Agents
+
 router.get('/list', async (req, res) => {
   try {
     const agentInstances = await getAllAgentsFromDatabase();
@@ -3589,7 +3589,7 @@ router.get('/list', async (req, res) => {
   }
 });
 
-// Get AI Agent by ID
+
 router.get('/:agentId', async (req, res) => {
   try {
     const agent = await getAgentFromDatabase(req.params.agentId);
@@ -3614,7 +3614,7 @@ router.get('/:agentId', async (req, res) => {
   }
 });
 
-// Update AI Agent API Key
+
 router.patch('/:agentId/api-key', async (req, res) => {
   try {
     const { agentId } = req.params;
@@ -3627,7 +3627,7 @@ router.patch('/:agentId/api-key', async (req, res) => {
       });
     }
 
-    // Get agent from memory or database
+
     let agent = await getAgentFromDatabase(agentId);
 
     if (!agent) {
@@ -3637,11 +3637,11 @@ router.patch('/:agentId/api-key', async (req, res) => {
       });
     }
 
-    // Update API key
+
     agent.openaiApiKey = openaiApiKey;
     agent.updatedAt = new Date().toISOString();
 
-    // Save to database (without API key for security)
+
     await agent.save();
 
     res.json({
@@ -3658,7 +3658,7 @@ router.patch('/:agentId/api-key', async (req, res) => {
   }
 });
 
-// Update AI Agent Settings
+
 router.patch('/:agentId/settings', async (req, res) => {
   try {
     const { agentId } = req.params;
@@ -3673,7 +3673,7 @@ router.patch('/:agentId/settings', async (req, res) => {
       creativity,
     } = req.body;
 
-    // Get agent from memory or database
+
     let agent = await getAgentFromDatabase(agentId);
 
     if (!agent) {
@@ -3683,7 +3683,7 @@ router.patch('/:agentId/settings', async (req, res) => {
       });
     }
 
-    // Update settings (only update provided values)
+
     if (replyToGroups !== undefined) {
       agent.replyToGroups = Boolean(replyToGroups);
       console.log(
@@ -3700,7 +3700,7 @@ router.patch('/:agentId/settings', async (req, res) => {
 
     agent.updatedAt = new Date().toISOString();
 
-    // Save to database
+
     await agent.save();
 
     res.json({
@@ -3717,7 +3717,7 @@ router.patch('/:agentId/settings', async (req, res) => {
   }
 });
 
-// Activate AI Agent
+
 router.patch('/:agentId/activate', async (req, res) => {
   try {
     const agent = await getAgentFromDatabase(req.params.agentId);
@@ -3744,7 +3744,7 @@ router.patch('/:agentId/activate', async (req, res) => {
   }
 });
 
-// Deactivate AI Agent
+
 router.patch('/:agentId/deactivate', async (req, res) => {
   try {
     const agent = await getAgentFromDatabase(req.params.agentId);
@@ -3771,12 +3771,12 @@ router.patch('/:agentId/deactivate', async (req, res) => {
   }
 });
 
-// Delete AI Agent
+
 router.delete('/:agentId', async (req, res) => {
   try {
     const agentId = req.params.agentId;
 
-    // Check if agent exists in database
+
     const agent = await getAgentFromDatabase(agentId);
     if (!agent) {
       return res.status(404).json({
@@ -3785,7 +3785,7 @@ router.delete('/:agentId', async (req, res) => {
       });
     }
 
-    // Delete from database
+
     await deleteAgentFromDatabase(agentId);
 
     res.json({
@@ -3801,7 +3801,7 @@ router.delete('/:agentId', async (req, res) => {
   }
 });
 
-// Process message with AI agent (internal endpoint)
+
 router.post('/process-message', async (req, res) => {
   try {
     const { sessionId, message, whatsappClient } = req.body;
@@ -3813,7 +3813,7 @@ router.post('/process-message', async (req, res) => {
       });
     }
 
-    // Find active agent for this session
+
     const agent = await findAgentBySessionId(sessionId, true);
 
     if (!agent) {
@@ -3823,7 +3823,7 @@ router.post('/process-message', async (req, res) => {
       });
     }
 
-    // Process message with AI
+
     const result = await agent.processMessage(message, whatsappClient);
 
     res.json({
@@ -3836,7 +3836,7 @@ router.post('/process-message', async (req, res) => {
   } catch (error) {
     console.error('Error processing message with AI agent:', error);
 
-    // Sempre retornar uma resposta da IA mesmo com erro
+
     res.json({
       success: true,
       response: 'Como posso ajudá-lo hoje?',
@@ -3846,7 +3846,7 @@ router.post('/process-message', async (req, res) => {
   }
 });
 
-// Get agent conversation history
+
 router.get('/:agentId/conversations/:chatId', async (req, res) => {
   try {
     const agent = await getAgentFromDatabase(req.params.agentId);
@@ -3881,7 +3881,7 @@ router.get('/:agentId/conversations/:chatId', async (req, res) => {
   }
 });
 
-// Clear agent conversation history
+
 router.delete('/:agentId/conversations/:chatId?', async (req, res) => {
   try {
     const agent = await getAgentFromDatabase(req.params.agentId);
@@ -3912,7 +3912,7 @@ router.delete('/:agentId/conversations/:chatId?', async (req, res) => {
   }
 });
 
-// Get agent conversation statistics
+
 router.get('/:agentId/stats', async (req, res) => {
   try {
     const agent = await getAgentFromDatabase(req.params.agentId);
@@ -3943,7 +3943,7 @@ router.get('/:agentId/stats', async (req, res) => {
   }
 });
 
-// Test web search endpoint
+
 router.post('/test-search', async (req, res) => {
   try {
     const { query } = req.body;
@@ -3974,10 +3974,10 @@ router.post('/test-search', async (req, res) => {
   }
 });
 
-// Helper function para integração com WhatsApp
+
 async function processWhatsAppMessage(whatsappClient, messageData, sessionId) {
   try {
-    // Find active agent for this session
+
     let agent = await findAgentBySessionId(sessionId, true);
 
     if (!agent) {
@@ -3985,12 +3985,12 @@ async function processWhatsAppMessage(whatsappClient, messageData, sessionId) {
       return null;
     }
 
-    // Extract rich message information
+
     const isGroup = messageData.chat?.isGroup || false;
     const chatId = messageData.chat?.id;
     const senderName = messageData.sender?.pushName || 'Usuário';
 
-    // Verificação adicional usando funções oficiais da Baileys
+
     const {
       isJidGroup,
       isJidBroadcast,
@@ -4003,7 +4003,7 @@ async function processWhatsAppMessage(whatsappClient, messageData, sessionId) {
       !isJidStatusBroadcast(chatId) &&
       !isJidNewsletter(chatId);
 
-    // Use a verificação mais rigorosa
+
     const finalIsGroup = isGroup || isRealGroup;
 
     console.log(
@@ -4015,7 +4015,7 @@ async function processWhatsAppMessage(whatsappClient, messageData, sessionId) {
       `Group verification: messageData.isGroup=${isGroup}, baileys.isJidGroup=${isRealGroup}, final=${finalIsGroup}`
     );
 
-    // Skip if this is a group message and agent doesn't want to reply to groups
+
     if (finalIsGroup && !agent.replyToGroups) {
       console.log(
         `🚫 Agent ${agent.id} SKIPPING group message from ${chatId} (replyToGroups: false)`
@@ -4027,13 +4027,13 @@ async function processWhatsAppMessage(whatsappClient, messageData, sessionId) {
       );
     }
 
-    // Process message with AI agent using rich message data
+
     const result = await agent.processMessage(messageData, whatsappClient);
 
     if (result.shouldReply && result.response) {
       try {
-        // Delay aleatório de 5-10 segundos antes da resposta
-        const responseDelay = 5000 + Math.random() * 5000; // 5-10 segundos
+
+        const responseDelay = 5000 + Math.random() * 5000;
         console.log(
           `AI agent ${agent.id} aguardando ${Math.round(
             responseDelay / 1000
@@ -4041,17 +4041,17 @@ async function processWhatsAppMessage(whatsappClient, messageData, sessionId) {
         );
         await new Promise((resolve) => setTimeout(resolve, responseDelay));
 
-        // Show typing indicator
+
         await whatsappClient.sendPresenceUpdate('composing', chatId);
 
-        // Simulate typing time based on response length
+
         const typingTime = Math.min(
           Math.max(result.response.length * 50, 1000),
           8000
         );
         await new Promise((resolve) => setTimeout(resolve, typingTime));
 
-        // Send reply message with proper quoting
+
         const replyOptions = {};
 
         if (result.replyToMessageId) {
@@ -4069,7 +4069,7 @@ async function processWhatsAppMessage(whatsappClient, messageData, sessionId) {
           };
         }
 
-        // Log informativo sobre resposta a múltiplas mensagens
+
         if (messageData.isMultiPart) {
           console.log(
             `Respondendo à sequência de ${messageData.partCount} mensagens de ${senderName}`
@@ -4082,10 +4082,10 @@ async function processWhatsAppMessage(whatsappClient, messageData, sessionId) {
           replyOptions
         );
 
-        // Update presence to available
+
         await whatsappClient.sendPresenceUpdate('available');
 
-        // Update the conversation entry with the sent message ID for future reference
+
         if (sentMessage && sentMessage.key && sentMessage.key.id) {
           try {
             await agent.updateConversationEntryWithMessageId(
@@ -4122,14 +4122,14 @@ async function processWhatsAppMessage(whatsappClient, messageData, sessionId) {
   }
 }
 
-// Download ZIP files endpoint
+
 router.get('/download/:fileName', async (req, res) => {
   try {
     const { fileName } = req.params;
     const path = require('path');
     const fs = require('fs').promises;
 
-    // Validate file name for security
+
     if (!fileName.match(/^[a-zA-Z0-9_-]+\.zip$/)) {
       return res.status(400).json({
         success: false,
@@ -4139,7 +4139,7 @@ router.get('/download/:fileName', async (req, res) => {
 
     const filePath = path.join(process.cwd(), 'downloads', 'exports', fileName);
 
-    // Check if file exists
+
     try {
       await fs.access(filePath);
     } catch (error) {
@@ -4149,16 +4149,16 @@ router.get('/download/:fileName', async (req, res) => {
       });
     }
 
-    // Get file stats
+
     const stats = await fs.stat(filePath);
 
-    // Set headers for download
+
     res.setHeader('Content-Type', 'application/zip');
     res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
     res.setHeader('Content-Length', stats.size);
-    res.setHeader('Cache-Control', 'public, max-age=3600'); // 1 hour cache
+    res.setHeader('Cache-Control', 'public, max-age=3600');
 
-    // Stream file
+
     const fileStream = require('fs').createReadStream(filePath);
     fileStream.pipe(res);
 
@@ -4172,16 +4172,16 @@ router.get('/download/:fileName', async (req, res) => {
   }
 });
 
-// Cleanup old ZIP files (run periodically)
+
 setInterval(async () => {
   try {
     await zipGenerator.cleanupOldFiles();
   } catch (error) {
     console.error('Error during ZIP cleanup:', error);
   }
-}, 24 * 60 * 60 * 1000); // Run daily
+}, 24 * 60 * 60 * 1000);
 
-// Export the AI Agent class and helper functions for use in other modules
+
 module.exports = {
   router,
   AIAgent,

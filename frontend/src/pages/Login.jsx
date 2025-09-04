@@ -20,11 +20,11 @@ export default function Login() {
   const { register, handleSubmit, formState: { errors, isSubmitting }, watch, reset } = useForm();
 
   const password = watch('password');
-  
-  // Password requirements checker
+
+
   const checkPasswordRequirements = (password) => {
     if (!password) return {};
-    
+
     return {
       length: password.length >= 8,
       lowercase: /[a-z]/.test(password),
@@ -36,7 +36,7 @@ export default function Login() {
 
   const passwordRequirements = checkPasswordRequirements(password);
 
-  // Obter token CSRF ao carregar a página
+
   useEffect(() => {
     const fetchCSRFToken = async () => {
       setCsrfLoading(true);
@@ -44,7 +44,7 @@ export default function Login() {
         const response = await apiRequest('/api/management/auth/csrf-token', {
           method: 'GET'
         });
-        
+
         if (response.ok) {
           const result = await response.json();
           setCsrfToken(result.csrfToken);
@@ -69,16 +69,16 @@ export default function Login() {
     setApiError('');
     setApiSuccess('');
     setValidationErrors({});
-    
-    // Verificar se temos o token CSRF antes de tentar fazer login
+
+
     if (!csrfToken) {
       setApiError('Token de segurança não encontrado. Recarregue a página.');
       return;
     }
-    
+
     try {
       if (isLogin) {
-        // Login API call
+
         const response = await apiRequest('/api/management/auth/login', {
           method: 'POST',
           headers: {
@@ -92,36 +92,36 @@ export default function Login() {
         });
 
         const result = await response.json();
-        
+
         if (result.success) {
-          // Token is now stored in secure HTTP-only cookie
-          // Only store user data for UI purposes
+
+
           sessionStorage.setItem('user', JSON.stringify(result.data.user));
-          
+
           setApiSuccess('Login realizado com sucesso!');
           console.log('User logged in:', result.data.user);
-          
-          // Atualizar token CSRF se fornecido
+
+
           if (result.newCsrfToken) {
             setCsrfToken(result.newCsrfToken);
             console.log('🔄 Token CSRF atualizado');
           }
-          
-          // Redirect after a short delay
+
+
           setTimeout(() => {
             window.location.href = '/dashboard';
           }, 1500);
         } else {
-          // Tratamento especial para rate limiting progressivo
+
           if (result.rateLimitInfo) {
             const { rateLimitInfo } = result;
             let message = result.message;
-            
-            // Adicionar indicador de persistência
+
+
             if (rateLimitInfo.persistedToDB) {
               message += ' 💾 [Bloqueio salvo permanentemente]';
             }
-            
+
             if (rateLimitInfo.escalated) {
               setApiError(`🚨 BLOQUEIO ESCALADO! Penalização aumentada para o nível ${rateLimitInfo.penaltyLevel}. Tentativas totais: ${rateLimitInfo.totalAttempts}. ${message}`);
             } else if (rateLimitInfo.penaltyLevel > 0) {
@@ -129,24 +129,24 @@ export default function Login() {
             } else {
               setApiError(message);
             }
-            
-            // Mostrar informações detalhadas no console
+
+
             console.warn('Rate Limit Info:', rateLimitInfo);
           } else {
             setApiError(result.message || 'Erro no login');
           }
-          
-          // Se erro de CSRF, tentar recarregar o token
+
+
           if (result.error && (result.error.includes('CSRF') || result.error.includes('SECURITY'))) {
             console.log('🔄 Tentando recarregar token CSRF...');
-            // Recarregar a página para obter novo token CSRF
+
             setTimeout(() => {
               window.location.reload();
             }, 2000);
           }
         }
       } else {
-        // Register API call
+
         const response = await apiRequest('/api/management/auth/register', {
           method: 'POST',
           headers: {
@@ -160,27 +160,27 @@ export default function Login() {
         });
 
         const result = await response.json();
-        
+
         if (result.success) {
-          // Token is now stored in secure HTTP-only cookie
-          // Only store user data for UI purposes
+
+
           sessionStorage.setItem('user', JSON.stringify(result.data.user));
-          
+
           setApiSuccess('Conta criada com sucesso!');
           console.log('User registered:', result.data.user);
-          
-          // Atualizar token CSRF se fornecido
+
+
           if (result.newCsrfToken) {
             setCsrfToken(result.newCsrfToken);
             console.log('🔄 Token CSRF atualizado');
           }
-          
-          // Redirect after a short delay
+
+
           setTimeout(() => {
             window.location.href = '/dashboard';
           }, 1500);
         } else {
-          // Handle detailed validation errors
+
           if (result.validationErrors && Array.isArray(result.validationErrors)) {
             const fieldErrors = {};
             result.validationErrors.forEach(error => {
@@ -190,17 +190,17 @@ export default function Login() {
               }
             });
             setValidationErrors(fieldErrors);
-            
-            // Show general error message
+
+
             setApiError('Por favor, corrija os erros nos campos destacados.');
           } else {
             setApiError(result.message || 'Erro no registro');
           }
-          
-          // Se erro de CSRF, tentar recarregar o token
+
+
           if (result.error && (result.error.includes('CSRF') || result.error.includes('SECURITY'))) {
             console.log('🔄 Tentando recarregar token CSRF...');
-            // Recarregar a página para obter novo token CSRF
+
             setTimeout(() => {
               window.location.reload();
             }, 2000);
@@ -209,20 +209,20 @@ export default function Login() {
       }
     } catch (error) {
       console.error('Auth error:', error);
-      
-      // Verificar se é erro de network/fetch
+
+
       if (error.name === 'TypeError' && error.message.includes('fetch')) {
         setApiError('🔌 Erro de conexão com o servidor. Verifique se o backend está rodando.');
-      } 
-      // Verificar se é erro de CORS
+      }
+
       else if (error.message && error.message.toLowerCase().includes('cors')) {
         setApiError('🌐 Erro de CORS. Verifique a configuração do servidor.');
       }
-      // Verificar se a resposta tem status 429 (rate limiting)
+
       else if (error.response && error.response.status === 429) {
         setApiError('🚨 Muitas tentativas detectadas. Sistema de proteção ativado.');
       }
-      // Erro genérico
+
       else {
         setApiError('❌ Erro de conexão com o servidor. Tente novamente.');
       }
@@ -231,14 +231,14 @@ export default function Login() {
 
   const toggleMode = () => {
     setIsLogin(!isLogin);
-    reset(); // Clear form when switching modes
+    reset();
     setShowPassword(false);
     setShowConfirmPassword(false);
     setApiError('');
     setApiSuccess('');
     setValidationErrors({});
-    
-    // Se não tem token CSRF, tentar recarregar
+
+
     if (!csrfToken && !csrfLoading) {
       setCsrfLoading(true);
       const fetchCSRFToken = async () => {
@@ -248,7 +248,7 @@ export default function Login() {
             method: 'GET',
             credentials: 'include'
           });
-          
+
           if (response.ok) {
             const result = await response.json();
             setCsrfToken(result.csrfToken);
@@ -266,7 +266,7 @@ export default function Login() {
 
   return (
     <div className="min-h-screen flex relative overflow-hidden">
-      {/* CSRF Status Indicator (Development) */}
+      {}
       {import.meta.env.DEV && (
         <div className="fixed top-4 right-4 z-50 space-y-2">
           <div className="bg-black/80 text-white px-3 py-2 rounded-lg text-xs font-mono">
@@ -278,20 +278,20 @@ export default function Login() {
               <span className="text-red-400">✗ Erro</span>
             )}
           </div>
-          
+
         </div>
       )}
-      
-      {/* Left Side - Visual/Branding */}
-      <motion.div 
+
+      {}
+      <motion.div
         className="hidden lg:flex lg:w-1/2 xl:w-3/5 relative bg-gradient-to-br from-green-600 via-blue-700 to-purple-900 flex-col justify-center items-center p-12"
         initial={{ x: -100, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
         transition={{ duration: 0.8 }}
       >
-        {/* Animated Background Elements */}
+        {}
         <div className="absolute inset-0 overflow-hidden">
-          {/* WhatsApp Themed Shapes */}
+          {}
           <motion.div
             className="absolute top-20 left-20 w-32 h-32 bg-green-400/20 rounded-full flex items-center justify-center"
             animate={{
@@ -307,7 +307,7 @@ export default function Login() {
           >
             <ChatBubbleLeftRightIcon className="w-16 h-16 text-white/30" />
           </motion.div>
-          
+
           <motion.div
             className="absolute bottom-40 right-16 w-24 h-24 bg-blue-400/20 rounded-2xl rotate-45 flex items-center justify-center"
             animate={{
@@ -322,7 +322,7 @@ export default function Login() {
           >
             <div className="w-12 h-12 bg-white/20 rounded-lg -rotate-45"></div>
           </motion.div>
-          
+
           <motion.div
             className="absolute top-1/3 right-1/4 w-16 h-16 bg-purple-400/30 rounded-full flex items-center justify-center"
             animate={{
@@ -337,8 +337,8 @@ export default function Login() {
           >
             <div className="w-2 h-2 bg-white/50 rounded-full"></div>
           </motion.div>
-          
-          {/* API Connection Lines */}
+
+          {}
           <motion.div
             className="absolute top-32 left-1/3 w-20 h-20 border-2 border-white/10 rounded-full"
             animate={{
@@ -351,7 +351,7 @@ export default function Login() {
               ease: "easeInOut",
             }}
           />
-          
+
           <motion.div
             className="absolute bottom-32 left-1/4 w-16 h-16 border-2 border-green-400/20 rounded-lg rotate-12"
             animate={{
@@ -364,8 +364,8 @@ export default function Login() {
               ease: "easeInOut",
             }}
           />
-          
-          {/* Floating Lines */}
+
+          {}
           <svg className="absolute inset-0 w-full h-full" viewBox="0 0 400 600">
             <motion.path
               d="M50,100 Q200,50 350,150 T300,400"
@@ -388,7 +388,7 @@ export default function Login() {
           </svg>
         </div>
 
-        {/* Content */}
+        {}
         <div className="relative z-10 text-center max-w-md">
           <motion.div
             className="mb-8"
@@ -400,7 +400,7 @@ export default function Login() {
               <ChatBubbleLeftRightIcon className="w-10 h-10 text-white" />
             </div>
           </motion.div>
-          
+
           <motion.h1
             className="text-2xl sm:text-3xl lg:text-4xl xl:text-5xl font-bold text-white mb-4 sm:mb-6 leading-tight"
             initial={{ y: 30, opacity: 0 }}
@@ -413,24 +413,24 @@ export default function Login() {
               Fluxo Inteligente
             </span>
           </motion.h1>
-          
+
           <motion.p
             className="text-sm sm:text-base lg:text-lg xl:text-xl text-white/80 mb-6 sm:mb-8 leading-relaxed"
             initial={{ y: 30, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ duration: 0.6, delay: 0.7 }}
           >
-            API avançada de WhatsApp com fluxo contínuo de mensagens. Multi-sessões, webhooks 
+            API avançada de WhatsApp com fluxo contínuo de mensagens. Multi-sessões, webhooks
             inteligentes e automação segura para sua aplicação.
           </motion.p>
-          
+
           <motion.div
             className="flex flex-col items-center space-y-4"
             initial={{ y: 30, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ duration: 0.6, delay: 0.9 }}
           >
-            {/* Features Indicators */}
+            {}
             <div className="flex justify-center space-x-6 text-center">
               <div className="flex flex-col items-center">
                 <div className="w-8 h-8 bg-green-500/20 rounded-lg flex items-center justify-center mb-2">
@@ -451,12 +451,12 @@ export default function Login() {
                 <span className="text-xs text-white/70">Anti-Ban</span>
               </div>
             </div>
-            
-            {/* Progress Dots */}
+
+            {}
             <div className="flex justify-center space-x-2">
               {[...Array(3)].map((_, i) => (
-                <motion.div 
-                  key={i} 
+                <motion.div
+                  key={i}
                   className="w-2 h-2 bg-white/40 rounded-full"
                   animate={{
                     scale: [1, 1.2, 1],
@@ -474,17 +474,17 @@ export default function Login() {
         </div>
       </motion.div>
 
-      {/* Right Side - Form */}
-      <motion.div 
+      {}
+      <motion.div
         className="w-full lg:w-1/2 xl:w-2/5 bg-white flex flex-col justify-center px-4 xs:px-6 sm:px-8 md:px-10 lg:px-12 xl:px-16 py-8 sm:py-12 relative min-h-screen lg:min-h-0"
         initial={{ x: 100, opacity: 0 }}
         animate={{ x: 0, opacity: 1 }}
         transition={{ duration: 0.8, delay: 0.2 }}
       >
-        {/* Mobile Background for small screens */}
+        {}
         <div className="lg:hidden absolute inset-0 bg-gradient-to-br from-green-600 via-blue-700 to-purple-900 opacity-95" />
-        
-        {/* Floating Elements for Right Side */}
+
+        {}
         <div className="hidden lg:block absolute inset-0 overflow-hidden">
           <motion.div
             className="absolute top-16 right-8 w-6 h-6 bg-blue-500/20 rounded-full"
@@ -514,7 +514,7 @@ export default function Login() {
         </div>
 
         <div className="relative z-10 w-full max-w-sm sm:max-w-md md:max-w-lg mx-auto lg:mx-0">
-          {/* Header */}
+          {}
           <div className="mb-6 sm:mb-8">
             <motion.div
               className="lg:hidden mb-4 sm:mb-6 text-center"
@@ -526,7 +526,7 @@ export default function Login() {
                 <ChatBubbleLeftRightIcon className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
               </div>
             </motion.div>
-            
+
             <AnimatePresence mode="wait">
               <motion.div
                 key={isLogin ? 'login' : 'register'}
@@ -539,17 +539,17 @@ export default function Login() {
                   {isLogin ? 'Entrar' : 'Criar Conta'}
                 </h2>
                 <p className="text-base sm:text-lg md:text-xl lg:text-base xl:text-lg text-white/80 lg:text-gray-600">
-                  {isLogin 
-                    ? 'Acesse sua conta e gerencie seus fluxos de mensagens' 
+                  {isLogin
+                    ? 'Acesse sua conta e gerencie seus fluxos de mensagens'
                     : 'Crie sua conta e automatize seu fluxo de comunicação'
                   }
                 </p>
               </motion.div>
             </AnimatePresence>
           </div>
-        
+
           <form className="space-y-5 sm:space-y-6" onSubmit={handleSubmit(onSubmit)}>
-            {/* API Error Message */}
+            {}
             <AnimatePresence>
               {apiError && (
                 <motion.div
@@ -567,12 +567,12 @@ export default function Login() {
                     <div className="flex-shrink-0">
                       {apiError.includes('🚨') || apiError.includes('BLOQUEIO') ? (
                         <motion.div
-                          animate={{ 
+                          animate={{
                             scale: [1, 1.2, 1],
                             rotate: [0, 5, -5, 0]
                           }}
-                          transition={{ 
-                            duration: 0.5, 
+                          transition={{
+                            duration: 0.5,
                             repeat: Infinity,
                             repeatType: "reverse"
                           }}
@@ -601,7 +601,7 @@ export default function Login() {
               )}
             </AnimatePresence>
 
-            {/* API Success Message */}
+            {}
             <AnimatePresence>
               {apiSuccess && (
                 <motion.div
@@ -664,7 +664,7 @@ export default function Login() {
                       />
                     </div>
                     {(errors.name || validationErrors.name) && (
-                      <motion.p 
+                      <motion.p
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
                         className="mt-2 text-sm text-red-400"
@@ -674,7 +674,7 @@ export default function Login() {
                     )}
                   </motion.div>
                 )}
-            
+
                 <div>
                   <label htmlFor="email" className="block text-xs xs:text-sm font-semibold text-white lg:text-gray-700 mb-1 sm:mb-2">
                     Email
@@ -695,7 +695,7 @@ export default function Login() {
                     />
                   </div>
                   {(errors.email || validationErrors.email) && (
-                    <motion.p 
+                    <motion.p
                       initial={{ opacity: 0, y: -10 }}
                       animate={{ opacity: 1, y: 0 }}
                       className="mt-2 text-sm text-red-400"
@@ -704,7 +704,7 @@ export default function Login() {
                     </motion.p>
                   )}
                 </div>
-            
+
                 <div>
                   <label htmlFor="password" className="block text-xs xs:text-sm font-semibold text-white lg:text-gray-700 mb-1 sm:mb-2">
                     Senha
@@ -741,8 +741,8 @@ export default function Login() {
                       )}
                     </button>
                   </div>
-                  
-                  {/* Password Requirements Indicator (only for registration) */}
+
+                  {}
                   {!isLogin && password && (
                     <motion.div
                       initial={{ opacity: 0, height: 0 }}
@@ -779,9 +779,9 @@ export default function Login() {
                       </div>
                     </motion.div>
                   )}
-                  
+
                   {(errors.password || validationErrors.password) && (
-                    <motion.p 
+                    <motion.p
                       initial={{ opacity: 0, y: -10 }}
                       animate={{ opacity: 1, y: 0 }}
                       className="mt-2 text-sm text-red-400"
@@ -829,7 +829,7 @@ export default function Login() {
                       </button>
                     </div>
                     {(errors.confirmPassword || validationErrors.confirmPassword) && (
-                      <motion.p 
+                      <motion.p
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
                         className="mt-2 text-sm text-red-400"
@@ -898,7 +898,7 @@ export default function Login() {
                     </label>
                   </div>
                   {(errors.terms || validationErrors.terms) && (
-                    <motion.p 
+                    <motion.p
                       initial={{ opacity: 0, y: -10 }}
                       animate={{ opacity: 1, y: 0 }}
                       className="text-sm text-red-400"
@@ -917,12 +917,12 @@ export default function Login() {
               disabled={isSubmitting || csrfLoading || !csrfToken}
               className="relative w-full py-4 sm:py-5 px-6 sm:px-8 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold rounded-xl sm:rounded-2xl shadow-2xl hover:shadow-blue-500/25 focus:outline-none focus:ring-4 focus:ring-blue-300 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-300 text-base sm:text-lg lg:text-xl overflow-hidden group min-h-[52px] touch-manipulation"
             >
-              {/* Enhanced shimmer effect */}
+              {}
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
-              
+
               <AnimatePresence mode="wait">
                 {csrfLoading ? (
-                  <motion.div 
+                  <motion.div
                     key="csrf-loading"
                     initial={{ opacity: 0, scale: 0.8 }}
                     animate={{ opacity: 1, scale: 1 }}
@@ -933,7 +933,7 @@ export default function Login() {
                     Inicializando segurança...
                   </motion.div>
                 ) : isSubmitting ? (
-                  <motion.div 
+                  <motion.div
                     key="loading"
                     initial={{ opacity: 0, scale: 0.8 }}
                     animate={{ opacity: 1, scale: 1 }}
@@ -962,7 +962,7 @@ export default function Login() {
                     className="relative z-10 flex items-center justify-center"
                   >
                     {isLogin ? 'Acessar Dashboard' : 'Começar Agora'}
-                    <motion.div 
+                    <motion.div
                       className="ml-2"
                       animate={{ x: [0, 4, 0] }}
                       transition={{ duration: 1.5, repeat: Infinity }}
@@ -989,7 +989,7 @@ export default function Login() {
               </p>
             </div>
 
-            {/* Registration Tips */}
+            {}
             {!isLogin && (
               <motion.div
                 initial={{ opacity: 0, height: 0 }}
@@ -1018,7 +1018,7 @@ export default function Login() {
               </motion.div>
             )}
 
-            {/* Social Login */}
+            {}
             <div className="mt-6 sm:mt-8">
               <div className="relative">
                 <div className="absolute inset-0 flex items-center">

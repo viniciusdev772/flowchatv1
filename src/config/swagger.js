@@ -2,7 +2,7 @@ const swaggerJsdoc = require('swagger-jsdoc');
 const fs = require('fs');
 const path = require('path');
 
-// Configuração do Swagger
+
 const swaggerOptions = {
   definition: {
     openapi: '3.0.0',
@@ -204,13 +204,13 @@ const swaggerOptions = {
       },
     },
   },
-  apis: ['./src/config/swagger.js', './src/api/*.js'], // Documentação definida neste próprio arquivo e nas APIs
+  apis: ['./src/config/swagger.js', './src/api/*.js'],
 };
 
-// Gerar spec do Swagger
+
 const swaggerSpec = swaggerJsdoc(swaggerOptions);
 
-// Função para gerar arquivo JSON da especificação OpenAPI
+
 const generateOpenAPIFile = () => {
   try {
     const outputPath = path.join(__dirname, '../../openapi.json');
@@ -223,13 +223,13 @@ const generateOpenAPIFile = () => {
   }
 };
 
-// Configuração customizada do Swagger UI
+
 const swaggerUiOptions = {
   customSiteTitle: 'Baileys API Documentation',
   customCss: `
     .swagger-ui .topbar { display: none }
-    .swagger-ui .renderers .hljs { 
-      max-height: none !important; 
+    .swagger-ui .renderers .hljs {
+      max-height: none !important;
     }
     .swagger-ui .response-col_description .renderers .hljs {
       max-height: 400px !important;
@@ -239,7 +239,7 @@ const swaggerUiOptions = {
       max-height: 300px !important;
       overflow-y: auto !important;
     }
-    /* Estilos para renderização de imagens base64 */
+
     .qr-code-image {
       max-width: 200px;
       max-height: 200px;
@@ -258,61 +258,61 @@ const swaggerUiOptions = {
     }
   `,
   customJs: `
-    // Script para renderizar imagens base64 automaticamente
+
     window.addEventListener('DOMContentLoaded', function() {
       let observer = new MutationObserver(function(mutations) {
         mutations.forEach(function(mutation) {
           if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
-            // Procurar por elementos que contêm dados base64
+
             const elements = document.querySelectorAll('.highlight-code, .microlight, .response-col_description');
-            
+
             elements.forEach(function(element) {
               const content = element.textContent || element.innerText;
-              
+
               if (content && content.includes('data:image/')) {
-                // Encontrar todas as strings base64 de imagem
+
                 const base64Regex = /"(data:image\\/[^"]+)"/g;
                 let match;
                 let hasImages = false;
-                
+
                 while ((match = base64Regex.exec(content)) !== null) {
                   const base64Data = match[1];
-                  
-                  // Verificar se já não renderizamos esta imagem
+
+
                   const existingImg = element.querySelector('img[src="' + base64Data + '"]');
                   if (!existingImg) {
-                    // Criar container para a imagem
+
                     const imgContainer = document.createElement('div');
                     imgContainer.className = 'base64-image-container';
                     imgContainer.style.margin = '10px 0';
-                    
-                    // Criar indicador
+
+
                     const indicator = document.createElement('div');
                     indicator.className = 'base64-indicator';
                     indicator.textContent = '🖼️ QR Code Image (Base64 renderizada):';
-                    
-                    // Criar imagem
+
+
                     const img = document.createElement('img');
                     img.src = base64Data;
                     img.className = 'qr-code-image';
                     img.alt = 'QR Code';
                     img.title = 'QR Code gerado pela API';
-                    
-                    // Adicionar eventos de erro
+
+
                     img.onerror = function() {
                       indicator.textContent = '❌ Erro ao renderizar imagem base64';
                       indicator.style.color = '#d32f2f';
                     };
-                    
+
                     img.onload = function() {
                       indicator.textContent = '✅ QR Code Image (Base64 renderizada):';
                       indicator.style.color = '#2e7d32';
                     };
-                    
+
                     imgContainer.appendChild(indicator);
                     imgContainer.appendChild(img);
-                    
-                    // Inserir após o elemento de código
+
+
                     element.parentNode.insertBefore(imgContainer, element.nextSibling);
                     hasImages = true;
                   }
@@ -322,14 +322,14 @@ const swaggerUiOptions = {
           }
         });
       });
-      
-      // Observar mudanças no DOM
+
+
       observer.observe(document.body, {
         childList: true,
         subtree: true
       });
-      
-      // Executar imediatamente para conteúdo já carregado
+
+
       setTimeout(function() {
         const event = new MutationRecord();
         event.type = 'childList';
@@ -348,7 +348,7 @@ const swaggerUiOptions = {
       theme: 'agate',
     },
     onComplete: function () {
-      // Trigger da renderização de imagens após carregar
+
       setTimeout(function () {
         const event = new Event('DOMContentLoaded');
         window.dispatchEvent(event);
@@ -357,4070 +357,4070 @@ const swaggerUiOptions = {
   },
 };
 
-// ========================================
-// DOCUMENTAÇÃO DAS ROTAS DA API
-// ========================================
 
-/**
- * @swagger
- * /api/baileys/session/create:
- *   post:
- *     tags:
- *       - Sessões
- *     summary: Criar nova sessão do WhatsApp
- *     description: |
- *       Cria uma nova sessão do WhatsApp e retorna QR code para autenticação.
- *       
- *       **NOVO: Suporte a Proxy**
- *       - Suporte completo para proxies HTTP, HTTPS, SOCKS4 e SOCKS5
- *       - Configuração opcional de autenticação (usuário/senha)
- *       - Proxy aplicado especificamente para esta instância do WhatsApp
- *       - Útil para contornar restrições geográficas ou de rede
- *       
- *       **Tipos de proxy suportados:**
- *       - `http`: Proxy HTTP padrão
- *       - `https`: Proxy HTTPS com SSL
- *       - `socks4`: Proxy SOCKS versão 4
- *       - `socks5`: Proxy SOCKS versão 5 (recomendado)
- *       
- *       **Exemplo de configuração de proxy:**
- *       ```json
- *       {
- *         "sessionId": "minha-sessao-1",
- *         "proxy": {
- *           "enabled": true,
- *           "type": "http",
- *           "host": "proxy.exemplo.com",
- *           "port": 8080,
- *           "username": "usuario_proxy",
- *           "password": "senha_proxy"
- *         }
- *       }
- *       ```
- *     security:
- *       - ApiTokenAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - sessionId
- *             properties:
- *               sessionId:
- *                 type: string
- *                 description: ID único para identificar a sessão
- *                 example: "minha-sessao-1"
- *               proxy:
- *                 type: object
- *                 description: Configurações de proxy para a sessão (opcional)
- *                 properties:
- *                   enabled:
- *                     type: boolean
- *                     description: Se o proxy está habilitado
- *                     example: true
- *                   type:
- *                     type: string
- *                     enum: ["http", "https", "socks4", "socks5"]
- *                     description: Tipo de proxy
- *                     example: "http"
- *                   host:
- *                     type: string
- *                     description: Endereço do servidor proxy
- *                     example: "proxy.exemplo.com"
- *                   port:
- *                     type: integer
- *                     description: Porta do servidor proxy
- *                     example: 8080
- *                   username:
- *                     type: string
- *                     description: Nome de usuário para autenticação (opcional)
- *                     example: "usuario_proxy"
- *                   password:
- *                     type: string
- *                     description: Senha para autenticação (opcional)
- *                     example: "senha_proxy"
- *     responses:
- *       200:
- *         description: Sessão criada com sucesso
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/QrCodeResponse'
- *       400:
- *         description: Dados inválidos ou sessão já existe
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- *       500:
- *         description: Erro interno do servidor
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- */
 
-/**
- * @swagger
- * /api/baileys/session/{sessionId}/regenerate-qr:
- *   post:
- *     tags:
- *       - Sessões
- *     summary: Regenerar QR Code da sessão
- *     description: Regenera o QR code para uma sessão existente que não está conectada
- *     security:
- *       - ApiTokenAuth: []
- *     parameters:
- *       - in: path
- *         name: sessionId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID da sessão
- *         example: "minha-sessao-1"
- *     responses:
- *       200:
- *         description: QR Code regenerado com sucesso
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/QrCodeResponse'
- *       400:
- *         description: Sessão já conectada ou erro de validação
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- *       404:
- *         description: Sessão não encontrada
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- */
 
-/**
- * @swagger
- * /api/baileys/session/{sessionId}/status:
- *   get:
- *     tags:
- *       - Sessões
- *     summary: Obter status da sessão
- *     description: Retorna informações detalhadas sobre o status de uma sessão específica
- *     security:
- *       - ApiTokenAuth: []
- *     parameters:
- *       - in: path
- *         name: sessionId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID da sessão
- *         example: "minha-sessao-1"
- *     responses:
- *       200:
- *         description: Status da sessão obtido com sucesso
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 sessionId:
- *                   type: string
- *                   example: "minha-sessao-1"
- *                 isConnected:
- *                   type: boolean
- *                   example: true
- *                 connectionState:
- *                   type: string
- *                   example: "connected"
- *                 createdAt:
- *                   type: string
- *                   format: date-time
- *                 connectedAt:
- *                   type: string
- *                   format: date-time
- *                   nullable: true
- *                 lastError:
- *                   type: string
- *                   nullable: true
- *                 user:
- *                   type: object
- *                   nullable: true
- *                 hasQrCode:
- *                   type: boolean
- *                 webhookUrl:
- *                   type: string
- *                   nullable: true
- *                 messageCount:
- *                   type: integer
- *                 queueLength:
- *                   type: integer
- *                 reconnectionAttempts:
- *                   type: integer
- *       404:
- *         description: Sessão não encontrada
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- */
 
-/**
- * @swagger
- * /api/baileys/sessions:
- *   get:
- *     tags:
- *       - Sessões
- *     summary: Listar todas as sessões
- *     description: Retorna uma lista com todas as sessões ativas e seus status
- *     security:
- *       - ApiTokenAuth: []
- *     responses:
- *       200:
- *         description: Lista de sessões obtida com sucesso
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 sessions:
- *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/Session'
- *                 total:
- *                   type: integer
- *                   example: 3
- */
 
-/**
- * @swagger
- * /api/baileys/sessions/cleanup-orphaned:
- *   post:
- *     tags:
- *       - Sessões
- *     summary: Limpar sessões órfãs
- *     description: Remove sessões que não estão associadas a nenhum usuário (userId null)
- *     security:
- *       - ApiTokenAuth: []
- *     responses:
- *       200:
- *         description: Limpeza de sessões órfãs concluída
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Limpeza de sessões órfãs concluída"
- *       401:
- *         description: Usuário não autenticado
- *       500:
- *         description: Erro interno do servidor
- */
 
-/**
- * @swagger
- * /api/baileys/session/{sessionId}/send-message:
- *   post:
- *     tags:
- *       - Mensagens
- *     summary: Enviar mensagem de texto
- *     description: Envia uma mensagem de texto para um número específico com comportamento humano simulado
- *     security:
- *       - ApiTokenAuth: []
- *     parameters:
- *       - in: path
- *         name: sessionId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID da sessão
- *         example: "minha-sessao-1"
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - to
- *               - message
- *             properties:
- *               to:
- *                 type: string
- *                 description: Número do destinatário (com ou sem @s.whatsapp.net)
- *                 example: "5511999999999"
- *               message:
- *                 type: string
- *                 description: Texto da mensagem
- *                 example: "Olá! Como você está?"
- *               quotedMessageId:
- *                 type: string
- *                 description: ID da mensagem a ser citada (opcional)
- *                 example: "3EB0C767B7CE45A3B3A36"
- *     responses:
- *       200:
- *         description: Mensagem enviada com sucesso
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Mensagem enviada com sucesso"
- *                 messageId:
- *                   type: string
- *                   example: "3EB0C767B7CE45A3B3A36"
- *                 messageData:
- *                   type: object
- *                   properties:
- *                     to:
- *                       type: string
- *                     sentAt:
- *                       type: string
- *                       format: date-time
- *                     messageType:
- *                       type: string
- *                       example: "text"
- *                     content:
- *                       type: string
- *                     quotedMessageId:
- *                       type: string
- *                       nullable: true
- *                     status:
- *                       type: string
- *                       example: "sent"
- *                 sessionInfo:
- *                   type: object
- *       400:
- *         description: Sessão não encontrada, não conectada ou dados inválidos
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- */
 
-/**
- * @swagger
- * /api/baileys/session/{sessionId}/send-media:
- *   post:
- *     tags:
- *       - Mensagens
- *     summary: Enviar mídia (imagem, vídeo, áudio, documento, mensagem de voz)
- *     description: |
- *       Envia arquivos de mídia para um número específico, incluindo suporte para mensagens de voz.
- *
- *       **NOVO: Status "Gravando Áudio"**
- *       - Quando `voiceMessage=true` é enviado, o bot automaticamente mostra o status "gravando áudio..." no chat
- *       - Simula tempo de gravação realista (3-7 segundos) antes de enviar
- *       - Remove o status corretamente após enviar (sem mostrar "digitando")
- *       - Funciona apenas com arquivos de áudio (.mp3, .wav, .ogg, .m4a)
- *
- *       **NOVO: Caption para Mensagens de Voz**
- *       - Se `caption` for fornecida junto com `voiceMessage=true`, a legenda será enviada como uma **resposta à mensagem de voz**
- *       - Isso permite adicionar contexto às mensagens de voz mantendo a funcionalidade nativa do WhatsApp
- *       - A resposta é enviada automaticamente após a mensagem de voz
- *     security:
- *       - ApiTokenAuth: []
- *     parameters:
- *       - in: path
- *         name: sessionId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID da sessão
- *         example: "minha-sessao-1"
- *     requestBody:
- *       required: true
- *       content:
- *         multipart/form-data:
- *           schema:
- *             type: object
- *             required:
- *               - to
- *               - media
- *             properties:
- *               to:
- *                 type: string
- *                 description: Número do destinatário
- *                 example: "5511999999999"
- *               media:
- *                 type: string
- *                 format: binary
- *                 description: Arquivo de mídia
- *               caption:
- *                 type: string
- *                 description: |
- *                   Legenda para a mídia (opcional).
- *
- *                   **Para mensagens de voz (`voiceMessage=true`):**
- *                   - A legenda será enviada como **resposta à mensagem de voz**
- *                   - Permite adicionar contexto sem quebrar a funcionalidade nativa
- *                 example: "Confira esta imagem!"
- *               filename:
- *                 type: string
- *                 description: Nome personalizado do arquivo (opcional)
- *                 example: "minha-imagem.jpg"
- *               voiceMessage:
- *                 type: boolean
- *                 description: |
- *                   Se true, áudios serão enviados como mensagem de voz (PTT).
- *
- *                   **Comportamento adicional:**
- *                   - Ativa automaticamente o status "gravando áudio..." no chat
- *                   - Simula tempo de gravação realista (3-7 segundos)
- *                   - Remove status corretamente após envio (sem "digitando")
- *                 example: true
- *     responses:
- *       200:
- *         description: Mídia enviada com sucesso
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Mídia enviada com sucesso"
- *                 messageId:
- *                   type: string
- *                 messageData:
- *                   type: object
- *                   properties:
- *                     to:
- *                       type: string
- *                     sentAt:
- *                       type: string
- *                       format: date-time
- *                     messageType:
- *                       type: string
- *                       enum: ["image", "video", "audio", "voice", "document"]
- *                     fileName:
- *                       type: string
- *                     fileSize:
- *                       type: integer
- *                     mimetype:
- *                       type: string
- *                     caption:
- *                       type: string
- *                     status:
- *                       type: string
- *                       example: "sent"
- *                     presenceUpdated:
- *                       type: boolean
- *                       description: Indica se o status "gravando" foi enviado (apenas para voice messages)
- *                       example: true
- *                     captionSentAsReply:
- *                       type: boolean
- *                       description: Indica se a caption foi enviada como resposta à mensagem de voz
- *                       example: true
- *                     captionMessageId:
- *                       type: string
- *                       description: ID da mensagem de caption (quando enviada como resposta)
- *                       nullable: true
- *                       example: "3EB0C767B7CE45A3B3A37"
- *       400:
- *         description: Dados inválidos ou arquivo não fornecido
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- */
 
-/**
- * @swagger
- * /api/baileys/session/{sessionId}/reply-message:
- *   post:
- *     tags:
- *       - Mensagens
- *     summary: Responder uma mensagem específica
- *     description: Envia uma resposta citando uma mensagem específica pelo seu ID
- *     security:
- *       - ApiTokenAuth: []
- *     parameters:
- *       - in: path
- *         name: sessionId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID da sessão
- *         example: "minha-sessao-1"
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - messageId
- *               - reply
- *             properties:
- *               messageId:
- *                 type: string
- *                 description: ID da mensagem a ser respondida
- *                 example: "3EB0C767B7CE45A3B3A36"
- *               reply:
- *                 type: string
- *                 description: Texto da resposta
- *                 example: "Obrigado pela mensagem!"
- *     responses:
- *       200:
- *         description: Resposta enviada com sucesso
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Resposta enviada com sucesso"
- *                 messageId:
- *                   type: string
- *                 quotedMessageId:
- *                   type: string
- *                 messageData:
- *                   type: object
- *                   properties:
- *                     isReply:
- *                       type: boolean
- *                       example: true
- *                     originalMessage:
- *                       type: object
- *       404:
- *         description: Mensagem original não encontrada
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- */
 
-/**
- * @swagger
- * /api/baileys/session/{sessionId}/mention-all:
- *   post:
- *     tags:
- *       - Mensagens
- *     summary: Mencionar todos os participantes do grupo
- *     description: |
- *       Envia uma mensagem para um grupo mencionando todos os participantes.
- *
- *       **Modos disponíveis:**
- *       - **Modo Silencioso (`silentMode=true`)**: Usa caracteres invisíveis (U+200B, U+2800, U+200D) para mencionar sem @ azuis
- *       - **Modo Com Menções (`silentMode=false`)**: Envia com @ azul visível para cada participante
- *
- *       **Funcionalidade:**
- *       - Obtém automaticamente todos os participantes do grupo via `groupMetadata`
- *       - Suporte para IDs de grupo com ou sem sufixo `@g.us`
- *       - Verifica se o bot faz parte do grupo antes de enviar
- *       - Retorna informações detalhadas sobre o grupo e participantes
- *     security:
- *       - ApiTokenAuth: []
- *     parameters:
- *       - in: path
- *         name: sessionId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID da sessão
- *         example: "minha-sessao-1"
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - groupId
- *               - message
- *             properties:
- *               groupId:
- *                 type: string
- *                 description: ID do grupo (com ou sem @g.us)
- *                 example: "120363043716731234@g.us"
- *               message:
- *                 type: string
- *                 description: Mensagem a ser enviada para todos
- *                 example: "Importante! Todos devem ler esta mensagem."
- *               silentMode:
- *                 type: boolean
- *                 default: true
- *                 description: |
- *                   **true**: Usa caracteres invisíveis (Zero Width Space) para mencionar sem @ azuis
- *                   **false**: Menciona visivelmente cada participante (@ azul + notificação)
- *
- *                   **Técnica de caracteres invisíveis:**
- *                   - U+200B (Zero Width Space): Caractere invisível entre palavras
- *                   - U+2800 (Braille Pattern): Compatível com WhatsApp mobile
- *                   - U+200D (Zero Width Joiner): Conecta caracteres invisibilmente
- *
- *                   **Resultado:** Todos são mencionados mas sem @ azuis visíveis
- *                 example: true
- *     responses:
- *       200:
- *         description: Mensagem enviada com sucesso para o grupo
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Mensagem enviada para o grupo (modo silencioso)"
- *                 messageId:
- *                   type: string
- *                   example: "3EB0C767B7CE45A3B3A36"
- *                 groupInfo:
- *                   type: object
- *                   properties:
- *                     id:
- *                       type: string
- *                       example: "120363043716731234@g.us"
- *                     name:
- *                       type: string
- *                       example: "Meu Grupo de Trabalho"
- *                     participantCount:
- *                       type: integer
- *                       example: 15
- *                     silentMode:
- *                       type: boolean
- *                       example: true
- *                 messageData:
- *                   type: object
- *                   properties:
- *                     to:
- *                       type: string
- *                     sentAt:
- *                       type: string
- *                       format: date-time
- *                     messageType:
- *                       type: string
- *                       example: "text"
- *                     content:
- *                       type: string
- *                     participantsReached:
- *                       type: integer
- *                       description: Total de participantes que receberam a mensagem
- *                       example: 1022
- *                     participantsMentioned:
- *                       type: integer
- *                       description: Número total de participantes mencionados (sempre igual ao total)
- *                       example: 1022
- *                     mentionType:
- *                       type: string
- *                       enum: ["invisible_mentions", "visible_mentions"]
- *                       description: Tipo de menção utilizada
- *                       example: "invisible_mentions"
- *                     invisibleCharacters:
- *                       type: array
- *                       items:
- *                         type: string
- *                       description: Caracteres Unicode invisíveis utilizados (apenas modo silencioso)
- *                       example: ["U+200B", "U+2800", "U+200D"]
- *                       nullable: true
- *                     status:
- *                       type: string
- *                       example: "sent"
- *                 sessionInfo:
- *                   type: object
- *       400:
- *         description: Dados inválidos ou grupo não acessível
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- *       404:
- *         description: Grupo não encontrado ou sem participantes
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- *       500:
- *         description: Erro interno do servidor
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- */
 
-/**
- * @swagger
- * /api/baileys/session/{sessionId}/smart-reply:
- *   post:
- *     tags:
- *       - Mensagens
- *     summary: Resposta inteligente com comportamento humano avançado
- *     description: |
- *       Envia uma mensagem com simulação ultra-realista de comportamento humano, incluindo:
- *       - Tempo de leitura da mensagem anterior
- *       - Tempo de reflexão/pensamento baseado na complexidade
- *       - Digitação com pausas naturais em chunks
- *       - Simulação de correção de erros de digitação
- *       - Delays emocionais baseados no conteúdo
- *       - Tempos proporcionais ao tamanho da mensagem
- *     security:
- *       - ApiTokenAuth: []
- *     parameters:
- *       - in: path
- *         name: sessionId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID da sessão
- *         example: "minha-sessao-1"
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - to
- *               - message
- *             properties:
- *               to:
- *                 type: string
- *                 description: Número do destinatário
- *                 example: "5511999999999"
- *               message:
- *                 type: string
- *                 description: Texto da mensagem a ser enviada
- *                 example: "Esta é uma resposta com comportamento humano muito realista! Vou digitar como se fosse uma pessoa real."
- *               replyToMessage:
- *                 type: string
- *                 description: Texto da mensagem anterior (para calcular tempo de leitura)
- *                 example: "Você pode me ajudar com este problema complexo de matemática?"
- *               readingSpeed:
- *                 type: integer
- *                 default: 150
- *                 description: Velocidade de leitura em palavras por minuto (50-300)
- *                 example: 150
- *               typingSpeed:
- *                 type: integer
- *                 default: 40
- *                 description: Velocidade de digitação em palavras por minuto (20-80)
- *                 example: 40
- *               thinkingTime:
- *                 type: boolean
- *                 default: true
- *                 description: Simular tempo de reflexão antes de digitar
- *               naturalPauses:
- *                 type: boolean
- *                 default: true
- *                 description: Adicionar pausas naturais durante a digitação (chunks)
- *               typoSimulation:
- *                 type: boolean
- *                 default: false
- *                 description: Simular correção de erros de digitação (15% chance)
- *               emotionalDelay:
- *                 type: boolean
- *                 default: true
- *                 description: Delays extras para conteúdo emocional
- *               contextAwareness:
- *                 type: boolean
- *                 default: true
- *                 description: Considerar contexto da conversa para timing
- *               quotedMessageId:
- *                 type: string
- *                 description: ID da mensagem a ser citada (opcional)
- *                 example: "3EB0C767B7CE45A3B3A36"
- *     responses:
- *       200:
- *         description: Resposta inteligente enviada com comportamento humano avançado
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Resposta inteligente enviada com comportamento humano avançado"
- *                 messageId:
- *                   type: string
- *                   example: "3EB0C767B7CE45A3B3A36"
- *                 behaviorStats:
- *                   type: object
- *                   description: Estatísticas detalhadas do comportamento simulado
- *                   properties:
- *                     readingTime:
- *                       type: integer
- *                       description: Tempo de leitura em millisegundos
- *                       example: 2400
- *                     thinkingTime:
- *                       type: integer
- *                       description: Tempo de reflexão em millisegundos
- *                       example: 3200
- *                     typingTime:
- *                       type: integer
- *                       description: Tempo total de digitação em millisegundos
- *                       example: 8500
- *                     totalTime:
- *                       type: integer
- *                       description: Tempo total do processo em millisegundos
- *                       example: 14100
- *                     wordCount:
- *                       type: integer
- *                       description: Número de palavras na mensagem
- *                       example: 15
- *                     messageLength:
- *                       type: integer
- *                       description: Número de caracteres na mensagem
- *                       example: 85
- *                     chunksUsed:
- *                       type: integer
- *                       description: Número de "rajadas" de digitação utilizadas
- *                       example: 3
- *                     typoSimulated:
- *                       type: boolean
- *                       description: Se foi simulada correção de erro
- *                       example: false
- *                 messageData:
- *                   type: object
- *                   properties:
- *                     to:
- *                       type: string
- *                     sentAt:
- *                       type: string
- *                       format: date-time
- *                     messageType:
- *                       type: string
- *                       example: "text"
- *                     content:
- *                       type: string
- *                     quotedMessageId:
- *                       type: string
- *                       nullable: true
- *                     status:
- *                       type: string
- *                       example: "sent"
- *                 sessionInfo:
- *                   type: object
- *       400:
- *         description: Dados inválidos ou sessão não conectada
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- */
 
-/**
- * @swagger
- * /api/baileys/session/{sessionId}/typing:
- *   post:
- *     tags:
- *       - Controles de Chat
- *     summary: Controlar status de digitação
- *     description: Ativa ou desativa o indicador de "digitando" para um chat específico
- *     security:
- *       - ApiTokenAuth: []
- *     parameters:
- *       - in: path
- *         name: sessionId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID da sessão
- *         example: "minha-sessao-1"
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - jid
- *             properties:
- *               jid:
- *                 type: string
- *                 description: ID do chat (número@s.whatsapp.net)
- *                 example: "5511999999999@s.whatsapp.net"
- *               isTyping:
- *                 type: boolean
- *                 default: true
- *                 description: true para iniciar digitação, false para parar
- *     responses:
- *       200:
- *         description: Status de digitação atualizado com sucesso
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Status de digitação iniciado"
- */
 
-/**
- * @swagger
- * /api/baileys/session/{sessionId}/mark-read:
- *   post:
- *     tags:
- *       - Controles de Chat
- *     summary: Marcar mensagem como lida
- *     description: Marca uma mensagem específica como lida (visualizada)
- *     security:
- *       - ApiTokenAuth: []
- *     parameters:
- *       - in: path
- *         name: sessionId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID da sessão
- *         example: "minha-sessao-1"
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - jid
- *               - messageId
- *             properties:
- *               jid:
- *                 type: string
- *                 description: ID do chat
- *                 example: "5511999999999@s.whatsapp.net"
- *               messageId:
- *                 type: string
- *                 description: ID da mensagem
- *                 example: "3EB0C767B7CE45A3B3A36"
- *     responses:
- *       200:
- *         description: Mensagem marcada como lida com sucesso
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Mensagem marcada como lida"
- */
 
-/**
- * @swagger
- * /api/baileys/session/{sessionId}/messages:
- *   get:
- *     tags:
- *       - Histórico e Mídia
- *     summary: Listar mensagens armazenadas
- *     description: Retorna o histórico de mensagens armazenadas para uma sessão
- *     security:
- *       - ApiTokenAuth: []
- *     parameters:
- *       - in: path
- *         name: sessionId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID da sessão
- *         example: "minha-sessao-1"
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *           default: 50
- *         description: Número máximo de mensagens a retornar
- *     responses:
- *       200:
- *         description: Lista de mensagens obtida com sucesso
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 messages:
- *                   type: array
- *                   items:
- *                     type: object
- *                     properties:
- *                       messageId:
- *                         type: string
- *                       jid:
- *                         type: string
- *                       timestamp:
- *                         type: string
- *                         format: date-time
- *                       isFromMe:
- *                         type: boolean
- *                       messageText:
- *                         type: string
- *                       isReply:
- *                         type: boolean
- *                       quotedMessage:
- *                         type: object
- *                         nullable: true
- *                 total:
- *                   type: integer
- *       404:
- *         description: Sessão não encontrada
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- */
 
-/**
- * @swagger
- * /api/baileys/session/{sessionId}/download-media:
- *   post:
- *     tags:
- *       - Histórico e Mídia
- *     summary: Baixar mídia de uma mensagem
- *     description: Baixa o arquivo de mídia de uma mensagem específica e salva no servidor
- *     security:
- *       - ApiTokenAuth: []
- *     parameters:
- *       - in: path
- *         name: sessionId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID da sessão
- *         example: "minha-sessao-1"
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - messageId
- *             properties:
- *               messageId:
- *                 type: string
- *                 description: ID da mensagem que contém mídia
- *                 example: "3EB0C767B7CE45A3B3A36"
- *     responses:
- *       200:
- *         description: Mídia baixada com sucesso
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Mídia baixada com sucesso"
- *                 messageId:
- *                   type: string
- *                 downloadInfo:
- *                   type: object
- *                   properties:
- *                     fileName:
- *                       type: string
- *                     filePath:
- *                       type: string
- *                     fileSize:
- *                       type: integer
- *                     downloadedAt:
- *                       type: string
- *                       format: date-time
- *       400:
- *         description: Mensagem não contém mídia ou dados inválidos
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- *       404:
- *         description: Mensagem não encontrada
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- */
 
-/**
- * @swagger
- * /api/baileys/session/{sessionId}/webhook:
- *   post:
- *     tags:
- *       - Webhooks
- *     summary: "Configurar webhook para eventos"
- *     description: |
- *       Configura uma URL de webhook para receber eventos em tempo real da sessão.
- *
- *       **Armazenamento:** Este endpoint salva webhooks no banco de dados MongoDB.
- *
- *       **NOVO: Mídia em Base64**
- *       Os webhooks agora incluem automaticamente o conteúdo de arquivos de mídia em base64 para arquivos até 3MB:
- *       - Imagens (JPG, PNG, GIF, WebP)
- *       - Vídeos (MP4, MOV, AVI, etc.)
- *       - Áudios (MP3, WAV, OGG, etc.)
- *       - Documentos (PDF, DOC, etc.)
- *       - Stickers
- *
- *       **Exemplo de payload recebido:**
- *       ```json
- *       {
- *         "sessionId": "minha-sessao-1",
- *         "eventType": "message.upsert",
- *         "timestamp": "2024-12-06T15:30:00.000Z",
- *         "data": {
- *           "messageId": "3EB0C767B7CE45A3B3A36",
- *           "messageType": "image",
- *           "content": "Confira esta foto!",
- *           "mediaData": {
- *             "mimetype": "image/jpeg",
- *             "fileLength": 524288,
- *             "width": 1920,
- *             "height": 1080
- *           },
- *           "mediaBase64": {
- *             "success": true,
- *             "base64": "/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAYEBQYFBAYGBQYHBwYIChAKCgkJChQODwwQFxQYGBcU...",
- *             "size": 524288,
- *             "sizeFormatted": "512.00KB"
- *           },
- *           "chatInfo": {
- *             "type": "contact",
- *             "name": "João Silva",
- *             "number": "5511999999999"
- *           }
- *         }
- *       }
- *       ```
- *
- *       **Para arquivos > 3MB:**
- *       ```json
- *       {
- *         "mediaBase64": {
- *           "error": "FILE_TOO_LARGE",
- *           "message": "Arquivo de 5.2MB excede o limite de 3MB",
- *           "fileSize": 5452595
- *         }
- *       }
- *       ```
- *     security:
- *       - ApiTokenAuth: []
- *     parameters:
- *       - in: path
- *         name: sessionId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID da sessão
- *         example: "minha-sessao-1"
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - webhookUrl
- *             properties:
- *               webhookUrl:
- *                 type: string
- *                 format: uri
- *                 description: URL do webhook para receber eventos
- *                 example: "https://meusite.com/webhook"
- *     responses:
- *       200:
- *         description: Webhook configurado com sucesso
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Webhook configurado com sucesso"
- *                 webhookUrl:
- *                   type: string
- *                 sessionId:
- *                   type: string
- *       400:
- *         description: URL inválida
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- *       404:
- *         description: Sessão não encontrada
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- *   get:
- *     tags:
- *       - Webhooks
- *     summary: "Obter configuração do webhook"
- *     description: |
- *       Retorna a URL do webhook configurada para a sessão.
- *
- *       **Armazenamento:** Busca webhook no banco de dados MongoDB.
- *     security:
- *       - ApiTokenAuth: []
- *     parameters:
- *       - in: path
- *         name: sessionId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID da sessão
- *         example: "minha-sessao-1"
- *     responses:
- *       200:
- *         description: Configuração do webhook obtida com sucesso
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 webhookUrl:
- *                   type: string
- *                 sessionId:
- *                   type: string
- *       404:
- *         description: Sessão não encontrada ou webhook não configurado
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- *   delete:
- *     tags:
- *       - Webhooks
- *     summary: "Remover webhook"
- *     description: |
- *       Remove a configuração de webhook da sessão.
- *
- *       **Armazenamento:** Remove webhook do banco de dados MongoDB.
- *     security:
- *       - ApiTokenAuth: []
- *     parameters:
- *       - in: path
- *         name: sessionId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID da sessão
- *         example: "minha-sessao-1"
- *     responses:
- *       200:
- *         description: Webhook removido com sucesso
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Webhook removido com sucesso"
- *                 sessionId:
- *                   type: string
- *       404:
- *         description: Sessão não encontrada
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- */
 
-// ========================================
-// DOCUMENTAÇÃO DOS NOVOS ENDPOINTS DE WEBHOOKS (MÚLTIPLOS)
-// ========================================
 
-/**
- * @swagger
- * /api/baileys/session/{sessionId}/webhooks:
- *   get:
- *     tags:
- *       - Webhooks
- *     summary: "Listar webhooks da sessão"
- *     description: |
- *       Retorna todos os webhooks configurados para uma sessão (máximo 3).
- *
- *       **Armazenamento:** Busca webhooks no banco de dados MongoDB.
- *     security:
- *       - ApiTokenAuth: []
- *     parameters:
- *       - in: path
- *         name: sessionId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID da sessão
- *         example: "minha-sessao-1"
- *     responses:
- *       200:
- *         description: Lista de webhooks obtida com sucesso
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 sessionId:
- *                   type: string
- *                   example: "minha-sessao-1"
- *                 webhooks:
- *                   type: array
- *                   items:
- *                     type: object
- *                     properties:
- *                       id:
- *                         type: string
- *                         example: "webhook-123-456"
- *                       name:
- *                         type: string
- *                         example: "Principal"
- *                       url:
- *                         type: string
- *                         example: "https://meusite.com/webhook"
- *                       active:
- *                         type: boolean
- *                         example: true
- *                       priority:
- *                         type: integer
- *                         example: 1
- *                       events:
- *                         type: array
- *                         items:
- *                           type: string
- *                         example: ["*"]
- *                       createdAt:
- *                         type: string
- *                         format: date-time
- *                 total:
- *                   type: integer
- *                   example: 2
- *                 limit:
- *                   type: integer
- *                   example: 3
- *       404:
- *         description: Sessão não encontrada
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- *   post:
- *     tags:
- *       - Webhooks
- *     summary: "Adicionar novo webhook"
- *     description: |
- *       Adiciona um novo webhook à sessão (máximo 3 por sessão).
- *
- *       **Armazenamento:** Salva webhook no banco de dados MongoDB.
- *     security:
- *       - ApiTokenAuth: []
- *     parameters:
- *       - in: path
- *         name: sessionId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID da sessão
- *         example: "minha-sessao-1"
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - url
- *             properties:
- *               name:
- *                 type: string
- *                 description: Nome do webhook
- *                 example: "Principal"
- *               url:
- *                 type: string
- *                 format: uri
- *                 description: URL do webhook
- *                 example: "https://meusite.com/webhook"
- *               active:
- *                 type: boolean
- *                 description: Se o webhook está ativo
- *                 default: true
- *               priority:
- *                 type: integer
- *                 description: Prioridade de envio (1-3)
- *                 minimum: 1
- *                 maximum: 3
- *               events:
- *                 type: array
- *                 items:
- *                   type: string
- *                 description: Eventos para escutar
- *                 example: ["message.upsert", "connection.update"]
- *                 default: ["*"]
- *     responses:
- *       200:
- *         description: Webhook adicionado com sucesso
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Webhook adicionado com sucesso"
- *                 webhook:
- *                   type: object
- *                   properties:
- *                     id:
- *                       type: string
- *                       example: "webhook-123-456"
- *                     name:
- *                       type: string
- *                       example: "Principal"
- *                     url:
- *                       type: string
- *                       example: "https://meusite.com/webhook"
- *                     active:
- *                       type: boolean
- *                       example: true
- *                     priority:
- *                       type: integer
- *                       example: 1
- *                     events:
- *                       type: array
- *                       items:
- *                         type: string
- *                       example: ["*"]
- *                     createdAt:
- *                       type: string
- *                       format: date-time
- *                 sessionId:
- *                   type: string
- *                   example: "minha-sessao-1"
- *       400:
- *         description: Dados inválidos ou limite de webhooks excedido
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- *       404:
- *         description: Sessão não encontrada
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- */
 
-/**
- * @swagger
- * /api/baileys/session/{sessionId}/webhooks/{webhookId}:
- *   get:
- *     tags:
- *       - Webhooks
- *     summary: "Obter webhook específico"
- *     description: |
- *       Retorna informações de um webhook específico.
- *
- *       **Armazenamento:** Busca webhook no banco de dados MongoDB.
- *     security:
- *       - ApiTokenAuth: []
- *     parameters:
- *       - in: path
- *         name: sessionId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID da sessão
- *         example: "minha-sessao-1"
- *       - in: path
- *         name: webhookId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID do webhook
- *         example: "webhook-123-456"
- *     responses:
- *       200:
- *         description: Webhook encontrado
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 webhook:
- *                   type: object
- *                   properties:
- *                     id:
- *                       type: string
- *                       example: "webhook-123-456"
- *                     name:
- *                       type: string
- *                       example: "Principal"
- *                     url:
- *                       type: string
- *                       example: "https://meusite.com/webhook"
- *                     active:
- *                       type: boolean
- *                       example: true
- *                     priority:
- *                       type: integer
- *                       example: 1
- *                     events:
- *                       type: array
- *                       items:
- *                         type: string
- *                       example: ["*"]
- *                     createdAt:
- *                       type: string
- *                       format: date-time
- *                 sessionId:
- *                   type: string
- *                   example: "minha-sessao-1"
- *       404:
- *         description: Sessão ou webhook não encontrado
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- *   put:
- *     tags:
- *       - Webhooks
- *     summary: "Atualizar webhook"
- *     description: |
- *       Atualiza as configurações de um webhook específico.
- *
- *       **Armazenamento:** Atualiza webhook no banco de dados MongoDB.
- *     security:
- *       - ApiTokenAuth: []
- *     parameters:
- *       - in: path
- *         name: sessionId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID da sessão
- *         example: "minha-sessao-1"
- *       - in: path
- *         name: webhookId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID do webhook
- *         example: "webhook-123-456"
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               name:
- *                 type: string
- *                 description: Nome do webhook
- *               url:
- *                 type: string
- *                 format: uri
- *                 description: URL do webhook
- *               active:
- *                 type: boolean
- *                 description: Se o webhook está ativo
- *               priority:
- *                 type: integer
- *                 description: Prioridade de envio (1-3)
- *                 minimum: 1
- *                 maximum: 3
- *               events:
- *                 type: array
- *                 items:
- *                   type: string
- *                 description: Eventos para escutar
- *     responses:
- *       200:
- *         description: Webhook atualizado com sucesso
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Webhook atualizado com sucesso"
- *                 webhook:
- *                   type: object
- *                 sessionId:
- *                   type: string
- *       400:
- *         description: Dados inválidos
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- *       404:
- *         description: Sessão ou webhook não encontrado
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- *   delete:
- *     tags:
- *       - Webhooks
- *     summary: "Remover webhook específico"
- *     description: |
- *       Remove um webhook específico da sessão.
- *
- *       **Armazenamento:** Remove webhook do banco de dados MongoDB.
- *     security:
- *       - ApiTokenAuth: []
- *     parameters:
- *       - in: path
- *         name: sessionId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID da sessão
- *         example: "minha-sessao-1"
- *       - in: path
- *         name: webhookId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID do webhook
- *         example: "webhook-123-456"
- *     responses:
- *       200:
- *         description: Webhook removido com sucesso
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Webhook removido com sucesso"
- *                 webhook:
- *                   type: object
- *                 sessionId:
- *                   type: string
- *       404:
- *         description: Sessão ou webhook não encontrado
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- *   patch:
- *     tags:
- *       - Webhooks
- *     summary: "Atualizar webhook parcialmente"
- *     description: |
- *       Atualiza parcialmente as configurações de um webhook específico.
- *       Permite atualizar apenas campos específicos sem afetar outros.
- *
- *       **Armazenamento:** Atualiza webhook no banco de dados MongoDB.
- *     security:
- *       - ApiTokenAuth: []
- *     parameters:
- *       - in: path
- *         name: sessionId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID da sessão
- *         example: "minha-sessao-1"
- *       - in: path
- *         name: webhookId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID do webhook
- *         example: "webhook-123-456"
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               name:
- *                 type: string
- *                 description: Nome do webhook
- *                 example: "Webhook Atualizado"
- *               url:
- *                 type: string
- *                 format: uri
- *                 description: URL do webhook
- *                 example: "https://meusite.com/webhook-novo"
- *               active:
- *                 type: boolean
- *                 description: Se o webhook está ativo
- *                 example: true
- *               priority:
- *                 type: integer
- *                 description: Prioridade de envio (1-3)
- *                 minimum: 1
- *                 maximum: 3
- *                 example: 2
- *               events:
- *                 type: array
- *                 items:
- *                   type: string
- *                 description: Eventos para escutar
- *                 example: ["messages.upsert", "messages.update", "messages.delete", "group-participants.update"]
- *     responses:
- *       200:
- *         description: Webhook atualizado parcialmente com sucesso
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Webhook atualizado parcialmente com sucesso"
- *                 webhook:
- *                   type: object
- *                   properties:
- *                     id:
- *                       type: string
- *                       example: "webhook-123-456"
- *                     name:
- *                       type: string
- *                       example: "Webhook Atualizado"
- *                     url:
- *                       type: string
- *                       example: "https://meusite.com/webhook-novo"
- *                     active:
- *                       type: boolean
- *                       example: true
- *                     priority:
- *                       type: integer
- *                       example: 2
- *                     events:
- *                       type: array
- *                       items:
- *                         type: string
- *                       example: ["messages.upsert", "messages.update", "messages.delete", "group-participants.update"]
- *                     updatedAt:
- *                       type: string
- *                       format: date-time
- *                       example: "2023-12-01T10:30:00Z"
- *                 sessionId:
- *                   type: string
- *                   example: "minha-sessao-1"
- *       400:
- *         description: Dados inválidos ou erro na validação
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- *       404:
- *         description: Sessão ou webhook não encontrado
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- */
 
-/**
- * @swagger
- * /api/baileys/session/{sessionId}/webhooks/{webhookId}/toggle:
- *   patch:
- *     tags:
- *       - Webhooks
- *     summary: "Ativar/desativar webhook"
- *     description: |
- *       Alterna o status ativo/inativo de um webhook.
- *
- *       **Armazenamento:** Atualiza webhook no banco de dados MongoDB.
- *     security:
- *       - ApiTokenAuth: []
- *     parameters:
- *       - in: path
- *         name: sessionId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID da sessão
- *         example: "minha-sessao-1"
- *       - in: path
- *         name: webhookId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID do webhook
- *         example: "webhook-123-456"
- *     responses:
- *       200:
- *         description: Status do webhook alterado
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Webhook ativado com sucesso"
- *                 webhook:
- *                   type: object
- *                 sessionId:
- *                   type: string
- *       404:
- *         description: Sessão ou webhook não encontrado
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- */
 
-/**
- * @swagger
- * /api/baileys/session/{sessionId}/webhooks/{webhookId}/test:
- *   post:
- *     tags:
- *       - Webhooks
- *     summary: "Testar webhook"
- *     description: |
- *       Envia um payload de teste para verificar se o webhook está funcionando.
- *
- *       **Armazenamento:** Busca webhook no banco de dados MongoDB.
- *     security:
- *       - ApiTokenAuth: []
- *     parameters:
- *       - in: path
- *         name: sessionId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID da sessão
- *         example: "minha-sessao-1"
- *       - in: path
- *         name: webhookId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID do webhook
- *         example: "webhook-123-456"
- *     responses:
- *       200:
- *         description: Teste do webhook executado
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Teste do webhook enviado"
- *                 webhook:
- *                   type: object
- *                   properties:
- *                     id:
- *                       type: string
- *                     name:
- *                       type: string
- *                     url:
- *                       type: string
- *                 testResult:
- *                   type: object
- *                   properties:
- *                     success:
- *                       type: boolean
- *                       example: true
- *                     status:
- *                       type: integer
- *                       example: 200
- *                     statusText:
- *                       type: string
- *                       example: "OK"
- *                     response:
- *                       type: string
- *                       description: Resposta do webhook (limitada a 500 caracteres)
- *                     timestamp:
- *                       type: string
- *                       format: date-time
- *       404:
- *         description: Sessão ou webhook não encontrado
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- */
 
-/**
- * @swagger
- * /api/baileys/session/{sessionId}:
- *   delete:
- *     tags:
- *       - Sessões
- *     summary: Deletar sessão
- *     description: Remove uma sessão do WhatsApp e fecha todas as conexões associadas
- *     security:
- *       - ApiTokenAuth: []
- *     parameters:
- *       - in: path
- *         name: sessionId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID da sessão
- *         example: "minha-sessao-1"
- *     responses:
- *       200:
- *         description: Sessão deletada com sucesso
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Sessão deletada com sucesso"
- *       404:
- *         description: Sessão não encontrada
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- */
 
-/**
- * @swagger
- * /api/baileys/info:
- *   get:
- *     tags:
- *       - Informações
- *     summary: Informações da API
- *     description: Retorna informações detalhadas sobre a API, features disponíveis e endpoints
- *     security:
- *       - ApiTokenAuth: []
- *     responses:
- *       200:
- *         description: Informações da API
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 name:
- *                   type: string
- *                   example: "Baileys Multi-Session API"
- *                 version:
- *                   type: string
- *                   example: "1.0.0"
- *                 description:
- *                   type: string
- *                 author:
- *                   type: string
- *                 features:
- *                   type: array
- *                   items:
- *                     type: string
- *                 activeSessions:
- *                   type: integer
- *                   description: Número de sessões ativas
- *                 endpoints:
- *                   type: object
- *                   description: Lista de todos os endpoints disponíveis
- */
 
-/**
- * @swagger
- * /:
- *   get:
- *     tags:
- *       - Informações
- *     summary: Página inicial
- *     description: Redireciona para a documentação Swagger
- *     responses:
- *       302:
- *         description: Redirecionamento para /api-docs
- */
 
-// ========================================
-// DOCUMENTAÇÃO DAS ROTAS DE AI AGENTS
-// ========================================
 
-/**
- * @swagger
- * /api/baileys/agents/create:
- *   post:
- *     tags:
- *       - AI Assistant
- *     summary: Criar novo agente de IA
- *     description: Cria um novo agente de IA para resposta automática
- *     security:
- *       - ApiTokenAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - name
- *               - apiKey
- *               - model
- *             properties:
- *               name:
- *                 type: string
- *                 description: Nome do agente
- *                 example: "Assistente de Vendas"
- *               apiKey:
- *                 type: string
- *                 description: Chave API do OpenAI
- *                 example: "sk-xxx"
- *               model:
- *                 type: string
- *                 description: Modelo do OpenAI
- *                 example: "gpt-4"
- *               systemPrompt:
- *                 type: string
- *                 description: Prompt do sistema
- *                 example: "Você é um assistente de vendas"
- *     responses:
- *       201:
- *         description: Agente criado com sucesso
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- */
 
-/**
- * @swagger
- * /api/baileys/agents/list:
- *   get:
- *     tags:
- *       - AI Assistant
- *     summary: Listar agentes de IA
- *     description: Lista todos os agentes de IA
- *     security:
- *       - ApiTokenAuth: []
- *     responses:
- *       200:
- *         description: Lista de agentes
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 agents:
- *                   type: array
- *                   items:
- *                     type: object
- */
 
-/**
- * @swagger
- * /api/baileys/agents/{agentId}:
- *   get:
- *     tags:
- *       - AI Assistant
- *     summary: Obter agente de IA
- *     description: Obtém informações de um agente específico
- *     security:
- *       - ApiTokenAuth: []
- *     parameters:
- *       - in: path
- *         name: agentId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID do agente
- *     responses:
- *       200:
- *         description: Informações do agente
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- *   delete:
- *     tags:
- *       - AI Assistant
- *     summary: Deletar agente de IA
- *     description: Remove um agente de IA
- *     security:
- *       - ApiTokenAuth: []
- *     parameters:
- *       - in: path
- *         name: agentId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID do agente
- *     responses:
- *       200:
- *         description: Agente deletado com sucesso
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- */
 
-/**
- * @swagger
- * /api/baileys/agents/{agentId}/api-key:
- *   patch:
- *     tags:
- *       - AI Assistant
- *     summary: Atualizar chave API do agente
- *     description: Atualiza a chave API do OpenAI do agente
- *     security:
- *       - ApiTokenAuth: []
- *     parameters:
- *       - in: path
- *         name: agentId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID do agente
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - apiKey
- *             properties:
- *               apiKey:
- *                 type: string
- *                 description: Nova chave API do OpenAI
- *                 example: "sk-xxx"
- *     responses:
- *       200:
- *         description: Chave API atualizada com sucesso
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- */
 
-/**
- * @swagger
- * /api/baileys/agents/{agentId}/settings:
- *   patch:
- *     tags:
- *       - AI Assistant
- *     summary: Atualizar configurações do agente
- *     description: Atualiza as configurações do agente de IA
- *     security:
- *       - ApiTokenAuth: []
- *     parameters:
- *       - in: path
- *         name: agentId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID do agente
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               name:
- *                 type: string
- *                 description: Nome do agente
- *               model:
- *                 type: string
- *                 description: Modelo do OpenAI
- *               systemPrompt:
- *                 type: string
- *                 description: Prompt do sistema
- *               autoReply:
- *                 type: boolean
- *                 description: Resposta automática ativa
- *     responses:
- *       200:
- *         description: Configurações atualizadas com sucesso
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- */
 
-/**
- * @swagger
- * /api/baileys/agents/{agentId}/activate:
- *   patch:
- *     tags:
- *       - AI Assistant
- *     summary: Ativar agente de IA
- *     description: Ativa um agente de IA
- *     security:
- *       - ApiTokenAuth: []
- *     parameters:
- *       - in: path
- *         name: agentId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID do agente
- *     responses:
- *       200:
- *         description: Agente ativado com sucesso
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- */
 
-/**
- * @swagger
- * /api/baileys/agents/{agentId}/deactivate:
- *   patch:
- *     tags:
- *       - AI Assistant
- *     summary: Desativar agente de IA
- *     description: Desativa um agente de IA
- *     security:
- *       - ApiTokenAuth: []
- *     parameters:
- *       - in: path
- *         name: agentId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID do agente
- *     responses:
- *       200:
- *         description: Agente desativado com sucesso
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- */
 
-/**
- * @swagger
- * /api/baileys/agents/process-message:
- *   post:
- *     tags:
- *       - AI Assistant
- *     summary: Processar mensagem com IA
- *     description: Processa uma mensagem através do agente de IA
- *     security:
- *       - ApiTokenAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - message
- *               - chatId
- *             properties:
- *               message:
- *                 type: string
- *                 description: Mensagem para processar
- *                 example: "Olá!"
- *               chatId:
- *                 type: string
- *                 description: ID do chat
- *                 example: "5521999999999@c.us"
- *               sessionId:
- *                 type: string
- *                 description: ID da sessão
- *                 example: "minha-sessao-1"
- *     responses:
- *       200:
- *         description: Mensagem processada com sucesso
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- */
 
-/**
- * @swagger
- * /api/baileys/agents/{agentId}/conversations/{chatId}:
- *   get:
- *     tags:
- *       - AI Assistant
- *     summary: Obter histórico de conversas
- *     description: Obtém o histórico de conversas do agente
- *     security:
- *       - ApiTokenAuth: []
- *     parameters:
- *       - in: path
- *         name: agentId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID do agente
- *       - in: path
- *         name: chatId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID do chat
- *     responses:
- *       200:
- *         description: Histórico de conversas
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- *   delete:
- *     tags:
- *       - AI Assistant
- *     summary: Deletar histórico de conversas
- *     description: Remove o histórico de conversas do agente
- *     security:
- *       - ApiTokenAuth: []
- *     parameters:
- *       - in: path
- *         name: agentId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID do agente
- *       - in: path
- *         name: chatId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID do chat
- *     responses:
- *       200:
- *         description: Histórico deletado com sucesso
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- */
 
-/**
- * @swagger
- * /api/baileys/agents/{agentId}/stats:
- *   get:
- *     tags:
- *       - AI Assistant
- *     summary: Obter estatísticas do agente
- *     description: Obtém estatísticas de uso do agente
- *     security:
- *       - ApiTokenAuth: []
- *     parameters:
- *       - in: path
- *         name: agentId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID do agente
- *     responses:
- *       200:
- *         description: Estatísticas do agente
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 stats:
- *                   type: object
- *                   properties:
- *                     totalMessages:
- *                       type: number
- *                       example: 150
- *                     totalChats:
- *                       type: number
- *                       example: 25
- *                     avgResponseTime:
- *                       type: number
- *                       example: 1.5
- */
 
-/**
- * @swagger
- * /api/baileys/agents/test-search:
- *   post:
- *     tags:
- *       - AI Assistant
- *     summary: Testar busca de agentes
- *     description: Testa a funcionalidade de busca de agentes
- *     security:
- *       - ApiTokenAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - query
- *             properties:
- *               query:
- *                 type: string
- *                 description: Consulta de busca
- *                 example: "vendas"
- *     responses:
- *       200:
- *         description: Resultados da busca
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- */
 
-/**
- * @swagger
- * /api/baileys/agents/download/{fileName}:
- *   get:
- *     tags:
- *       - AI Assistant
- *     summary: Download de arquivo gerado pelo agente
- *     description: Faz download de arquivo gerado pelo agente de IA
- *     security:
- *       - ApiTokenAuth: []
- *     parameters:
- *       - in: path
- *         name: fileName
- *         required: true
- *         schema:
- *           type: string
- *         description: Nome do arquivo
- *         example: "report.pdf"
- *     responses:
- *       200:
- *         description: Arquivo baixado com sucesso
- *         content:
- *           application/octet-stream:
- *             schema:
- *               type: string
- *               format: binary
- *       404:
- *         description: Arquivo não encontrado
- */
 
-// ========================================
-// DOCUMENTAÇÃO DAS ROTAS DE GRUPOS
-// ========================================
 
-/**
- * @swagger
- * /api/baileys/groups/{sessionId}/create:
- *   post:
- *     tags:
- *       - Grupos
- *     summary: Criar novo grupo
- *     description: Cria um novo grupo do WhatsApp com os participantes especificados
- *     security:
- *       - ApiTokenAuth: []
- *     parameters:
- *       - in: path
- *         name: sessionId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID da sessão
- *         example: "minha-sessao-1"
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - groupName
- *               - participants
- *             properties:
- *               groupName:
- *                 type: string
- *                 description: Nome do grupo
- *                 example: "Meu Grupo Novo"
- *               participants:
- *                 type: array
- *                 items:
- *                   type: string
- *                 description: Lista de números dos participantes
- *                 example: ["5511999999999", "5511888888888"]
- *               description:
- *                 type: string
- *                 description: Descrição do grupo (opcional)
- *                 example: "Grupo para discussões importantes"
- *     responses:
- *       200:
- *         description: Grupo criado com sucesso
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Grupo criado com sucesso"
- *                 groupInfo:
- *                   type: object
- *                   properties:
- *                     id:
- *                       type: string
- *                       example: "120363043716731234@g.us"
- *                     subject:
- *                       type: string
- *                       example: "Meu Grupo Novo"
- *                     participants:
- *                       type: array
- *                       items:
- *                         type: string
- *                       example: ["5511999999999@s.whatsapp.net"]
- *                     description:
- *                       type: string
- *                       nullable: true
- *                     createdAt:
- *                       type: string
- *                       format: date-time
- *       400:
- *         description: Dados inválidos
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- *       404:
- *         description: Sessão não encontrada
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- */
 
-/**
- * @swagger
- * /api/baileys/groups/{sessionId}/{groupId}/info:
- *   get:
- *     tags:
- *       - Grupos
- *     summary: Obter informações do grupo
- *     description: Retorna informações detalhadas sobre um grupo específico
- *     security:
- *       - ApiTokenAuth: []
- *     parameters:
- *       - in: path
- *         name: sessionId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID da sessão
- *         example: "minha-sessao-1"
- *       - in: path
- *         name: groupId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID do grupo
- *         example: "120363043716731234@g.us"
- *     responses:
- *       200:
- *         description: Informações do grupo obtidas com sucesso
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 groupInfo:
- *                   $ref: '#/components/schemas/Group'
- *       404:
- *         description: Sessão ou grupo não encontrado
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- */
 
-/**
- * @swagger
- * /api/baileys/groups/{sessionId}/{groupId}/add-participants:
- *   post:
- *     tags:
- *       - Grupos
- *     summary: Adicionar participantes ao grupo
- *     description: Adiciona novos participantes a um grupo existente
- *     security:
- *       - ApiTokenAuth: []
- *     parameters:
- *       - in: path
- *         name: sessionId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID da sessão
- *         example: "minha-sessao-1"
- *       - in: path
- *         name: groupId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID do grupo
- *         example: "120363043716731234@g.us"
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - participants
- *             properties:
- *               participants:
- *                 type: array
- *                 items:
- *                   type: string
- *                 description: Lista de números dos participantes a adicionar
- *                 example: ["5511999999999", "5511888888888"]
- *     responses:
- *       200:
- *         description: Participantes adicionados com sucesso
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Participantes adicionados com sucesso"
- *                 results:
- *                   type: array
- *                   description: Resultados da operação para cada participante
- *                 addedParticipants:
- *                   type: array
- *                   items:
- *                     type: string
- *       400:
- *         description: Dados inválidos
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- */
 
-/**
- * @swagger
- * /api/baileys/groups/{sessionId}/{groupId}/remove-participants:
- *   post:
- *     tags:
- *       - Grupos
- *     summary: Remover participantes do grupo
- *     description: Remove participantes de um grupo existente
- *     security:
- *       - ApiTokenAuth: []
- *     parameters:
- *       - in: path
- *         name: sessionId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID da sessão
- *         example: "minha-sessao-1"
- *       - in: path
- *         name: groupId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID do grupo
- *         example: "120363043716731234@g.us"
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - participants
- *             properties:
- *               participants:
- *                 type: array
- *                 items:
- *                   type: string
- *                 description: Lista de números dos participantes a remover
- *                 example: ["5511999999999", "5511888888888"]
- *     responses:
- *       200:
- *         description: Participantes removidos com sucesso
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Participantes removidos com sucesso"
- *                 results:
- *                   type: array
- *                   description: Resultados da operação para cada participante
- *                 removedParticipants:
- *                   type: array
- *                   items:
- *                     type: string
- *       400:
- *         description: Dados inválidos
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- */
 
-/**
- * @swagger
- * /api/baileys/groups/{sessionId}/{groupId}/promote:
- *   post:
- *     tags:
- *       - Grupos
- *     summary: Promover participantes a admin
- *     description: Promove participantes do grupo para administradores
- *     security:
- *       - ApiTokenAuth: []
- *     parameters:
- *       - in: path
- *         name: sessionId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID da sessão
- *         example: "minha-sessao-1"
- *       - in: path
- *         name: groupId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID do grupo
- *         example: "120363043716731234@g.us"
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - participants
- *             properties:
- *               participants:
- *                 type: array
- *                 items:
- *                   type: string
- *                 description: Lista de números dos participantes a promover
- *                 example: ["5511999999999", "5511888888888"]
- *     responses:
- *       200:
- *         description: Participantes promovidos com sucesso
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Participantes promovidos a admin com sucesso"
- *                 results:
- *                   type: array
- *                   description: Resultados da operação para cada participante
- *                 promotedParticipants:
- *                   type: array
- *                   items:
- *                     type: string
- *       400:
- *         description: Dados inválidos
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- */
 
-/**
- * @swagger
- * /api/baileys/groups/{sessionId}/{groupId}/demote:
- *   post:
- *     tags:
- *       - Grupos
- *     summary: Despromover admins
- *     description: Remove privilégios de administrador de participantes do grupo
- *     security:
- *       - ApiTokenAuth: []
- *     parameters:
- *       - in: path
- *         name: sessionId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID da sessão
- *         example: "minha-sessao-1"
- *       - in: path
- *         name: groupId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID do grupo
- *         example: "120363043716731234@g.us"
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - participants
- *             properties:
- *               participants:
- *                 type: array
- *                 items:
- *                   type: string
- *                 description: Lista de números dos participantes a despromover
- *                 example: ["5511999999999", "5511888888888"]
- *     responses:
- *       200:
- *         description: Admins despromovidos com sucesso
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Admins despromovidos com sucesso"
- *                 results:
- *                   type: array
- *                   description: Resultados da operação para cada participante
- *                 demotedParticipants:
- *                   type: array
- *                   items:
- *                     type: string
- *       400:
- *         description: Dados inválidos
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- */
 
-/**
- * @swagger
- * /api/baileys/groups/{sessionId}/{groupId}/subject:
- *   put:
- *     tags:
- *       - Grupos
- *     summary: Atualizar nome do grupo
- *     description: Altera o nome/assunto do grupo
- *     security:
- *       - ApiTokenAuth: []
- *     parameters:
- *       - in: path
- *         name: sessionId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID da sessão
- *         example: "minha-sessao-1"
- *       - in: path
- *         name: groupId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID do grupo
- *         example: "120363043716731234@g.us"
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - subject
- *             properties:
- *               subject:
- *                 type: string
- *                 description: Novo nome do grupo
- *                 example: "Novo Nome do Grupo"
- *     responses:
- *       200:
- *         description: Nome do grupo atualizado com sucesso
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Nome do grupo atualizado com sucesso"
- *                 newSubject:
- *                   type: string
- *                   example: "Novo Nome do Grupo"
- *       400:
- *         description: Dados inválidos
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- */
 
-/**
- * @swagger
- * /api/baileys/groups/{sessionId}/{groupId}/description:
- *   put:
- *     tags:
- *       - Grupos
- *     summary: Atualizar descrição do grupo
- *     description: Altera a descrição do grupo
- *     security:
- *       - ApiTokenAuth: []
- *     parameters:
- *       - in: path
- *         name: sessionId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID da sessão
- *         example: "minha-sessao-1"
- *       - in: path
- *         name: groupId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID do grupo
- *         example: "120363043716731234@g.us"
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               description:
- *                 type: string
- *                 description: Nova descrição do grupo (deixe vazio para remover)
- *                 example: "Nova descrição do grupo"
- *     responses:
- *       200:
- *         description: Descrição do grupo atualizada com sucesso
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Descrição do grupo atualizada com sucesso"
- *                 newDescription:
- *                   type: string
- *                   nullable: true
- *                   example: "Nova descrição do grupo"
- *       400:
- *         description: Dados inválidos
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- */
 
-/**
- * @swagger
- * /api/baileys/groups/{sessionId}/{groupId}/settings:
- *   put:
- *     tags:
- *       - Grupos
- *     summary: Configurar permissões do grupo
- *     description: Configura quem pode enviar mensagens e editar informações do grupo
- *     security:
- *       - ApiTokenAuth: []
- *     parameters:
- *       - in: path
- *         name: sessionId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID da sessão
- *         example: "minha-sessao-1"
- *       - in: path
- *         name: groupId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID do grupo
- *         example: "120363043716731234@g.us"
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               onlyAdminsCanSend:
- *                 type: boolean
- *                 description: Se apenas admins podem enviar mensagens
- *                 example: true
- *               onlyAdminsCanEditInfo:
- *                 type: boolean
- *                 description: Se apenas admins podem editar informações do grupo
- *                 example: true
- *     responses:
- *       200:
- *         description: Configurações do grupo atualizadas com sucesso
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Configurações do grupo atualizadas com sucesso"
- *                 settings:
- *                   type: object
- *                   properties:
- *                     onlyAdminsCanSend:
- *                       type: boolean
- *                     onlyAdminsCanEditInfo:
- *                       type: boolean
- *       400:
- *         description: Dados inválidos
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- */
 
-/**
- * @swagger
- * /api/baileys/groups/{sessionId}/{groupId}/leave:
- *   post:
- *     tags:
- *       - Grupos
- *     summary: Sair do grupo
- *     description: Remove a sessão atual do grupo especificado
- *     security:
- *       - ApiTokenAuth: []
- *     parameters:
- *       - in: path
- *         name: sessionId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID da sessão
- *         example: "minha-sessao-1"
- *       - in: path
- *         name: groupId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID do grupo
- *         example: "120363043716731234@g.us"
- *     responses:
- *       200:
- *         description: Saiu do grupo com sucesso
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Saiu do grupo com sucesso"
- *       400:
- *         description: Erro ao sair do grupo
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- */
 
-/**
- * @swagger
- * /api/baileys/groups/{sessionId}/list:
- *   get:
- *     tags:
- *       - Grupos
- *     summary: Listar grupos
- *     description: Retorna uma lista de todos os grupos da sessão
- *     security:
- *       - ApiTokenAuth: []
- *     parameters:
- *       - in: path
- *         name: sessionId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID da sessão
- *         example: "minha-sessao-1"
- *     responses:
- *       200:
- *         description: Lista de grupos obtida com sucesso
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 groups:
- *                   type: array
- *                   items:
- *                     type: object
- *                     properties:
- *                       id:
- *                         type: string
- *                         example: "120363043716731234@g.us"
- *                       name:
- *                         type: string
- *                         example: "Meu Grupo"
- *                       unreadCount:
- *                         type: integer
- *                         example: 0
- *                       lastMessageTime:
- *                         type: integer
- *                         description: Timestamp da última mensagem
- *                       participants:
- *                         type: integer
- *                         description: Número de participantes
- *                 total:
- *                   type: integer
- *                   example: 5
- *       404:
- *         description: Sessão não encontrada
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- */
 
-/**
- * @swagger
- * /api/baileys/groups/{sessionId}/{groupId}/invite-code:
- *   get:
- *     tags:
- *       - Grupos
- *     summary: Obter código de convite do grupo
- *     description: Retorna o código de convite do grupo para compartilhar
- *     security:
- *       - ApiTokenAuth: []
- *     parameters:
- *       - in: path
- *         name: sessionId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID da sessão
- *         example: "minha-sessao-1"
- *       - in: path
- *         name: groupId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID do grupo
- *         example: "120363043716731234@g.us"
- *     responses:
- *       200:
- *         description: Código de convite obtido com sucesso
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 inviteCode:
- *                   type: string
- *                   example: "ABCDEFGHIJKLMNOPqrstuvwxyz123456"
- *                 inviteLink:
- *                   type: string
- *                   example: "https://chat.whatsapp.com/ABCDEFGHIJKLMNOPqrstuvwxyz123456"
- *       400:
- *         description: Erro ao obter código de convite
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- */
 
-/**
- * @swagger
- * /api/baileys/groups/{sessionId}/{groupId}/revoke-invite:
- *   post:
- *     tags:
- *       - Grupos
- *     summary: Revogar código de convite do grupo
- *     description: Revoga o código de convite atual do grupo e gera um novo
- *     security:
- *       - ApiTokenAuth: []
- *     parameters:
- *       - in: path
- *         name: sessionId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID da sessão
- *         example: "minha-sessao-1"
- *       - in: path
- *         name: groupId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID do grupo
- *         example: "120363043716731234@g.us"
- *     responses:
- *       200:
- *         description: Código de convite revogado com sucesso
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Código de convite revogado com sucesso"
- *                 newInviteCode:
- *                   type: string
- *                   example: "ZYXWVUTSRQPONMLKJIHGFEDCBAzyxwvu"
- *                 newInviteLink:
- *                   type: string
- *                   example: "https://chat.whatsapp.com/ZYXWVUTSRQPONMLKJIHGFEDCBAzyxwvu"
- *       400:
- *         description: Erro ao revogar código de convite
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- */
 
-/**
- * @swagger
- * /api/baileys/groups/{sessionId}/{groupId}/messages:
- *   get:
- *     tags:
- *       - Grupos
- *     summary: Obter mensagens do grupo
- *     description: Obtém o histórico de mensagens de um grupo específico
- *     security:
- *       - ApiTokenAuth: []
- *     parameters:
- *       - in: path
- *         name: sessionId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID da sessão
- *         example: "minha-sessao-1"
- *       - in: path
- *         name: groupId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID do grupo
- *         example: "120363043716731234@g.us"
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *           default: 20
- *         description: Número máximo de mensagens a retornar
- *         example: 50
- *       - in: query
- *         name: before
- *         schema:
- *           type: string
- *         description: ID da mensagem para paginação (mensagens anteriores)
- *         example: "3EB0C767B7CE45A3B3A36"
- *     responses:
- *       200:
- *         description: Mensagens do grupo obtidas com sucesso
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 messages:
- *                   type: array
- *                   items:
- *                     type: object
- *                     properties:
- *                       id:
- *                         type: string
- *                         example: "3EB0C767B7CE45A3B3A36"
- *                       messageType:
- *                         type: string
- *                         example: "conversation"
- *                       sender:
- *                         type: string
- *                         example: "5521999999999@c.us"
- *                       timestamp:
- *                         type: number
- *                         example: 1703155200
- *                       content:
- *                         type: string
- *                         example: "Olá pessoal!"
- *                       isFromMe:
- *                         type: boolean
- *                         example: false
- *                 groupInfo:
- *                   type: object
- *                   properties:
- *                     id:
- *                       type: string
- *                       example: "120363043716731234@g.us"
- *                     name:
- *                       type: string
- *                       example: "Meu Grupo"
- *                     participantCount:
- *                       type: number
- *                       example: 15
- *                 pagination:
- *                   type: object
- *                   properties:
- *                     hasMore:
- *                       type: boolean
- *                       example: true
- *                     nextCursor:
- *                       type: string
- *                       example: "3EB0C767B7CE45A3B3A36"
- *       404:
- *         description: Grupo não encontrado
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- */
 
-/**
- * @swagger
- * /api/baileys/groups/{sessionId}/messages/search:
- *   get:
- *     tags:
- *       - Grupos
- *     summary: Buscar mensagens em todos os grupos
- *     description: Busca mensagens em todos os grupos de uma sessão
- *     security:
- *       - ApiTokenAuth: []
- *     parameters:
- *       - in: path
- *         name: sessionId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID da sessão
- *         example: "minha-sessao-1"
- *       - in: query
- *         name: query
- *         required: true
- *         schema:
- *           type: string
- *         description: Termo de busca
- *         example: "reunião"
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *           default: 20
- *         description: Número máximo de resultados
- *         example: 50
- *       - in: query
- *         name: startDate
- *         schema:
- *           type: string
- *           format: date
- *         description: Data inicial da busca
- *         example: "2023-12-01"
- *       - in: query
- *         name: endDate
- *         schema:
- *           type: string
- *           format: date
- *         description: Data final da busca
- *         example: "2023-12-31"
- *     responses:
- *       200:
- *         description: Resultados da busca
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 results:
- *                   type: array
- *                   items:
- *                     type: object
- *                     properties:
- *                       messageId:
- *                         type: string
- *                         example: "3EB0C767B7CE45A3B3A36"
- *                       groupId:
- *                         type: string
- *                         example: "120363043716731234@g.us"
- *                       groupName:
- *                         type: string
- *                         example: "Meu Grupo"
- *                       sender:
- *                         type: string
- *                         example: "5521999999999@c.us"
- *                       content:
- *                         type: string
- *                         example: "Vamos marcar uma reunião"
- *                       timestamp:
- *                         type: number
- *                         example: 1703155200
- *                       messageType:
- *                         type: string
- *                         example: "conversation"
- *                 totalResults:
- *                   type: number
- *                   example: 15
- *                 query:
- *                   type: string
- *                   example: "reunião"
- *                 searchMetadata:
- *                   type: object
- *                   properties:
- *                     searchedGroups:
- *                       type: number
- *                       example: 5
- *                     totalMessages:
- *                       type: number
- *                       example: 1500
- *       400:
- *         description: Parâmetros de busca inválidos
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- */
 
-/**
- * @swagger
- * /api/baileys/download/{downloadId}:
- *   get:
- *     tags:
- *       - Downloads
- *     summary: Baixar arquivo por ID
- *     description: Baixa um arquivo previamente processado usando seu ID único (acesso público sem autenticação)
- *     parameters:
- *       - in: path
- *         name: downloadId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID único do download
- *         example: "download_1234567890abcdef"
- *     responses:
- *       200:
- *         description: Arquivo baixado com sucesso
- *         content:
- *           application/octet-stream:
- *             schema:
- *               type: string
- *               format: binary
- *           image/*:
- *             schema:
- *               type: string
- *               format: binary
- *           audio/*:
- *             schema:
- *               type: string
- *               format: binary
- *           video/*:
- *             schema:
- *               type: string
- *               format: binary
- *       404:
- *         description: Arquivo não encontrado ou link expirado
- *         content:
- *           text/plain:
- *             schema:
- *               type: string
- *               example: "Arquivo não encontrado ou link expirado"
- *       500:
- *         description: Erro interno do servidor
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- */
 
-/**
- * @swagger
- * /api/baileys/downloads:
- *   get:
- *     tags:
- *       - Downloads
- *     summary: Listar downloads disponíveis
- *     description: Lista todos os downloads disponíveis com informações detalhadas
- *     security:
- *       - ApiTokenAuth: []
- *     parameters:
- *       - in: query
- *         name: sessionId
- *         required: false
- *         schema:
- *           type: string
- *         description: ID da sessão para filtrar downloads
- *         example: "minha-sessao-1"
- *     responses:
- *       200:
- *         description: Lista de downloads obtida com sucesso
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 downloads:
- *                   type: array
- *                   items:
- *                     type: object
- *                     properties:
- *                       downloadId:
- *                         type: string
- *                         example: "download_1234567890abcdef"
- *                       fileName:
- *                         type: string
- *                         example: "imagem.jpg"
- *                       size:
- *                         type: number
- *                         example: 1024
- *                       sizeFormatted:
- *                         type: string
- *                         example: "1.00KB"
- *                       mimetype:
- *                         type: string
- *                         example: "image/jpeg"
- *                       messageType:
- *                         type: string
- *                         example: "imageMessage"
- *                       isPtt:
- *                         type: boolean
- *                         example: false
- *                       sessionId:
- *                         type: string
- *                         example: "minha-sessao-1"
- *                       messageId:
- *                         type: string
- *                         example: "msg_id_123"
- *                       uploadedAt:
- *                         type: string
- *                         format: date-time
- *                         example: "2023-12-01T10:00:00Z"
- *                       expiresAt:
- *                         type: string
- *                         format: date-time
- *                         example: "2023-12-08T10:00:00Z"
- *                       isExpired:
- *                         type: boolean
- *                         example: false
- *                       downloadUrl:
- *                         type: string
- *                         example: "http://localhost:3000/api/baileys/download/download_1234567890abcdef"
- *                 total:
- *                   type: number
- *                   example: 1
- *                 sessionId:
- *                   type: string
- *                   nullable: true
- *                   example: "minha-sessao-1"
- *       500:
- *         description: Erro interno do servidor
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/ApiResponse'
- */
 
-/**
- * @swagger
- * /api/baileys/session/{sessionId}/contacts/check:
- *   post:
- *     tags:
- *       - Contacts
- *     summary: Verificar números no WhatsApp
- *     description: Verifica se os números de telefone fornecidos estão registrados no WhatsApp
- *     security:
- *       - ApiTokenAuth: []
- *     parameters:
- *       - in: path
- *         name: sessionId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID da sessão ativa
- *         example: "minha-sessao-1"
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - numbers
- *             properties:
- *               numbers:
- *                 type: array
- *                 items:
- *                   type: string
- *                 description: Array de números de telefone para verificar
- *                 example: ["5511999999999", "5511888888888"]
- *     responses:
- *       200:
- *         description: Verificação realizada com sucesso
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Números verificados com sucesso"
- *                 data:
- *                   type: array
- *                   items:
- *                     type: object
- *                     properties:
- *                       jid:
- *                         type: string
- *                         example: "5511999999999@s.whatsapp.net"
- *                       exists:
- *                         type: boolean
- *                         example: true
- *       400:
- *         description: Dados inválidos
- *       404:
- *         description: Sessão não encontrada
- *       500:
- *         description: Erro interno do servidor
- */
 
-/**
- * @swagger
- * /api/baileys/session/{sessionId}/contacts/info:
- *   post:
- *     tags:
- *       - Contacts
- *     summary: Obter informações de contatos
- *     description: Obtém informações detalhadas dos contatos especificados
- *     security:
- *       - ApiTokenAuth: []
- *     parameters:
- *       - in: path
- *         name: sessionId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID da sessão ativa
- *         example: "minha-sessao-1"
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - contacts
- *             properties:
- *               contacts:
- *                 type: array
- *                 items:
- *                   type: string
- *                 description: Array de JIDs dos contatos
- *                 example: ["5511999999999@s.whatsapp.net"]
- *     responses:
- *       200:
- *         description: Informações obtidas com sucesso
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Informações dos contatos obtidas com sucesso"
- *                 data:
- *                   type: array
- *                   items:
- *                     type: object
- *                     properties:
- *                       id:
- *                         type: string
- *                         example: "5511999999999@s.whatsapp.net"
- *                       name:
- *                         type: string
- *                         example: "João Silva"
- *                       notify:
- *                         type: string
- *                         example: "João"
- *                       verifiedName:
- *                         type: string
- *                         example: "João Silva"
- *       400:
- *         description: Dados inválidos
- *       404:
- *         description: Sessão não encontrada
- *       500:
- *         description: Erro interno do servidor
- */
 
-/**
- * @swagger
- * /api/baileys/session/{sessionId}/contacts/profile:
- *   get:
- *     tags:
- *       - Contacts
- *     summary: Obter foto de perfil
- *     description: Obtém a URL da foto de perfil de um contato
- *     security:
- *       - ApiTokenAuth: []
- *     parameters:
- *       - in: path
- *         name: sessionId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID da sessão ativa
- *         example: "minha-sessao-1"
- *       - in: query
- *         name: jid
- *         required: true
- *         schema:
- *           type: string
- *         description: JID do contato
- *         example: "5511999999999@s.whatsapp.net"
- *       - in: query
- *         name: type
- *         required: false
- *         schema:
- *           type: string
- *           enum: ["image", "preview"]
- *         description: Tipo da imagem (image para alta resolução, preview para baixa)
- *         example: "image"
- *     responses:
- *       200:
- *         description: Foto de perfil obtida com sucesso
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Foto de perfil obtida com sucesso"
- *                 data:
- *                   type: object
- *                   properties:
- *                     id:
- *                       type: string
- *                       example: "5511999999999@s.whatsapp.net"
- *                     url:
- *                       type: string
- *                       example: "https://pps.whatsapp.net/v/t61.24694-24/..."
- *                     tag:
- *                       type: string
- *                       example: "1234567890"
- *       400:
- *         description: Dados inválidos
- *       404:
- *         description: Sessão ou contato não encontrado
- *       500:
- *         description: Erro interno do servidor
- */
 
-/**
- * @swagger
- * /api/baileys/session/{sessionId}/contacts/status:
- *   get:
- *     tags:
- *       - Contacts
- *     summary: Obter status do contato
- *     description: Obtém o status/sobre do contato especificado
- *     security:
- *       - ApiTokenAuth: []
- *     parameters:
- *       - in: path
- *         name: sessionId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID da sessão ativa
- *         example: "minha-sessao-1"
- *       - in: query
- *         name: jid
- *         required: true
- *         schema:
- *           type: string
- *         description: JID do contato
- *         example: "5511999999999@s.whatsapp.net"
- *     responses:
- *       200:
- *         description: Status obtido com sucesso
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Status do contato obtido com sucesso"
- *                 data:
- *                   type: object
- *                   properties:
- *                     status:
- *                       type: string
- *                       example: "Disponível"
- *                     setAt:
- *                       type: string
- *                       format: date-time
- *                       example: "2023-12-01T10:00:00Z"
- *       400:
- *         description: Dados inválidos
- *       404:
- *         description: Sessão ou contato não encontrado
- *       500:
- *         description: Erro interno do servidor
- */
 
-/**
- * @swagger
- * /api/baileys/session/{sessionId}/contacts/block:
- *   post:
- *     tags:
- *       - Contacts
- *     summary: Bloquear contatos
- *     description: Bloqueia uma lista de contatos especificados
- *     security:
- *       - ApiTokenAuth: []
- *     parameters:
- *       - in: path
- *         name: sessionId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID da sessão ativa
- *         example: "minha-sessao-1"
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - contacts
- *             properties:
- *               contacts:
- *                 type: array
- *                 items:
- *                   type: string
- *                 description: Array de JIDs dos contatos para bloquear
- *                 example: ["5511999999999@s.whatsapp.net", "5511888888888@s.whatsapp.net"]
- *     responses:
- *       200:
- *         description: Contatos bloqueados com sucesso
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Contatos bloqueados com sucesso"
- *                 data:
- *                   type: object
- *                   properties:
- *                     blocked:
- *                       type: array
- *                       items:
- *                         type: string
- *                       example: ["5511999999999@s.whatsapp.net"]
- *       400:
- *         description: Dados inválidos
- *       404:
- *         description: Sessão não encontrada
- *       500:
- *         description: Erro interno do servidor
- */
 
-/**
- * @swagger
- * /api/baileys/session/{sessionId}/contacts/unblock:
- *   post:
- *     tags:
- *       - Contacts
- *     summary: Desbloquear contatos
- *     description: Desbloqueia uma lista de contatos especificados
- *     security:
- *       - ApiTokenAuth: []
- *     parameters:
- *       - in: path
- *         name: sessionId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID da sessão ativa
- *         example: "minha-sessao-1"
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - contacts
- *             properties:
- *               contacts:
- *                 type: array
- *                 items:
- *                   type: string
- *                 description: Array de JIDs dos contatos para desbloquear
- *                 example: ["5511999999999@s.whatsapp.net", "5511888888888@s.whatsapp.net"]
- *     responses:
- *       200:
- *         description: Contatos desbloqueados com sucesso
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "Contatos desbloqueados com sucesso"
- *                 data:
- *                   type: object
- *                   properties:
- *                     unblocked:
- *                       type: array
- *                       items:
- *                         type: string
- *                       example: ["5511999999999@s.whatsapp.net"]
- *       400:
- *         description: Dados inválidos
- *       404:
- *         description: Sessão não encontrada
- *       500:
- *         description: Erro interno do servidor
- */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 module.exports = {
   swaggerSpec,

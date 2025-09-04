@@ -7,10 +7,10 @@ const { authenticateToken } = require('../middleware/auth');
 const cron = require('node-cron');
 const { v4: uuidv4 } = require('uuid');
 
-// Map apenas para jobs de cron (não podem ser persistidos no DB)
-const activeCronJobs = new Map(); // collectorKey -> cron job
 
-// Funções auxiliares para persistência no MongoDB
+const activeCronJobs = new Map();
+
+
 async function createCollectorInDB(sessionId, groupId, userId, config) {
   try {
     const db = database.getDb();
@@ -19,12 +19,12 @@ async function createCollectorInDB(sessionId, groupId, userId, config) {
     const now = new Date();
     const currentHour = now.getHours();
     const currentMinute = now.getMinutes();
-    
-    // Converter horários para minutos para comparação mais precisa
+
+
     const currentTimeInMinutes = currentHour * 60 + currentMinute;
     const startTimeInMinutes = (config.startHour || 0) * 60 + (config.startMinute || 0);
     const endTimeInMinutes = (config.endHour || 0) * 60 + (config.endMinute || 0);
-    
+
     const isActive = currentTimeInMinutes >= startTimeInMinutes && currentTimeInMinutes < endTimeInMinutes;
     const collectorId = uuidv4();
 
@@ -71,13 +71,13 @@ async function updateCollectorStatus(collectorId, updates) {
   }
 }
 
-// Função para limpar mensagens duplicadas de um coletor específico
+
 async function cleanDuplicateMessages(collectorId) {
   try {
     const db = database.getDb();
     if (!db) return { success: false, error: 'Database não disponível' };
 
-    // Buscar todas as mensagens do coletor
+
     const messages = await db.collection('collectedMessages')
       .find({ collectorId })
       .sort({ collectedAt: 1 })
@@ -87,10 +87,10 @@ async function cleanDuplicateMessages(collectorId) {
       return { success: true, removed: 0, total: 0 };
     }
 
-    // Encontrar duplicatas (manter a primeira ocorrência)
+
     const seenIds = new Set();
     const duplicateIds = [];
-    
+
     messages.forEach(msg => {
       if (seenIds.has(msg.id)) {
         duplicateIds.push(msg._id);
@@ -100,17 +100,17 @@ async function cleanDuplicateMessages(collectorId) {
     });
 
     if (duplicateIds.length > 0) {
-      // Deletar duplicatas
+
       await db.collection('collectedMessages').deleteMany({
         _id: { $in: duplicateIds }
       });
 
-      // Atualizar contador no coletor
+
       const uniqueCount = messages.length - duplicateIds.length;
       await db.collection('messageCollectors').updateOne(
         { _id: collectorId },
         {
-          $set: { 
+          $set: {
             totalMessages: uniqueCount,
             lastActivity: new Date()
           }
@@ -120,9 +120,9 @@ async function cleanDuplicateMessages(collectorId) {
       logger.info(`🧹 Removidas ${duplicateIds.length} mensagens duplicadas do coletor ${collectorId}`);
     }
 
-    return { 
-      success: true, 
-      removed: duplicateIds.length, 
+    return {
+      success: true,
+      removed: duplicateIds.length,
       total: messages.length,
       unique: messages.length - duplicateIds.length
     };
@@ -137,7 +137,7 @@ async function addMessageToDB(collectorId, messageData) {
     const db = database.getDb();
     if (!db) return false;
 
-    // Verificar se a mensagem já existe usando o ID único do WhatsApp
+
     const existingMessage = await db.collection('collectedMessages').findOne({
       collectorId,
       id: messageData.id
@@ -145,17 +145,17 @@ async function addMessageToDB(collectorId, messageData) {
 
     if (existingMessage) {
       logger.debug(`⚠️  Mensagem duplicada ignorada: ${messageData.id}`);
-      return false; // Não é erro, apenas mensagem duplicada
+      return false;
     }
 
-    // Adicionar mensagem à collection de mensagens coletadas
+
     await db.collection('collectedMessages').insertOne({
       collectorId,
       ...messageData,
       collectedAt: new Date(),
     });
 
-    // Incrementar contador no coletor
+
     await db.collection('messageCollectors').updateOne(
       { _id: collectorId },
       {
@@ -192,11 +192,11 @@ async function getActiveCollectors(userId = null) {
   }
 }
 
-// Função para extrair texto das mensagens
+
 function extractTextFromMessage(message) {
   if (!message.message) return null;
 
-  // Extrair texto de diferentes tipos de mensagem
+
   if (message.message.conversation) {
     return message.message.conversation;
   }
@@ -206,11 +206,11 @@ function extractTextFromMessage(message) {
   }
 
   if (message.message.quotedMessage) {
-    // Tentar extrair texto de mensagem citada
+
     return extractTextFromMessage({ message: message.message.quotedMessage });
   }
 
-  // Para outros tipos, retornar indicador do tipo
+
   if (message.message.imageMessage) return '[Imagem]';
   if (message.message.videoMessage) return '[Vídeo]';
   if (message.message.audioMessage) return '[Áudio]';
@@ -220,7 +220,7 @@ function extractTextFromMessage(message) {
   return null;
 }
 
-// Função para extrair dados completos da mensagem (incluindo mídia)
+
 async function extractMessageData(message, sessionId, collectorConfig) {
   if (!message.message) return null;
 
@@ -239,10 +239,10 @@ async function extractMessageData(message, sessionId, collectorConfig) {
     quotedMessage: null
   };
 
-  // Função para extrair informações de mensagem citada
+
   const extractQuotedMessageInfo = (contextInfo) => {
     if (!contextInfo || !contextInfo.quotedMessage) return null;
-    
+
     const quoted = contextInfo.quotedMessage;
     let quotedInfo = {
       id: contextInfo.stanzaId,
@@ -252,7 +252,7 @@ async function extractMessageData(message, sessionId, collectorConfig) {
       caption: null
     };
 
-    // Extrair texto/tipo da mensagem citada
+
     if (quoted.conversation) {
       quotedInfo.text = quoted.conversation;
     } else if (quoted.extendedTextMessage) {
@@ -280,29 +280,29 @@ async function extractMessageData(message, sessionId, collectorConfig) {
     return quotedInfo;
   };
 
-  // Extrair texto de diferentes tipos de mensagem
+
   if (message.message.conversation) {
     messageData.text = message.message.conversation;
   } else if (message.message.extendedTextMessage) {
     messageData.text = message.message.extendedTextMessage.text;
-    
-    // Verificar se há mensagem citada
+
+
     if (message.message.extendedTextMessage.contextInfo) {
       messageData.quotedMessage = extractQuotedMessageInfo(message.message.extendedTextMessage.contextInfo);
     }
-  } else if (message.message.imageMessage || message.message.videoMessage || 
-             message.message.audioMessage || message.message.documentMessage || 
+  } else if (message.message.imageMessage || message.message.videoMessage ||
+             message.message.audioMessage || message.message.documentMessage ||
              message.message.stickerMessage) {
-    // Mensagem com mídia - tentar fazer download
+
     messageData.hasMedia = true;
-    
-    // Determinar tipo de mídia e extrair caption
+
+
     if (message.message.imageMessage) {
       messageData.mediaType = 'image';
       messageData.caption = message.message.imageMessage.caption || null;
       messageData.text = messageData.caption || '[Imagem]';
-      
-      // Verificar se há mensagem citada
+
+
       if (message.message.imageMessage.contextInfo) {
         messageData.quotedMessage = extractQuotedMessageInfo(message.message.imageMessage.contextInfo);
       }
@@ -310,16 +310,16 @@ async function extractMessageData(message, sessionId, collectorConfig) {
       messageData.mediaType = 'video';
       messageData.caption = message.message.videoMessage.caption || null;
       messageData.text = messageData.caption || '[Vídeo]';
-      
-      // Verificar se há mensagem citada
+
+
       if (message.message.videoMessage.contextInfo) {
         messageData.quotedMessage = extractQuotedMessageInfo(message.message.videoMessage.contextInfo);
       }
     } else if (message.message.audioMessage) {
       messageData.mediaType = 'audio';
       messageData.text = '[Áudio]';
-      
-      // Verificar se há mensagem citada
+
+
       if (message.message.audioMessage.contextInfo) {
         messageData.quotedMessage = extractQuotedMessageInfo(message.message.audioMessage.contextInfo);
       }
@@ -328,24 +328,24 @@ async function extractMessageData(message, sessionId, collectorConfig) {
       messageData.caption = message.message.documentMessage.caption || null;
       const fileName = message.message.documentMessage.fileName || 'arquivo';
       messageData.text = messageData.caption || `[Documento: ${fileName}]`;
-      
-      // Verificar se há mensagem citada
+
+
       if (message.message.documentMessage.contextInfo) {
         messageData.quotedMessage = extractQuotedMessageInfo(message.message.documentMessage.contextInfo);
       }
     } else if (message.message.stickerMessage) {
       messageData.mediaType = 'sticker';
       messageData.text = '[Figurinha]';
-      
-      // Verificar se há mensagem citada
+
+
       if (message.message.stickerMessage.contextInfo) {
         messageData.quotedMessage = extractQuotedMessageInfo(message.message.stickerMessage.contextInfo);
       }
     }
 
-    // Verificar se deve fazer download da mídia (padrão: sempre tentar, só pular se explicitamente false)
+
     const shouldDownload = !collectorConfig || collectorConfig.downloadMedia !== false;
-    
+
     if (shouldDownload) {
       try {
         const sock = global.whatsappSessions?.get(sessionId)?.sock;
@@ -356,10 +356,10 @@ async function extractMessageData(message, sessionId, collectorConfig) {
         } else {
           logger.info(`📥 Tentando download de ${messageData.mediaType} para mensagem ${message.key.id}`);
           const mediaResult = await global.downloadMediaToFile(sock, message, sessionId);
-          
+
           if (mediaResult && mediaResult.downloadUrl) {
             messageData.mediaUrl = mediaResult.downloadUrl;
-            // Se há caption, mostrar caption + URL, senão só URL
+
             if (messageData.caption) {
               messageData.text = `${messageData.caption}\n${mediaResult.downloadUrl}`;
             } else {
@@ -375,22 +375,22 @@ async function extractMessageData(message, sessionId, collectorConfig) {
         }
       } catch (error) {
         logger.error(`❌ Erro ao fazer download de ${messageData.mediaType}: ${error.message}`, error);
-        // Manter o texto placeholder se o download falhar
+
         messageData.text = `[${messageData.mediaType === 'image' ? 'Imagem' : messageData.mediaType === 'video' ? 'Vídeo' : messageData.mediaType === 'audio' ? 'Áudio' : messageData.mediaType === 'document' ? 'Documento' : messageData.mediaType === 'sticker' ? 'Figurinha' : 'Mídia'} - Erro]`;
       }
     }
-    // Se downloadMedia for false, manter apenas o placeholder [Tipo] ou caption se existir
+
   }
 
   return messageData;
 }
 
-// Função para configurar cron jobs baseado no tipo de agendamento
+
 function setupCronJobs(collectorId, config) {
   const timezone = config.timezone || 'America/Sao_Paulo';
   const jobs = [];
 
-  // Verificar se o coletor já expirou
+
   const now = new Date();
   if (config.endDate && now > config.endDate) {
     logger.info(`Coletor ${collectorId} expirado, não criando cron jobs`);
@@ -410,7 +410,7 @@ function setupCronJobs(collectorId, config) {
     case 'daily':
       const startCron = `${config.startMinute || 0} ${config.startHour || 0} * * *`;
       const stopCron = `${config.endMinute || 0} ${config.endHour || 0} * * *`;
-      
+
       jobs.push(cron.schedule(startCron, () => startCollection(collectorId, config), { scheduled: true, timezone }));
       jobs.push(cron.schedule(stopCron, () => stopCollection(collectorId, config), { scheduled: true, timezone }));
       break;
@@ -420,7 +420,7 @@ function setupCronJobs(collectorId, config) {
         const daysStr = config.weekDays.join(',');
         const startWeeklyCron = `${config.startMinute || 0} ${config.startHour || 0} * * ${daysStr}`;
         const stopWeeklyCron = `${config.endMinute || 0} ${config.endHour || 0} * * ${daysStr}`;
-        
+
         jobs.push(cron.schedule(startWeeklyCron, () => startCollection(collectorId, config), { scheduled: true, timezone }));
         jobs.push(cron.schedule(stopWeeklyCron, () => stopCollection(collectorId, config), { scheduled: true, timezone }));
       }
@@ -434,10 +434,10 @@ function setupCronJobs(collectorId, config) {
             const day = date.getDate();
             const month = date.getMonth() + 1;
             const year = date.getFullYear();
-            
+
             const startSpecificCron = `${config.startMinute || 0} ${config.startHour || 0} ${day} ${month} *`;
             const stopSpecificCron = `${config.endMinute || 0} ${config.endHour || 0} ${day} ${month} *`;
-            
+
             jobs.push(cron.schedule(startSpecificCron, () => startCollection(collectorId, config), { scheduled: true, timezone }));
             jobs.push(cron.schedule(stopSpecificCron, () => stopCollection(collectorId, config), { scheduled: true, timezone }));
           }
@@ -450,18 +450,18 @@ function setupCronJobs(collectorId, config) {
       return;
   }
 
-  // Armazenar jobs para cleanup posterior
+
   if (jobs.length > 0) {
     activeCronJobs.set(collectorId, jobs);
     logger.info(`📅 Configurados ${jobs.length} cron jobs para coletor ${collectorId} (${config.scheduleType})`);
   }
 }
 
-// Função auxiliar para iniciar coleta
+
 async function startCollection(collectorId, config) {
-  // Verificar se ainda está dentro do período de duração
+
   const now = new Date();
-  
+
   if (config.endDate && now > config.endDate) {
     logger.info(`Coletor ${collectorId} expirado por data final`);
     await updateCollectorStatus(collectorId, { status: 'completed', isActive: false });
@@ -485,13 +485,13 @@ async function startCollection(collectorId, config) {
   logger.info(`🕒 Cron: Iniciando coleta para ${collectorId} às ${String(config.startHour || 0).padStart(2, '0')}:${String(config.startMinute || 0).padStart(2, '0')}`);
 }
 
-// Função auxiliar para parar coleta
+
 async function stopCollection(collectorId, config) {
   try {
     const db = database.getDb();
     if (!db) return;
 
-    // Buscar dados completos do coletor
+
     const collector = await db.collection('messageCollectors').findOne({ _id: collectorId });
     if (!collector) {
       logger.warn(`Coletor ${collectorId} não encontrado ao parar`);
@@ -503,13 +503,13 @@ async function stopCollection(collectorId, config) {
       isActive: false,
       endTime: new Date(),
     });
-    
+
     logger.info(`🕒 Cron: Parando coleta para ${collectorId} às ${String(config.endHour || 0).padStart(2, '0')}:${String(config.endMinute || 0).padStart(2, '0')}`);
 
-    // Marcar resumo automático como pendente para instruções adicionais
+
     if (collector.config?.autoSummary && collector.config?.summaryConfig?.summaryTime === 'end') {
       try {
-        // Atualizar status para indicar que há resumo pendente
+
         await updateCollectorStatus(collectorId, {
           pendingAutoSummary: true,
           autoSummaryPendingSince: new Date()
@@ -520,7 +520,7 @@ async function stopCollection(collectorId, config) {
       }
     }
 
-    // Reiniciar coletor diário se configurado
+
     if (config.scheduleType === 'daily' && shouldRestartCollector(collector)) {
       try {
         await restartCollectorWithNewName(collector);
@@ -534,7 +534,7 @@ async function stopCollection(collectorId, config) {
   }
 }
 
-// Função auxiliar para verificar se o usuário possui a sessão (mesma lógica do app principal)
+
 function checkUserSessionPermission(sessionId, userId) {
   if (!global.whatsappSessions) {
     return {
@@ -549,7 +549,7 @@ function checkUserSessionPermission(sessionId, userId) {
     return { success: false, error: 'Sessão não encontrada', status: 404 };
   }
 
-  // Verificar se o usuário é dono da sessão
+
   const sessionUserId = session.userId.toString();
   const requestUserId = userId.toString();
 
@@ -564,18 +564,18 @@ function checkUserSessionPermission(sessionId, userId) {
   return { success: true, session };
 }
 
-// POST /api/message-collector/start
-// Iniciar coleta de mensagens para um grupo
+
+
 router.post('/start', authenticateToken, async (req, res) => {
   try {
-    const { 
-      sessionId, 
-      groupId, 
-      startHour, 
+    const {
+      sessionId,
+      groupId,
+      startHour,
       startMinute = 0,
-      endHour, 
+      endHour,
       endMinute = 0,
-      timezone, 
+      timezone,
       name,
       scheduleType = 'daily',
       weekDays = [],
@@ -584,7 +584,7 @@ router.post('/start', authenticateToken, async (req, res) => {
       durationDays = 7,
       endDate = '',
       downloadMedia = true,
-      // Novas opções para resumo automático
+
       autoSummary = false,
       summaryConfig = {}
     } = req.body;
@@ -603,7 +603,7 @@ router.post('/start', authenticateToken, async (req, res) => {
       });
     }
 
-    // Validações específicas para cada tipo de agendamento
+
     if (scheduleType === 'weekly' && (!weekDays || weekDays.length === 0)) {
       return res.status(400).json({
         success: false,
@@ -625,7 +625,7 @@ router.post('/start', authenticateToken, async (req, res) => {
       });
     }
 
-    // Verificar se o usuário possui a sessão
+
     const sessionCheck = checkUserSessionPermission(sessionId, userId);
     if (!sessionCheck.success) {
       return res.status(sessionCheck.status).json({
@@ -647,8 +647,8 @@ router.post('/start', authenticateToken, async (req, res) => {
       duration,
       durationDays: duration === 'days' ? durationDays : null,
       endDate: duration === 'until_date' ? new Date(endDate) : null,
-      downloadMedia: downloadMedia !== false, // padrão true, só false se explicitamente definido
-      // Configurações de resumo automático
+      downloadMedia: downloadMedia !== false,
+
       autoSummary: autoSummary || false,
       summaryConfig: {
         tone: summaryConfig?.tone || 'professional',
@@ -662,7 +662,7 @@ router.post('/start', authenticateToken, async (req, res) => {
       userId: new ObjectId(userId),
     };
 
-    // Criar coletor no banco de dados
+
     const collectorId = await createCollectorInDB(
       sessionId,
       groupId,
@@ -676,7 +676,7 @@ router.post('/start', authenticateToken, async (req, res) => {
       });
     }
 
-    // Configurar cron jobs
+
     setupCronJobs(collectorId, config);
 
     res.json({
@@ -693,22 +693,22 @@ router.post('/start', authenticateToken, async (req, res) => {
   }
 });
 
-// POST /api/message-collector/stop
-// Parar coleta de mensagens
+
+
 router.post('/stop', authenticateToken, async (req, res) => {
   try {
-    const { 
-      collectorId, 
-      generateSummary = false, 
-      sendToGroup = false, 
+    const {
+      collectorId,
+      generateSummary = false,
+      sendToGroup = false,
       summaryTone = 'professional',
       customInstructions = '',
       topParticipants = 5,
-      customApiKey = null 
+      customApiKey = null
     } = req.body;
     const userId = req.user._id;
 
-    // Buscar coletor pelo UUID
+
     let collector;
     try {
       const db = database.getDb();
@@ -727,37 +727,37 @@ router.post('/stop', authenticateToken, async (req, res) => {
           message: 'Coletor não encontrado',
         });
       }
-      // Verificar permissão do usuário
+
       if (collector.userId.toString() !== userId.toString()) {
         return res.status(403).json({
           success: false,
           message: 'Você não tem permissão para esse coletor',
         });
       }
-      // Parar cron jobs
+
       const cronJobs = activeCronJobs.get(collectorId);
       if (cronJobs) {
         if (Array.isArray(cronJobs)) {
           cronJobs.forEach(job => job.stop());
         } else {
-          // Compatibilidade com formato antigo
+
           if (cronJobs.startJob) cronJobs.startJob.stop();
           if (cronJobs.stopJob) cronJobs.stopJob.stop();
         }
         activeCronJobs.delete(collectorId);
         logger.info(`🛑 Cron jobs parados para coletor ${collectorId}`);
       }
-      // Atualizar status para completed
+
       await updateCollectorStatus(collectorId, {
         status: 'completed',
         isActive: false,
         endTime: new Date(),
       });
 
-      // Gerar resumo se solicitado pelo usuário OU se configurado automaticamente
-      const shouldGenerateSummary = generateSummary || 
+
+      const shouldGenerateSummary = generateSummary ||
         (collector.config?.autoSummary && collector.config?.summaryConfig?.summaryTime === 'end');
-        
+
       if (shouldGenerateSummary) {
         try {
           const summaryConfig = {
@@ -765,10 +765,10 @@ router.post('/stop', authenticateToken, async (req, res) => {
             sendToGroup: sendToGroup || collector.config?.summaryConfig?.sendToGroup || false,
             customInstructions: customInstructions || collector.config?.summaryConfig?.customInstructions || '',
             topParticipants: Math.max(3, Math.min(20, parseInt(topParticipants) || collector.config?.summaryConfig?.topParticipants || 5)),
-            customApiKey: customApiKey || null // Usar chave do frontend se fornecida
+            customApiKey: customApiKey || null
           };
-          
-          // Temporariamente adicionar configuração do resumo manual
+
+
           const collectorWithSummaryConfig = {
             ...collector,
             config: {
@@ -779,12 +779,12 @@ router.post('/stop', authenticateToken, async (req, res) => {
               }
             }
           };
-          
+
           await generateAndSendSummary(collectorId, collectorWithSummaryConfig);
           logger.info(`📝 Resumo gerado ao parar coletor ${collectorId}`);
         } catch (summaryError) {
           logger.error('Erro ao gerar resumo final:', summaryError);
-          // Não falhar a operação de parar o coletor por causa do resumo
+
         }
       }
     } catch (dbError) {
@@ -816,8 +816,8 @@ router.post('/stop', authenticateToken, async (req, res) => {
   }
 });
 
-// GET /api/message-collector/list
-// Listar coletores do usuário
+
+
 router.get('/list', authenticateToken, async (req, res) => {
   try {
     const userId = req.user._id;
@@ -836,7 +836,7 @@ router.get('/list', authenticateToken, async (req, res) => {
       logger.warn('Erro ao buscar coletores no banco:', dbError.message);
     }
 
-    // Buscar coletores ativos diretamente do banco - APENAS DO USUÁRIO ATUAL
+
     const activeCollectorsList = await getActiveCollectors(userId);
     const activeFormatted = activeCollectorsList.map((collector) => ({
       id: collector._id,
@@ -847,7 +847,7 @@ router.get('/list', authenticateToken, async (req, res) => {
       startTime: collector.startTime,
     }));
 
-    // Adicionar informações sobre resumos pendentes
+
     const collectorsWithPendingInfo = collectors.map(collector => ({
       ...collector,
       hasPendingAutoSummary: !!collector.pendingAutoSummary,
@@ -869,15 +869,15 @@ router.get('/list', authenticateToken, async (req, res) => {
   }
 });
 
-// POST /api/message-collector/generate-pending-summary
-// Gerar resumo automático pendente com instruções adicionais
+
+
 router.post('/generate-pending-summary', authenticateToken, async (req, res) => {
   try {
-    const { 
-      collectorId, 
+    const {
+      collectorId,
       customInstructions = '',
       topParticipants = 5,
-      customApiKey = null 
+      customApiKey = null
     } = req.body;
     const userId = req.user._id;
 
@@ -888,7 +888,7 @@ router.post('/generate-pending-summary', authenticateToken, async (req, res) => 
       });
     }
 
-    // Buscar coletor e verificar se tem resumo pendente
+
     const db = database.getDb();
     if (!db) {
       return res.status(500).json({
@@ -897,7 +897,7 @@ router.post('/generate-pending-summary', authenticateToken, async (req, res) => 
       });
     }
 
-    const collector = await db.collection('messageCollectors').findOne({ 
+    const collector = await db.collection('messageCollectors').findOne({
       _id: collectorId,
       userId: new ObjectId(userId),
       pendingAutoSummary: true
@@ -910,10 +910,10 @@ router.post('/generate-pending-summary', authenticateToken, async (req, res) => 
       });
     }
 
-    // Verificar se o resumo não expirou (opcional - 24h limite)
+
     const pendingSince = new Date(collector.autoSummaryPendingSince);
     const hoursElapsed = (new Date() - pendingSince) / (1000 * 60 * 60);
-    
+
     if (hoursElapsed > 24) {
       await updateCollectorStatus(collectorId, {
         pendingAutoSummary: false,
@@ -926,15 +926,15 @@ router.post('/generate-pending-summary', authenticateToken, async (req, res) => 
     }
 
     try {
-      // Criar configuração combinada com instruções do usuário
+
       const enhancedSummaryConfig = {
         ...collector.config.summaryConfig,
         customInstructions: customInstructions || collector.config?.summaryConfig?.customInstructions || '',
         topParticipants: Math.max(3, Math.min(20, parseInt(topParticipants) || collector.config?.summaryConfig?.topParticipants || 5)),
         customApiKey: customApiKey || null
       };
-      
-      // Atualizar coletor com nova configuração
+
+
       const collectorWithEnhancedConfig = {
         ...collector,
         config: {
@@ -942,18 +942,18 @@ router.post('/generate-pending-summary', authenticateToken, async (req, res) => 
           summaryConfig: enhancedSummaryConfig
         }
       };
-      
-      // Marcar como processando
+
+
       await updateCollectorStatus(collectorId, {
         pendingAutoSummary: false,
         processingAutoSummary: true,
         processingStartedAt: new Date()
       });
 
-      // Gerar resumo com as instruções adicionais
+
       await generateAndSendSummary(collectorId, collectorWithEnhancedConfig);
-      
-      // Marcar como concluído
+
+
       await updateCollectorStatus(collectorId, {
         processingAutoSummary: false,
         autoSummaryCompletedAt: new Date()
@@ -969,8 +969,8 @@ router.post('/generate-pending-summary', authenticateToken, async (req, res) => 
 
     } catch (summaryError) {
       logger.error('Erro ao gerar resumo com instruções adicionais:', summaryError);
-      
-      // Reverter status em caso de erro
+
+
       await updateCollectorStatus(collectorId, {
         pendingAutoSummary: true,
         processingAutoSummary: false
@@ -992,12 +992,12 @@ router.post('/generate-pending-summary', authenticateToken, async (req, res) => 
   }
 });
 
-// DELETE /api/message-collector/delete-all
-// Excluir todos os coletores do usuário
+
+
 router.delete('/delete-all', authenticateToken, async (req, res) => {
   try {
     const userId = req.user._id;
-    
+
     const db = database.getDb();
     if (!db) {
       return res.status(500).json({
@@ -1006,11 +1006,11 @@ router.delete('/delete-all', authenticateToken, async (req, res) => {
       });
     }
 
-    // Buscar todos os coletores do usuário
+
     const collectors = await db.collection('messageCollectors')
       .find({ userId: new ObjectId(userId) })
       .toArray();
-    
+
     if (collectors.length === 0) {
       return res.json({
         success: true,
@@ -1019,7 +1019,7 @@ router.delete('/delete-all', authenticateToken, async (req, res) => {
       });
     }
 
-    // Parar todos os cron jobs ativos
+
     let stoppedJobs = 0;
     for (const collector of collectors) {
       const cronJobs = activeCronJobs.get(collector._id);
@@ -1027,7 +1027,7 @@ router.delete('/delete-all', authenticateToken, async (req, res) => {
         if (Array.isArray(cronJobs)) {
           cronJobs.forEach(job => job.stop());
         } else {
-          // Compatibilidade com formato antigo
+
           if (cronJobs.startJob) cronJobs.startJob.stop();
           if (cronJobs.stopJob) cronJobs.stopJob.stop();
         }
@@ -1036,14 +1036,14 @@ router.delete('/delete-all', authenticateToken, async (req, res) => {
       }
     }
 
-    // Coletar IDs dos coletores
+
     const collectorIds = collectors.map(c => c._id);
 
-    // Excluir todas as mensagens coletadas
+
     const messagesResult = await db.collection('collectedMessages')
       .deleteMany({ collectorId: { $in: collectorIds } });
 
-    // Excluir todos os coletores
+
     const collectorsResult = await db.collection('messageCollectors')
       .deleteMany({ userId: new ObjectId(userId) });
 
@@ -1067,13 +1067,13 @@ router.delete('/delete-all', authenticateToken, async (req, res) => {
   }
 });
 
-// DELETE /api/message-collector/delete/:collectorId
-// Excluir um coletor específico
+
+
 router.delete('/delete/:collectorId', authenticateToken, async (req, res) => {
   try {
     const { collectorId } = req.params;
     const userId = req.user._id;
-    
+
     const db = database.getDb();
     if (!db) {
       return res.status(500).json({
@@ -1082,10 +1082,10 @@ router.delete('/delete/:collectorId', authenticateToken, async (req, res) => {
       });
     }
 
-    // Buscar coletor para verificar permissão
+
     const collector = await db.collection('messageCollectors')
       .findOne({ _id: collectorId, userId: new ObjectId(userId) });
-    
+
     if (!collector) {
       return res.status(404).json({
         success: false,
@@ -1093,13 +1093,13 @@ router.delete('/delete/:collectorId', authenticateToken, async (req, res) => {
       });
     }
 
-    // Parar cron jobs se estiverem ativos
+
     const cronJobs = activeCronJobs.get(collectorId);
     if (cronJobs) {
       if (Array.isArray(cronJobs)) {
         cronJobs.forEach(job => job.stop());
       } else {
-        // Compatibilidade com formato antigo
+
         if (cronJobs.startJob) cronJobs.startJob.stop();
         if (cronJobs.stopJob) cronJobs.stopJob.stop();
       }
@@ -1107,11 +1107,11 @@ router.delete('/delete/:collectorId', authenticateToken, async (req, res) => {
       logger.info(`🛑 Cron jobs parados para coletor ${collectorId}`);
     }
 
-    // Excluir mensagens coletadas
+
     const messagesResult = await db.collection('collectedMessages')
       .deleteMany({ collectorId });
 
-    // Excluir o coletor
+
     const collectorResult = await db.collection('messageCollectors')
       .deleteOne({ _id: collectorId });
 
@@ -1133,13 +1133,13 @@ router.delete('/delete/:collectorId', authenticateToken, async (req, res) => {
   }
 });
 
-// GET /api/message-collector/messages/:collectorId
-// Obter mensagens coletadas
+
+
 router.get('/messages/:collectorId', authenticateToken, async (req, res) => {
   try {
     const { collectorId } = req.params;
     const userId = req.user._id;
-    // Buscar coletor pelo UUID
+
     let collector = null;
     try {
       const db = database.getDb();
@@ -1152,24 +1152,24 @@ router.get('/messages/:collectorId', authenticateToken, async (req, res) => {
       logger.warn('Erro ao buscar coletor:', dbError.message);
     }
     if (collector) {
-      // Verificar permissão do usuário
+
       if (collector.userId.toString() !== userId.toString()) {
         return res.status(403).json({
           success: false,
           message: 'Você não tem permissão para esse coletor',
         });
       }
-      // Buscar mensagens coletadas e limpar duplicatas automaticamente
+
       let messages = [];
       try {
         const db = database.getDb();
         if (db) {
-          // Limpar duplicatas antes de buscar
+
           const cleanResult = await cleanDuplicateMessages(collectorId);
           if (cleanResult.success && cleanResult.removed > 0) {
             logger.info(`🧹 Limpeza automática: ${cleanResult.removed} mensagens duplicadas removidas`);
           }
-          
+
           messages = await db
             .collection('collectedMessages')
             .find({ collectorId })
@@ -1193,7 +1193,7 @@ router.get('/messages/:collectorId', authenticateToken, async (req, res) => {
         isActive: collector.isActive,
       });
     }
-    // Caso não encontre o coletor
+
     return res.status(404).json({
       success: false,
       message: 'Coletor não encontrado',
@@ -1207,17 +1207,17 @@ router.get('/messages/:collectorId', authenticateToken, async (req, res) => {
   }
 });
 
-// Função para integrar com o sistema principal
+
 function integrateWithMainApp(app) {
   logger.info('🔗 Integrando Message Collector com sistema principal...');
 
-  // Hook global para capturar mensagens de todas as sessões - agora usando MongoDB
+
   global.messageCollectorHook = async (message, sessionId) => {
     try {
       if (message.key.remoteJid && message.key.remoteJid.endsWith('@g.us')) {
-        // É uma mensagem de grupo
+
         const groupId = message.key.remoteJid;
-        // Buscar coletor ativo por sessionId e groupId
+
         const db = database.getDb();
         if (!db) return;
         const collector = await db.collection('messageCollectors').findOne({
@@ -1228,14 +1228,14 @@ function integrateWithMainApp(app) {
         });
         if (collector) {
           logger.info(`📝 Processando mensagem para coletor ${collector._id}, downloadMedia: ${collector.downloadMedia}`);
-          // Extrair dados completos da mensagem (incluindo mídia)
+
           const messageData = await extractMessageData(message, sessionId, collector);
           if (!messageData || !messageData.text) {
             logger.warn(`⚠️  Dados de mensagem inválidos para ${message.key.id}`);
             return;
           }
-          
-          // Salvar mensagem no banco
+
+
           await addMessageToDB(collector._id, messageData);
           logger.debug(
             `📨 Mensagem coletada para ${collector._id} - Total: ${
@@ -1249,13 +1249,13 @@ function integrateWithMainApp(app) {
     }
   };
 
-  // Restaurar cron jobs de coletores ativos na inicialização
+
   restoreCronJobs();
 
   logger.info('✅ Message Collector integrado - Hook global registrado');
 }
 
-// Função para restaurar cron jobs na inicialização
+
 async function restoreCronJobs() {
   try {
     const activeCollectors = await getActiveCollectors();
@@ -1268,13 +1268,13 @@ async function restoreCronJobs() {
   }
 }
 
-// Função para gerar e enviar resumo automaticamente
+
 async function generateAndSendSummary(collectorId, collector) {
   try {
     const db = database.getDb();
     if (!db) return;
 
-    // Buscar mensagens coletadas
+
     const messages = await db.collection('collectedMessages')
       .find({ collectorId })
       .sort({ collectedAt: 1 })
@@ -1285,56 +1285,56 @@ async function generateAndSendSummary(collectorId, collector) {
       return;
     }
 
-    // Buscar chave API do usuário e token de autenticação
+
     const user = await db.collection('users').findOne({ _id: collector.userId });
     let customApiKey = collector.config?.summaryConfig?.customApiKey || user?.openaiApiKey || null;
-    
+
     if (!customApiKey) {
       logger.warn(`⚠️ Usuário ${collector.userId} não tem chave OpenAI configurada - pulando geração de resumo`);
-      return; // Sair silenciosamente se não tem chave
+      return;
     }
-    
+
     logger.info(`🔑 Usando chave OpenAI para resumo: ${customApiKey.substring(0, 10)}...`);
-    
-    // Buscar token de API válido do usuário para autenticação interna
-    let userToken = await db.collection('api_tokens').findOne({ 
+
+
+    let userToken = await db.collection('api_tokens').findOne({
       userId: collector.userId,
       isActive: true,
       $or: [
-        { expiresAt: null }, // Token sem expiração
-        { expiresAt: { $gt: new Date() } } // Token não expirado
+        { expiresAt: null },
+        { expiresAt: { $gt: new Date() } }
       ]
     });
-    
+
     if (!userToken) {
       logger.error(`Token de API ativo não encontrado para usuário ${collector.userId}`);
       logger.info(`Gerando token automático para usuário ${collector.userId}...`);
-      
-      // Gerar token automático para resumos
+
+
       const crypto = require('crypto');
       const token = crypto.randomBytes(32).toString('hex');
       const fullToken = `baileys_${token}`;
-      
+
       const autoTokenRecord = {
         userId: collector.userId,
         name: 'Token Automático - Resumos',
         token: fullToken,
-        expiresAt: null, // Sem expiração
+        expiresAt: null,
         createdAt: new Date(),
         lastUsedAt: null,
         isActive: true
       };
-      
+
       await db.collection('api_tokens').insertOne(autoTokenRecord);
       logger.info(`✅ Token automático criado para usuário ${collector.userId}`);
-      
-      // Usar o token recém-criado
+
+
       userToken = autoTokenRecord;
     } else {
       logger.info(`✅ Token encontrado para usuário ${collector.userId}: ${userToken.name}`);
     }
 
-    // Gerar resumo usando a API de AI Summary
+
     const summaryData = {
       collectorId,
       tone: collector.config.summaryConfig.tone,
@@ -1348,28 +1348,28 @@ async function generateAndSendSummary(collectorId, collector) {
     logger.info(`📝 Gerando resumo automático para coletor ${collectorId} com ${messages.length} mensagens`);
     logger.info(`📋 Configuração do resumo: ${JSON.stringify(collector.config.summaryConfig)}`);
 
-    // Processar mensagens em lotes para respeitar limites de tokens da OpenAI
-    const BATCH_SIZE = 100; // Mensagens por lote (ajustável conforme necessário)
-    const DELAY_BETWEEN_CALLS = 60000; // 1 minuto entre chamadas para respeitar rate limit
+
+    const BATCH_SIZE = 100;
+    const DELAY_BETWEEN_CALLS = 60000;
     const MAX_ITERATIONS = 10;
-    
+
     const batches = [];
     for (let i = 0; i < messages.length; i += BATCH_SIZE) {
       batches.push(messages.slice(i, i + BATCH_SIZE));
     }
-    
+
     logger.info(`📊 Processando ${messages.length} mensagens em ${batches.length} lotes (máx: ${MAX_ITERATIONS})`);
-    
+
     const batchesToProcess = batches.slice(0, MAX_ITERATIONS);
     const partialSummaries = [];
-    
-    // Construir template dinâmico baseado no número de participantes
+
+
     const topParticipantsCount = collector.config?.summaryConfig?.topParticipants || 5;
-    const participantsList = Array.from({length: topParticipantsCount}, (_, i) => 
+    const participantsList = Array.from({length: topParticipantsCount}, (_, i) =>
       `${i + 1}. [Nome] - [X] mensagens`
     ).join('\n');
-    
-    // Template de resumo para a IA seguir
+
+
     const summaryTemplate = `
 Siga este formato exato para o resumo:
 
@@ -1378,7 +1378,7 @@ Resumo do Grupo - [Nome do Grupo] 📆 - [Data]
 👥 Top ${topParticipantsCount} Participantes Ativos:
 ${participantsList}
 
-📌 Assunto Principal: 
+📌 Assunto Principal:
 [Descrição geral dos temas mais discutidos]
 
 💡 Assuntos Relevantes:
@@ -1408,38 +1408,38 @@ Encerramento 🌟
 
     try {
       const fetch = require('node-fetch');
-      
-      // Processar cada lote
+
+
       for (let i = 0; i < batchesToProcess.length; i++) {
         const batch = batchesToProcess[i];
         const batchSummaryData = {
           ...summaryData,
           batchNumber: i + 1,
           totalBatches: batchesToProcess.length,
-          customPrompt: i === 0 ? 
+          customPrompt: i === 0 ?
             `Analise estas mensagens e crie um resumo parcial seguindo este template:\n\n${summaryTemplate}\n\nDados obrigatórios:\n- Nome do Grupo: ${collector.config?.name || collector.groupId || 'Grupo WhatsApp'}\n- Data: ${collector.startTime ? new Date(collector.startTime).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR')}\n\nIMPORTANTE - Links e Arquivos:\n- NUNCA inclua links de download internos (que contêm /api/baileys/download/ ou /download/ + ID) na seção de Links Compartilhados\n- Substitua referências a arquivos baixados por "[Arquivo compartilhado]"\n- Na seção "🔗 Links Compartilhados" inclua APENAS links externos relevantes (sites, ferramentas, plataformas)\n- Ignore completamente links de download interno do sistema\n\n${collector.config?.summaryConfig?.customInstructions ? `Instruções adicionais: ${collector.config.summaryConfig.customInstructions}\n\n` : ''}Este é o lote ${i + 1} de ${batchesToProcess.length}. Se for o primeiro lote, inclua estrutura completa. Se for lote subsequente, foque nos conteúdos específicos deste lote.` :
             `Continue o resumo analisando este lote ${i + 1} de ${batchesToProcess.length}. Foque nos conteúdos específicos deste lote mantendo a estrutura do template.\n\nIMPORTANTE - Links e Arquivos:\n- NUNCA inclua links de download internos na seção de Links Compartilhados\n- Inclua APENAS links externos relevantes\n${collector.config?.summaryConfig?.customInstructions ? `\n\nInstruções adicionais: ${collector.config.summaryConfig.customInstructions}` : ''}`
         };
-        
-        // Filtrar mensagens deste lote
+
+
         const batchMessages = await db.collection('collectedMessages')
-          .find({ 
+          .find({
             collectorId,
             _id: { $in: batch.map(msg => msg._id) }
           })
           .sort({ collectedAt: 1 })
           .toArray();
-          
+
         if (batchMessages.length === 0) {
           logger.warn(`⚠️ Lote ${i + 1} vazio, pulando...`);
           continue;
         }
-        
-        // Substituir mensagens no summaryData para este lote específico
+
+
         batchSummaryData.messages = batchMessages;
-        
+
         logger.info(`🔄 Processando lote ${i + 1}/${batchesToProcess.length} com ${batchMessages.length} mensagens...`);
-        
+
         const response = await fetch(`${process.env.BASE_URL || `http://localhost:${process.env.PORT || 3000}`}/api/management/ai-summary/summarize`, {
           method: 'POST',
           headers: {
@@ -1457,29 +1457,29 @@ Encerramento 🌟
             summary: partialSummary,
             messageCount: batchMessages.length
           });
-          
+
           logger.info(`✅ Lote ${i + 1} processado: ${partialSummary.length} caracteres`);
         } else {
           const error = await response.text();
           logger.error(`❌ Erro no lote ${i + 1}: ${response.status} - ${error}`);
-          // Continuar processando outros lotes mesmo se um falhar
+
         }
-        
-        // Aguardar entre chamadas para respeitar rate limit (exceto no último lote)
+
+
         if (i < batchesToProcess.length - 1) {
           logger.info(`⏳ Aguardando ${DELAY_BETWEEN_CALLS/1000}s para próximo lote...`);
           await new Promise(resolve => setTimeout(resolve, DELAY_BETWEEN_CALLS));
         }
       }
-      
-      // Consolidar resumos parciais em um resumo final
+
+
       if (partialSummaries.length > 0) {
         logger.info(`🔄 Consolidando ${partialSummaries.length} resumos parciais...`);
-        
-        // Extrair informações do coletor para o template
+
+
         const groupName = collector.config?.name || collector.groupId || 'Grupo WhatsApp';
         const startDate = collector.startTime ? new Date(collector.startTime).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR');
-        
+
         const consolidationPrompt = `
 Você recebeu ${partialSummaries.length} resumos parciais de um grupo do WhatsApp com total de ${messages.length} mensagens.
 
@@ -1497,7 +1497,7 @@ ${partialSummaries.map(ps => `--- Lote ${ps.batchNumber} (${ps.messageCount} men
 
 IMPORTANTE - Links e Arquivos:
 - NUNCA inclua links de download internos (que contêm /api/baileys/download/ ou /download/ + ID) na seção de Links Compartilhados
-- Substitua referências a arquivos baixados por "[Arquivo compartilhado]" 
+- Substitua referências a arquivos baixados por "[Arquivo compartilhado]"
 - Na seção "🔗 Links Compartilhados" inclua APENAS links externos relevantes (sites, ferramentas, plataformas)
 - Ignore completamente links de download interno do sistema
 
@@ -1521,7 +1521,7 @@ Instruções de consolidação:
           body: JSON.stringify({
             collectorId,
             customPrompt: consolidationPrompt,
-            maxTokens: 4000, // Mais tokens para o resumo final
+            maxTokens: 4000,
             includeStats: true,
             customApiKey
           })
@@ -1530,14 +1530,14 @@ Instruções de consolidação:
         if (finalResponse.ok) {
           const finalResult = await finalResponse.json();
           const finalSummary = finalResult.summary;
-          
+
           logger.info(`✅ Resumo final consolidado: ${finalSummary.length} caracteres`);
-          
-          // Se configurado para enviar para o grupo, fazer isso aqui
+
+
           if (collector.config.summaryConfig.sendToGroup && finalSummary) {
             logger.info(`📨 Enviando resumo consolidado para o grupo ${collector.groupId}`);
-            
-            // Enviar mensagem usando a API do Baileys
+
+
             try {
               const whatsappSession = global.whatsappSessions?.get(collector.sessionId);
               if (whatsappSession && whatsappSession.sock) {
@@ -1558,7 +1558,7 @@ Instruções de consolidação:
       } else {
         logger.warn('⚠️ Nenhum resumo parcial foi gerado com sucesso');
       }
-      
+
     } catch (apiError) {
       logger.error('Erro ao processar resumos em lotes:', apiError);
     }
@@ -1569,17 +1569,17 @@ Instruções de consolidação:
   }
 }
 
-// Função para verificar se um coletor deve ser reiniciado
+
 function shouldRestartCollector(collector) {
   try {
     const config = collector.config;
-    
-    // Só reinicia coletores diários
+
+
     if (config.scheduleType !== 'daily') {
       return false;
     }
-    
-    // Verificar se está dentro da duração permitida
+
+
     if (config.duration === 'days') {
       const daysSinceStart = Math.floor((new Date() - new Date(collector.createdAt)) / (1000 * 60 * 60 * 24));
       if (daysSinceStart >= config.durationDays) {
@@ -1590,7 +1590,7 @@ function shouldRestartCollector(collector) {
         return false;
       }
     }
-    
+
     return true;
   } catch (error) {
     logger.error('Erro ao verificar se deve reiniciar coletor:', error);
@@ -1598,19 +1598,19 @@ function shouldRestartCollector(collector) {
   }
 }
 
-// Função para reiniciar coletor com novo nome
+
 async function restartCollectorWithNewName(collector) {
   try {
     const db = database.getDb();
     if (!db) return;
-    
-    // Calcular o dia atual baseado na data de criação
+
+
     const daysSinceStart = Math.floor((new Date() - new Date(collector.createdAt)) / (1000 * 60 * 60 * 24)) + 1;
-    
-    // Gerar novo nome criativo baseado no original
+
+
     const originalName = collector.config.name;
     let newName;
-    
+
     if (daysSinceStart === 1) {
       newName = `${originalName} - Dia 2`;
     } else if (daysSinceStart < 7) {
@@ -1625,27 +1625,27 @@ async function restartCollectorWithNewName(collector) {
       const monthNumber = Math.ceil((daysSinceStart + 1) / 30);
       newName = `${originalName} - Mês ${monthNumber} 🚀`;
     }
-    
-    // Criar novo coletor com mesmo config mas nome atualizado
+
+
     const newConfig = {
       ...collector.config,
       name: newName
     };
-    
+
     const newCollectorId = await createCollectorInDB(
       collector.sessionId,
       collector.groupId,
       collector.userId,
       newConfig
     );
-    
+
     if (newCollectorId) {
-      // Configurar cron jobs para o novo coletor
+
       setupCronJobs(newCollectorId, newConfig);
-      
+
       logger.info(`🔄 Coletor reiniciado: ${collector._id} → ${newCollectorId} (${newName})`);
-      
-      // Log criativo baseado no tempo
+
+
       if (daysSinceStart < 7) {
         logger.info(`📅 Início do ${daysSinceStart + 1}º dia de coleta para ${newName}`);
       } else if (daysSinceStart < 30) {
@@ -1656,16 +1656,16 @@ async function restartCollectorWithNewName(collector) {
     } else {
       logger.error('Falha ao criar novo coletor para restart');
     }
-    
+
   } catch (error) {
     logger.error('Erro ao reiniciar coletor com novo nome:', error);
   }
 }
 
-// Exportar o router diretamente para compatibilidade com Express
+
 module.exports = router;
 
-// Exportar outras funcionalidades como propriedades do router
+
 router.integrateWithMainApp = integrateWithMainApp;
 router.getActiveCollectors = getActiveCollectors;
 router.activeCronJobs = activeCronJobs;

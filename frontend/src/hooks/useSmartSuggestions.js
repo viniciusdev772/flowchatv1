@@ -11,7 +11,7 @@ export const useSmartSuggestions = () => {
 
       const lastMessage = messages[messages.length - 1];
 
-      // Evitar gerar sugestões para a mesma mensagem
+
       if (lastMessage.id === lastProcessedMessageId.current) {
         return;
       }
@@ -42,7 +42,7 @@ export const useSmartSuggestions = () => {
           const data = await response.json();
           setSmartSuggestions(data.suggestions || []);
         } else {
-          // Fallback para sugestões padrão em caso de erro
+
           setSmartSuggestions([
             'Listar todas as sessões ativas',
             'Criar uma nova sessão',
@@ -52,7 +52,7 @@ export const useSmartSuggestions = () => {
         }
       } catch (error) {
         console.error('Erro ao gerar sugestões:', error);
-        // Fallback para sugestões padrão
+
         setSmartSuggestions([
           'Listar todas as sessões ativas',
           'Criar uma nova sessão',

@@ -1,12 +1,12 @@
-import 'highlight.js/styles/github.css'; // Estilo para syntax highlighting
+import 'highlight.js/styles/github.css';
 import ReactMarkdown from 'react-markdown';
 import rehypeHighlight from 'rehype-highlight';
 import rehypeRaw from 'rehype-raw';
 import remarkGfm from 'remark-gfm';
 
-// Componentes customizados para elementos markdown
+
 const MarkdownComponents = {
-  // Código inline
+
   code: ({ node, inline, className, children, ...props }) => {
     const match = /language-(\w+)/.exec(className || '');
 
@@ -39,14 +39,14 @@ const MarkdownComponents = {
     );
   },
 
-  // Blockquote
+
   blockquote: ({ children }) => (
     <blockquote className="border-l-4 border-blue-500 pl-4 py-2 my-4 bg-blue-50 text-gray-700 italic">
       {children}
     </blockquote>
   ),
 
-  // Tabelas
+
   table: ({ children }) => (
     <div className="my-4 overflow-x-auto">
       <table className="min-w-full border border-gray-200 rounded-lg overflow-hidden">
@@ -69,7 +69,7 @@ const MarkdownComponents = {
     </td>
   ),
 
-  // Links
+
   a: ({ children, href }) => (
     <a
       href={href}
@@ -81,7 +81,7 @@ const MarkdownComponents = {
     </a>
   ),
 
-  // Listas
+
   ul: ({ children }) => (
     <ul className="list-disc list-inside my-2 space-y-1 text-gray-700">
       {children}
@@ -96,7 +96,7 @@ const MarkdownComponents = {
 
   li: ({ children }) => <li className="ml-2">{children}</li>,
 
-  // Cabeçalhos
+
   h1: ({ children }) => (
     <h1 className="text-2xl font-bold text-gray-900 my-4 border-b border-gray-200 pb-2">
       {children}
@@ -115,27 +115,27 @@ const MarkdownComponents = {
     <h4 className="text-base font-semibold text-gray-900 my-2">{children}</h4>
   ),
 
-  // Parágrafos
+
   p: ({ children }) => (
     <p className="text-gray-700 my-2 leading-relaxed">{children}</p>
   ),
 
-  // Texto em negrito
+
   strong: ({ children }) => (
     <strong className="font-semibold text-gray-900">{children}</strong>
   ),
 
-  // Texto em itálico
+
   em: ({ children }) => <em className="italic text-gray-700">{children}</em>,
 
-  // Separadores
+
   hr: () => <hr className="my-6 border-gray-200" />,
 
-  // Imagens com suporte a base64
+
   img: ({ src, alt, title }) => {
-    // Verificar se é uma imagem base64
+
     const isBase64 = src?.startsWith('data:image/');
-    
+
     return (
       <div className="my-4 flex justify-center">
         <img
@@ -146,7 +146,7 @@ const MarkdownComponents = {
           style={{ maxHeight: '500px' }}
           onError={(e) => {
             e.target.style.display = 'none';
-            // Mostrar placeholder em caso de erro
+
             const placeholder = document.createElement('div');
             placeholder.className = 'flex items-center justify-center w-full h-32 bg-gray-100 border border-gray-300 rounded-lg';
             placeholder.innerHTML = `
@@ -167,21 +167,21 @@ const MarkdownComponents = {
 };
 
 export default function MarkdownRenderer({ content, className = '' }) {
-  // Função para processar imagens base64 no conteúdo
+
   const processBase64Images = (text) => {
-    // Regex para encontrar imagens base64 em markdown
+
     const base64ImageRegex = /!\[([^\]]*)\]\((data:image\/[^;]+;base64,[^)]+)\)/g;
-    
+
     return text.replace(base64ImageRegex, (match, alt, src) => {
-      // Gerar um ID único para cada imagem
+
       const imageId = `img-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      
-      // Retornar HTML customizado para a imagem
+
+
       return `<div class="my-4 flex justify-center">
-        <img 
+        <img
           id="${imageId}"
-          src="${src}" 
-          alt="${alt || 'Imagem'}" 
+          src="${src}"
+          alt="${alt || 'Imagem'}"
           class="max-w-full h-auto rounded-lg shadow-md border border-gray-200"
           style="max-height: 500px;"
           loading="lazy"
@@ -191,7 +191,7 @@ export default function MarkdownRenderer({ content, className = '' }) {
     });
   };
 
-  // Processar o conteúdo antes de passar para o ReactMarkdown
+
   const processedContent = processBase64Images(content);
 
   return (
@@ -207,7 +207,7 @@ export default function MarkdownRenderer({ content, className = '' }) {
   );
 }
 
-// Componente para highlighting de code específico do FlowChat API
+
 export function FlowChatCodeBlock({ code, language = 'javascript' }) {
   return (
     <div className="my-4">
@@ -223,7 +223,7 @@ export function FlowChatCodeBlock({ code, language = 'javascript' }) {
   );
 }
 
-// Componente para destacar respostas de tools/actions
+
 export function ToolResponseBlock({ toolName, result, success = true }) {
   const bgColor = success ? 'bg-green-50' : 'bg-red-50';
   const borderColor = success ? 'border-green-200' : 'border-red-200';

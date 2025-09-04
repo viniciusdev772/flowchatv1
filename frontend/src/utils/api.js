@@ -1,15 +1,15 @@
-// Utilitário para configuração da API
+
 export const getApiUrl = () => {
-  return window.APP_CONFIG?.API_URL || 
-         import.meta.env.VITE_API_URL || 
+  return window.APP_CONFIG?.API_URL ||
+         import.meta.env.VITE_API_URL ||
          window.location.origin;
 };
 
-// Função para fazer fetch com configurações padrão
+
 export const apiRequest = async (endpoint, options = {}) => {
   const apiUrl = getApiUrl();
   const url = `${apiUrl}${endpoint}`;
-  
+
   const defaultOptions = {
     credentials: 'include',
     headers: {
@@ -17,7 +17,7 @@ export const apiRequest = async (endpoint, options = {}) => {
       ...options.headers
     }
   };
-  
+
   const finalOptions = {
     ...defaultOptions,
     ...options,
@@ -26,13 +26,13 @@ export const apiRequest = async (endpoint, options = {}) => {
       ...options.headers
     }
   };
-  
+
   return fetch(url, finalOptions);
 };
 
-// Função helper para substituir URLs antigas
+
 export const replaceApiUrl = (oldFetchCall) => {
-  // Esta função pode ser usada para migrar código legado
+
   console.warn('Using legacy fetch call, consider migrating to apiRequest');
   return oldFetchCall.replace(/http:\/\/localhost:3000/g, getApiUrl());
 };

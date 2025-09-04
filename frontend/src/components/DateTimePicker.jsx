@@ -5,9 +5,9 @@ import { Calendar, Clock } from 'lucide-react';
 import { cn } from '../lib/utils';
 import 'react-datepicker/dist/react-datepicker.css';
 
-const DateTimePicker = React.forwardRef(({ 
-  selected, 
-  onChange, 
+const DateTimePicker = React.forwardRef(({
+  selected,
+  onChange,
   placeholderText = "Selecione data e hora",
   className,
   minDate = new Date(),
@@ -17,9 +17,9 @@ const DateTimePicker = React.forwardRef(({
   timeIntervals = 15,
   ...props
 }, ref) => {
-  // Componente de input customizado seguindo shadcn/ui patterns
+
   const CustomInput = React.forwardRef(({ value, onClick }, inputRef) => (
-    <div 
+    <div
       className={cn(
         "relative w-full cursor-pointer",
         className
@@ -50,7 +50,7 @@ const DateTimePicker = React.forwardRef(({
         .react-datepicker-wrapper {
           width: 100%;
         }
-        
+
         .react-datepicker {
           font-family: inherit;
           border: 1px solid hsl(var(--border));
@@ -58,26 +58,26 @@ const DateTimePicker = React.forwardRef(({
           box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
           background: hsl(var(--background));
         }
-        
+
         .react-datepicker__header {
           background: hsl(var(--primary));
           border-bottom: none;
           border-radius: 0.75rem 0.75rem 0 0;
           padding: 1rem;
         }
-        
+
         .react-datepicker__current-month {
           color: hsl(var(--primary-foreground));
           font-weight: 600;
           font-size: 1rem;
           margin-bottom: 0.5rem;
         }
-        
+
         .react-datepicker__day-names {
           border-top: 1px solid hsl(var(--primary-foreground) / 0.2);
           padding-top: 0.5rem;
         }
-        
+
         .react-datepicker__day-name {
           color: hsl(var(--primary-foreground) / 0.9);
           font-weight: 600;
@@ -86,15 +86,15 @@ const DateTimePicker = React.forwardRef(({
           height: 2rem;
           line-height: 2rem;
         }
-        
+
         .react-datepicker__month-container {
           background: hsl(var(--background));
         }
-        
+
         .react-datepicker__month {
           padding: 0.75rem;
         }
-        
+
         .react-datepicker__day {
           width: 2rem;
           height: 2rem;
@@ -106,41 +106,41 @@ const DateTimePicker = React.forwardRef(({
           font-size: 0.875rem;
           transition: all 0.2s ease;
         }
-        
+
         .react-datepicker__day:hover {
           background: hsl(var(--accent));
           color: hsl(var(--accent-foreground));
         }
-        
+
         .react-datepicker__day--selected {
           background: hsl(var(--primary));
           color: hsl(var(--primary-foreground));
           font-weight: 600;
         }
-        
+
         .react-datepicker__day--selected:hover {
           background: hsl(var(--primary) / 0.9);
         }
-        
+
         .react-datepicker__day--today {
           background: hsl(var(--secondary));
           color: hsl(var(--secondary-foreground));
           font-weight: 600;
         }
-        
+
         .react-datepicker__day--disabled {
           color: hsl(var(--muted-foreground));
           cursor: not-allowed;
         }
-        
+
         .react-datepicker__day--disabled:hover {
           background: transparent;
         }
-        
+
         .react-datepicker__day--outside-month {
           color: hsl(var(--muted-foreground));
         }
-        
+
         .react-datepicker__navigation {
           top: 1rem;
           width: 1.5rem;
@@ -150,33 +150,33 @@ const DateTimePicker = React.forwardRef(({
           border: 1px solid hsl(var(--primary-foreground) / 0.3);
           transition: all 0.2s ease;
         }
-        
+
         .react-datepicker__navigation:hover {
           background: hsl(var(--primary-foreground) / 0.3);
         }
-        
+
         .react-datepicker__navigation-icon::before {
           border-color: hsl(var(--primary-foreground));
           border-width: 1px 1px 0 0;
           width: 0.375rem;
           height: 0.375rem;
         }
-        
+
         .react-datepicker__time-container {
           border-left: 1px solid hsl(var(--border));
           background: hsl(var(--muted));
           border-radius: 0 0.75rem 0.75rem 0;
         }
-        
+
         .react-datepicker__time-container .react-datepicker__time {
           background: hsl(var(--muted));
           border-radius: 0 0.75rem 0.75rem 0;
         }
-        
+
         .react-datepicker__time-container .react-datepicker__time .react-datepicker__time-box {
           border-radius: 0 0.75rem 0.75rem 0;
         }
-        
+
         .react-datepicker__header--time {
           background: hsl(var(--primary));
           color: hsl(var(--primary-foreground));
@@ -184,7 +184,7 @@ const DateTimePicker = React.forwardRef(({
           border-radius: 0;
           padding: 0.75rem;
         }
-        
+
         .react-datepicker__time-list-item {
           padding: 0.5rem 0.75rem;
           font-weight: 500;
@@ -192,35 +192,35 @@ const DateTimePicker = React.forwardRef(({
           transition: all 0.2s ease;
           font-size: 0.875rem;
         }
-        
+
         .react-datepicker__time-list-item:hover {
           background: hsl(var(--accent));
           color: hsl(var(--accent-foreground));
         }
-        
+
         .react-datepicker__time-list-item--selected {
           background: hsl(var(--primary));
           color: hsl(var(--primary-foreground));
           font-weight: 600;
         }
-        
+
         .react-datepicker__triangle {
           display: none;
         }
-        
+
         .react-datepicker-popper {
           z-index: 9999;
         }
-        
+
         .react-datepicker-popper[data-placement^="bottom"] {
           margin-top: 0.25rem;
         }
-        
+
         .react-datepicker-popper[data-placement^="top"] {
           margin-bottom: 0.25rem;
         }
       `}</style>
-      
+
       <DatePicker
         selected={selected}
         onChange={onChange}

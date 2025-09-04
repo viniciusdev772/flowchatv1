@@ -5,18 +5,18 @@ const database = require('../config/database');
 const { clearUserCache } = require('../middleware/auth');
 
 class AuthController {
-  // Register new user
+
   async register(req, res) {
     try {
       const { name, email, password } = req.body;
 
-      // Validation (basic fallback if middleware didn't catch them)
+
       const validationErrors = [];
-      
+
       if (!name || name.trim().length < 2) {
         validationErrors.push({ path: 'name', msg: 'Nome deve ter pelo menos 2 caracteres' });
       }
-      
+
       if (!email) {
         validationErrors.push({ path: 'email', msg: 'Email é obrigatório' });
       } else {
@@ -25,26 +25,26 @@ class AuthController {
           validationErrors.push({ path: 'email', msg: 'Formato de email inválido' });
         }
       }
-      
+
       if (!password) {
         validationErrors.push({ path: 'password', msg: 'Senha é obrigatória' });
       } else if (password.length < 8) {
         validationErrors.push({ path: 'password', msg: 'Senha deve ter pelo menos 8 caracteres' });
       } else {
-        // Check password strength requirements
+
         const hasLowercase = /[a-z]/.test(password);
         const hasUppercase = /[A-Z]/.test(password);
         const hasNumber = /\d/.test(password);
         const hasSpecial = /[@$!%*?&]/.test(password);
-        
+
         if (!hasLowercase || !hasUppercase || !hasNumber || !hasSpecial) {
-          validationErrors.push({ 
-            path: 'password', 
-            msg: 'Senha deve conter pelo menos: 1 minúscula, 1 maiúscula, 1 número e 1 caractere especial (@$!%*?&)' 
+          validationErrors.push({
+            path: 'password',
+            msg: 'Senha deve conter pelo menos: 1 minúscula, 1 maiúscula, 1 número e 1 caractere especial (@$!%*?&)'
           });
         }
       }
-      
+
       if (validationErrors.length > 0) {
         return res.status(400).json({
           success: false,
@@ -53,7 +53,7 @@ class AuthController {
         });
       }
 
-      // Check if database is available
+
       try {
         const db = database.getDb();
         if (!db) {
@@ -62,7 +62,7 @@ class AuthController {
 
         const users = database.getCollection('users');
 
-        // Check if user already exists
+
         const existingUser = await users.findOne({ email: email.toLowerCase() });
         if (existingUser) {
           return res.status(409).json({
@@ -72,11 +72,11 @@ class AuthController {
           });
         }
 
-        // Hash password
+
         const saltRounds = 12;
         const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-        // Create user document
+
         const userData = {
           name: name.trim(),
           email: email.toLowerCase().trim(),
@@ -105,23 +105,23 @@ class AuthController {
 
         const result = await users.insertOne(userData);
 
-        // Generate JWT token
+
         const token = jwt.sign(
           { userId: result.insertedId.toString() },
           process.env.JWT_SECRET,
           { expiresIn: process.env.JWT_EXPIRES_IN }
         );
 
-        // Set secure HTTP-only cookie
+
         res.cookie('authToken', token, {
           httpOnly: true,
           secure: 'auto',
-          sameSite: 'lax', // Permitir cookies entre subdomínios
-          maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+          sameSite: 'lax',
+          maxAge: 7 * 24 * 60 * 60 * 1000,
           signed: true
         });
 
-        // Remove password from response
+
         delete userData.password;
         userData._id = result.insertedId;
 
@@ -134,11 +134,11 @@ class AuthController {
         });
 
       } catch (dbError) {
-        // Development mode without database
+
         if (process.env.NODE_ENV === 'development') {
           console.log('⚠️  Registration in development mode without database');
-          
-          // Generate mock user
+
+
           const mockUserId = '507f1f77bcf86cd799439011';
           const token = jwt.sign(
             { userId: mockUserId },
@@ -146,12 +146,12 @@ class AuthController {
             { expiresIn: process.env.JWT_EXPIRES_IN }
           );
 
-          // Set secure HTTP-only cookie
+
           res.cookie('authToken', token, {
             httpOnly: true,
             secure: 'auto',
             sameSite: 'lax',
-            maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+            maxAge: 7 * 24 * 60 * 60 * 1000,
             signed: true
           });
 
@@ -185,12 +185,12 @@ class AuthController {
     }
   }
 
-  // Login user
+
   async login(req, res) {
     try {
       const { email, password, remember } = req.body;
 
-      // Validation
+
       if (!email || !password) {
         return res.status(400).json({
           success: false,
@@ -198,7 +198,7 @@ class AuthController {
         });
       }
 
-      // Check if database is available
+
       try {
         const db = database.getDb();
         if (!db) {
@@ -207,7 +207,7 @@ class AuthController {
 
         const users = database.getCollection('users');
 
-        // Find user
+
         const user = await users.findOne({ email: email.toLowerCase() });
         if (!user) {
           return res.status(401).json({
@@ -223,7 +223,7 @@ class AuthController {
           });
         }
 
-        // Check password
+
         const isPasswordValid = await bcrypt.compare(password, user.password);
         if (!isPasswordValid) {
           return res.status(401).json({
@@ -232,13 +232,13 @@ class AuthController {
           });
         }
 
-        // Update last login
+
         await users.updateOne(
           { _id: user._id },
           { $set: { lastLogin: new Date(), updatedAt: new Date() } }
         );
 
-        // Generate JWT token
+
         const expiresIn = remember ? '30d' : process.env.JWT_EXPIRES_IN;
         const token = jwt.sign(
           { userId: user._id.toString() },
@@ -246,8 +246,8 @@ class AuthController {
           { expiresIn }
         );
 
-        // Set secure HTTP-only cookie
-        const cookieMaxAge = remember ? 30 * 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000; // 30 days or 7 days
+
+        const cookieMaxAge = remember ? 30 * 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000;
         res.cookie('authToken', token, {
           httpOnly: true,
           secure: 'auto',
@@ -256,7 +256,7 @@ class AuthController {
           signed: true
         });
 
-        // Remove password from response
+
         delete user.password;
 
         res.json({
@@ -268,11 +268,11 @@ class AuthController {
         });
 
       } catch (dbError) {
-        // Development mode without database
+
         if (process.env.NODE_ENV === 'development') {
           console.log('⚠️  Login in development mode without database');
-          
-          // Accept any email/password in development
+
+
           const mockUserId = '507f1f77bcf86cd799439011';
           const expiresIn = remember ? '30d' : process.env.JWT_EXPIRES_IN;
           const token = jwt.sign(
@@ -281,8 +281,8 @@ class AuthController {
             { expiresIn }
           );
 
-          // Set secure HTTP-only cookie
-          const cookieMaxAge = remember ? 30 * 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000; // 30 days or 7 days
+
+          const cookieMaxAge = remember ? 30 * 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000;
           res.cookie('authToken', token, {
             httpOnly: true,
             secure: 'auto',
@@ -321,10 +321,10 @@ class AuthController {
     }
   }
 
-  // Get current user profile (otimizado)
+
   getProfile(req, res) {
-    // Resposta imediata sem try-catch desnecessário
-    // req.user já foi validado e carregado no middleware authenticateToken
+
+
     res.json({
       success: true,
       data: {
@@ -333,7 +333,7 @@ class AuthController {
     });
   }
 
-  // Update user profile
+
   async updateProfile(req, res) {
     try {
       const { name, phone, company } = req.body;
@@ -352,13 +352,13 @@ class AuthController {
         { $set: updateData }
       );
 
-      // Get updated user
+
       const updatedUser = await users.findOne(
         { _id: new ObjectId(req.user._id) },
         { projection: { password: 0 } }
       );
 
-      // Limpar cache do usuário para forçar reload
+
       clearUserCache(req.user._id);
 
       res.json({
@@ -378,7 +378,7 @@ class AuthController {
     }
   }
 
-  // Change password
+
   async changePassword(req, res) {
     try {
       const { currentPassword, newPassword } = req.body;
@@ -400,7 +400,7 @@ class AuthController {
       const users = database.getCollection('users');
       const user = await users.findOne({ _id: new ObjectId(req.user._id) });
 
-      // Verify current password
+
       const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
       if (!isCurrentPasswordValid) {
         return res.status(400).json({
@@ -409,11 +409,11 @@ class AuthController {
         });
       }
 
-      // Hash new password
+
       const saltRounds = 12;
       const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
 
-      // Update password
+
       await users.updateOne(
         { _id: new ObjectId(req.user._id) },
         { $set: { password: hashedNewPassword, updatedAt: new Date() } }
@@ -433,10 +433,10 @@ class AuthController {
     }
   }
 
-  // Logout user
+
   async logout(req, res) {
     try {
-      // Clear the authentication cookie
+
       res.clearCookie('authToken', {
         httpOnly: true,
         secure: 'auto',

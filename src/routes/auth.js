@@ -6,13 +6,13 @@ const securityMiddleware = require('../middleware/security');
 
 const router = express.Router();
 
-// Aplicar segurança geral a todas as rotas de auth
+
 router.use(securityMiddleware.fullSecurityStack());
 
-// Endpoint para obter token CSRF
+
 router.get('/csrf-token', csrfProtection.addTokenToResponse());
 
-// Public routes com segurança máxima
+
 router.post('/register', [
   csrfProtection.verifyAuthToken(),
   securityMiddleware.validateRegistration(),
@@ -27,8 +27,8 @@ router.post('/login', [
   csrfProtection.refreshToken()
 ], authController.login);
 
-// Protected routes - profile otimizado (sem rate limit duplo)
-router.get('/profile', 
+
+router.get('/profile',
   authenticateToken,
   authController.getProfile
 );

@@ -13,20 +13,20 @@ const {
 } = require('../ai/tools');
 const router = express.Router();
 
-// Função utilitária para processar imagens base64 nas respostas da IA
+
 async function processBase64Images(content) {
   if (!content || typeof content !== 'string') {
     return content;
   }
 
-  // Regex para detectar imagens base64 em formato markdown
+
   const base64ImageRegex = /!\[([^\]]*)\]\((data:image\/[^)]+)\)/g;
 
   let processedContent = content;
   let match;
   const promises = [];
 
-  // Reset regex
+
   base64ImageRegex.lastIndex = 0;
 
   while ((match = base64ImageRegex.exec(content)) !== null) {
@@ -34,10 +34,10 @@ async function processBase64Images(content) {
 
     console.log(`Processing base64 image: ${alt || 'Unnamed'}`);
 
-    // Criar promise para salvar a imagem
+
     const promise = (async () => {
       try {
-        // Validar formato base64
+
         const matches = base64Data.match(/^data:image\/([^;]+);base64,(.+)$/);
         if (!matches) {
           console.warn('Invalid base64 format:', base64Data.substring(0, 50));
@@ -49,15 +49,15 @@ async function processBase64Images(content) {
 
         const [, imageType, base64String] = matches;
 
-        // Gerar nome único do arquivo
+
         const uniqueId = crypto.randomBytes(16).toString('hex');
         const fileExtension = imageType === 'svg+xml' ? 'svg' : imageType;
         const fileName = `ai-image-${uniqueId}.${fileExtension}`;
 
-        // Diretório para salvar imagens temporárias
+
         const tempDir = path.join(__dirname, '../../temp-images');
 
-        // Garantir que o diretório existe
+
         try {
           await fs.access(tempDir);
         } catch {
@@ -66,11 +66,11 @@ async function processBase64Images(content) {
 
         const filePath = path.join(tempDir, fileName);
 
-        // Converter base64 para buffer e salvar
+
         const imageBuffer = Buffer.from(base64String, 'base64');
         await fs.writeFile(filePath, imageBuffer);
 
-        // URL para acessar a imagem
+
         const imageUrl = `/temp-images/${fileName}`;
 
         console.log(
@@ -93,13 +93,13 @@ async function processBase64Images(content) {
     promises.push(promise);
   }
 
-  // Se encontrou imagens, processar todas
+
   if (promises.length > 0) {
     console.log(`🖼️  Processing ${promises.length} base64 images...`);
 
     const results = await Promise.all(promises);
 
-    // Substituir todas as imagens processadas
+
     results.forEach(({ fullMatch, replacement }) => {
       processedContent = processedContent.replace(fullMatch, replacement);
     });
@@ -110,7 +110,7 @@ async function processBase64Images(content) {
   return processedContent;
 }
 
-// Função para obter o token de API do usuário
+
 async function getUserApiToken(userId) {
   try {
     const db = database.getDb();
@@ -121,11 +121,11 @@ async function getUserApiToken(userId) {
 
     const tokensCollection = db.collection('api_tokens');
 
-    // Garantir que userId seja um ObjectId
+
     const userObjectId =
       typeof userId === 'string' ? new ObjectId(userId) : userId;
 
-    // Buscar o token ativo mais recente do usuário
+
     const tokenRecord = await tokensCollection.findOne(
       {
         userId: userObjectId,
@@ -155,12 +155,12 @@ async function getUserApiToken(userId) {
   }
 }
 
-// Configuração do OpenAI
+
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// Função para criar instância do OpenAI SEMPRE com chave customizada
+
 function createOpenAIInstance(customApiKey) {
   if (!customApiKey) {
     throw new Error('Chave OpenAI personalizada é obrigatória');
@@ -170,16 +170,16 @@ function createOpenAIInstance(customApiKey) {
   });
 }
 
-// Middleware para validar API key do OpenAI - SEMPRE OBRIGAR CUSTOM API KEY
+
 router.use((req, res, next) => {
-  // Pular validação para rotas de health e tools
+
   if (req.path === '/health' || req.path === '/tools') {
     return next();
   }
-  
+
   const customApiKey = req.body?.customApiKey;
-  
-  // SEMPRE EXIGIR CHAVE CUSTOMIZADA DO FRONTEND
+
+
   if (!customApiKey) {
     return res.status(400).json({
       success: false,
@@ -189,8 +189,8 @@ router.use((req, res, next) => {
       timestamp: new Date().toISOString()
     });
   }
-  
-  // Validar formato da chave
+
+
   if (!customApiKey.startsWith('sk-') || customApiKey.length < 48) {
     return res.status(400).json({
       success: false,
@@ -200,52 +200,52 @@ router.use((req, res, next) => {
       timestamp: new Date().toISOString()
     });
   }
-  
+
   console.log(`🔐 Usuário ${req.user?._id || 'unknown'} usando chave OpenAI personalizada`);
   next();
 });
 
-/**
- * @swagger
- * /api/ai/chat:
- *   post:
- *     summary: Conversa com a assistente de IA (streaming only)
- *     tags: [AI Assistant]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - message
- *             properties:
- *               message:
- *                 type: string
- *                 description: Mensagem para a assistente
- *               conversation:
- *                 type: array
- *                 description: Histórico da conversa (opcional)
- *                 items:
- *                   type: object
- *                   properties:
- *                     role:
- *                       type: string
- *                       enum: [user, assistant, system]
- *                     content:
- *                       type: string
 
- *     responses:
- *       200:
- *         description: Resposta da assistente em streaming (application/x-ndjson)
- *         content:
- *           text/plain:
- *             schema:
- *               type: string
- *               description: Stream de objetos JSON separados por nova linha
- *       500:
- *         description: Erro interno
- */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 router.post('/chat', authenticateToken, async (req, res) => {
   try {
     const { message, conversation = [], customApiKey } = req.body;
@@ -257,10 +257,10 @@ router.post('/chat', authenticateToken, async (req, res) => {
       });
     }
 
-    // Obter token do usuário autenticado para usar nas tools
+
     const userToken = await getUserApiToken(req.user._id);
 
-    // Injetar token do usuário nas tools
+
     if (userToken) {
       toolImplementations.setUserToken(userToken);
       console.log(
@@ -274,10 +274,10 @@ router.post('/chat', authenticateToken, async (req, res) => {
       );
     }
 
-    // Usar instância personalizada do OpenAI se uma chave customizada foi fornecida
+
     const openaiInstance = createOpenAIInstance(customApiKey);
 
-    // Sistema de prompts otimizado para performance
+
     const systemPrompt = `Você é uma assistente de IA especializada no FlowChat API - WhatsApp API multi-sessão.
 
 🚀 RESPONDA DE FORMA DIRETA E OBJETIVA.
@@ -305,14 +305,14 @@ router.post('/chat', authenticateToken, async (req, res) => {
 
 Responda em português brasileiro, seja prático e direto.`;
 
-    // Preparar mensagens para o OpenAI
+
     const messages = [
       { role: 'system', content: systemPrompt },
       ...conversation,
       { role: 'user', content: message },
     ];
 
-    // Configurar streaming
+
     res.writeHead(200, {
       'Content-Type': 'text/plain; charset=utf-8',
       'Transfer-Encoding': 'chunked',
@@ -333,7 +333,7 @@ Responda em português brasileiro, seja prático e direto.`;
 
     let functionCalls = [];
     let currentToolCall = null;
-    let accumulatedContent = ''; // Acumular conteúdo para processar imagens
+    let accumulatedContent = '';
 
     for await (const chunk of chatStream) {
       const delta = chunk.choices[0]?.delta;
@@ -371,9 +371,9 @@ Responda em português brasileiro, seja prático e direto.`;
       }
     }
 
-    // Executar function calls se houver
+
     if (functionCalls.length > 0) {
-      // Injetar token do usuário nas tools
+
       if (userToken) {
         toolImplementations.setUserToken(userToken);
       }
@@ -387,7 +387,7 @@ Responda em português brasileiro, seja prático e direto.`;
         }) + '\n'
       );
 
-      // EXECUÇÃO PARALELA DE TOOLS - Melhor performance
+
       const toolResults = [];
       const toolPromises = functionCalls.map(async (toolCall, index) => {
         if (
@@ -395,7 +395,7 @@ Responda em português brasileiro, seja prático e direto.`;
           toolImplementations[toolCall.function.name]
         ) {
           try {
-            // Notificar início da execução da tool
+
             res.write(
               JSON.stringify({
                 type: 'tool_start',
@@ -416,7 +416,7 @@ Responda em português brasileiro, seja prático e direto.`;
               index: index,
             };
 
-            // Notificar conclusão da tool
+
             res.write(
               JSON.stringify({
                 type: 'tool_result',
@@ -435,7 +435,7 @@ Responda em português brasileiro, seja prático e direto.`;
               index: index,
             };
 
-            // Notificar erro da tool
+
             res.write(
               JSON.stringify({
                 type: 'tool_error',
@@ -452,12 +452,12 @@ Responda em português brasileiro, seja prático e direto.`;
         return null;
       });
 
-      // Aguardar todas as tools completarem em paralelo
+
       try {
         const results = await Promise.all(toolPromises);
         toolResults.push(...results.filter((r) => r !== null));
 
-        // Notificar que todas as tools foram concluídas
+
         console.log(
           `✅ ${toolResults.length} tools executadas com sucesso em paralelo`
         );
@@ -482,7 +482,7 @@ Responda em português brasileiro, seja prático e direto.`;
         );
       }
 
-      // Gerar resposta final após executar tools
+
       if (toolResults.length > 0) {
         console.log(
           `🔄 Gerando resposta final para ${toolResults.length} tools executadas`
@@ -495,7 +495,7 @@ Responda em português brasileiro, seja prático e direto.`;
           }) + '\n'
         );
 
-        // Verificar se o usuário quer enviar mensagem após getMessageHistory
+
         const hasGetMessageHistory = functionCalls.some(
           (fc) => fc.function.name === 'getMessageHistory'
         );
@@ -507,7 +507,7 @@ Responda em português brasileiro, seja prático e direto.`;
             lastUserMessage.includes('send') ||
             lastUserMessage.toLowerCase().includes('grupo'));
 
-        // Preparar mensagens para resposta final
+
         const finalMessages = [
           ...messages,
           {
@@ -525,7 +525,7 @@ Responda em português brasileiro, seja prático e direto.`;
           })),
         ];
 
-        // Se o usuário quer enviar mensagem, adicionar contexto para a IA
+
         if (userWantsToSend) {
           console.log(
             '🎯 Detectado pedido para enviar mensagem - adicionando contexto'
@@ -566,13 +566,13 @@ Responda em português brasileiro, seja prático e direto.`;
             }
           }
 
-          // Se não houve conteúdo da IA, forçar nova geração de resposta baseada nos resultados
+
           if (!hasContent) {
             console.log(
               '⚠️ IA não retornou conteúdo, forçando análise dos resultados das tools'
             );
 
-            // Criar prompt específico para analisar os resultados das tools
+
             const analyzeResults = await openaiInstance.chat.completions.create(
               {
                 model: 'gpt-4.1',
@@ -619,7 +619,7 @@ Responda em português brasileiro, seja prático e direto.`;
         } catch (error) {
           console.error('Erro na resposta final da IA:', error);
 
-          // Tentar uma resposta mais simples sem streaming
+
           try {
             const simpleResponse = await openaiInstance.chat.completions.create(
               {
@@ -646,7 +646,7 @@ Responda em português brasileiro, seja prático e direto.`;
           } catch (fallbackError) {
             console.error('Erro na resposta de fallback:', fallbackError);
 
-            // Última tentativa: forçar análise dos resultados mesmo em caso de erro
+
             console.log(
               '🚨 Fallback final - gerando resposta baseada nos resultados das tools'
             );
@@ -660,7 +660,7 @@ Responda em português brasileiro, seja prático e direto.`;
                   const toolName = tr.tool;
                   let result = tr.result;
 
-                  // Processar resultado baseado no tipo de tool
+
                   if (toolName === 'listGroups') {
                     try {
                       const parsed =
@@ -699,7 +699,7 @@ Responda em português brasileiro, seja prático e direto.`;
                     } catch (e) {}
                   }
 
-                  // Resultado genérico
+
                   const resultStr =
                     typeof result === 'string'
                       ? result
@@ -723,13 +723,13 @@ Responda em português brasileiro, seja prático e direto.`;
       }
     }
 
-    // Processar imagens base64 no conteúdo final
+
     if (accumulatedContent) {
       try {
         console.log('🔍 Checking for base64 images in AI response...');
         const processedContent = await processBase64Images(accumulatedContent);
 
-        // Se o conteúdo foi modificado (imagens processadas), enviar atualização
+
         if (processedContent !== accumulatedContent) {
           res.write(
             JSON.stringify({
@@ -759,16 +759,16 @@ Responda em português brasileiro, seja prático e direto.`;
   }
 });
 
-/**
- * @swagger
- * /api/ai/tools:
- *   get:
- *     summary: Lista todas as tools disponíveis
- *     tags: [AI Assistant]
- *     responses:
- *       200:
- *         description: Lista de tools disponíveis
- */
+
+
+
+
+
+
+
+
+
+
 router.get('/tools', authenticateToken, (req, res) => {
   const toolsInfo = openAITools.map((tool) => ({
     name: tool.function.name,
@@ -783,46 +783,46 @@ router.get('/tools', authenticateToken, (req, res) => {
   });
 });
 
-// ENDPOINT DE SUGESTÕES DESABILITADO - Funcionalidade removida para otimização
-// /**
-//  * @swagger
-//  * /api/ai/suggestions:
-//  *   post:
-//  *     summary: Gera sugestões inteligentes baseadas na conversa (DESABILITADO)
-//  *     deprecated: true
-//  *     tags: [AI Assistant]
-//  */
-// router.post('/suggestions', authenticateToken, async (req, res) => {
-//   res.status(410).json({
-//     success: false,
-//     error: 'Endpoint desabilitado',
-//     message: 'Funcionalidade de sugestões foi removida para otimização',
-//   });
-// });
 
-/**
- * @swagger
- * /api/management/ai/save-base64-image:
- *   post:
- *     summary: Salvar imagem base64 e retornar URL local
- *     tags: [AI Assistant]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               base64Data:
- *                 type: string
- *                 description: Dados da imagem em base64
- *               filename:
- *                 type: string
- *                 description: Nome do arquivo (opcional)
- *     responses:
- *       200:
- *         description: Imagem salva com sucesso
- */
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 router.post('/save-base64-image', async (req, res) => {
   try {
     const { base64Data, filename } = req.body;
@@ -834,7 +834,7 @@ router.post('/save-base64-image', async (req, res) => {
       });
     }
 
-    // Extrair o tipo de imagem e os dados base64
+
     const matches = base64Data.match(/^data:image\/([^;]+);base64,(.+)$/);
     if (!matches) {
       return res.status(400).json({
@@ -845,15 +845,15 @@ router.post('/save-base64-image', async (req, res) => {
 
     const [, imageType, base64String] = matches;
 
-    // Gerar nome único do arquivo
+
     const uniqueId = crypto.randomBytes(16).toString('hex');
     const fileExtension = imageType === 'svg+xml' ? 'svg' : imageType;
     const fileName = filename || `image-${uniqueId}.${fileExtension}`;
 
-    // Diretório para salvar imagens temporárias
+
     const tempDir = path.join(__dirname, '../../temp-images');
 
-    // Garantir que o diretório existe
+
     try {
       await fs.access(tempDir);
     } catch {
@@ -862,11 +862,11 @@ router.post('/save-base64-image', async (req, res) => {
 
     const filePath = path.join(tempDir, fileName);
 
-    // Converter base64 para buffer e salvar
+
     const imageBuffer = Buffer.from(base64String, 'base64');
     await fs.writeFile(filePath, imageBuffer);
 
-    // URL para acessar a imagem
+
     const imageUrl = `/temp-images/${fileName}`;
 
     console.log(
@@ -889,23 +889,23 @@ router.post('/save-base64-image', async (req, res) => {
   }
 });
 
-/**
- * @swagger
- * /api/ai/health:
- *   get:
- *     summary: Verifica saúde da assistente de IA
- *     tags: [AI Assistant]
- *     responses:
- *       200:
- *         description: Status da assistente
- */
+
+
+
+
+
+
+
+
+
+
 router.get('/health', async (req, res) => {
   try {
-    // Verificar se há chave customizada no localStorage (passada via header)
+
     const customApiKey = req.headers['x-custom-api-key'];
     const openaiInstance = createOpenAIInstance(customApiKey);
 
-    // Teste simples com OpenAI
+
 
     res.json({
       success: true,

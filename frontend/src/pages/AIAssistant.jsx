@@ -171,7 +171,7 @@ export default function AIAssistantPage() {
 
   return (
     <div className="h-screen bg-gray-50 flex flex-col">
-      {/* Header - Compacto */}
+      {}
       <div className="bg-white border-b border-gray-200 flex-shrink-0">
         <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-14">
@@ -198,7 +198,7 @@ export default function AIAssistantPage() {
             <div className="flex items-center space-x-4">
               <StatusBadge />
 
-              {/* Dicas rápidas */}
+              {}
               <div className="hidden lg:flex items-center space-x-2 text-xs text-gray-500">
                 <span className="bg-gray-100 px-2 py-1 rounded">
                   📱 Sessões
@@ -216,7 +216,7 @@ export default function AIAssistantPage() {
         </div>
       </div>
 
-      {/* Chat Interface - Ocupa todo o espaço restante */}
+      {}
       <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
         <motion.div
           initial={{ opacity: 0, y: 20 }}

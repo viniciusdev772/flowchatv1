@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 
-// Funções auxiliares para processamento de mensagens
+
 function extractMessageText(message) {
   try {
     if (!message || !message.message) return '';
@@ -67,12 +67,12 @@ function getMessageType(message) {
   }
 }
 
-// Middleware para verificar se a sessão existe, está conectada e pertence ao usuário
+
 const checkSession = (req, res, next) => {
   const { sessionId } = req.params;
   const userId = req.user?.id || req.user?._id;
 
-  // Check if user is authenticated
+
   if (!userId) {
     return res.status(401).json({
       success: false,
@@ -80,7 +80,7 @@ const checkSession = (req, res, next) => {
     });
   }
 
-  // Acessar o objeto global sessions diretamente
+
   const sessions = global.whatsappSessions;
 
   if (!sessions || !sessions.has(sessionId)) {
@@ -92,7 +92,7 @@ const checkSession = (req, res, next) => {
 
   const session = sessions.get(sessionId);
 
-  // Check session ownership
+
   if (session.userId && session.userId.toString() !== userId.toString()) {
     return res.status(403).json({
       success: false,
@@ -112,7 +112,7 @@ const checkSession = (req, res, next) => {
   next();
 };
 
-// Função auxiliar para formatar JID do grupo
+
 const formatGroupJid = (groupId) => {
   if (groupId.includes('@g.us')) {
     return groupId;
@@ -120,7 +120,7 @@ const formatGroupJid = (groupId) => {
   return `${groupId}@g.us`;
 };
 
-// Função auxiliar para formatar JID do usuário
+
 const formatUserJid = (userId) => {
   if (userId.includes('@s.whatsapp.net')) {
     return userId;
@@ -128,7 +128,7 @@ const formatUserJid = (userId) => {
   return `${userId}@s.whatsapp.net`;
 };
 
-// Criar grupo
+
 router.post('/:sessionId/create', checkSession, async (req, res) => {
   try {
     const { groupName, participants, description } = req.body;
@@ -144,16 +144,16 @@ router.post('/:sessionId/create', checkSession, async (req, res) => {
       });
     }
 
-    // Formatar JIDs dos participantes
+
     const formattedParticipants = participants.map(formatUserJid);
 
-    // Criar o grupo
+
     const groupInfo = await req.whatsappSession.sock.groupCreate(
       groupName,
       formattedParticipants
     );
 
-    // Adicionar descrição se fornecida
+
     if (description && description.trim()) {
       await req.whatsappSession.sock.groupUpdateDescription(
         groupInfo.id,
@@ -182,13 +182,13 @@ router.post('/:sessionId/create', checkSession, async (req, res) => {
   }
 });
 
-// Obter informações do grupo
+
 router.get('/:sessionId/:groupId/info', checkSession, async (req, res) => {
   try {
     const { groupId } = req.params;
     const formattedGroupId = formatGroupJid(groupId);
 
-    // Obter metadados do grupo
+
     const groupMetadata = await req.whatsappSession.sock.groupMetadata(
       formattedGroupId
     );
@@ -207,7 +207,7 @@ router.get('/:sessionId/:groupId/info', checkSession, async (req, res) => {
   }
 });
 
-// Adicionar participantes ao grupo
+
 router.post(
   '/:sessionId/:groupId/add-participants',
   checkSession,
@@ -226,7 +226,7 @@ router.post(
       const formattedGroupId = formatGroupJid(groupId);
       const formattedParticipants = participants.map(formatUserJid);
 
-      // Adicionar participantes
+
       const result = await req.whatsappSession.sock.groupParticipantsUpdate(
         formattedGroupId,
         formattedParticipants,
@@ -250,7 +250,7 @@ router.post(
   }
 );
 
-// Remover participantes do grupo
+
 router.post(
   '/:sessionId/:groupId/remove-participants',
   checkSession,
@@ -269,7 +269,7 @@ router.post(
       const formattedGroupId = formatGroupJid(groupId);
       const formattedParticipants = participants.map(formatUserJid);
 
-      // Remover participantes
+
       const result = await req.whatsappSession.sock.groupParticipantsUpdate(
         formattedGroupId,
         formattedParticipants,
@@ -293,7 +293,7 @@ router.post(
   }
 );
 
-// Promover participantes a admin
+
 router.post('/:sessionId/:groupId/promote', checkSession, async (req, res) => {
   try {
     const { groupId } = req.params;
@@ -309,7 +309,7 @@ router.post('/:sessionId/:groupId/promote', checkSession, async (req, res) => {
     const formattedGroupId = formatGroupJid(groupId);
     const formattedParticipants = participants.map(formatUserJid);
 
-    // Promover participantes
+
     const result = await req.whatsappSession.sock.groupParticipantsUpdate(
       formattedGroupId,
       formattedParticipants,
@@ -332,7 +332,7 @@ router.post('/:sessionId/:groupId/promote', checkSession, async (req, res) => {
   }
 });
 
-// Despromover admins
+
 router.post('/:sessionId/:groupId/demote', checkSession, async (req, res) => {
   try {
     const { groupId } = req.params;
@@ -348,7 +348,7 @@ router.post('/:sessionId/:groupId/demote', checkSession, async (req, res) => {
     const formattedGroupId = formatGroupJid(groupId);
     const formattedParticipants = participants.map(formatUserJid);
 
-    // Despromover participantes
+
     const result = await req.whatsappSession.sock.groupParticipantsUpdate(
       formattedGroupId,
       formattedParticipants,
@@ -371,7 +371,7 @@ router.post('/:sessionId/:groupId/demote', checkSession, async (req, res) => {
   }
 });
 
-// Atualizar nome do grupo
+
 router.put('/:sessionId/:groupId/subject', checkSession, async (req, res) => {
   try {
     const { groupId } = req.params;
@@ -386,7 +386,7 @@ router.put('/:sessionId/:groupId/subject', checkSession, async (req, res) => {
 
     const formattedGroupId = formatGroupJid(groupId);
 
-    // Atualizar nome do grupo
+
     await req.whatsappSession.sock.groupUpdateSubject(
       formattedGroupId,
       subject.trim()
@@ -407,7 +407,7 @@ router.put('/:sessionId/:groupId/subject', checkSession, async (req, res) => {
   }
 });
 
-// Atualizar descrição do grupo
+
 router.put(
   '/:sessionId/:groupId/description',
   checkSession,
@@ -418,7 +418,7 @@ router.put(
 
       const formattedGroupId = formatGroupJid(groupId);
 
-      // Atualizar descrição do grupo
+
       await req.whatsappSession.sock.groupUpdateDescription(
         formattedGroupId,
         description || ''
@@ -440,7 +440,7 @@ router.put(
   }
 );
 
-// Configurar permissões do grupo
+
 router.put('/:sessionId/:groupId/settings', checkSession, async (req, res) => {
   try {
     const { groupId } = req.params;
@@ -448,7 +448,7 @@ router.put('/:sessionId/:groupId/settings', checkSession, async (req, res) => {
 
     const formattedGroupId = formatGroupJid(groupId);
 
-    // Configurar se apenas admins podem enviar mensagens
+
     if (typeof onlyAdminsCanSend === 'boolean') {
       await req.whatsappSession.sock.groupSettingUpdate(
         formattedGroupId,
@@ -456,7 +456,7 @@ router.put('/:sessionId/:groupId/settings', checkSession, async (req, res) => {
       );
     }
 
-    // Configurar se apenas admins podem editar informações do grupo
+
     if (typeof onlyAdminsCanEditInfo === 'boolean') {
       await req.whatsappSession.sock.groupSettingUpdate(
         formattedGroupId,
@@ -482,13 +482,13 @@ router.put('/:sessionId/:groupId/settings', checkSession, async (req, res) => {
   }
 });
 
-// Sair do grupo
+
 router.post('/:sessionId/:groupId/leave', checkSession, async (req, res) => {
   try {
     const { groupId } = req.params;
     const formattedGroupId = formatGroupJid(groupId);
 
-    // Sair do grupo
+
     await req.whatsappSession.sock.groupLeave(formattedGroupId);
 
     res.json({
@@ -505,15 +505,15 @@ router.post('/:sessionId/:groupId/leave', checkSession, async (req, res) => {
   }
 });
 
-// Listar grupos
+
 router.get('/:sessionId/list', checkSession, async (req, res) => {
   try {
     const sock = req.whatsappSession.sock;
 
-    // Parâmetros de paginação e busca
-    const limit = Math.min(Math.max(parseInt(req.query.limit) || 10, 1), 50); // Min 1, Max 50, Default 10
-    const offset = Math.max(parseInt(req.query.offset) || 0, 0); // Min 0, Default 0
-    const search = req.query.search?.trim(); // Parâmetro de busca opcional
+
+    const limit = Math.min(Math.max(parseInt(req.query.limit) || 10, 1), 50);
+    const offset = Math.max(parseInt(req.query.offset) || 0, 0);
+    const search = req.query.search?.trim();
     const includeParticipants = req.query.includeParticipants === 'true';
 
     console.log(
@@ -522,11 +522,11 @@ router.get('/:sessionId/list', checkSession, async (req, res) => {
       }"`
     );
 
-    // Obter lista de grupos diretamente do Baileys
+
     const groups = await sock.groupFetchAllParticipating();
     let groupEntries = Object.entries(groups);
 
-    // Aplicar busca por nome se fornecida
+
     if (search) {
       const searchLower = search.toLowerCase();
       groupEntries = groupEntries.filter(([groupId, groupData]) => {
@@ -538,40 +538,40 @@ router.get('/:sessionId/list', checkSession, async (req, res) => {
       );
     }
 
-    // Aplicar paginação após filtros
+
     const totalGroups = groupEntries.length;
     const paginatedEntries = groupEntries.slice(offset, offset + limit);
 
-    // Processar e formatar os dados dos grupos
+
     const groupList = [];
 
     for (const [groupId, groupData] of paginatedEntries) {
       try {
-        // Obter metadados atualizados do grupo
+
         const groupMetadata = await sock.groupMetadata(groupId);
 
-        // Verificar se os participants existem e são um array
+
         const participants = Array.isArray(groupMetadata.participants)
           ? groupMetadata.participants
           : [];
 
-        // Buscar informações adicionais dos participantes se solicitado
+
         let enrichedParticipants = participants;
         if (includeParticipants) {
           enrichedParticipants = await Promise.all(
             participants.map(async (p) => {
               try {
-                // Buscar foto de perfil
+
                 const profilePicUrl = await sock
                   .profilePictureUrl(p.id, 'preview')
                   .catch(() => null);
 
-                // Buscar status do usuário
+
                 const statusResult = await sock
                   .fetchStatus(p.id)
                   .catch(() => null);
 
-                // Verificar se o número está no WhatsApp
+
                 const onWhatsAppResult = await sock
                   .onWhatsApp(p.id.split('@')[0])
                   .catch(() => null);
@@ -600,7 +600,7 @@ router.get('/:sessionId/list', checkSession, async (req, res) => {
           );
         }
 
-        // Separar participantes por tipo
+
         const admins = enrichedParticipants
           .filter((p) => p.admin === 'admin')
           .map((p) => p.id);
@@ -622,7 +622,7 @@ router.get('/:sessionId/list', checkSession, async (req, res) => {
             adminsCount: admins.length,
             superAdminsCount: superAdmins.length,
             regularCount: regularParticipants.length,
-            // Incluir listas detalhadas só se solicitado
+
             ...(includeParticipants && {
               admins: admins,
               superAdmins: superAdmins,
@@ -651,7 +651,7 @@ router.get('/:sessionId/list', checkSession, async (req, res) => {
         console.warn(
           `Erro ao obter metadados do grupo ${groupId}:`,
           metaError.message
-        ); // Em caso de erro, usar dados básicos do groupData
+        );
         const basicInfo = {
           jid: groupId,
           name: groupData.subject || 'Grupo',
@@ -676,7 +676,7 @@ router.get('/:sessionId/list', checkSession, async (req, res) => {
       }
     }
 
-    // Ordenar grupos por nome
+
     groupList.sort((a, b) => a.name.localeCompare(b.name));
 
     const currentPage = Math.floor(offset / limit) + 1;
@@ -697,7 +697,7 @@ router.get('/:sessionId/list', checkSession, async (req, res) => {
         hasMore: offset + limit < totalGroups,
         currentPage: currentPage,
         totalPages: totalPages,
-        // Informações de navegação úteis para a IA
+
         nextOffset: offset + limit < totalGroups ? offset + limit : null,
         prevOffset: offset > 0 ? Math.max(0, offset - limit) : null,
       },
@@ -717,7 +717,7 @@ router.get('/:sessionId/list', checkSession, async (req, res) => {
   }
 });
 
-// Obter código de convite do grupo
+
 router.get(
   '/:sessionId/:groupId/invite-code',
   checkSession,
@@ -726,7 +726,7 @@ router.get(
       const { groupId } = req.params;
       const formattedGroupId = formatGroupJid(groupId);
 
-      // Obter código de convite
+
       const inviteCode = await req.whatsappSession.sock.groupInviteCode(
         formattedGroupId
       );
@@ -747,7 +747,7 @@ router.get(
   }
 );
 
-// Revogar código de convite do grupo
+
 router.post(
   '/:sessionId/:groupId/revoke-invite',
   checkSession,
@@ -756,7 +756,7 @@ router.post(
       const { groupId } = req.params;
       const formattedGroupId = formatGroupJid(groupId);
 
-      // Revogar código de convite
+
       const newInviteCode = await req.whatsappSession.sock.groupRevokeInvite(
         formattedGroupId
       );
@@ -778,17 +778,17 @@ router.post(
   }
 );
 
-// ====== ROTAS PARA MENSAGENS DE GRUPOS ======
 
-// Obter mensagens de um grupo específico
+
+
 router.get('/:sessionId/:groupId/messages', checkSession, async (req, res) => {
   try {
     const { sessionId, groupId } = req.params;
     const limit = Math.min(Math.max(parseInt(req.query.limit) || 50, 1), 1000);
     const offset = Math.max(parseInt(req.query.offset) || 0, 0);
-    const before = req.query.before; // timestamp para buscar mensagens antes
+    const before = req.query.before;
     const includeParticipants = req.query.includeParticipants === 'true';
-    const search = req.query.search?.trim(); // busca por texto nas mensagens
+    const search = req.query.search?.trim();
 
     console.log(
       `📨 Getting group messages - groupId: ${groupId}, limit: ${limit}, offset: ${offset}`
@@ -797,7 +797,7 @@ router.get('/:sessionId/:groupId/messages', checkSession, async (req, res) => {
     const formattedGroupId = formatGroupJid(groupId);
     const session = req.whatsappSession;
 
-    // Verificar se o grupo existe
+
     try {
       const groupMetadata = await session.sock.groupMetadata(formattedGroupId);
       if (!groupMetadata) {
@@ -814,7 +814,7 @@ router.get('/:sessionId/:groupId/messages', checkSession, async (req, res) => {
       });
     }
 
-    // Buscar mensagens do MongoDB se disponível
+
     const db = require('../config/database').getDb();
     let messages = [];
     let total = 0;
@@ -824,18 +824,18 @@ router.get('/:sessionId/:groupId/messages', checkSession, async (req, res) => {
       try {
         const messagesCollection = db.collection('messages');
 
-        // Construir query para filtrar por grupo
+
         const query = {
           sessionId: sessionId,
           jid: formattedGroupId,
         };
 
-        // Adicionar filtro de timestamp se fornecido
+
         if (before) {
           query.timestamp = { $lt: parseInt(before) };
         }
 
-        // Buscar mensagens com paginação
+
         const dbMessages = await messagesCollection
           .find(query)
           .sort({ timestamp: -1 })
@@ -843,10 +843,10 @@ router.get('/:sessionId/:groupId/messages', checkSession, async (req, res) => {
           .limit(limit)
           .toArray();
 
-        // Contar total de mensagens
+
         total = await messagesCollection.countDocuments(query);
 
-        // Processar mensagens
+
         messages = dbMessages.map((msg) => {
           const messageInfo = {
             messageId: msg.messageId,
@@ -859,7 +859,7 @@ router.get('/:sessionId/:groupId/messages', checkSession, async (req, res) => {
             chatInfo: msg.chatInfo || null,
           };
 
-          // Adicionar informações do participante se for mensagem de grupo
+
           if (msg.message?.key?.participant) {
             messageInfo.participant = {
               jid: msg.message.key.participant,
@@ -870,7 +870,7 @@ router.get('/:sessionId/:groupId/messages', checkSession, async (req, res) => {
             };
           }
 
-          // Verificar se é uma resposta
+
           if (
             msg.message?.message?.extendedTextMessage?.contextInfo
               ?.quotedMessage
@@ -891,7 +891,7 @@ router.get('/:sessionId/:groupId/messages', checkSession, async (req, res) => {
           return messageInfo;
         });
 
-        // Aplicar filtro de busca por texto se fornecido
+
         if (search) {
           const searchLower = search.toLowerCase();
           messages = messages.filter(
@@ -899,7 +899,7 @@ router.get('/:sessionId/:groupId/messages', checkSession, async (req, res) => {
               msg.messageText &&
               msg.messageText.toLowerCase().includes(searchLower)
           );
-          total = messages.length; // Recalcular total após filtro
+          total = messages.length;
         }
 
         source = 'database';
@@ -909,23 +909,23 @@ router.get('/:sessionId/:groupId/messages', checkSession, async (req, res) => {
           'Erro ao buscar mensagens no MongoDB, usando memória:',
           dbError.message
         );
-        // Fallback para busca em memória
+
       }
     }
 
-    // Fallback: buscar da memória se MongoDB não disponível ou falhou
+
     if (messages.length === 0 && source === 'memory') {
       const messageStore = global.messageStore;
       if (messageStore && messageStore.has(sessionId)) {
         const sessionMessages = messageStore.get(sessionId);
         const allMessages = Array.from(sessionMessages.values());
 
-        // Filtrar por grupo
+
         let groupMessages = allMessages.filter(
           (data) => data.jid === formattedGroupId
         );
 
-        // Aplicar filtro de busca por texto
+
         if (search) {
           const searchLower = search.toLowerCase();
           groupMessages = groupMessages.filter((data) => {
@@ -936,7 +936,7 @@ router.get('/:sessionId/:groupId/messages', checkSession, async (req, res) => {
           });
         }
 
-        // Ordenar por timestamp (mais recentes primeiro)
+
         groupMessages.sort((a, b) => b.timestamp - a.timestamp);
 
         total = groupMessages.length;
@@ -955,7 +955,7 @@ router.get('/:sessionId/:groupId/messages', checkSession, async (req, res) => {
             chatInfo: null,
           };
 
-          // Adicionar informações do participante
+
           if (message.key.participant) {
             messageInfo.participant = {
               jid: message.key.participant,
@@ -966,7 +966,7 @@ router.get('/:sessionId/:groupId/messages', checkSession, async (req, res) => {
             };
           }
 
-          // Verificar se é uma resposta
+
           if (
             message.message?.extendedTextMessage?.contextInfo?.quotedMessage
           ) {
@@ -989,7 +989,7 @@ router.get('/:sessionId/:groupId/messages', checkSession, async (req, res) => {
       }
     }
 
-    // Obter informações do grupo se solicitado
+
     let groupInfo = null;
     if (includeParticipants) {
       try {
@@ -1037,13 +1037,13 @@ router.get('/:sessionId/:groupId/messages', checkSession, async (req, res) => {
       }
     }
 
-    // Calcular paginação
+
     const currentPage = Math.floor(offset / limit) + 1;
     const totalPages = Math.ceil(total / limit);
 
     res.json({
       success: true,
-      messages: messages.reverse(), // Mais recentes primeiro
+      messages: messages.reverse(),
       groupInfo: groupInfo,
       pagination: {
         total: total,
@@ -1075,16 +1075,16 @@ router.get('/:sessionId/:groupId/messages', checkSession, async (req, res) => {
   }
 });
 
-// Buscar mensagens em todos os grupos da sessão
+
 router.get('/:sessionId/messages/search', checkSession, async (req, res) => {
   try {
     const { sessionId } = req.params;
     const limit = Math.min(Math.max(parseInt(req.query.limit) || 50, 1), 500);
     const offset = Math.max(parseInt(req.query.offset) || 0, 0);
     const search = req.query.search?.trim();
-    const groupName = req.query.groupName?.trim(); // filtro por nome do grupo
+    const groupName = req.query.groupName?.trim();
     const includeParticipants = req.query.includeParticipants === 'true';
-    const before = req.query.before; // timestamp
+    const before = req.query.before;
 
     console.log(
       `🔍 Searching group messages - search: "${search}", groupName: "${groupName}"`
@@ -1104,31 +1104,31 @@ router.get('/:sessionId/messages/search', checkSession, async (req, res) => {
     let source = 'memory';
     let groupsFound = [];
 
-    // Buscar mensagens do MongoDB se disponível
+
     const db = require('../config/database').getDb();
 
     if (db) {
       try {
         const messagesCollection = db.collection('messages');
 
-        // Construir query para filtrar mensagens de grupos
+
         const query = {
           sessionId: sessionId,
-          jid: { $regex: '@g.us$' }, // apenas grupos
+          jid: { $regex: '@g.us$' },
         };
 
-        // Adicionar filtro de timestamp se fornecido
+
         if (before) {
           query.timestamp = { $lt: parseInt(before) };
         }
 
-        // Buscar mensagens de grupos
+
         let dbMessages = await messagesCollection
           .find(query)
           .sort({ timestamp: -1 })
           .toArray();
 
-        // Aplicar filtros
+
         if (search) {
           const searchLower = search.toLowerCase();
           dbMessages = dbMessages.filter(
@@ -1152,10 +1152,10 @@ router.get('/:sessionId/messages/search', checkSession, async (req, res) => {
         total = dbMessages.length;
         const paginatedMessages = dbMessages.slice(offset, offset + limit);
 
-        // Processar mensagens e extrair grupos únicos
+
         const groupsMap = new Map();
         messages = paginatedMessages.map((msg) => {
-          // Adicionar grupo ao mapa se não existir
+
           if (msg.chatInfo && msg.chatInfo.type === 'group') {
             if (!groupsMap.has(msg.jid)) {
               groupsMap.set(msg.jid, {
@@ -1178,7 +1178,7 @@ router.get('/:sessionId/messages/search', checkSession, async (req, res) => {
             chatInfo: msg.chatInfo || null,
           };
 
-          // Adicionar informações do participante se for mensagem de grupo
+
           if (msg.message?.key?.participant) {
             messageInfo.participant = {
               jid: msg.message.key.participant,
@@ -1205,19 +1205,19 @@ router.get('/:sessionId/messages/search', checkSession, async (req, res) => {
       }
     }
 
-    // Fallback: buscar da memória se MongoDB não disponível
+
     if (messages.length === 0 && source === 'memory') {
       const messageStore = global.messageStore;
       if (messageStore && messageStore.has(sessionId)) {
         const sessionMessages = messageStore.get(sessionId);
         const allMessages = Array.from(sessionMessages.values());
 
-        // Filtrar apenas mensagens de grupos
+
         let groupMessages = allMessages.filter((data) =>
           data.jid.endsWith('@g.us')
         );
 
-        // Aplicar filtros
+
         if (search) {
           const searchLower = search.toLowerCase();
           groupMessages = groupMessages.filter((data) => {
@@ -1228,13 +1228,13 @@ router.get('/:sessionId/messages/search', checkSession, async (req, res) => {
           });
         }
 
-        // Ordenar por timestamp
+
         groupMessages.sort((a, b) => b.timestamp - a.timestamp);
 
         total = groupMessages.length;
         const paginatedMessages = groupMessages.slice(offset, offset + limit);
 
-        // Obter informações dos grupos únicos
+
         const groupsMap = new Map();
         for (const data of paginatedMessages) {
           if (!groupsMap.has(data.jid)) {
@@ -1257,7 +1257,7 @@ router.get('/:sessionId/messages/search', checkSession, async (req, res) => {
           }
         }
 
-        // Filtrar por nome do grupo se especificado
+
         if (groupName) {
           const groupNameLower = groupName.toLowerCase();
           const filteredGroups = Array.from(groupsMap.entries()).filter(
@@ -1326,7 +1326,7 @@ router.get('/:sessionId/messages/search', checkSession, async (req, res) => {
       }
     }
 
-    // Adicionar informações detalhadas dos participantes se solicitado
+
     if (includeParticipants && groupsFound.length > 0) {
       for (const group of groupsFound) {
         try {
@@ -1363,13 +1363,13 @@ router.get('/:sessionId/messages/search', checkSession, async (req, res) => {
       }
     }
 
-    // Calcular paginação
+
     const currentPage = Math.floor(offset / limit) + 1;
     const totalPages = Math.ceil(total / limit);
 
     res.json({
       success: true,
-      messages: messages.reverse(), // Mais recentes primeiro
+      messages: messages.reverse(),
       groups: groupsFound,
       pagination: {
         total: total,
@@ -1401,12 +1401,12 @@ router.get('/:sessionId/messages/search', checkSession, async (req, res) => {
   }
 });
 
-// Listar contatos
+
 router.get('/:sessionId/contacts', checkSession, async (req, res) => {
   try {
     const sock = req.whatsappSession.sock;
 
-    // Parâmetros de paginação e busca
+
     const limit = Math.min(Math.max(parseInt(req.query.limit) || 50, 1), 100);
     const offset = Math.max(parseInt(req.query.offset) || 0, 0);
     const search = req.query.search?.trim();
@@ -1419,7 +1419,7 @@ router.get('/:sessionId/contacts', checkSession, async (req, res) => {
 
     let contacts = [];
 
-    // Tentar obter contatos do store se disponível
+
     if (sock.store && sock.store.contacts) {
       const contactsStore = sock.store.contacts;
       contacts = Object.entries(contactsStore).map(([jid, contact]) => ({
@@ -1432,18 +1432,18 @@ router.get('/:sessionId/contacts', checkSession, async (req, res) => {
         notify: contact.notify || '',
         status: contact.status || '',
         imgUrl: contact.imgUrl || null,
-        lid: contact.lid || null, // Local ID para multi-device
+        lid: contact.lid || null,
         isContact: true,
       }));
     } else {
-      // Fallback: Extrair contatos de chats existentes
+
       console.log('📞 Store não disponível, extraindo contatos dos chats...');
 
       try {
-        // Obter todos os chats
+
         const chats = await sock.fetchChats();
 
-        // Filtrar apenas contatos individuais (não grupos)
+
         const individualChats = chats.filter(
           (chat) =>
             chat.id.endsWith('@s.whatsapp.net') &&
@@ -1451,14 +1451,14 @@ router.get('/:sessionId/contacts', checkSession, async (req, res) => {
             !chat.id.endsWith('@broadcast')
         );
 
-        // Criar lista de contatos básica
+
         contacts = individualChats.map((chat) => ({
           jid: chat.id,
           name: chat.name || chat.notify || extractPhoneFromJid(chat.id),
           notify: chat.notify || '',
           status: '',
           imgUrl: null,
-          lid: null, // Não disponível no fallback
+          lid: null,
           isContact: true,
           lastMessage: chat.lastMessage
             ? {
@@ -1470,7 +1470,7 @@ router.get('/:sessionId/contacts', checkSession, async (req, res) => {
       } catch (error) {
         console.warn('Erro ao buscar chats para contatos:', error.message);
 
-        // Último fallback: lista vazia com instruções
+
         return res.json({
           success: true,
           contacts: [],
@@ -1482,7 +1482,7 @@ router.get('/:sessionId/contacts', checkSession, async (req, res) => {
       }
     }
 
-    // Aplicar busca por nome/número se fornecida
+
     if (search) {
       const searchLower = search.toLowerCase();
       contacts = contacts.filter((contact) => {
@@ -1495,14 +1495,14 @@ router.get('/:sessionId/contacts', checkSession, async (req, res) => {
       );
     }
 
-    // Ordenar por nome
+
     contacts.sort((a, b) => {
       const nameA = (a.name || '').toLowerCase();
       const nameB = (b.name || '').toLowerCase();
       return nameA.localeCompare(nameB);
     });
 
-    // Aplicar paginação
+
     const totalContacts = contacts.length;
     const paginatedContacts = contacts.slice(offset, offset + limit);
 
@@ -1531,7 +1531,7 @@ router.get('/:sessionId/contacts', checkSession, async (req, res) => {
   }
 });
 
-// Função auxiliar para extrair telefone do JID
+
 function extractPhoneFromJid(jid) {
   if (!jid) return '';
   return jid.split('@')[0] || '';

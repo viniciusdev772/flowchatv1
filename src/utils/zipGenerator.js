@@ -3,24 +3,24 @@ const fs = require('fs').promises;
 const path = require('path');
 const crypto = require('crypto');
 
-/**
- * ZIP File Generator for Web Scraping Data
- */
+
+
+
 class ZipGenerator {
   constructor(options = {}) {
     this.outputDir = options.outputDir || path.join(process.cwd(), 'downloads', 'exports');
     this.compressionLevel = options.compressionLevel || 6;
-    this.maxFileSize = options.maxFileSize || 50 * 1024 * 1024; // 50MB
+    this.maxFileSize = options.maxFileSize || 50 * 1024 * 1024;
     this.baseUrl = process.env.BASE_URL || 'http://localhost:3000';
   }
 
-  /**
-   * Generate complete download URL
-   */
+
+
+
   generateDownloadUrl(fileName) {
     const relativePath = `/downloads/exports/${fileName}`;
     const fullUrl = `${this.baseUrl}${relativePath}`;
-    
+
     console.log(`📎 Generated download URL: ${fullUrl}`);
     return {
       url: relativePath,
@@ -28,9 +28,9 @@ class ZipGenerator {
     };
   }
 
-  /**
-   * Initialize output directory
-   */
+
+
+
   async ensureOutputDir() {
     try {
       await fs.mkdir(this.outputDir, { recursive: true });
@@ -40,12 +40,12 @@ class ZipGenerator {
     }
   }
 
-  /**
-   * Generate ZIP file with scraped data
-   */
+
+
+
   async generateScrapingZip(data, options = {}) {
     await this.ensureOutputDir();
-    
+
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const urlHash = crypto.createHash('md5').update(data.url || 'unknown').digest('hex').substring(0, 8);
     const fileName = `scraped-${urlHash}-${timestamp}.zip`;
@@ -76,29 +76,29 @@ class ZipGenerator {
 
       archive.pipe(output);
 
-      // Add main data as JSON
+
       archive.append(JSON.stringify(data, null, 2), { name: 'scraped-data.json' });
 
-      // Add HTML content if available
+
       if (data.rawHtml) {
         archive.append(data.rawHtml, { name: 'page.html' });
       }
 
-      // Add text content
+
       if (data.content) {
         archive.append(data.content, { name: 'content.txt' });
       }
 
-      // Add structured data
+
       if (data.jsonLd && data.jsonLd.length > 0) {
         archive.append(JSON.stringify(data.jsonLd, null, 2), { name: 'structured-data.json' });
       }
 
-      // Add metadata
+
       const metadata = this.generateMetadata(data);
       archive.append(JSON.stringify(metadata, null, 2), { name: 'metadata.json' });
 
-      // Add CSV files for structured data
+
       if (data.tables && data.tables.length > 0) {
         data.tables.forEach((table, index) => {
           const csv = this.tableToCsv(table);
@@ -106,23 +106,23 @@ class ZipGenerator {
         });
       }
 
-      // Add links as CSV
+
       if (data.links && data.links.length > 0) {
         const linksCsv = this.linksToCsv(data.links);
         archive.append(linksCsv, { name: 'links.csv' });
       }
 
-      // Add images list as CSV
+
       if (data.images && data.images.length > 0) {
         const imagesCsv = this.imagesToCsv(data.images);
         archive.append(imagesCsv, { name: 'images.csv' });
       }
 
-      // Add readable HTML report
+
       const htmlReport = this.generateHtmlReport(data);
       archive.append(htmlReport, { name: 'report.html' });
 
-      // Add README
+
       const readme = this.generateReadme(data);
       archive.append(readme, { name: 'README.md' });
 
@@ -130,12 +130,12 @@ class ZipGenerator {
     });
   }
 
-  /**
-   * Generate ZIP file with search results
-   */
+
+
+
   async generateSearchZip(searchData, options = {}) {
     await this.ensureOutputDir();
-    
+
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
     const queryHash = crypto.createHash('md5').update(searchData.query || 'search').digest('hex').substring(0, 8);
     const fileName = `search-${queryHash}-${timestamp}.zip`;
@@ -166,16 +166,16 @@ class ZipGenerator {
 
       archive.pipe(output);
 
-      // Add main search data as JSON
+
       archive.append(JSON.stringify(searchData, null, 2), { name: 'search-results.json' });
 
-      // Add results as CSV
+
       if (searchData.results && searchData.results.length > 0) {
         const resultsCsv = this.searchResultsToCsv(searchData.results);
         archive.append(resultsCsv, { name: 'results.csv' });
       }
 
-      // Add results by source
+
       const resultsBySource = this.groupResultsBySource(searchData.results || []);
       for (const [source, results] of Object.entries(resultsBySource)) {
         if (results.length > 0) {
@@ -183,11 +183,11 @@ class ZipGenerator {
         }
       }
 
-      // Add HTML report
+
       const htmlReport = this.generateSearchHtmlReport(searchData);
       archive.append(htmlReport, { name: 'search-report.html' });
 
-      // Add README
+
       const readme = this.generateSearchReadme(searchData);
       archive.append(readme, { name: 'README.md' });
 
@@ -195,9 +195,9 @@ class ZipGenerator {
     });
   }
 
-  /**
-   * Generate metadata object
-   */
+
+
+
   generateMetadata(data) {
     return {
       url: data.url,
@@ -212,32 +212,32 @@ class ZipGenerator {
     };
   }
 
-  /**
-   * Convert table to CSV
-   */
+
+
+
   tableToCsv(table) {
     const rows = [];
-    
+
     if (table.headers && table.headers.length > 0) {
       rows.push(table.headers.map(h => this.escapeCsv(h)).join(','));
     }
-    
+
     if (table.rows && table.rows.length > 0) {
       table.rows.forEach(row => {
         rows.push(row.map(cell => this.escapeCsv(cell)).join(','));
       });
     }
-    
+
     return rows.join('\n');
   }
 
-  /**
-   * Convert links to CSV
-   */
+
+
+
   linksToCsv(links) {
     const headers = ['Text', 'URL', 'Is External'];
     const rows = [headers.join(',')];
-    
+
     links.forEach(link => {
       const row = [
         this.escapeCsv(link.text || ''),
@@ -246,17 +246,17 @@ class ZipGenerator {
       ].join(',');
       rows.push(row);
     });
-    
+
     return rows.join('\n');
   }
 
-  /**
-   * Convert images to CSV
-   */
+
+
+
   imagesToCsv(images) {
     const headers = ['URL', 'Alt Text', 'Title', 'Width', 'Height'];
     const rows = [headers.join(',')];
-    
+
     images.forEach(img => {
       const row = [
         this.escapeCsv(img.src || ''),
@@ -267,17 +267,17 @@ class ZipGenerator {
       ].join(',');
       rows.push(row);
     });
-    
+
     return rows.join('\n');
   }
 
-  /**
-   * Convert search results to CSV
-   */
+
+
+
   searchResultsToCsv(results) {
     const headers = ['Title', 'URL', 'Snippet', 'Source', 'Relevance Score'];
     const rows = [headers.join(',')];
-    
+
     results.forEach(result => {
       const row = [
         this.escapeCsv(result.title || ''),
@@ -288,16 +288,16 @@ class ZipGenerator {
       ].join(',');
       rows.push(row);
     });
-    
+
     return rows.join('\n');
   }
 
-  /**
-   * Group search results by source
-   */
+
+
+
   groupResultsBySource(results) {
     const grouped = {};
-    
+
     results.forEach(result => {
       const source = result.source || 'unknown';
       if (!grouped[source]) {
@@ -305,28 +305,28 @@ class ZipGenerator {
       }
       grouped[source].push(result);
     });
-    
+
     return grouped;
   }
 
-  /**
-   * Escape CSV values
-   */
+
+
+
   escapeCsv(value) {
     if (typeof value !== 'string') {
       value = String(value);
     }
-    
+
     if (value.includes(',') || value.includes('"') || value.includes('\n')) {
       return `"${value.replace(/"/g, '""')}"`;
     }
-    
+
     return value;
   }
 
-  /**
-   * Generate HTML report for scraped data
-   */
+
+
+
   generateHtmlReport(data) {
     return `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -394,7 +394,7 @@ class ZipGenerator {
     <div class="section">
         <h2>Headings Structure</h2>
         <div class="content">
-            ${Object.entries(data.headings).map(([level, headings]) => 
+            ${Object.entries(data.headings).map(([level, headings]) =>
               headings.length > 0 ? `<p><strong>${level.toUpperCase()}:</strong> ${headings.map(h => this.escapeHtml(h)).join(', ')}</p>` : ''
             ).join('')}
         </div>
@@ -432,9 +432,9 @@ class ZipGenerator {
 </html>`;
   }
 
-  /**
-   * Generate HTML report for search results
-   */
+
+
+
   generateSearchHtmlReport(searchData) {
     return `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -489,7 +489,7 @@ class ZipGenerator {
 
     <div class="section">
         <h2>Search Results</h2>
-        ${searchData.results && searchData.results.length > 0 ? 
+        ${searchData.results && searchData.results.length > 0 ?
           searchData.results.map(result => `
             <div class="result">
                 <div class="result-title">
@@ -501,7 +501,7 @@ class ZipGenerator {
                 <div class="result-url">${this.escapeHtml(result.url || '')}</div>
                 <div class="result-snippet">${this.escapeHtml(result.snippet || '')}</div>
             </div>
-          `).join('') : 
+          `).join('') :
           '<p>No results found.</p>'
         }
     </div>
@@ -513,9 +513,9 @@ class ZipGenerator {
 </html>`;
   }
 
-  /**
-   * Generate README file for scraped data
-   */
+
+
+
   generateReadme(data) {
     return `# Web Scraping Export
 
@@ -567,9 +567,9 @@ FlowChat API Web Scraper v2.0.0
 https://github.com/your-repo/flowchat-api`;
   }
 
-  /**
-   * Generate README file for search results
-   */
+
+
+
   generateSearchReadme(searchData) {
     return `# Web Search Export
 
@@ -600,8 +600,8 @@ ${searchData.performance ? `
 
 ## Sources
 
-${searchData.sources && searchData.sources.length > 0 ? 
-  searchData.sources.map(source => `- ${source}`).join('\n') : 
+${searchData.sources && searchData.sources.length > 0 ?
+  searchData.sources.map(source => `- ${source}`).join('\n') :
   'No successful sources'}
 
 ${searchData.errors && searchData.errors.length > 0 ? `
@@ -622,14 +622,14 @@ FlowChat API Web Search v2.0.0
 https://github.com/your-repo/flowchat-api`;
   }
 
-  /**
-   * Escape HTML characters
-   */
+
+
+
   escapeHtml(text) {
     if (typeof text !== 'string') {
       text = String(text);
     }
-    
+
     return text
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
@@ -638,19 +638,19 @@ https://github.com/your-repo/flowchat-api`;
       .replace(/'/g, '&#39;');
   }
 
-  /**
-   * Clean up old ZIP files
-   */
-  async cleanupOldFiles(maxAge = 7 * 24 * 60 * 60 * 1000) { // 7 days
+
+
+
+  async cleanupOldFiles(maxAge = 7 * 24 * 60 * 60 * 1000) {
     try {
       const files = await fs.readdir(this.outputDir);
       const now = Date.now();
-      
+
       for (const file of files) {
         if (file.endsWith('.zip')) {
           const filePath = path.join(this.outputDir, file);
           const stats = await fs.stat(filePath);
-          
+
           if (now - stats.mtime.getTime() > maxAge) {
             await fs.unlink(filePath);
             console.log(`🗑️ Cleaned up old ZIP file: ${file}`);

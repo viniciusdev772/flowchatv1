@@ -10,7 +10,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { AnimatePresence, motion } from 'framer-motion';
 import { useCallback, useEffect, useRef, useState } from 'react';
-// import { useSmartSuggestions } from '../hooks/useSmartSuggestions'; // DESABILITADO
+
 import MarkdownRenderer, { ToolResponseBlock } from './MarkdownRenderer';
 import MessageCollectorManager from './MessageCollectorManager';
 import AISummaryPanel from './AISummaryPanel';
@@ -21,7 +21,7 @@ import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 import { Input } from './ui/input';
 
-// Componente simplificado para renderizar mensagens (backend processa base64 automaticamente)
+
 const MessageContentRenderer = ({ content }) => {
   return <MarkdownRenderer content={content} />;
 };
@@ -50,20 +50,20 @@ export default function AIStreamingChat() {
   });
   const [downloadingMedia, setDownloadingMedia] = useState(new Set());
   const [downloadProgress, setDownloadProgress] = useState({});
-  
-  // Estado para as abas (chat IA e coletor de mensagens)
-  const [activeTab, setActiveTab] = useState('chat'); // 'chat' ou 'collector'
+
+
+  const [activeTab, setActiveTab] = useState('chat');
   const [selectedCollectorData, setSelectedCollectorData] = useState(null);
 
-  // SUGESTÕES DESABILITADAS - Funcionalidade removida
-  // const {
-  //   smartSuggestions,
-  //   isGeneratingSuggestions,
-  //   generateSmartSuggestions,
-  //   clearSuggestions,
-  // } = useSmartSuggestions();
 
-  // Mock para manter compatibilidade
+
+
+
+
+
+
+
+
   const smartSuggestions = [];
   const isGeneratingSuggestions = false;
   const generateSmartSuggestions = () => {};
@@ -84,7 +84,7 @@ export default function AIStreamingChat() {
   };
 
   const scrollToBottomSmart = () => {
-    // Durante streaming usa scroll instantâneo, senão usa smooth
+
     if (isStreaming) {
       scrollToBottomInstant();
     } else {
@@ -96,43 +96,43 @@ export default function AIStreamingChat() {
     scrollToBottomSmart();
   }, [messages.length, isThinking]);
 
-  // Scroll automático durante streaming de conteúdo
+
   useEffect(() => {
     if (isStreaming && streamingContent) {
       scrollToBottomInstant();
     }
   }, [streamingContent, isStreaming]);
 
-  // Scroll automático quando tools estão executando
+
   useEffect(() => {
     if (executingTools.size > 0 || downloadingMedia.size > 0) {
       scrollToBottom();
     }
   }, [executingTools.size, downloadingMedia.size]);
 
-  // Scroll automático quando tool calls são atualizados
+
   useEffect(() => {
     if (streamingToolCalls.length > 0) {
       scrollToBottom();
     }
   }, [streamingToolCalls.length]);
 
-  // Auto-scroll otimizado durante streaming
+
   useEffect(() => {
     if (isStreaming) {
-      // Scroll automático a cada 200ms durante streaming (menos frequente)
+
       autoScrollIntervalRef.current = setInterval(() => {
         scrollToBottomInstant();
       }, 200);
     } else {
-      // Limpar intervalo quando não está streaming
+
       if (autoScrollIntervalRef.current) {
         clearInterval(autoScrollIntervalRef.current);
         autoScrollIntervalRef.current = null;
       }
     }
 
-    // Cleanup no unmount
+
     return () => {
       if (autoScrollIntervalRef.current) {
         clearInterval(autoScrollIntervalRef.current);
@@ -140,23 +140,23 @@ export default function AIStreamingChat() {
     };
   }, [isStreaming]);
 
-  // SUGESTÕES DESABILITADAS - useEffect removido
-  // useEffect(() => {
-  //   const lastMessage = messages[messages.length - 1];
-  //   if (
-  //     lastMessage &&
-  //     lastMessage.role === 'assistant' &&
-  //     lastMessage.isComplete &&
-  //     !isStreaming &&
-  //     suggestionsGeneratedFor.current !== lastMessage.id
-  //   ) {
-  //     const timer = setTimeout(() => {
-  //       suggestionsGeneratedFor.current = lastMessage.id;
-  //       generateSmartSuggestions(messages);
-  //     }, 1500);
-  //     return () => clearTimeout(timer);
-  //   }
-  // }, [messages.length, isStreaming]);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
   const stopStreaming = () => {
     if (abortControllerRef.current) {
@@ -172,7 +172,7 @@ export default function AIStreamingChat() {
   const sendMessage = async () => {
     if (!inputValue.trim() || isStreaming) return;
 
-    // Resetar controles quando enviar nova mensagem
+
     suggestionsGeneratedFor.current = null;
 
     const userMessage = {
@@ -188,10 +188,10 @@ export default function AIStreamingChat() {
     setIsStreaming(true);
     setIsThinking(true);
 
-    // Scroll imediato após enviar mensagem
+
     setTimeout(() => scrollToBottom(), 50);
 
-    // Create abort controller for this request
+
     abortControllerRef.current = new AbortController();
 
     const assistantMessageId = Date.now() + 1;
@@ -201,12 +201,12 @@ export default function AIStreamingChat() {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
       const customApiKey = localStorage.getItem('openai_api_key');
 
-      // Validar se tem API key antes de enviar
+
       if (!customApiKey) {
         throw new Error('API_KEY_REQUIRED');
       }
 
-      // Validar formato da API key
+
       if (!customApiKey.startsWith('sk-') || customApiKey.length < 48) {
         throw new Error('INVALID_API_KEY_FORMAT');
       }
@@ -232,7 +232,7 @@ export default function AIStreamingChat() {
         throw new Error(`Erro ${response.status}: ${response.statusText}`);
       }
 
-      // Create the streaming message placeholder
+
       const streamingMessage = {
         id: assistantMessageId,
         role: 'assistant',
@@ -246,7 +246,7 @@ export default function AIStreamingChat() {
       setMessages((prev) => [...prev, streamingMessage]);
       setIsThinking(false);
 
-      // Scroll quando mensagem streaming inicia
+
       setTimeout(() => scrollToBottom(), 50);
 
       const reader = response.body.getReader();
@@ -269,7 +269,7 @@ export default function AIStreamingChat() {
             if (data.type === 'content') {
               accumulatedContent += data.content;
               setStreamingContent(accumulatedContent);
-              // Atualizar mensagem de forma otimizada
+
               setMessages((prev) => {
                 const newMessages = [...prev];
                 const msgIndex = newMessages.findIndex(
@@ -287,12 +287,12 @@ export default function AIStreamingChat() {
               setIsThinking(true);
               setTimeout(() => scrollToBottom(), 50);
             } else if (data.type === 'tool_start') {
-              // Nova tool iniciando execução
+
               setExecutingTools((prev) => new Set(prev).add(data.tool));
               setToolsProgress((prev) => ({ ...prev, total: data.total }));
               setIsThinking(false);
 
-              // Se for uma tool de download, adicionar ao estado de download
+
               if (
                 data.tool === 'downloadFromUrl' ||
                 data.tool === 'downloadAndSend'
@@ -303,7 +303,7 @@ export default function AIStreamingChat() {
                   [data.tool]: { status: 'iniciando', progress: 0 },
                 }));
               }
-              // Scroll quando nova tool inicia
+
               setTimeout(() => scrollToBottom(), 50);
             } else if (data.type === 'tool_result') {
               toolResults.push(data);
@@ -318,10 +318,10 @@ export default function AIStreamingChat() {
                 completed: prev.completed + 1,
               }));
               setIsThinking(false);
-              // Scroll quando tool completa
+
               setTimeout(() => scrollToBottom(), 50);
 
-              // Se for uma tool de download, remover do estado de download
+
               if (
                 data.tool === 'downloadFromUrl' ||
                 data.tool === 'downloadAndSend'
@@ -350,10 +350,10 @@ export default function AIStreamingChat() {
                 completed: prev.completed + 1,
               }));
               setIsThinking(false);
-              // Scroll quando tool tem erro
+
               setTimeout(() => scrollToBottom(), 50);
 
-              // Se for uma tool de download, remover do estado de download
+
               if (
                 data.tool === 'downloadFromUrl' ||
                 data.tool === 'downloadAndSend'
@@ -370,7 +370,7 @@ export default function AIStreamingChat() {
                 });
               }
             } else if (data.type === 'download_progress') {
-              // Novo evento para progresso de download
+
               if (data.tool && downloadingMedia.has(data.tool)) {
                 setDownloadProgress((prev) => ({
                   ...prev,
@@ -383,16 +383,16 @@ export default function AIStreamingChat() {
                 }));
               }
             } else if (data.type === 'tools_completed') {
-              // Todas as tools foram concluídas
+
               setExecutingTools(new Set());
               setToolsProgress({ completed: data.total, total: data.total });
               setIsThinking(false);
               setDownloadingMedia(new Set());
               setDownloadProgress({});
-              // Scroll quando todas as tools completam
+
               setTimeout(() => scrollToBottom(), 100);
 
-              // Verificar se getMessageHistory foi executado e adicionar contexto visual
+
               const hasGetMessageHistory = toolResults.some(
                 (tr) => tr.tool === 'getMessageHistory'
               );
@@ -400,23 +400,23 @@ export default function AIStreamingChat() {
                 console.log(
                   '🔍 getMessageHistory executado - IA deve continuar automaticamente'
                 );
-                // Adicionar feedback visual de que a IA deve continuar
+
                 setIsThinking(true);
-                setTimeout(() => setIsThinking(false), 2000); // Mostrar "pensando" por 2s
+                setTimeout(() => setIsThinking(false), 2000);
               }
 
               break;
             } else if (data.type === 'tools_error') {
-              // Erro na execução paralela
+
               setExecutingTools(new Set());
               setIsThinking(false);
               console.error('Erro na execução de tools:', data.error);
             } else if (data.type === 'content_update') {
-              // Backend processou imagens base64 e enviou conteúdo atualizado
+
               console.log('📸 Received content update with processed images');
               accumulatedContent = data.content;
               setStreamingContent(accumulatedContent);
-              // Atualizar mensagem com conteúdo processado
+
               setMessages((prev) => {
                 const newMessages = [...prev];
                 const msgIndex = newMessages.findIndex(
@@ -431,7 +431,7 @@ export default function AIStreamingChat() {
                 return newMessages;
               });
             } else if (data.type === 'done') {
-              // Finalize the message
+
               setMessages((prev) =>
                 prev.map((msg) =>
                   msg.id === assistantMessageId
@@ -454,12 +454,12 @@ export default function AIStreamingChat() {
               setToolsProgress({ completed: 0, total: 0 });
               setDownloadingMedia(new Set());
               setDownloadProgress({});
-              // Scroll final quando mensagem completa
+
               setTimeout(() => scrollToBottom(), 200);
               break;
             }
           } catch (e) {
-            // Ignore invalid JSON lines
+
           }
         }
       }
@@ -467,13 +467,13 @@ export default function AIStreamingChat() {
       console.error('Erro na conversa com IA:', error);
 
       if (error.name === 'AbortError') {
-        // Request was aborted by user
+
         setMessages((prev) =>
           prev.filter((msg) => msg.id !== assistantMessageId)
         );
       } else {
         let errorContent = `Desculpe, ocorreu um erro: ${error.message}`;
-        
+
         if (error.message === 'API_KEY_REQUIRED') {
           errorContent = '🔑 **Chave OpenAI necessária!**\n\nPara usar o chat de IA, você precisa configurar sua chave OpenAI pessoal nas configurações.';
         } else if (error.message === 'INVALID_API_KEY_FORMAT') {
@@ -531,7 +531,7 @@ export default function AIStreamingChat() {
   };
 
   const ThinkingIndicator = () => {
-    // Verificar se acabou de executar getMessageHistory
+
     const hasRecentGetHistory = streamingToolCalls.some(
       (tc) => tc.tool === 'getMessageHistory'
     );
@@ -584,7 +584,7 @@ export default function AIStreamingChat() {
   const ToolsProgressIndicator = () => {
     if (executingTools.size === 0 && toolsProgress.total === 0) return null;
 
-    // Verificar se getMessageHistory está sendo executado
+
     const isExecutingGetHistory = executingTools.has('getMessageHistory');
     const hasCompletedGetHistory =
       toolsProgress.completed > 0 &&
@@ -708,7 +708,7 @@ export default function AIStreamingChat() {
           isUser ? 'flex-row-reverse space-x-reverse' : ''
         }`}
       >
-        {/* Avatar */}
+        {}
         <div
           className={`flex items-center justify-center w-8 h-8 rounded-full ${
             isUser ? 'bg-blue-600' : isError ? 'bg-red-100' : 'bg-blue-100'
@@ -723,7 +723,7 @@ export default function AIStreamingChat() {
           )}
         </div>
 
-        {/* Message Content */}
+        {}
         <div
           className={`max-w-sm lg:max-w-2xl xl:max-w-3xl ${
             isUser ? 'text-right' : ''
@@ -761,10 +761,10 @@ export default function AIStreamingChat() {
             </div>
           </motion.div>
 
-          {/* Tool Calls Results */}
+          {}
           <ToolCallsDisplay toolCalls={message.toolCalls} />
 
-          {/* Timestamp */}
+          {}
           <p
             className={`text-xs text-gray-500 mt-1 ${
               isUser ? 'text-right' : ''
@@ -775,9 +775,9 @@ export default function AIStreamingChat() {
         </div>
       </motion.div>
     );
-  }, []); // Memorizar o componente
+  }, []);
 
-  // Componente para mostrar progresso de download de mídia
+
   const MediaDownloadIndicator = () => {
     if (downloadingMedia.size === 0) return null;
 
@@ -847,7 +847,7 @@ export default function AIStreamingChat() {
               </div>
             )}
           </div>
-          {/* Barra de progresso visual */}
+          {}
           <div className="mt-2 w-full bg-purple-200 rounded-full h-1">
             <motion.div
               className="bg-purple-500 h-1 rounded-full"
@@ -868,7 +868,7 @@ export default function AIStreamingChat() {
 
   return (
     <div className="flex flex-col h-full bg-white min-h-0">
-      {/* Tab Navigation */}
+      {}
       <div className="border-b border-gray-200 bg-gray-50 flex-shrink-0">
         <div className="flex">
           {tabs.map((tab) => {
@@ -893,7 +893,7 @@ export default function AIStreamingChat() {
         </div>
       </div>
 
-      {/* Tab Content */}
+      {}
       <AnimatePresence mode="wait">
         {activeTab === 'chat' ? (
           <motion.div
@@ -904,7 +904,7 @@ export default function AIStreamingChat() {
             transition={{ duration: 0.2 }}
             className="flex flex-col h-full min-h-0"
           >
-            {/* Header compacto */}
+            {}
             {isStreaming && (
         <div className="bg-blue-50 border-b border-blue-200 px-4 py-2 flex-shrink-0">
           <div className="flex items-center justify-between">
@@ -932,7 +932,7 @@ export default function AIStreamingChat() {
         </div>
       )}
 
-      {/* Messages Area - Otimizado para tela cheia */}
+      {}
       <div className="flex-1 overflow-y-auto py-2 px-2">
         <div className="max-w-4xl mx-auto">
           <AnimatePresence>
@@ -960,7 +960,7 @@ export default function AIStreamingChat() {
           </AnimatePresence>
           <div ref={messagesEndRef} />
 
-          {/* Indicador de scroll automático */}
+          {}
           {isStreaming && (
             <motion.div
               initial={{ opacity: 0 }}
@@ -974,7 +974,7 @@ export default function AIStreamingChat() {
         </div>
       </div>
 
-      {/* Input Area - Otimizada */}
+      {}
       <div className="border-t border-gray-200 bg-white flex-shrink-0">
         <div className="max-w-4xl mx-auto p-4">
           <form onSubmit={handleSubmit} className="relative">
@@ -1003,7 +1003,7 @@ export default function AIStreamingChat() {
             </motion.button>
           </form>
 
-          {/* Quick Actions - Compactas */}
+          {}
           {!isStreaming && (
             <div className="mt-3 flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
               {[
@@ -1051,8 +1051,8 @@ export default function AIStreamingChat() {
             <div className="flex-1 overflow-auto p-4">
               <div className="max-w-6xl mx-auto">
                 <MessageCollectorManager />
-                
-                {/* Integração com o painel de resumo */}
+
+                {}
                 {selectedCollectorData && (
                   <div className="mt-6">
                     <AISummaryPanel

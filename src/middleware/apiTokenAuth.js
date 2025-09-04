@@ -1,12 +1,12 @@
 const database = require('../config/database');
 
-/**
- * Middleware to authenticate API tokens for Baileys WhatsApp sessions
- */
+
+
+
 const apiTokenAuth = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
-    
+
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       console.log('❌ Auth header missing or invalid format:', authHeader);
       return res.status(401).json({
@@ -15,10 +15,10 @@ const apiTokenAuth = async (req, res, next) => {
       });
     }
 
-    const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+    const token = authHeader.substring(7);
     console.log('🔍 Received token:', token.substring(0, 20) + '...');
-    
-    // Check if token starts with baileys_ prefix
+
+
     if (!token.startsWith('baileys_')) {
       console.log('❌ Token does not start with baileys_ prefix');
       return res.status(401).json({
@@ -36,7 +36,7 @@ const apiTokenAuth = async (req, res, next) => {
       });
     }
 
-    // Find the token in database (direct comparison without hashing)
+
     console.log('🔍 Searching for token in database...');
     const tokenDoc = await db.collection('api_tokens').findOne({
       token: token,
@@ -55,7 +55,7 @@ const apiTokenAuth = async (req, res, next) => {
       });
     }
 
-    // Check if token is expired
+
     if (tokenDoc.expiresAt && new Date() > tokenDoc.expiresAt) {
       return res.status(401).json({
         success: false,
@@ -63,7 +63,7 @@ const apiTokenAuth = async (req, res, next) => {
       });
     }
 
-    // Get user information
+
     const user = await db.collection('users').findOne({
       _id: tokenDoc.userId
     });
@@ -75,16 +75,16 @@ const apiTokenAuth = async (req, res, next) => {
       });
     }
 
-    // Update last used timestamp
+
     await db.collection('api_tokens').updateOne(
       { _id: tokenDoc._id },
       { $set: { lastUsedAt: new Date() } }
     );
 
-    // Attach user and token info to request
+
     req.user = user;
     req.apiToken = tokenDoc;
-    
+
     next();
 
   } catch (error) {

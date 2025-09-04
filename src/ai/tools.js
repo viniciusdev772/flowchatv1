@@ -1,8 +1,8 @@
 const { Type } = require('@sinclair/typebox');
 
-// Definições TypeBox para as tools - melhor performance e validação que Zod
+
 const toolSchemas = {
-  // ====== SESSÕES ======
+
   createSession: Type.Object({
     sessionId: Type.String({
       description: 'ID único para a nova sessão',
@@ -30,7 +30,7 @@ const toolSchemas = {
     }),
   }),
 
-  // ====== MENSAGENS ======
+
   sendMessage: Type.Object({
     sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
     phone: Type.String({
@@ -86,7 +86,7 @@ const toolSchemas = {
     }),
   }),
 
-  // Novas ferramentas para mensagens avançadas
+
   replyMessage: Type.Object({
     sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
     phone: Type.String({
@@ -173,8 +173,8 @@ const toolSchemas = {
     ),
   }),
 
-  // ====== WEBHOOKS AVANÇADOS ======
-  // Sistema de webhooks moderno com até 3 webhooks por sessão
+
+
   createWebhook: Type.Object({
     sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
     webhookUrl: Type.String({ description: 'URL do webhook', format: 'uri' }),
@@ -246,7 +246,7 @@ const toolSchemas = {
     ),
   }),
 
-  // Legacy webhook support
+
   setWebhook: Type.Object({
     sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
     webhookUrl: Type.String({ description: 'URL do webhook', format: 'uri' }),
@@ -264,7 +264,7 @@ const toolSchemas = {
     sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
   }),
 
-  // ====== GRUPOS AVANÇADOS ======
+
   listGroups: Type.Object({
     sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
     includeParticipants: Type.Optional(
@@ -403,7 +403,7 @@ const toolSchemas = {
     groupId: Type.String({ description: 'ID do grupo', minLength: 1 }),
   }),
 
-  // Novas funcionalidades para grupos
+
   sendGroupMessage: Type.Object({
     sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
     groupId: Type.String({ description: 'ID do grupo', minLength: 1 }),
@@ -498,7 +498,7 @@ const toolSchemas = {
     ),
   }),
 
-  // ====== SISTEMA E MONITORAMENTO ======
+
   getSystemInfo: Type.Object({
     includeStats: Type.Optional(
       Type.Boolean({
@@ -541,7 +541,7 @@ const toolSchemas = {
     ),
   }),
 
-  // ====== DOWNLOADS E MÍDIA ======
+
   downloadMedia: Type.Object({
     sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
     messageId: Type.String({
@@ -594,7 +594,7 @@ const toolSchemas = {
     ),
   }),
 
-  // ====== DOWNLOAD DE MÍDIA EXTERNA ======
+
   downloadFromUrl: Type.Object({
     url: Type.String({
       description: 'URL da mídia para baixar',
@@ -647,7 +647,7 @@ const toolSchemas = {
     ),
   }),
 
-  // ====== CONTROLES DE CHAT (IMPLEMENTADOS) ======
+
   setTypingStatus: Type.Object({
     sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
     phone: Type.String({
@@ -683,7 +683,7 @@ const toolSchemas = {
     ),
   }),
 
-  // ====== WEBHOOKS AVANÇADOS COMPLETOS ======
+
   createAdvancedWebhook: Type.Object({
     sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
     name: Type.String({
@@ -741,7 +741,7 @@ const toolSchemas = {
     ),
   }),
 
-  // ====== ESTATÍSTICAS E MONITORAMENTO ======
+
   getSessionStats: Type.Object({
     sessionId: Type.String({ description: 'ID da sessão', minLength: 1 }),
     period: Type.Optional(
@@ -772,17 +772,17 @@ const toolSchemas = {
   }),
 };
 
-// Funções auxiliares
+
 const formatPhoneToJid = (phone) => {
   return phone.includes('@') ? phone : `${phone}@s.whatsapp.net`;
 };
 
-// Implementações das tools
+
 const toolImplementations = {
-  // ====== SESSÕES ======
+
   async createSession({ sessionId }) {
     try {
-      // Obter token do usuário autenticado do contexto da request
+
       const userToken =
         this.getUserToken?.() ||
         process.env.BAILEYS_API_TOKEN ||
@@ -974,7 +974,7 @@ const toolImplementations = {
     }
   },
 
-  // ====== MENSAGENS ======
+
   async sendMessage({ sessionId, phone, message }) {
     try {
       const userToken =
@@ -1024,7 +1024,7 @@ const toolImplementations = {
         process.env.BAILEYS_API_TOKEN ||
         'baileys_default_token';
 
-      // Para envio de imagem, usamos o endpoint send-media
+
       const response = await fetch(
         `http://localhost:3000/api/baileys/session/${sessionId}/send-media`,
         {
@@ -1071,7 +1071,7 @@ const toolImplementations = {
         process.env.BAILEYS_API_TOKEN ||
         'baileys_default_token';
 
-      // Para envio de documento, usamos o endpoint send-media
+
       const response = await fetch(
         `http://localhost:3000/api/baileys/session/${sessionId}/send-media`,
         {
@@ -1116,7 +1116,7 @@ const toolImplementations = {
         process.env.BAILEYS_API_TOKEN ||
         'baileys_default_token';
 
-      // Para envio de sticker, usamos o endpoint send-media
+
       const response = await fetch(
         `http://localhost:3000/api/baileys/session/${sessionId}/send-media`,
         {
@@ -1153,7 +1153,7 @@ const toolImplementations = {
     }
   },
 
-  // ====== WEBHOOKS ======
+
   async setWebhook({ sessionId, webhookUrl, priority = 1 }) {
     try {
       const userToken =
@@ -1233,7 +1233,7 @@ const toolImplementations = {
       };
     }
   },
-  // ====== GRUPOS ======
+
   async listGroups({
     sessionId,
     includeParticipants = false,
@@ -1248,19 +1248,19 @@ const toolImplementations = {
         process.env.BAILEYS_API_TOKEN ||
         'baileys_default_token';
 
-      // Construir query parameters
+
       const queryParams = new URLSearchParams({
-        limit: Math.min(Math.max(limit, 1), 50).toString(), // Clamp between 1-50
+        limit: Math.min(Math.max(limit, 1), 50).toString(),
         offset: Math.max(offset, 0).toString(),
       });
 
-      // Adicionar parâmetros opcionais - usar APENAS search e includeParticipants conforme solicitado
+
       if (includeParticipants)
         queryParams.append('includeParticipants', 'true');
 
-      // Usar search como parâmetro principal para busca (substituindo filter deprecated)
+
       if (search) queryParams.append('search', search);
-      else if (filter) queryParams.append('search', filter); // Fallback para compatibilidade
+      else if (filter) queryParams.append('search', filter);
 
       const response = await fetch(
         `http://localhost:3000/api/baileys/groups/${sessionId}/list?${queryParams}`,
@@ -1280,7 +1280,7 @@ const toolImplementations = {
       const pagination = result.pagination || {};
       const filters = result.filters || {};
 
-      // Extrair informações úteis dos grupos para sugestões
+
       const groupSummary = (result.groups || []).map((group) => ({
         jid: group.jid,
         name: group.name,
@@ -1289,7 +1289,7 @@ const toolImplementations = {
         hasDescription: !!group.description,
       }));
 
-      // Sugerir próximas ações baseadas nos grupos encontrados
+
       const suggestedActions = [];
       if (groupSummary.length > 0) {
         suggestedActions.push(
@@ -1368,7 +1368,7 @@ const toolImplementations = {
 
   async createGroup({ sessionId, groupName, participants }) {
     try {
-      // Validação prévia dos parâmetros
+
       if (!sessionId || typeof sessionId !== 'string') {
         throw new Error('sessionId é obrigatório e deve ser uma string');
       }
@@ -1387,11 +1387,11 @@ const toolImplementations = {
         );
       }
 
-      // Validar formato dos números de telefone
+
       const validParticipants = participants.filter((phone) => {
         if (typeof phone !== 'string') return false;
-        // Aceitar números com ou sem código do país
-        const cleanPhone = phone.replace(/\D/g, ''); // Remove caracteres não numéricos
+
+        const cleanPhone = phone.replace(/\D/g, '');
         return cleanPhone.length >= 10 && cleanPhone.length <= 15;
       });
 
@@ -1415,7 +1415,7 @@ const toolImplementations = {
         `[createGroup] Criando grupo '${groupName}' com ${validParticipants.length} participantes`
       );
 
-      // Verificar status da sessão antes de tentar criar grupo
+
       const statusResponse = await fetch(
         `http://localhost:3000/api/baileys/session/${sessionId}/status`,
         {
@@ -1483,7 +1483,7 @@ const toolImplementations = {
         process.env.BAILEYS_API_TOKEN ||
         'baileys_default_token';
 
-      // Construir query parameters para incluir participantes se solicitado
+
       const queryParams = new URLSearchParams();
       if (includeParticipants) {
         queryParams.append('includeParticipants', 'true');
@@ -1507,7 +1507,7 @@ const toolImplementations = {
       const result = await response.json();
       const groupInfo = result.groupInfo || {};
 
-      // Extrair estatísticas úteis
+
       const stats = {
         totalParticipants: groupInfo.participants?.length || 0,
         admins: groupInfo.participants?.filter((p) => p.isAdmin)?.length || 0,
@@ -1521,7 +1521,7 @@ const toolImplementations = {
         isRestrictedEdit: groupInfo.settings?.restrict || false,
       };
 
-      // Sugerir próximas ações baseadas no contexto
+
       const suggestedActions = [];
       if (stats.totalParticipants > 0) {
         suggestedActions.push(`getGroupMessages para ver mensagens do grupo`);
@@ -1983,7 +1983,7 @@ const toolImplementations = {
     }
   },
 
-  // ====== SISTEMA ======
+
   async getSystemInfo() {
     try {
       const userToken =
@@ -2001,7 +2001,7 @@ const toolImplementations = {
       );
 
       if (!response.ok) {
-        // Se não existe rota específica, usar informações locais
+
         return {
           success: true,
           info: {
@@ -2066,19 +2066,19 @@ const toolImplementations = {
     }
   },
 
-  // Método para definir o token do usuário (será usado no contexto da IA)
+
   setUserToken(token) {
     this.userToken = token;
   },
 
-  // Método para obter o token do usuário
+
   getUserToken() {
     return this.userToken;
   },
 
-  // ====== NOVAS IMPLEMENTAÇÕES DE FERRAMENTAS AVANÇADAS ======
 
-  // Mensagens avançadas
+
+
   async replyMessage({ sessionId, phone, message, quotedMessageId }) {
     try {
       const userToken =
@@ -2086,7 +2086,7 @@ const toolImplementations = {
         process.env.BAILEYS_API_TOKEN ||
         'baileys_default_token';
 
-      // Primeiro, verificar se o messageId existe usando o endpoint de mensagens
+
       console.log(`🔍 Verificando messageId: ${quotedMessageId} para resposta`);
 
       const response = await fetch(
@@ -2107,7 +2107,7 @@ const toolImplementations = {
       if (!response.ok) {
         const error = await response.json();
 
-        // Se o messageId não for encontrado, sugerir buscar mensagens
+
         if (error.error && error.error.includes('not found')) {
           return {
             success: false,
@@ -2195,7 +2195,7 @@ const toolImplementations = {
         process.env.BAILEYS_API_TOKEN ||
         'baileys_default_token';
 
-      // Converter número para formato JID se necessário
+
       const jid = formatPhoneToJid(phone);
 
       if (!messageId) {
@@ -2226,7 +2226,7 @@ const toolImplementations = {
       if (!response.ok) {
         const error = await response.json();
 
-        // Se o messageId não for encontrado, sugerir buscar mensagens
+
         if (error.error && error.error.includes('not found')) {
           return {
             success: false,
@@ -2260,7 +2260,7 @@ const toolImplementations = {
         process.env.BAILEYS_API_TOKEN ||
         'baileys_default_token';
 
-      // Converter número para formato JID se necessário
+
       const jid = formatPhoneToJid(phone);
 
       const response = await fetch(
@@ -2326,7 +2326,7 @@ const toolImplementations = {
 
       const result = await response.json();
 
-      // Extrair messageIds para facilitar o uso posterior
+
       const messageIds = (result.messages || []).map((msg) => ({
         messageId: msg.messageId,
         text: msg.messageText,
@@ -2335,7 +2335,7 @@ const toolImplementations = {
         phone: msg.jid,
       }));
 
-      // Sugerir ação específica baseada nas mensagens encontradas
+
       const latestMessage = messageIds[0];
       let suggestedAction = '';
       let exactCommand = '';
@@ -2347,7 +2347,7 @@ const toolImplementations = {
         exactCommand = `markAsRead`;
       }
 
-      // Criar exemplo prático
+
       const practicalExample = latestMessage
         ? {
             tool: exactCommand,
@@ -2377,7 +2377,7 @@ const toolImplementations = {
         } mensagens encontradas com messageIds válidos. Use os messageIds retornados para executar ações como sendMessage, replyMessage ou markAsRead conforme necessário.`,
         nextAction:
           'Continue com replyMessage, markAsRead ou outras ações usando os messageIds disponíveis',
-        availableMessageIds: messageIds.slice(0, 5).map((m) => m.messageId), // Primeiros 5 IDs para uso imediato
+        availableMessageIds: messageIds.slice(0, 5).map((m) => m.messageId),
         instruction:
           'Prossiga com a ação solicitada usando um dos messageIds retornados',
         suggestedAction: suggestedAction,
@@ -2391,7 +2391,7 @@ const toolImplementations = {
     }
   },
 
-  // ====== MENSAGENS DE GRUPOS ======
+
   async getGroupMessages({
     sessionId,
     groupId,
@@ -2407,13 +2407,13 @@ const toolImplementations = {
         process.env.BAILEYS_API_TOKEN ||
         'baileys_default_token';
 
-      // Construir query parameters
+
       const queryParams = new URLSearchParams({
         limit: Math.min(Math.max(limit, 1), 1000).toString(),
         offset: Math.max(offset, 0).toString(),
       });
 
-      // Adicionar parâmetros opcionais
+
       if (before) queryParams.append('before', before);
       if (search) queryParams.append('search', search);
       if (includeParticipants)
@@ -2437,7 +2437,7 @@ const toolImplementations = {
       const pagination = result.pagination || {};
       const filters = result.filters || {};
 
-      // Extrair messageIds para facilitar o uso posterior
+
       const messageIds = (result.messages || []).map((msg) => ({
         messageId: msg.messageId,
         text: msg.messageText,
@@ -2447,7 +2447,7 @@ const toolImplementations = {
         groupId: result.groupId,
       }));
 
-      // Sugerir próximas ações baseadas no contexto
+
       const latestMessage = messageIds[0];
       let suggestedActions = [];
 
@@ -2527,20 +2527,20 @@ const toolImplementations = {
         process.env.BAILEYS_API_TOKEN ||
         'baileys_default_token';
 
-      // Verificar se pelo menos um critério de busca foi fornecido
+
       if (!search && !groupName) {
         throw new Error(
           'Pelo menos um critério de busca é obrigatório: search (texto) ou groupName (nome do grupo)'
         );
       }
 
-      // Construir query parameters
+
       const queryParams = new URLSearchParams({
         limit: Math.min(Math.max(limit, 1), 500).toString(),
         offset: Math.max(offset, 0).toString(),
       });
 
-      // Adicionar parâmetros opcionais
+
       if (search) queryParams.append('search', search);
       if (groupName) queryParams.append('groupName', groupName);
       if (before) queryParams.append('before', before);
@@ -2565,7 +2565,7 @@ const toolImplementations = {
       const pagination = result.pagination || {};
       const filters = result.filters || {};
 
-      // Extrair messageIds e informações dos grupos
+
       const messageIds = (result.messages || []).map((msg) => ({
         messageId: msg.messageId,
         text: msg.messageText,
@@ -2576,7 +2576,7 @@ const toolImplementations = {
         groupName: msg.chatInfo?.name || 'Grupo',
       }));
 
-      // Agrupar mensagens por grupo para estatísticas
+
       const groupStats = {};
       messageIds.forEach((msg) => {
         const groupId = msg.groupId;
@@ -2599,7 +2599,7 @@ const toolImplementations = {
 
       const groupStatsList = Object.values(groupStats);
 
-      // Sugerir próximas ações
+
       const suggestedActions = [];
       if (messageIds.length > 0) {
         suggestedActions.push(
@@ -2674,7 +2674,7 @@ const toolImplementations = {
     }
   },
 
-  // ====== DOWNLOAD DE MÍDIA EXTERNA ======
+
   async downloadFromUrl({ url, filename, maxSize = 50 }) {
     try {
       const https = require('https');
@@ -2685,13 +2685,13 @@ const toolImplementations = {
 
       console.log(`📥 Iniciando download de: ${url}`);
 
-      // Detectar protocolo
+
       const isHttps = url.startsWith('https://');
       const httpModule = isHttps ? https : http;
 
       return new Promise((resolve, reject) => {
         const request = httpModule.get(url, (response) => {
-          // Verificar status HTTP
+
           if (response.statusCode !== 200) {
             reject(
               new Error(
@@ -2701,15 +2701,15 @@ const toolImplementations = {
             return;
           }
 
-          // Obter informações do arquivo
+
           const contentLength = parseInt(
             response.headers['content-length'] || '0'
           );
           const contentType =
             response.headers['content-type'] || 'application/octet-stream';
 
-          // Verificar tamanho máximo
-          const maxSizeBytes = maxSize * 1024 * 1024; // Converter MB para bytes
+
+          const maxSizeBytes = maxSize * 1024 * 1024;
           if (contentLength > maxSizeBytes) {
             reject(
               new Error(
@@ -2721,7 +2721,7 @@ const toolImplementations = {
             return;
           }
 
-          // Detectar tipo de mídia e extensão
+
           let mediaType = 'document';
           let fileExtension = 'bin';
 
@@ -2740,17 +2740,17 @@ const toolImplementations = {
             fileExtension = 'zip';
           }
 
-          // Gerar nome do arquivo se não fornecido
+
           const downloadId = crypto.randomBytes(16).toString('hex');
           const finalFilename =
             filename || `download_${downloadId}.${fileExtension}`;
 
-          // Criar diretório de downloads se não existir
+
           const downloadsDir = path.join(process.cwd(), 'downloads');
           if (!fs.existsSync(downloadsDir)) {
             fs.mkdirSync(downloadsDir, { recursive: true });
           }
-          
+
           console.log(`📁 Salvando download em: ${downloadsDir}`);
 
           const safeFileName = `${downloadId}_${finalFilename.replace(
@@ -2759,14 +2759,14 @@ const toolImplementations = {
           )}`;
           const filePath = path.join(downloadsDir, safeFileName);
 
-          // Stream para arquivo
+
           const fileStream = fs.createWriteStream(filePath);
           let downloadedBytes = 0;
 
           response.on('data', (chunk) => {
             downloadedBytes += chunk.length;
 
-            // Verificar limite durante download
+
             if (downloadedBytes > maxSizeBytes) {
               fileStream.destroy();
               fs.unlinkSync(filePath);
@@ -2786,20 +2786,20 @@ const toolImplementations = {
               ).toFixed(2)}KB)`
             );
 
-            // Gerar URL de download - usar sempre a URL do backend
+
             const serverPort = process.env.PORT || 3000;
             let serverUrl;
-            
-            // Se CORS_ORIGIN é de produção, usar ela; senão usar localhost com porta do backend
+
+
             if (process.env.CORS_ORIGIN && !process.env.CORS_ORIGIN.includes('localhost:5173')) {
               serverUrl = process.env.CORS_ORIGIN;
             } else {
               serverUrl = `http://localhost:${serverPort}`;
             }
-            
+
             const downloadUrl = `${serverUrl}/api/baileys/download/${downloadId}`;
 
-            // Salvar metadados no banco para permitir acesso via URL
+
             try {
               const { saveDownloadMetadata } = require('../app.js');
               const fileMetadata = {
@@ -2815,9 +2815,9 @@ const toolImplementations = {
                 messageType: 'external-download',
                 isPtt: false,
                 uploadedAt: new Date(),
-                expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) // 7 dias
+                expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
               };
-              
+
               await saveDownloadMetadata(fileMetadata);
             } catch (dbError) {
               console.warn('Aviso: Não foi possível salvar metadados do download:', dbError.message);
@@ -2848,7 +2848,7 @@ const toolImplementations = {
           reject(new Error(`Erro na requisição: ${error.message}`));
         });
 
-        // Timeout de 30 segundos
+
         request.setTimeout(30000, () => {
           request.destroy();
           reject(new Error('Timeout: download demorou mais de 30 segundos'));
@@ -2875,7 +2875,7 @@ const toolImplementations = {
     try {
       console.log(`🚀 Baixando e enviando mídia de ${url} para ${phone}`);
 
-      // Primeiro, baixar a mídia
+
       const downloadResult = await this.downloadFromUrl({
         url,
         filename,
@@ -2886,7 +2886,7 @@ const toolImplementations = {
         return downloadResult;
       }
 
-      // Determinar o método de envio baseado no tipo de mídia
+
       const {
         mediaType,
         downloadUrl,
@@ -2900,7 +2900,7 @@ const toolImplementations = {
 
       let sendResult;
 
-      // Enviar usando o método apropriado
+
       if (mediaType === 'image') {
         sendResult = await this.sendImage({
           sessionId,
@@ -2927,7 +2927,7 @@ const toolImplementations = {
           fileName: finalFilename,
         });
       } else {
-        // Documento
+
         sendResult = await this.sendDocument({
           sessionId,
           phone,
@@ -2963,7 +2963,7 @@ const toolImplementations = {
     }
   },
 
-  // Webhooks avançados
+
   async createWebhook({
     sessionId,
     webhookUrl,
@@ -3255,7 +3255,7 @@ const toolImplementations = {
     }
   },
 
-  // ====== CONTROLES DE CHAT ======
+
   async setPresence({ sessionId, phone, presence }) {
     try {
       const userToken =
@@ -3336,7 +3336,7 @@ const toolImplementations = {
     }
   },
 
-  // ====== MENSAGENS AVANÇADAS ======
+
   async sendLocation({ sessionId, phone, latitude, longitude, name, address }) {
     return {
       success: false,
@@ -3404,7 +3404,7 @@ const toolImplementations = {
     }
   },
 
-  // ====== WEBHOOKS AVANÇADOS COMPLETOS ======
+
   async createAdvancedWebhook({
     sessionId,
     name,
@@ -3590,10 +3590,10 @@ const toolImplementations = {
     }
   },
 
-  // ====== ESTATÍSTICAS E MONITORAMENTO ======
+
   async getSessionStats({ sessionId, period }) {
     try {
-      // Usar o endpoint de status que existe para obter informações básicas
+
       const userToken =
         this.getUserToken?.() ||
         process.env.BAILEYS_API_TOKEN ||
@@ -3651,9 +3651,9 @@ const toolImplementations = {
   },
 };
 
-// Definição das tools para OpenAI
+
 const openAITools = [
-  // ====== SESSÕES ======
+
   {
     type: 'function',
     function: {
@@ -3736,7 +3736,7 @@ const openAITools = [
     },
   },
 
-  // ====== MENSAGENS ======
+
   {
     type: 'function',
     function: {
@@ -3851,7 +3851,7 @@ const openAITools = [
     },
   },
 
-  // ====== WEBHOOKS ======
+
   {
     type: 'function',
     function: {
@@ -3898,7 +3898,7 @@ const openAITools = [
     },
   },
 
-  // ====== GRUPOS ======
+
   {
     type: 'function',
     function: {
@@ -4250,7 +4250,7 @@ const openAITools = [
     },
   },
 
-  // ====== WEBHOOKS AVANÇADOS ======
+
   {
     type: 'function',
     function: {
@@ -4433,7 +4433,7 @@ const openAITools = [
     },
   },
 
-  // ====== MENSAGENS AVANÇADAS ======
+
   {
     type: 'function',
     function: {
@@ -4588,7 +4588,7 @@ const openAITools = [
     },
   },
 
-  // ====== MENSAGENS DE GRUPOS ======
+
   {
     type: 'function',
     function: {
@@ -4687,7 +4687,7 @@ const openAITools = [
     },
   },
 
-  // ====== DOWNLOAD DE MÍDIA EXTERNA ======
+
   {
     type: 'function',
     function: {
@@ -4762,7 +4762,7 @@ const openAITools = [
     },
   },
 
-  // ====== SISTEMA ======
+
   {
     type: 'function',
     function: {

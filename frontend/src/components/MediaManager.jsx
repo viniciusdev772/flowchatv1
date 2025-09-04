@@ -36,7 +36,7 @@ export default function MediaManager({ onClose }) {
 
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
-  // Performance mode detection
+
   const [performanceMode] = useState(() => {
     const isLowEnd =
       navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4;
@@ -61,7 +61,7 @@ export default function MediaManager({ onClose }) {
     try {
       setLoading(true);
 
-      // First get API token list for Baileys API
+
       const tokenListResponse = await fetch(
         `${apiUrl}/api/management/tokens/list`,
         {
@@ -86,7 +86,7 @@ export default function MediaManager({ onClose }) {
         throw new Error('No API tokens available');
       }
 
-      // Get the full token from the first available token
+
       const firstToken = tokenListResult.tokens[0];
       const tokenResponse = await fetch(
         `${apiUrl}/api/management/tokens/${firstToken._id}/full`,
@@ -108,7 +108,7 @@ export default function MediaManager({ onClose }) {
         throw new Error('No full token received');
       }
 
-      // Get sessions from baileys API using Bearer token
+
       const sessionsResponse = await fetch(`${apiUrl}/api/baileys/sessions`, {
         method: 'GET',
         headers: {
@@ -120,11 +120,11 @@ export default function MediaManager({ onClose }) {
       if (sessionsResponse.ok) {
         const sessionsResult = await sessionsResponse.json();
         if (sessionsResult.success) {
-          // Transform baileys sessions to include media counts
+
           const sessionsWithMedia = [];
 
           for (const session of sessionsResult.sessions || []) {
-            // Get media count for each session
+
             try {
               const mediaResponse = await fetch(
                 `${apiUrl}/api/management/media/session/${session.sessionId}`,
@@ -160,7 +160,7 @@ export default function MediaManager({ onClose }) {
                 `Error getting media for session ${session.sessionId}:`,
                 mediaError
               );
-              // Add session even without media count
+
               sessionsWithMedia.push({
                 sessionId: session.sessionId,
                 sessionName: session.sessionId,
@@ -174,7 +174,7 @@ export default function MediaManager({ onClose }) {
             }
           }
 
-          // Add uploads session if needed (check if there are uploads)
+
           try {
             const uploadsResponse = await fetch(
               `${apiUrl}/api/management/media/session/uploads`,
@@ -209,10 +209,10 @@ export default function MediaManager({ onClose }) {
             console.warn('Error checking uploads:', uploadsError);
           }
 
-          // Sort by media count and latest activity
+
           sessionsWithMedia.sort((a, b) => {
             if (a.mediaCount !== b.mediaCount) {
-              return b.mediaCount - a.mediaCount; // More media first
+              return b.mediaCount - a.mediaCount;
             }
             return (
               new Date(b.latestMediaAt || 0) - new Date(a.latestMediaAt || 0)
@@ -221,7 +221,7 @@ export default function MediaManager({ onClose }) {
 
           setSessions(sessionsWithMedia);
 
-          // Auto-select first session with media
+
           const sessionWithMedia = sessionsWithMedia.find(
             (s) => s.mediaCount > 0
           );
@@ -426,7 +426,7 @@ export default function MediaManager({ onClose }) {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
+      {}
       <motion.header
         className="bg-card border rounded-lg mx-2 md:mx-4 mt-2 md:mt-4 mb-4 md:mb-6"
         initial={{ opacity: 0, y: -10 }}
@@ -462,7 +462,7 @@ export default function MediaManager({ onClose }) {
       </motion.header>
 
       <div className="flex flex-col lg:flex-row mx-2 md:mx-4 mb-4 gap-4">
-        {/* Sessions Sidebar */}
+        {}
         <motion.nav
           className="lg:w-80 bg-card border rounded-lg p-4"
           initial={{ opacity: 0, x: -10 }}
@@ -540,7 +540,7 @@ export default function MediaManager({ onClose }) {
                     </Badge>
                   </div>
 
-                  {/* Session info */}
+                  {}
                   <div className="text-xs text-muted-foreground space-y-1">
                     {session.latestMediaAt && (
                       <div className="flex items-center space-x-1">
@@ -566,7 +566,7 @@ export default function MediaManager({ onClose }) {
           )}
         </motion.nav>
 
-        {/* Media Grid */}
+        {}
         <motion.main
           className="flex-1 bg-card border rounded-lg p-4 flex flex-col"
           initial={{ opacity: 0, y: 10 }}
@@ -732,7 +732,7 @@ export default function MediaManager({ onClose }) {
         </motion.main>
       </div>
 
-      {/* Preview Modal */}
+      {}
       <Dialog open={showPreview} onOpenChange={setShowPreview}>
         <DialogContent className="max-w-4xl">
           <DialogHeader>

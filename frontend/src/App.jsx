@@ -1,9 +1,9 @@
 import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom'
 import { motion } from 'framer-motion'
-import { 
-  PhoneIcon, 
-  ChatBubbleLeftRightIcon, 
-  UserGroupIcon, 
+import {
+  PhoneIcon,
+  ChatBubbleLeftRightIcon,
+  UserGroupIcon,
   BellIcon,
   DocumentTextIcon,
   ArrowRightIcon,
@@ -48,7 +48,7 @@ function Home() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-indigo-900 text-white">
-      {/* Header */}
+      {}
       <header className="border-b border-white/10 backdrop-blur-sm bg-white/5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center py-4">
@@ -58,7 +58,7 @@ function Home() {
               </div>
               <span className="text-xl font-semibold">FlowChat</span>
             </div>
-            
+
             <nav className="hidden md:flex items-center space-x-8">
               <a href="/api-docs" target="_blank" className="text-gray-300 hover:text-white transition-colors">
                 Documentação
@@ -71,10 +71,10 @@ function Home() {
         </div>
       </header>
 
-      {/* Hero Section */}
+      {}
       <section className="pt-20 pb-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <motion.h1 
+          <motion.h1
             className="text-4xl md:text-6xl font-bold mb-6"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -84,32 +84,32 @@ function Home() {
             <br />
             <span className="text-blue-400">Fluxo Inteligente</span>
           </motion.h1>
-          
-          <motion.p 
+
+          <motion.p
             className="text-xl text-gray-300 mb-8 max-w-2xl mx-auto"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.1 }}
           >
-            Solução completa para automação WhatsApp com fluxo contínuo de mensagens, 
+            Solução completa para automação WhatsApp com fluxo contínuo de mensagens,
             multi-sessões e sistema de webhooks inteligente.
           </motion.p>
 
-          <motion.div 
+          <motion.div
             className="flex flex-col sm:flex-row gap-4 justify-center mb-16"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.2 }}
           >
-            <a 
-              href="/api-docs" 
+            <a
+              href="/api-docs"
               target="_blank"
               className="bg-blue-600 hover:bg-blue-700 px-8 py-3 rounded-lg font-medium transition-colors inline-flex items-center justify-center"
             >
               Ver Documentação
               <ArrowRightIcon className="w-4 h-4 ml-2" />
             </a>
-            <Link 
+            <Link
               to="/login"
               className="border border-gray-600 hover:border-gray-500 px-8 py-3 rounded-lg font-medium transition-colors"
             >
@@ -117,8 +117,8 @@ function Home() {
             </Link>
           </motion.div>
 
-          {/* Stats */}
-          <motion.div 
+          {}
+          <motion.div
             className="grid grid-cols-2 md:grid-cols-4 gap-8"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -134,7 +134,7 @@ function Home() {
         </div>
       </section>
 
-      {/* Features */}
+      {}
       <section className="py-16 bg-white/5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
@@ -167,7 +167,7 @@ function Home() {
         </div>
       </section>
 
-      {/* Quick Start */}
+      {}
       <section className="py-16">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
@@ -204,7 +204,7 @@ function Home() {
         </div>
       </section>
 
-      {/* CTA Section */}
+      {}
       <section className="py-16 bg-blue-600/10">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl font-bold mb-4">Pronto para começar?</h2>
@@ -212,21 +212,21 @@ function Home() {
             Acesse a documentação completa ou faça login para gerenciar suas sessões
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <a 
-              href="/api-docs" 
+            <a
+              href="/api-docs"
               target="_blank"
               className="bg-blue-600 hover:bg-blue-700 px-8 py-3 rounded-lg font-medium transition-colors inline-flex items-center justify-center"
             >
               <DocumentTextIcon className="w-5 h-5 mr-2" />
               Ver API Docs
             </a>
-            <Link 
+            <Link
               to="/login"
               className="border border-gray-600 hover:border-gray-500 px-8 py-3 rounded-lg font-medium transition-colors"
             >
               Acessar Dashboard
             </Link>
-            <Link 
+            <Link
               to="/ai"
               className="bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 px-8 py-3 rounded-lg font-medium transition-colors inline-flex items-center justify-center"
             >
@@ -236,7 +236,7 @@ function Home() {
         </div>
       </section>
 
-      {/* Footer */}
+      {}
       <footer className="border-t border-white/10 py-8">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row justify-between items-center">
@@ -246,7 +246,7 @@ function Home() {
               </div>
               <span className="font-semibold">FlowChat</span>
             </div>
-            
+
             <div className="flex items-center space-x-6 text-sm text-gray-400">
               <a href="/api-docs" target="_blank" className="hover:text-white transition-colors">
                 Documentação
@@ -256,14 +256,14 @@ function Home() {
               </a>
             </div>
           </div>
-          
+
           <div className="border-t border-white/10 mt-8 pt-8 text-center text-gray-400 text-sm">
             FlowChat - Fluxo inteligente de mensagens WhatsApp para automação profissional
           </div>
         </div>
       </footer>
 
-      {/* Floating Docs Button */}
+      {}
       <motion.div
         className="fixed bottom-8 right-8"
         initial={{ scale: 0 }}

@@ -41,7 +41,7 @@ import {
 } from '@heroicons/react/24/outline';
 import { useEffect, useState } from 'react';
 
-// Draggable Field Component
+
 function DraggableField({
   field,
   isInSelected = false,
@@ -113,7 +113,7 @@ function DraggableField({
   );
 }
 
-// Mobile Field Selector Component
+
 function MobileFieldSelector({
   availableFields,
   selectedFields,
@@ -134,7 +134,7 @@ function MobileFieldSelector({
 
   return (
     <div className="space-y-4">
-      {/* Available Fields */}
+      {}
       <div>
         <h5 className="text-md font-medium text-gray-900 mb-3">
           Campos Disponíveis
@@ -212,7 +212,7 @@ function MobileFieldSelector({
         </div>
       </div>
 
-      {/* Selected Fields */}
+      {}
       <div>
         <h5 className="text-md font-medium text-gray-900 mb-3">
           Campos Selecionados
@@ -255,7 +255,7 @@ function MobileFieldSelector({
                     </div>
 
                     <div className="flex items-center space-x-1 ml-2 flex-shrink-0">
-                      {/* Move Up */}
+                      {}
                       <button
                         onClick={() => moveField(field.id, 'up')}
                         disabled={index === 0}
@@ -265,7 +265,7 @@ function MobileFieldSelector({
                         <ChevronUpIcon className="h-4 w-4" />
                       </button>
 
-                      {/* Move Down */}
+                      {}
                       <button
                         onClick={() => moveField(field.id, 'down')}
                         disabled={index === selectedFields.length - 1}
@@ -275,7 +275,7 @@ function MobileFieldSelector({
                         <ChevronDownIcon className="h-4 w-4" />
                       </button>
 
-                      {/* Remove */}
+                      {}
                       <button
                         onClick={() => onFieldToggle(field.id, false)}
                         className="p-1.5 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors"
@@ -295,7 +295,7 @@ function MobileFieldSelector({
   );
 }
 
-// Droppable Zone Component
+
 function DroppableZone({ children, title, description, isEmpty = false, id }) {
   const { isOver, setNodeRef } = useDroppable({
     id: id,
@@ -329,7 +329,7 @@ function DroppableZone({ children, title, description, isEmpty = false, id }) {
   );
 }
 
-// Warning Alert Component
+
 function WarningAlert({ warning, onDismiss }) {
   if (!warning) return null;
 
@@ -393,7 +393,7 @@ function WarningAlert({ warning, onDismiss }) {
   );
 }
 
-// Hook para detectar dispositivo mobile
+
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false);
 
@@ -428,7 +428,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
   const isMobile = useIsMobile();
   const [showFieldMapping, setShowFieldMapping] = useState(false);
 
-  // Available events configuration
+
   const availableEvents = [
     {
       id: 'messages.upsert',
@@ -487,7 +487,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
     ignoreGroups: false,
     version: 'v1',
     selectedFields: [],
-    fieldMapping: {}, // Custom field name mappings
+    fieldMapping: {},
   });
 
   const [testingWebhook, setTestingWebhook] = useState(null);
@@ -498,7 +498,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
 
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
-  // Available fields for webhook v2 with new @lid fields
+
   const availableFields = [
     {
       id: 'key',
@@ -614,7 +614,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
     },
   ];
 
-  // Categorize fields for better organization
+
   const fieldCategories = {
     core: { name: 'Campos Essenciais', color: 'blue' },
     business: { name: 'Business Account', color: 'purple' },
@@ -769,10 +769,10 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
           setShowCreateModal(false);
           resetForm();
 
-          // Mostrar aviso se houver URL duplicada
+
           if (result.warning) {
             setLastWarning(result.warning);
-            // Auto-dismiss após 10 segundos
+
             setTimeout(() => setLastWarning(null), 10000);
           }
         }
@@ -803,10 +803,10 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
           setEditingWebhook(null);
           resetForm();
 
-          // Mostrar aviso se houver URL duplicada
+
           if (result.warning) {
             setLastWarning(result.warning);
-            // Auto-dismiss após 10 segundos
+
             setTimeout(() => setLastWarning(null), 10000);
           }
         }
@@ -996,7 +996,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
     });
   };
 
-  // Drag and Drop handlers
+
   const handleDragStart = (event) => {
     setActiveId(event.active.id);
   };
@@ -1016,9 +1016,9 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
       overData: over.data?.current,
     });
 
-    // Check if field is being dropped in selected area
+
     if (over.id === 'selected-drop-zone') {
-      // Add field to selected if not already there
+
       if (!webhookForm.selectedFields.includes(activeField.id)) {
         console.log('Adding field to selected:', activeField.id);
         setWebhookForm((prev) => ({
@@ -1027,7 +1027,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
         }));
       }
     } else if (over.id === 'available-drop-zone') {
-      // Remove field from selected
+
       console.log('Removing field from selected:', activeField.id);
       setWebhookForm((prev) => ({
         ...prev,
@@ -1036,7 +1036,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
         ),
       }));
     } else if (over.data?.current?.type === 'field') {
-      // Reordering within selected fields
+
       const oldIndex = webhookForm.selectedFields.indexOf(active.id);
       const newIndex = webhookForm.selectedFields.indexOf(over.id);
 
@@ -1072,11 +1072,11 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
     });
   };
 
-  // Mobile field management functions
+
   const handleMobileFieldToggle = (fieldId, add) => {
     setWebhookForm((prev) => {
       if (add) {
-        // Add field if not already selected
+
         if (!prev.selectedFields.includes(fieldId)) {
           return {
             ...prev,
@@ -1084,7 +1084,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
           };
         }
       } else {
-        // Remove field
+
         return {
           ...prev,
           selectedFields: prev.selectedFields.filter((id) => id !== fieldId),
@@ -1110,7 +1110,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
     });
   };
 
-  // Field mapping management functions
+
   const handleFieldMappingChange = (originalField, customName) => {
     setWebhookForm((prev) => {
       const newFieldMapping = { ...prev.fieldMapping };
@@ -1197,7 +1197,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
             height: 'calc(100vh - 32px)',
           }}
         >
-          {/* Header */}
+          {}
           <div className="bg-white border-b border-gray-200 px-4 sm:px-6 py-4">
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-3 min-w-0 flex-1">
@@ -1233,9 +1233,9 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
             </div>
           </div>
 
-          {/* Content */}
+          {}
           <div className="p-4">
-            {/* Webhooks List */}
+            {}
             <div className="space-y-4">
               {webhooks.length === 0 ? (
                 <div className="text-center py-12">
@@ -1414,7 +1414,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
               )}
             </div>
 
-            {/* Footer Info */}
+            {}
             {webhooks.length > 0 && (
               <div className="mt-4 p-3 bg-yellow-50 rounded-lg border border-yellow-200">
                 <div className="flex items-center">
@@ -1430,7 +1430,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
         </div>
       </div>
 
-      {/* Create/Edit Modal */}
+      {}
       {(showCreateModal || editingWebhook) && (
         <div
           className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60]"
@@ -1452,7 +1452,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                   : 'calc(100vh - 32px)',
             }}
           >
-            {/* Header */}
+            {}
             <div className="bg-white border-b px-4 py-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2 min-w-0 flex-1">
@@ -1480,10 +1480,10 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
               </div>
             </div>
 
-            {/* Content */}
+            {}
             <div className="flex-1 overflow-y-auto px-4 py-4">
               <div className="space-y-6">
-                {/* Basic Configuration */}
+                {}
                 <div className="space-y-4">
                   <h4 className="text-lg font-semibold text-gray-900 flex items-center">
                     <CogIcon className="h-4 w-4 mr-2 text-blue-600" />
@@ -1608,7 +1608,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                   </div>
                 </div>
 
-                {/* Events Configuration */}
+                {}
                 <div className="space-y-4">
                   <h4 className="text-lg font-semibold text-gray-900 flex items-center">
                     <BoltIcon className="h-4 w-4 mr-2 text-blue-600" />
@@ -1657,7 +1657,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                   </div>
                 </div>
 
-                {/* Field Selection for v2 */}
+                {}
                 {webhookForm.version === 'v2' && (
                   <div className="space-y-4">
                     <div className="flex items-center space-x-2">
@@ -1679,7 +1679,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                     </div>
 
                     {isMobile ? (
-                      /* Mobile Interface */
+
                       <MobileFieldSelector
                         availableFields={availableFields}
                         selectedFields={webhookForm.selectedFields}
@@ -1689,7 +1689,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                         fieldCategories={fieldCategories}
                       />
                     ) : (
-                      /* Desktop Drag & Drop Interface */
+
                       <DndContext
                         sensors={sensors}
                         collisionDetection={closestCenter}
@@ -1697,7 +1697,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                         onDragEnd={handleDragEnd}
                       >
                         <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-                          {/* Available Fields */}
+                          {}
                           <div>
                             <div className="flex items-center justify-between mb-3">
                               <div className="flex items-center space-x-2">
@@ -1774,7 +1774,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                             </DroppableZone>
                           </div>
 
-                          {/* Selected Fields */}
+                          {}
                           <div>
                             <div className="flex items-center justify-between mb-3">
                               <div className="flex items-center space-x-2">
@@ -1873,7 +1873,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                         </button>
                       </div>
 
-                      {/* Feature highlight when not shown */}
+                      {}
                       {!showFieldMapping && (
                         <div className="mt-2 flex items-center space-x-2 text-xs">
                           <SparklesIcon className="h-3 w-3 text-purple-500 animate-pulse" />
@@ -1889,7 +1889,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
                   </div>
                 )}
 
-                {/* Field Mapping Section for v2 */}
+                {}
                 {webhookForm.version === 'v2' && showFieldMapping && (
                   <div className="space-y-4">
                     <div className="flex items-center justify-between">
@@ -2000,7 +2000,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
               </div>
             </div>
 
-            {/* Footer */}
+            {}
             <div className="bg-white border-t px-4 py-3">
               <div className="flex flex-col sm:flex-row gap-3">
                 <button
@@ -2032,7 +2032,7 @@ export default function WebhookManager({ sessionId, tokenId, onClose }) {
         </div>
       )}
 
-      {/* Warning Alert */}
+      {}
       <WarningAlert warning={lastWarning} onDismiss={dismissWarning} />
     </>
   );

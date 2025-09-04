@@ -7,24 +7,24 @@ const { getSessions } = require('../app');
 
 const router = express.Router();
 
-// Generate API token for user
+
 router.post('/generate', authenticateToken, async (req, res) => {
   try {
     const { name, expiresIn } = req.body;
     const userId = req.user._id;
-    
-    // Validate input
+
+
     if (!name || name.trim().length === 0) {
       return res.status(400).json({
         success: false,
         message: 'Nome do token é obrigatório'
-      });    }    // Generate secure token
+      });    }
     const token = crypto.randomBytes(32).toString('hex');
-    
-    // Store token without encryption (as requested)
+
+
     const fullToken = `baileys_${token}`;
-    
-    // Calculate expiration date
+
+
     let expiresAt = null;
     if (expiresIn && expiresIn !== 'never') {
       const days = parseInt(expiresIn);
@@ -39,18 +39,18 @@ router.post('/generate', authenticateToken, async (req, res) => {
     }    const tokenRecord = {
       userId,
       name: name.trim(),
-      token: fullToken, // Store the complete token without encryption
+      token: fullToken,
       expiresAt,
       createdAt: new Date(),
       lastUsedAt: null,
       isActive: true
     };
 
-    // Save to database if available
+
     const db = database.getDb();
     if (db) {
       await db.collection('api_tokens').insertOne(tokenRecord);
-    }    // Return the token (same as stored in DB)
+    }
     res.json({
       success: true,
       message: 'Token de API gerado com sucesso',
@@ -70,11 +70,11 @@ router.post('/generate', authenticateToken, async (req, res) => {
   }
 });
 
-// List user's API tokens
+
 router.get('/list', authenticateToken, async (req, res) => {
   try {
     const userId = req.user._id;
-    
+
     const db = database.getDb();
     if (!db) {
       return res.status(503).json({
@@ -85,14 +85,14 @@ router.get('/list', authenticateToken, async (req, res) => {
 
     const tokens = await db.collection('api_tokens')
       .find({ userId })
-      .project({ token: 0 }) // Don't return the actual token
+      .project({ token: 0 })
       .sort({ createdAt: -1 })
       .toArray();
 
-    // Get sessions for this user to include QR codes
+
     const sessions = getSessions();
     const userSessions = [];
-    
+
     for (const [sessionId, sessionData] of sessions.entries()) {
       if (sessionData.userId && sessionData.userId.toString() === userId.toString()) {
         userSessions.push({
@@ -129,12 +129,12 @@ router.get('/list', authenticateToken, async (req, res) => {
   }
 });
 
-// Revoke API token
+
 router.delete('/:tokenId', authenticateToken, async (req, res) => {
   try {
     const { tokenId } = req.params;
     const userId = req.user._id;
-    
+
     const db = database.getDb();
     if (!db) {
       return res.status(503).json({
@@ -169,12 +169,12 @@ router.delete('/:tokenId', authenticateToken, async (req, res) => {
   }
 });
 
-// Get full token by ID (for internal API use)
+
 router.get('/:tokenId/full', authenticateToken, async (req, res) => {
   try {
     const { tokenId } = req.params;
     const userId = req.user._id;
-    
+
     const db = database.getDb();
     if (!db) {
       return res.status(503).json({
@@ -196,7 +196,7 @@ router.get('/:tokenId/full', authenticateToken, async (req, res) => {
       });
     }
 
-    // Check if token is expired
+
     if (token.expiresAt && new Date() > token.expiresAt) {
       return res.status(401).json({
         success: false,
@@ -206,7 +206,7 @@ router.get('/:tokenId/full', authenticateToken, async (req, res) => {
 
     res.json({
       success: true,
-      token: token.token // Return the full token
+      token: token.token
     });
 
   } catch (error) {

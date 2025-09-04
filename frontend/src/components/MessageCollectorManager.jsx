@@ -63,21 +63,21 @@ export default function MessageCollectorManager() {
   const [showMessagesModal, setShowMessagesModal] = useState(false);
   const [showSummaryPanel, setShowSummaryPanel] = useState(false);
   const [summaryData, setSummaryData] = useState(null);
-  
-  // Estados para filtros das mensagens
+
+
   const [messageSearch, setMessageSearch] = useState('');
   const [selectedParticipant, setSelectedParticipant] = useState('');
-  const [selectedTimeFilter, setSelectedTimeFilter] = useState('all'); // all, morning, afternoon, evening, night
-  const [selectedDateRange, setSelectedDateRange] = useState('all'); // all, today, yesterday, week, month
+  const [selectedTimeFilter, setSelectedTimeFilter] = useState('all');
+  const [selectedDateRange, setSelectedDateRange] = useState('all');
   const [groupByParticipant, setGroupByParticipant] = useState(false);
-  const [sortOrder, setSortOrder] = useState('newest'); // newest, oldest
+  const [sortOrder, setSortOrder] = useState('newest');
   const [filteredMessages, setFilteredMessages] = useState([]);
   const [messageStats, setMessageStats] = useState(null);
-  
-  // Estados para menu de exportação
+
+
   const [showExportMenu, setShowExportMenu] = useState(false);
-  
-  // Estados para resumo automático pendente
+
+
   const [showPendingAutoSummaryModal, setShowPendingAutoSummaryModal] = useState(false);
   const [pendingCollectorId, setPendingCollectorId] = useState(null);
   const [pendingAutoSummaryOptions, setPendingAutoSummaryOptions] = useState({
@@ -85,15 +85,15 @@ export default function MessageCollectorManager() {
     topParticipants: 5
   });
   const [isGeneratingPendingResume, setIsGeneratingPendingResume] = useState(false);
-  
-  // Estados para exclusão de coletores
+
+
   const [showDeleteAllModal, setShowDeleteAllModal] = useState(false);
   const [isDeletingAll, setIsDeletingAll] = useState(false);
   const [collectorToDelete, setCollectorToDelete] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  
-  // Form states
+
+
   const [formData, setFormData] = useState({
     sessionId: '',
     groupId: '',
@@ -103,31 +103,31 @@ export default function MessageCollectorManager() {
     endHour: 22,
     endMinute: 0,
     timezone: 'America/Sao_Paulo',
-    scheduleType: 'daily', // daily, weekly, specific_days
-    weekDays: [], // [0,1,2,3,4,5,6] - 0 = Sunday
-    specificDates: [], // ['2024-01-01', '2024-01-02']
-    duration: 'unlimited', // unlimited, days, until_date
+    scheduleType: 'daily',
+    weekDays: [],
+    specificDates: [],
+    duration: 'unlimited',
     durationDays: 7,
     endDate: '',
-    downloadMedia: true, // nova opção para baixar mídias automaticamente (padrão: habilitado)
-    // Novas opções para resumo automático
+    downloadMedia: true,
+
     autoSummary: false,
     summaryConfig: {
       tone: 'professional',
       style: 'bullet_points',
       focus: 'general',
       sendToGroup: false,
-      summaryTime: 'end', // end, daily, custom
+      summaryTime: 'end',
       customSummaryHour: 18
     }
   });
-  
+
   const [groupSearch, setGroupSearch] = useState('');
   const [filteredGroups, setFilteredGroups] = useState([]);
 
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
-  // Performance mode detection
+
   const [performanceMode] = useState(() => {
     const isLowEnd = navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4;
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -136,11 +136,11 @@ export default function MessageCollectorManager() {
 
   useEffect(() => {
     loadData();
-    const interval = setInterval(loadData, 30000); // Atualizar a cada 30s
+    const interval = setInterval(loadData, 30000);
     return () => clearInterval(interval);
   }, []);
 
-  // Fechar menu de exportação ao clicar fora
+
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (showExportMenu && !event.target.closest('.export-menu-container')) {
@@ -170,7 +170,7 @@ export default function MessageCollectorManager() {
       const response = await fetch(`${apiUrl}/api/management/message-collector/list`, {
         credentials: 'include'
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
@@ -188,7 +188,7 @@ export default function MessageCollectorManager() {
       const response = await fetch(`${apiUrl}/api/management/tokens/list`, {
         credentials: 'include'
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
@@ -206,7 +206,7 @@ export default function MessageCollectorManager() {
       setFilteredGroups([]);
       return;
     }
-    
+
     setSearchingGroups(true);
     try {
       console.log('Carregando grupos para sess\u00e3o:', sessionId);
@@ -217,9 +217,9 @@ export default function MessageCollectorManager() {
         },
         credentials: 'include'
       });
-      
+
       console.log('Response status:', response.status);
-      
+
       if (response.ok) {
         const data = await response.json();
         console.log('Dados dos grupos recebidos:', data);
@@ -232,7 +232,7 @@ export default function MessageCollectorManager() {
       } else {
         const errorText = await response.text();
         console.error('Erro na resposta:', response.status, errorText);
-        // Mostrar mensagem de erro específica baseada no status
+
         if (response.status === 404) {
           console.warn('Sessão não encontrada ou não conectada');
         } else if (response.status === 403) {
@@ -253,8 +253,8 @@ export default function MessageCollectorManager() {
       setFilteredGroups(groups);
       return;
     }
-    
-    const filtered = groups.filter(group => 
+
+    const filtered = groups.filter(group =>
       group.name.toLowerCase().includes(searchTerm.toLowerCase())
     );
     setFilteredGroups(filtered);
@@ -273,7 +273,7 @@ export default function MessageCollectorManager() {
     const today = new Date();
     const yesterday = new Date(today);
     yesterday.setDate(yesterday.getDate() - 1);
-    
+
     switch (range) {
       case 'today':
         return msgDate.toDateString() === today.toDateString();
@@ -295,37 +295,37 @@ export default function MessageCollectorManager() {
   const applyMessageFilters = () => {
     let filtered = [...collectedMessages];
 
-    // Filtro por busca de texto
+
     if (messageSearch) {
       const searchLower = messageSearch.toLowerCase();
-      filtered = filtered.filter(msg => 
+      filtered = filtered.filter(msg =>
         (msg.text || '').toLowerCase().includes(searchLower) ||
         (msg.pushName || '').toLowerCase().includes(searchLower)
       );
     }
 
-    // Filtro por participante
+
     if (selectedParticipant && selectedParticipant !== 'all') {
-      filtered = filtered.filter(msg => 
+      filtered = filtered.filter(msg =>
         (msg.pushName || 'Usuário') === selectedParticipant
       );
     }
 
-    // Filtro por período do dia
+
     if (selectedTimeFilter !== 'all') {
-      filtered = filtered.filter(msg => 
+      filtered = filtered.filter(msg =>
         getTimeOfDay(msg.timestamp) === selectedTimeFilter
       );
     }
 
-    // Filtro por intervalo de datas
+
     if (selectedDateRange !== 'all') {
-      filtered = filtered.filter(msg => 
+      filtered = filtered.filter(msg =>
         isInDateRange(msg.timestamp, selectedDateRange)
       );
     }
 
-    // Ordenação
+
     filtered.sort((a, b) => {
       const dateA = new Date(a.timestamp);
       const dateB = new Date(b.timestamp);
@@ -335,7 +335,7 @@ export default function MessageCollectorManager() {
     setFilteredMessages(filtered);
   };
 
-  // Effect para aplicar filtros quando mudarem
+
   useEffect(() => {
     if (collectedMessages.length > 0) {
       applyMessageFilters();
@@ -446,12 +446,12 @@ export default function MessageCollectorManager() {
 
   const confirmStopCollector = async () => {
     if (!collectorToStop) return;
-    
-    // Prevenir cliques duplos
+
+
     if (isGeneratingResume) return;
-    
+
     try {
-      // Obter chave OpenAI do localStorage se gerar resumo estiver ativado
+
       let customApiKey = null;
       if (stopOptions.generateSummary) {
         customApiKey = localStorage.getItem('openai_api_key');
@@ -462,16 +462,16 @@ export default function MessageCollectorManager() {
         setIsGeneratingResume(true);
       }
 
-      const requestBody = { 
+      const requestBody = {
         collectorId: collectorToStop.id,
         generateSummary: stopOptions.generateSummary,
         sendToGroup: stopOptions.sendToGroup,
         summaryTone: stopOptions.summaryTone,
         customInstructions: stopOptions.customInstructions,
         topParticipants: stopOptions.topParticipants,
-        customApiKey: customApiKey // Enviar chave OpenAI se disponível
+        customApiKey: customApiKey
       };
-      
+
       const response = await fetch(`${apiUrl}/api/management/message-collector/stop`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -485,9 +485,9 @@ export default function MessageCollectorManager() {
           setShowConfirmModal(false);
           setShowStopOptionsModal(false);
           setCollectorToStop(null);
-          setStopOptions({ 
-            generateSummary: false, 
-            sendToGroup: false, 
+          setStopOptions({
+            generateSummary: false,
+            sendToGroup: false,
             summaryTone: 'professional',
             customInstructions: '',
             topParticipants: 5
@@ -508,7 +508,7 @@ export default function MessageCollectorManager() {
     }
   };
 
-  // Função para excluir um coletor específico
+
   const deleteCollector = async (collectorId) => {
     setIsDeleting(true);
     try {
@@ -539,7 +539,7 @@ export default function MessageCollectorManager() {
     }
   };
 
-  // Função para excluir todos os coletores
+
   const deleteAllCollectors = async () => {
     setIsDeletingAll(true);
     try {
@@ -579,14 +579,14 @@ export default function MessageCollectorManager() {
         const data = await response.json();
         if (data.success) {
           const messages = data.data.messages || [];
-          
-          // Filtrar mensagens duplicadas usando o ID único do WhatsApp
-          const uniqueMessages = messages.filter((message, index, self) => 
+
+
+          const uniqueMessages = messages.filter((message, index, self) =>
             index === self.findIndex(m => m.id === message.id)
           );
-          
+
           console.log(`📊 Mensagens antes da filtragem: ${messages.length}, após: ${uniqueMessages.length}`);
-          
+
           setCollectedMessages(uniqueMessages);
           setFilteredMessages(uniqueMessages);
           setSelectedCollector({
@@ -598,18 +598,18 @@ export default function MessageCollectorManager() {
             collectorId: collectorId,
             totalMessages: uniqueMessages.length
           });
-          
-          // Calcular estatísticas
+
+
           calculateMessageStats(uniqueMessages);
-          
-          // Reset filters
+
+
           setMessageSearch('');
           setSelectedParticipant('');
           setSelectedTimeFilter('all');
           setSelectedDateRange('all');
           setGroupByParticipant(false);
           setSortOrder('newest');
-          
+
           setShowMessagesModal(true);
         }
       }
@@ -618,21 +618,21 @@ export default function MessageCollectorManager() {
     }
   };
 
-  // Função para lidar com resumo automático pendente
+
   const handlePendingAutoSummary = (collectorId) => {
     setPendingCollectorId(collectorId);
     setShowPendingAutoSummaryModal(true);
   };
 
-  // Função para gerar resumo automático pendente
+
   const generatePendingAutoSummary = async () => {
     if (!pendingCollectorId) return;
 
     setIsGeneratingPendingResume(true);
     try {
-      // Obter token OpenAI do localStorage se disponível
+
       const openaiApiKey = localStorage.getItem('openai_api_key');
-      
+
       const response = await fetch(`${apiUrl}/api/management/message-collector/generate-pending-summary`, {
         method: 'POST',
         headers: {
@@ -650,14 +650,14 @@ export default function MessageCollectorManager() {
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
-          // Fechar modal e atualizar lista
+
           setShowPendingAutoSummaryModal(false);
           setPendingCollectorId(null);
           setPendingAutoSummaryOptions({ customInstructions: '', topParticipants: 5 });
-          
-          // Recarregar coletores para atualizar status
+
+
           await loadCollectors();
-          
+
           alert('Resumo automático gerado com sucesso!');
         } else {
           alert(`Erro: ${data.message}`);
@@ -683,14 +683,14 @@ export default function MessageCollectorManager() {
     const participantStats = {};
     const hourlyStats = Array(24).fill(0);
     const dailyStats = {};
-    
+
     messages.forEach(msg => {
       const participant = msg.pushName || 'Usuário';
       const date = new Date(msg.timestamp);
       const hour = date.getHours();
       const day = date.toDateString();
-      
-      // Estatísticas por participante
+
+
       if (!participantStats[participant]) {
         participantStats[participant] = {
           name: participant,
@@ -704,11 +704,11 @@ export default function MessageCollectorManager() {
       participantStats[participant].avgLength = Math.round(
         participantStats[participant].totalLength / participantStats[participant].count
       );
-      
-      // Estatísticas por hora
+
+
       hourlyStats[hour]++;
-      
-      // Estatísticas por dia
+
+
       if (!dailyStats[day]) {
         dailyStats[day] = 0;
       }
@@ -719,7 +719,7 @@ export default function MessageCollectorManager() {
       .sort((a, b) => b.count - a.count);
 
     const peakHour = hourlyStats.indexOf(Math.max(...hourlyStats));
-    
+
     setMessageStats({
       totalMessages: messages.length,
       participants: sortedParticipants,
@@ -740,10 +740,10 @@ export default function MessageCollectorManager() {
       return;
     }
 
-    // Filtrar mensagens baseado no tipo de exportação
+
     let messagesToExport = [...messages];
     let exportTitle = 'CONVERSA WHATSAPP';
-    
+
     if (exportType === 'participant' && participantName) {
       messagesToExport = messages.filter(msg => (msg.pushName || 'Usuário') === participantName);
       exportTitle = `MENSAGENS DE ${participantName.toUpperCase()}`;
@@ -757,7 +757,7 @@ export default function MessageCollectorManager() {
       return;
     }
 
-    // Analisar estatísticas das mensagens
+
     const phoneStats = {};
     messagesToExport.forEach(msg => {
       const phone = msg.phone || msg.from || 'Desconhecido';
@@ -778,14 +778,14 @@ export default function MessageCollectorManager() {
       .slice(0, 10);
 
     const sortedMessages = [...messagesToExport].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-    
+
     let content = `${exportTitle} - ${collectorInfo?.sessionId || 'COLETOR'}\n`;
     content += `${'='.repeat(60)}\n\n`;
     content += `Data de Exportação: ${new Date().toLocaleString('pt-BR')}\n`;
     content += `Total de Mensagens: ${messagesToExport.length}\n`;
     content += `Sessão: ${collectorInfo?.sessionId || 'N/A'}\n`;
     content += `Grupo: ${collectorInfo?.groupId?.split('@')[0] || 'N/A'}\n`;
-    
+
     if (exportType === 'participant' && participantName) {
       content += `Participante: ${participantName}\n`;
     } else if (exportType === 'filtered') {
@@ -798,12 +798,12 @@ export default function MessageCollectorManager() {
       content += filters.length > 0 ? filters.join(', ') : 'Nenhum';
       content += `\n`;
     }
-    
+
     if (sortedMessages.length > 0) {
       content += `Período: ${new Date(sortedMessages[0]?.timestamp).toLocaleString('pt-BR')} até ${new Date(sortedMessages[sortedMessages.length - 1]?.timestamp).toLocaleString('pt-BR')}\n\n`;
     }
-    
-    // Estatísticas de usuários (apenas se não for exportação de participante específico)
+
+
     if (exportType !== 'participant') {
       content += `ESTATÍSTICAS DE PARTICIPANTES\n`;
       content += `${'-'.repeat(35)}\n\n`;
@@ -813,32 +813,32 @@ export default function MessageCollectorManager() {
         content += `${index + 1}. ${data.pushName} (${cleanPhone}) - ${data.count} mensagem${data.count > 1 ? 's' : ''}\n`;
       });
     }
-    
+
     content += `\nMENSAGENS\n`;
     content += `${'-'.repeat(25)}\n\n`;
-    
+
     sortedMessages.forEach((message) => {
-      const time = new Date(message.timestamp).toLocaleTimeString('pt-BR', { 
-        hour: '2-digit', 
-        minute: '2-digit' 
+      const time = new Date(message.timestamp).toLocaleTimeString('pt-BR', {
+        hour: '2-digit',
+        minute: '2-digit'
       });
       const date = new Date(message.timestamp).toLocaleDateString('pt-BR');
       const phone = (message.phone || message.from || 'Desconhecido')
         .replace('@s.whatsapp.net', '')
         .replace('@c.us', '');
       const name = message.pushName || 'Usuário';
-      
+
       content += `[${date} ${time}] ${name} (${phone})\n`;
       content += `ID: ${message.id}\n`;
-      
-      // Adicionar informações da mensagem citada se existir
+
+
       if (message.quotedMessage) {
         const quotedPhone = (message.quotedMessage.participant || 'Desconhecido')
           .replace('@s.whatsapp.net', '')
           .replace('@c.us', '');
-        
+
         content += `↪ Respondendo a: ${quotedPhone}\n`;
-        
+
         if (message.quotedMessage.mediaType) {
           const quotedMediaTypeNames = {
             image: 'Imagem',
@@ -850,24 +850,24 @@ export default function MessageCollectorManager() {
           const quotedMediaTypeName = quotedMediaTypeNames[message.quotedMessage.mediaType] || 'Mídia';
           content += `↪ Mídia citada: 📎 ${quotedMediaTypeName}\n`;
         }
-        
+
         if (message.quotedMessage.text) {
-          // Limitar o texto citado para não poluir a exportação
-          const quotedText = message.quotedMessage.text.length > 100 
+
+          const quotedText = message.quotedMessage.text.length > 100
             ? message.quotedMessage.text.substring(0, 100) + '...'
             : message.quotedMessage.text;
           content += `↪ "${quotedText}"\n`;
         }
-        
+
         content += `\n`;
       }
-      
-      // Verificar se é mídia com link
+
+
       const isMediaUrl = message.text && message.text.startsWith('http') && message.text.includes('/api/baileys/download/');
       if (isMediaUrl && message.mediaType) {
         const mediaTypeNames = {
           image: 'Imagem',
-          video: 'Vídeo', 
+          video: 'Vídeo',
           audio: 'Áudio',
           document: 'Documento',
           sticker: 'Figurinha'
@@ -877,14 +877,14 @@ export default function MessageCollectorManager() {
       } else {
         content += `${message.text || '[Mídia não disponível]'}\n`;
       }
-      
+
       content += `${'-'.repeat(60)}\n\n`;
     });
-    
+
     content += `Exportado por FlowChat API em ${new Date().toLocaleString('pt-BR')}\n`;
     content += `Esta conversa foi coletada automaticamente.`;
 
-    // Nome do arquivo baseado no tipo de exportação
+
     let fileName = '';
     if (exportType === 'participant' && participantName) {
       const cleanParticipantName = participantName.replace(/[^a-zA-Z0-9]/g, '-').toLowerCase();
@@ -928,21 +928,21 @@ export default function MessageCollectorManager() {
     }
   };
 
-  // Função para renderizar o conteúdo da mensagem com suporte a mídia, captions e mensagens citadas
+
   const renderMessageContent = (message, messageSearch) => {
     if (!message.text) return '[Mensagem vazia]';
-    
-    // Verificar se há uma URL de mídia no texto (pode estar combinada com caption)
+
+
     const hasMediaUrl = message.text.includes('/api/baileys/download/');
     const mediaUrlMatch = message.text.match(/(https?:\/\/[^\s]+\/api\/baileys\/download\/[^\s]+)/);
     const mediaUrl = mediaUrlMatch ? mediaUrlMatch[1] : null;
-    
-    // Separar caption do URL se ambos existirem
+
+
     let caption = null;
     let displayText = message.text;
-    
+
     if (hasMediaUrl && mediaUrl) {
-      // Se o texto contém URL + caption, separar
+
       const parts = message.text.split(mediaUrl);
       if (parts[0] && parts[0].trim()) {
         caption = parts[0].trim();
@@ -951,14 +951,14 @@ export default function MessageCollectorManager() {
         displayText = mediaUrl;
       }
     } else if (message.caption) {
-      // Se há caption separado
+
       caption = message.caption;
     }
-    
-    // Função para renderizar mensagem citada
+
+
     const renderQuotedMessage = (quotedMsg) => {
       if (!quotedMsg) return null;
-      
+
       const quotedIcons = {
         image: '🖼️',
         video: '🎥',
@@ -966,7 +966,7 @@ export default function MessageCollectorManager() {
         document: '📄',
         sticker: '🏷️'
       };
-      
+
       return (
         <div className="border-l-4 border-blue-300 bg-gray-50 pl-3 py-2 mb-2 rounded-r">
           <div className="text-xs text-gray-500 mb-1">
@@ -983,18 +983,18 @@ export default function MessageCollectorManager() {
         </div>
       );
     };
-    
-    // Função para aplicar destaque de busca no texto
+
+
     const highlightText = (text) => {
       if (messageSearch && text) {
-        return text.split(new RegExp(`(${messageSearch})`, 'gi')).map((part, i) => 
-          part.toLowerCase() === messageSearch.toLowerCase() ? 
+        return text.split(new RegExp(`(${messageSearch})`, 'gi')).map((part, i) =>
+          part.toLowerCase() === messageSearch.toLowerCase() ?
             <mark key={i} className="bg-yellow-200 rounded px-1">{part}</mark> : part
         );
       }
       return text;
     };
-    
+
     if (hasMediaUrl && mediaUrl) {
       const mediaType = message.mediaType || 'unknown';
       const mediaIcons = {
@@ -1004,7 +1004,7 @@ export default function MessageCollectorManager() {
         document: '📄',
         sticker: '🏷️'
       };
-      
+
       const mediaTypeNames = {
         image: 'Imagem',
         video: 'Vídeo',
@@ -1012,28 +1012,28 @@ export default function MessageCollectorManager() {
         document: 'Documento',
         sticker: 'Figurinha'
       };
-      
+
       return (
         <div className="space-y-2">
-          {/* Renderizar mensagem citada se existir */}
+          {}
           {message.quotedMessage && renderQuotedMessage(message.quotedMessage)}
-          
-          {/* Renderizar caption se existir */}
+
+          {}
           {caption && (
             <div className="text-sm text-gray-800 mb-2 leading-relaxed">
               {highlightText(caption)}
             </div>
           )}
-          
-          {/* Renderizar informações da mídia */}
+
+          {}
           <div className="flex items-center space-x-2">
             <span className="text-base">{mediaIcons[mediaType] || '📎'}</span>
             <span className="text-sm text-gray-600 font-medium">
               {mediaTypeNames[mediaType] || 'Mídia'}
             </span>
           </div>
-          
-          {/* Link para visualizar mídia */}
+
+          {}
           <a
             href={mediaUrl}
             target="_blank"
@@ -1048,14 +1048,14 @@ export default function MessageCollectorManager() {
         </div>
       );
     }
-    
-    // Renderizar mensagem de texto normal
+
+
     return (
       <div className="space-y-2">
-        {/* Renderizar mensagem citada se existir */}
+        {}
         {message.quotedMessage && renderQuotedMessage(message.quotedMessage)}
-        
-        {/* Renderizar texto da mensagem */}
+
+        {}
         <div className="text-sm text-gray-800 leading-relaxed">
           {highlightText(displayText)}
         </div>
@@ -1119,7 +1119,7 @@ export default function MessageCollectorManager() {
 
   return (
     <div className="flex flex-col h-full bg-white min-h-0">
-      {/* Header compacto estilo AIStreamingChat */}
+      {}
       <div className="bg-gray-50 border-b border-gray-200 px-4 py-3 flex-shrink-0">
         <div className="flex items-center justify-between max-w-6xl mx-auto">
           <div className="flex items-center space-x-3">
@@ -1135,13 +1135,13 @@ export default function MessageCollectorManager() {
               </p>
             </div>
           </div>
-          
+
           <div className="flex items-center space-x-2">
             {summaryData && (
               <motion.button
                 onClick={() => setShowSummaryPanel(!showSummaryPanel)}
                 className={`flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  showSummaryPanel 
+                  showSummaryPanel
                     ? 'bg-purple-100 text-purple-700 border border-purple-300'
                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                 }`}
@@ -1152,7 +1152,7 @@ export default function MessageCollectorManager() {
                 IA Summary
               </motion.button>
             )}
-            
+
             {collectors.length > 0 && (
               <motion.button
                 onClick={() => setShowDeleteAllModal(true)}
@@ -1164,7 +1164,7 @@ export default function MessageCollectorManager() {
                 Excluir Todos
               </motion.button>
             )}
-            
+
             <motion.button
               onClick={() => setShowCreateModal(true)}
               className="flex items-center px-3 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
@@ -1178,13 +1178,13 @@ export default function MessageCollectorManager() {
         </div>
       </div>
 
-      {/* Content Area */}
+      {}
       <div className="flex-1 overflow-y-auto py-2 px-2">
         <div className="max-w-6xl mx-auto space-y-6">
 
-          {/* Active Collectors */}
+          {}
           {activeCollectors.length > 0 && (
-            <motion.div 
+            <motion.div
               className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 p-4 rounded-xl"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -1195,7 +1195,7 @@ export default function MessageCollectorManager() {
                 </div>
                 Coletores Ativos ({activeCollectors.length})
               </h3>
-          
+
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {activeCollectors.map((collector) => (
                   <motion.div
@@ -1214,7 +1214,7 @@ export default function MessageCollectorManager() {
                         Ativo
                       </span>
                     </div>
-                    
+
                     <div className="space-y-2 mb-4">
                       <div>
                         <span className="text-xs font-medium text-gray-500">Sessão:</span>
@@ -1229,7 +1229,7 @@ export default function MessageCollectorManager() {
                         <p className="text-sm font-medium text-green-600">{collector.currentMessages}</p>
                       </div>
                     </div>
-                    
+
                     <div className="flex gap-2">
                       <motion.button
                         onClick={() => viewMessages(collector.id)}
@@ -1240,7 +1240,7 @@ export default function MessageCollectorManager() {
                         <EyeIcon className="w-4 h-4 inline mr-1" />
                         Ver
                       </motion.button>
-                      
+
                       <motion.button
                         onClick={() => handleStopCollector(collector)}
                         className="flex-1 py-2 px-3 bg-red-50 text-red-600 rounded-lg text-sm hover:bg-red-100 transition-colors font-medium"
@@ -1257,8 +1257,8 @@ export default function MessageCollectorManager() {
             </motion.div>
           )}
 
-          {/* Collectors List */}
-          <motion.div 
+          {}
+          <motion.div
             className="bg-gray-50 border border-gray-200 p-4 rounded-xl"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -1299,36 +1299,36 @@ export default function MessageCollectorManager() {
                         <div className="flex items-center justify-center w-8 h-8 bg-gray-100 rounded-full flex-shrink-0 mt-1">
                           <CpuChipIcon className="w-4 h-4 text-gray-600" />
                         </div>
-                        
+
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-3 mb-2 flex-wrap">
                             <h4 className="font-medium text-gray-800 text-sm">
                               {collector.config.name || `Coletor ${collector.sessionId}`}
                             </h4>
-                            
+
                             <span className={`px-2 py-1 rounded-full text-xs font-medium flex items-center ${getStatusColor(collector.status)}`}>
                               {getStatusIcon(collector.status)}
                               <span className="ml-1 capitalize">{collector.status}</span>
                             </span>
                           </div>
-                          
+
                           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 text-xs text-gray-600 mb-2">
                             <div className="flex items-center space-x-1">
-                              <span className="font-medium">Sessão:</span> 
+                              <span className="font-medium">Sessão:</span>
                               <span className="truncate">{collector.sessionId}</span>
                             </div>
                             <div className="flex items-center space-x-1">
-                              <span className="font-medium">Grupo:</span> 
+                              <span className="font-medium">Grupo:</span>
                               <span className="truncate">{collector.groupId.split('@')[0]}</span>
                             </div>
                             <div className="flex items-center space-x-1">
-                              <span className="font-medium">Horário:</span> 
+                              <span className="font-medium">Horário:</span>
                               <span>
                                 {String(collector.config.startHour || 0).padStart(2, '0')}:{String(collector.config.startMinute || 0).padStart(2, '0')} - {String(collector.config.endHour || 0).padStart(2, '0')}:{String(collector.config.endMinute || 0).padStart(2, '0')}
                               </span>
                             </div>
                           </div>
-                          
+
                           {collector.totalMessages && (
                             <div className="flex items-center space-x-1 text-xs">
                               <CheckCircleIcon className="w-3 h-3 text-green-500" />
@@ -1337,8 +1337,8 @@ export default function MessageCollectorManager() {
                               </span>
                             </div>
                           )}
-                          
-                          {/* Notificação de Resumo Automático Pendente */}
+
+                          {}
                           {collector.hasPendingAutoSummary && (
                             <div className="mt-2 p-2 bg-orange-50 border border-orange-200 rounded-lg">
                               <div className="flex items-center justify-between">
@@ -1362,8 +1362,8 @@ export default function MessageCollectorManager() {
                               </p>
                             </div>
                           )}
-                          
-                          {/* Processando Resumo Automático */}
+
+                          {}
                           {collector.isProcessingAutoSummary && (
                             <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded-lg">
                               <div className="flex items-center space-x-2">
@@ -1387,7 +1387,7 @@ export default function MessageCollectorManager() {
                         >
                           <EyeIcon className="w-4 h-4" />
                         </motion.button>
-                        
+
                         {collector.status !== 'active' && (
                           <motion.button
                             onClick={() => {
@@ -1410,7 +1410,7 @@ export default function MessageCollectorManager() {
             )}
           </motion.div>
 
-          {/* AI Summary Panel Integration */}
+          {}
           <AnimatePresence>
             {showSummaryPanel && summaryData && (
               <motion.div
@@ -1421,7 +1421,7 @@ export default function MessageCollectorManager() {
                 className="overflow-hidden"
               >
                 <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 p-4 rounded-xl">
-                  <AISummaryPanel 
+                  <AISummaryPanel
                     collectedMessages={summaryData.messages}
                     collectorId={summaryData.collectorId}
                   />
@@ -1432,7 +1432,7 @@ export default function MessageCollectorManager() {
         </div>
       </div>
 
-      {/* Create Modal - Estilo melhorado */}
+      {}
       <AnimatePresence>
         {showCreateModal && (
           <motion.div
@@ -1449,7 +1449,7 @@ export default function MessageCollectorManager() {
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Header Fixo */}
+              {}
               <div className="flex items-center p-6 pb-4 border-b border-gray-200 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-t-2xl flex-shrink-0">
                 <div className="flex items-center justify-center w-8 h-8 bg-blue-100 rounded-full mr-3">
                   <DocumentTextIcon className="w-4 h-4 text-blue-600" />
@@ -1459,7 +1459,7 @@ export default function MessageCollectorManager() {
                 </h3>
               </div>
 
-              {/* Conteúdo com Scroll */}
+              {}
               <div className="flex-1 overflow-y-auto px-6 py-4 scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 hover:scrollbar-thumb-gray-400">
                 <div className="space-y-6 pb-4">
                 <div>
@@ -1516,7 +1516,7 @@ export default function MessageCollectorManager() {
                           className="w-full pl-10 pr-4 py-3 bg-gray-50 rounded-xl text-gray-800 placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:outline-none border border-gray-200 focus:bg-white transition-colors"
                         />
                       </div>
-                      
+
                       {searchingGroups ? (
                         <div className="flex items-center justify-center py-4">
                           <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
@@ -1568,13 +1568,13 @@ export default function MessageCollectorManager() {
                   )}
                 </div>
 
-                {/* Configurações de Agendamento */}
+                {}
                 <div className="space-y-4 bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-xl border border-blue-200">
                   <div className="flex items-center space-x-2 mb-3">
                     <CalendarIcon className="w-5 h-5 text-blue-600" />
                     <h4 className="font-medium text-blue-800">Configurações de Agendamento</h4>
                   </div>
-                  
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Tipo de Agendamento
@@ -1659,16 +1659,16 @@ export default function MessageCollectorManager() {
                     </div>
                   )}
 
-                  {/* Configuração de Horário com Minutos */}
+                  {}
                   <div className="space-y-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-3">
                         <TimeIcon className="w-4 h-4 inline mr-1" />
                         Horário de Funcionamento
                       </label>
-                      
+
                       <div className="grid grid-cols-2 gap-4">
-                        {/* Horário de Início */}
+                        {}
                         <div>
                           <label className="block text-xs font-medium text-gray-600 mb-2">
                             Início
@@ -1703,7 +1703,7 @@ export default function MessageCollectorManager() {
                           </div>
                         </div>
 
-                        {/* Horário de Fim */}
+                        {}
                         <div>
                           <label className="block text-xs font-medium text-gray-600 mb-2">
                             Fim
@@ -1738,8 +1738,8 @@ export default function MessageCollectorManager() {
                           </div>
                         </div>
                       </div>
-                      
-                      {/* Exemplos de Horários Comuns */}
+
+                      {}
                       <div className="mt-3">
                         <label className="block text-xs font-medium text-gray-600 mb-2">
                           Horários Comuns:
@@ -1817,7 +1817,7 @@ export default function MessageCollectorManager() {
                     </div>
                   )}
 
-                  {/* Opção para baixar mídias */}
+                  {}
                   <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-xl border border-blue-200">
                     <div className="flex items-start space-x-3">
                       <ArrowDownTrayIcon className="w-5 h-5 text-blue-600 mt-0.5 flex-shrink-0" />
@@ -1834,7 +1834,7 @@ export default function MessageCollectorManager() {
                               Baixar mídias automaticamente
                             </span>
                             <p className="text-blue-700 text-xs mt-1">
-                              Quando habilitado, faz download de imagens, vídeos, áudios e documentos, 
+                              Quando habilitado, faz download de imagens, vídeos, áudios e documentos,
                               gerando links diretos. Caso contrário, mostra apenas o tipo de mídia.
                             </p>
                           </div>
@@ -1844,7 +1844,7 @@ export default function MessageCollectorManager() {
                   </div>
                 </div>
 
-                {/* Seção de Resumo Automático com IA */}
+                {}
                 <div className="bg-gradient-to-r from-purple-50 to-pink-50 p-4 rounded-xl border border-purple-200">
                   <div className="flex items-start space-x-3 mb-3">
                     <SparklesIcon className="w-5 h-5 text-purple-600 mt-0.5 flex-shrink-0" />
@@ -1990,12 +1990,12 @@ export default function MessageCollectorManager() {
                 </div>
               </div>
 
-              {/* Footer Fixo */}
+              {}
               <div className="p-6 pt-4 border-t border-gray-200 bg-gray-50 rounded-b-2xl flex-shrink-0">
                 <div className="flex gap-3">
                   <motion.button
                     onClick={createCollector}
-                    disabled={!formData.sessionId || !formData.groupId || 
+                    disabled={!formData.sessionId || !formData.groupId ||
                       (formData.scheduleType === 'weekly' && formData.weekDays.length === 0) ||
                       (formData.scheduleType === 'specific_days' && formData.specificDates.length === 0) ||
                       (formData.duration === 'until_date' && !formData.endDate)}
@@ -2021,7 +2021,7 @@ export default function MessageCollectorManager() {
         )}
       </AnimatePresence>
 
-      {/* Messages Modal - Estilo melhorado */}
+      {}
       <AnimatePresence>
         {showMessagesModal && (
           <motion.div
@@ -2055,9 +2055,9 @@ export default function MessageCollectorManager() {
                       )}
                     </div>
                   </div>
-                  
+
                   <div className="flex items-center space-x-2">
-                    {/* Menu de Exportação */}
+                    {}
                     <div className="relative export-menu-container">
                       <motion.button
                         onClick={() => setShowExportMenu(!showExportMenu)}
@@ -2070,7 +2070,7 @@ export default function MessageCollectorManager() {
                         Exportar
                         <ChevronDownIcon className="w-3 h-3 ml-1" />
                       </motion.button>
-                      
+
                       <AnimatePresence>
                         {showExportMenu && (
                           <motion.div
@@ -2092,7 +2092,7 @@ export default function MessageCollectorManager() {
                                 <DocumentTextIcon className="w-4 h-4 mr-2 text-gray-400" />
                                 Todas as mensagens
                               </button>
-                              
+
                               <button
                                 onClick={() => {
                                   exportConversation(collectedMessages, selectedCollector, 'filtered');
@@ -2107,7 +2107,7 @@ export default function MessageCollectorManager() {
                                   ({filteredMessages.length})
                                 </span>
                               </button>
-                              
+
                               {getParticipants().length > 0 && (
                                 <>
                                   <div className="border-t border-gray-100 my-1"></div>
@@ -2115,7 +2115,7 @@ export default function MessageCollectorManager() {
                                     Por Participante
                                   </div>
                                   {getParticipants().slice(0, 5).map((participant) => {
-                                    const participantMessages = collectedMessages.filter(msg => 
+                                    const participantMessages = collectedMessages.filter(msg =>
                                       (msg.pushName || 'Usuário') === participant
                                     );
                                     return (
@@ -2151,7 +2151,7 @@ export default function MessageCollectorManager() {
                         )}
                       </AnimatePresence>
                     </div>
-                    
+
                     {summaryData && (
                       <motion.button
                         onClick={() => {
@@ -2166,7 +2166,7 @@ export default function MessageCollectorManager() {
                         Gerar Resumo IA
                       </motion.button>
                     )}
-                    
+
                     <motion.button
                       onClick={() => setShowMessagesModal(false)}
                       className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"
@@ -2179,7 +2179,7 @@ export default function MessageCollectorManager() {
                 </div>
               </div>
 
-              {/* Layout Ultra Compacto Responsivo */}
+              {}
               <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
                 {collectedMessages.length === 0 ? (
                   <div className="flex-1 flex items-center justify-center bg-gray-50">
@@ -2197,7 +2197,7 @@ export default function MessageCollectorManager() {
                   </div>
                 ) : (
                   <>
-                    {/* Header Mobile com Estatísticas */}
+                    {}
                     <div className="lg:hidden bg-white border-b border-gray-200 p-4">
                       {messageStats && (
                         <div className="grid grid-cols-4 gap-3 mb-4">
@@ -2219,8 +2219,8 @@ export default function MessageCollectorManager() {
                           </div>
                         </div>
                       )}
-                      
-                      {/* Filtros Mobile */}
+
+                      {}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div className="relative">
                           <MagnifyingGlassIcon className="absolute left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
@@ -2265,8 +2265,8 @@ export default function MessageCollectorManager() {
                           <option value="month">Mês</option>
                         </select>
                       </div>
-                      
-                      {/* Opções Mobile */}
+
+                      {}
                       <div className="flex items-center justify-between mt-4 pt-3 border-t border-gray-200">
                         <div className="flex items-center space-x-4">
                           <label className="flex items-center space-x-2 cursor-pointer">
@@ -2293,9 +2293,9 @@ export default function MessageCollectorManager() {
                       </div>
                     </div>
 
-                    {/* Sidebar Desktop */}
+                    {}
                     <div className="hidden lg:flex w-80 bg-gray-50 border-r border-gray-200 flex-col flex-shrink-0 overflow-hidden">
-                      {/* Estatísticas Compactas */}
+                      {}
                       {messageStats && (
                         <div className="p-4 border-b border-gray-200">
                           <h4 className="text-sm font-semibold text-gray-700 mb-3">Estatísticas</h4>
@@ -2333,13 +2333,13 @@ export default function MessageCollectorManager() {
                         </div>
                       )}
 
-                      {/* Área Scrollável de Filtros */}
+                      {}
                       <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 hover:scrollbar-thumb-gray-400">
-                        {/* Filtros Compactos */}
+                        {}
                         <div className="p-4 border-b border-gray-200">
                           <h4 className="text-sm font-semibold text-gray-700 mb-3">Filtros</h4>
                           <div className="space-y-3">
-                            {/* Busca */}
+                            {}
                             <div className="relative">
                               <MagnifyingGlassIcon className="absolute left-2 top-1/2 transform -translate-y-1/2 w-3 h-3 text-gray-400" />
                               <input
@@ -2351,7 +2351,7 @@ export default function MessageCollectorManager() {
                               />
                             </div>
 
-                            {/* Participante */}
+                            {}
                             <select
                               value={selectedParticipant}
                               onChange={(e) => setSelectedParticipant(e.target.value)}
@@ -2363,7 +2363,7 @@ export default function MessageCollectorManager() {
                               ))}
                             </select>
 
-                            {/* Período */}
+                            {}
                             <select
                               value={selectedTimeFilter}
                               onChange={(e) => setSelectedTimeFilter(e.target.value)}
@@ -2376,7 +2376,7 @@ export default function MessageCollectorManager() {
                               <option value="night">Madrugada</option>
                             </select>
 
-                            {/* Data */}
+                            {}
                             <select
                               value={selectedDateRange}
                               onChange={(e) => setSelectedDateRange(e.target.value)}
@@ -2391,7 +2391,7 @@ export default function MessageCollectorManager() {
                           </div>
                         </div>
 
-                        {/* Opções de View */}
+                        {}
                         <div className="p-4">
                           <div className="space-y-2">
                             <label className="flex items-center space-x-2 cursor-pointer">
@@ -2419,7 +2419,7 @@ export default function MessageCollectorManager() {
                       </div>
                     </div>
 
-                    {/* Área de Mensagens */}
+                    {}
                     <div className="flex-1 flex flex-col overflow-hidden">
                       <div className="hidden lg:block bg-white border-b border-gray-200 px-4 py-2 flex-shrink-0">
                         <h4 className="text-sm font-semibold text-gray-700">Mensagens</h4>
@@ -2431,7 +2431,7 @@ export default function MessageCollectorManager() {
                             <p className="text-sm text-gray-500">Nenhuma mensagem encontrada</p>
                           </div>
                         ) : groupByParticipant ? (
-                          // Visualização agrupada ultra compacta
+
                           <div className="space-y-2">
                             {Object.entries(groupMessagesByParticipant(filteredMessages)).map(([participant, messages]) => (
                               <div key={participant} className="bg-white rounded-lg border border-gray-200">
@@ -2464,7 +2464,7 @@ export default function MessageCollectorManager() {
                                         </span>
                                         <div className={`w-1.5 h-1.5 rounded-full ${getTimeOfDay(message.timestamp) === 'morning' ? 'bg-yellow-400' : getTimeOfDay(message.timestamp) === 'afternoon' ? 'bg-orange-400' : getTimeOfDay(message.timestamp) === 'evening' ? 'bg-purple-400' : 'bg-blue-400'}`}></div>
                                       </div>
-                                      {/* ID da mensagem */}
+                                      {}
                                       <div className="text-gray-400 text-xs mb-1 font-mono">
                                         ID: {message.id}
                                       </div>
@@ -2478,13 +2478,13 @@ export default function MessageCollectorManager() {
                             ))}
                           </div>
                         ) : (
-                          // Visualização linear ultra compacta
+
                           <div className="space-y-1">
                             {filteredMessages.map((message, index) => {
                               const timeOfDay = getTimeOfDay(message.timestamp);
                               const timeColor = {
                                 morning: 'border-l-yellow-400',
-                                afternoon: 'border-l-orange-400', 
+                                afternoon: 'border-l-orange-400',
                                 evening: 'border-l-purple-400',
                                 night: 'border-l-blue-400'
                               }[timeOfDay];
@@ -2510,7 +2510,7 @@ export default function MessageCollectorManager() {
                                     </div>
                                     <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${timeOfDay === 'morning' ? 'bg-yellow-400' : timeOfDay === 'afternoon' ? 'bg-orange-400' : timeOfDay === 'evening' ? 'bg-purple-400' : 'bg-blue-400'}`}></div>
                                   </div>
-                                  {/* ID da mensagem */}
+                                  {}
                                   <div className="text-gray-400 text-xs mb-1 pl-7 font-mono">
                                     ID: {message.id}
                                   </div>
@@ -2532,7 +2532,7 @@ export default function MessageCollectorManager() {
         )}
       </AnimatePresence>
 
-      {/* Modal de Confirmação para Parar Coletor */}
+      {}
       <AnimatePresence>
         {showStopOptionsModal && collectorToStop && (
           <motion.div
@@ -2552,13 +2552,13 @@ export default function MessageCollectorManager() {
               <h3 className="text-xl font-bold text-gray-900 mb-4">
                 ⚙️ Opções de Parada
               </h3>
-              
+
               <p className="text-gray-600 mb-6">
                 Configurar ações antes de parar o coletor "{collectorToStop.config?.name || collectorToStop.id}"
               </p>
 
               <div className="space-y-4 mb-6">
-                {/* Gerar Resumo */}
+                {}
                 <div className="flex items-center justify-between">
                   <div>
                     <label className="text-sm font-medium text-gray-700">
@@ -2582,7 +2582,7 @@ export default function MessageCollectorManager() {
                   </label>
                 </div>
 
-                {/* Tom do Resumo */}
+                {}
                 {stopOptions.generateSummary && (
                   <div>
                     <label className="text-sm font-medium text-gray-700 mb-2 block">
@@ -2604,7 +2604,7 @@ export default function MessageCollectorManager() {
                   </div>
                 )}
 
-                {/* Número de Participantes */}
+                {}
                 {stopOptions.generateSummary && (
                   <div>
                     <label className="text-sm font-medium text-gray-700 mb-2 block">
@@ -2632,7 +2632,7 @@ export default function MessageCollectorManager() {
                   </div>
                 )}
 
-                {/* Instruções Personalizadas */}
+                {}
                 {stopOptions.generateSummary && (
                   <div>
                     <label className="text-sm font-medium text-gray-700 mb-2 block">
@@ -2654,7 +2654,7 @@ export default function MessageCollectorManager() {
                   </div>
                 )}
 
-                {/* Enviar para Grupo */}
+                {}
                 {stopOptions.generateSummary && (
                   <div className="flex items-center justify-between">
                     <div>
@@ -2711,52 +2711,52 @@ export default function MessageCollectorManager() {
           >
             <motion.div
               className="bg-white p-6 rounded-2xl max-w-md w-full shadow-2xl border border-gray-200"
-              initial={{ 
-                opacity: 0, 
-                scale: 0.8, 
+              initial={{
+                opacity: 0,
+                scale: 0.8,
                 y: 50,
-                rotateX: -15 
+                rotateX: -15
               }}
-              animate={{ 
-                opacity: 1, 
-                scale: 1, 
+              animate={{
+                opacity: 1,
+                scale: 1,
                 y: 0,
                 rotateX: 0
               }}
-              exit={{ 
-                opacity: 0, 
+              exit={{
+                opacity: 0,
                 scale: 0.85,
                 y: 30,
                 rotateX: 10
               }}
-              transition={{ 
-                duration: 0.4, 
+              transition={{
+                duration: 0.4,
                 ease: [0.16, 1, 0.3, 1],
-                scale: { 
-                  type: "spring", 
-                  damping: 18, 
+                scale: {
+                  type: "spring",
+                  damping: 18,
                   stiffness: 300
                 }
               }}
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Ícone de Aviso */}
+              {}
               <div className="flex items-center justify-center w-16 h-16 bg-red-100 rounded-full mx-auto mb-4">
                 <ExclamationTriangleIcon className="w-8 h-8 text-red-600" />
               </div>
 
-              {/* Título */}
+              {}
               <h3 className="text-xl font-bold text-gray-800 text-center mb-2">
                 Parar Coletor
               </h3>
 
-              {/* Mensagem */}
+              {}
               <div className="text-center mb-6">
                 <p className="text-gray-600 mb-3">
                   Tem certeza que deseja parar o coletor <span className="font-semibold text-gray-800">"{collectorToStop.sessionId}"</span>?
                 </p>
-                
-                {/* Mostrar configurações de resumo se ativadas */}
+
+                {}
                 {stopOptions.generateSummary && (
                   <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg mb-3">
                     <div className="flex items-start space-x-2">
@@ -2775,8 +2775,8 @@ export default function MessageCollectorManager() {
                     </div>
                   </div>
                 )}
-                
-                {/* Progresso de geração */}
+
+                {}
                 {isGeneratingResume && (
                   <div className="bg-green-50 border border-green-200 p-4 rounded-lg mb-3">
                     <div className="flex items-center space-x-3">
@@ -2792,7 +2792,7 @@ export default function MessageCollectorManager() {
                     </div>
                   </div>
                 )}
-                
+
                 <div className="bg-yellow-50 border border-yellow-200 p-3 rounded-lg">
                   <div className="flex items-start space-x-2">
                     <ExclamationTriangleIcon className="w-5 h-5 text-yellow-600 mt-0.5 flex-shrink-0" />
@@ -2808,7 +2808,7 @@ export default function MessageCollectorManager() {
                 </div>
               </div>
 
-              {/* Botões de Ação */}
+              {}
               <div className="flex gap-3">
                 <motion.button
                   onClick={confirmStopCollector}
@@ -2845,7 +2845,7 @@ export default function MessageCollectorManager() {
         )}
       </AnimatePresence>
 
-      {/* Modal de Configuração de Resumo Automático Pendente */}
+      {}
       <AnimatePresence>
         {showPendingAutoSummaryModal && (
           <motion.div
@@ -2863,7 +2863,7 @@ export default function MessageCollectorManager() {
               onClick={(e) => e.stopPropagation()}
             >
               <div className="p-6">
-                {/* Ícone e Título */}
+                {}
                 <div className="flex items-center justify-center w-16 h-16 bg-orange-100 rounded-full mx-auto mb-4">
                   <SparklesIcon className="w-8 h-8 text-orange-600" />
                 </div>
@@ -2876,7 +2876,7 @@ export default function MessageCollectorManager() {
                 </p>
 
                 <div className="space-y-4">
-                  {/* Instruções Personalizadas */}
+                  {}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Instruções Adicionais (Opcional)
@@ -2893,7 +2893,7 @@ export default function MessageCollectorManager() {
                     />
                   </div>
 
-                  {/* Número de Participantes */}
+                  {}
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       <UserGroupIcon className="w-4 h-4 inline mr-1" />
@@ -2914,8 +2914,8 @@ export default function MessageCollectorManager() {
                       ))}
                     </select>
                   </div>
-                  
-                  {/* Nota sobre API Key */}
+
+                  {}
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                     <div className="flex items-start space-x-2">
                       <div className="w-4 h-4 bg-blue-500 rounded-full mt-0.5 flex-shrink-0"></div>
@@ -2927,7 +2927,7 @@ export default function MessageCollectorManager() {
                 </div>
               </div>
 
-              {/* Botões de Ação */}
+              {}
               <div className="bg-gray-50 px-6 py-4 border-t border-gray-200">
                 <div className="flex gap-3">
                   <motion.button
@@ -2969,7 +2969,7 @@ export default function MessageCollectorManager() {
         )}
       </AnimatePresence>
 
-      {/* Modal de Confirmação para Excluir Coletor Individual */}
+      {}
       <AnimatePresence>
         {showDeleteModal && collectorToDelete && (
           <motion.div
@@ -2994,11 +2994,11 @@ export default function MessageCollectorManager() {
                   Confirmar Exclusão
                 </h3>
               </div>
-              
+
               <p className="text-gray-600 mb-6">
                 Tem certeza que deseja excluir o coletor <strong>"{collectorToDelete.config?.name || collectorToDelete.sessionId}"</strong>?
               </p>
-              
+
               {collectorToDelete.totalMessages > 0 && (
                 <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 mb-6">
                   <div className="flex items-start space-x-2">
@@ -3048,7 +3048,7 @@ export default function MessageCollectorManager() {
         )}
       </AnimatePresence>
 
-      {/* Modal de Confirmação para Excluir Todos */}
+      {}
       <AnimatePresence>
         {showDeleteAllModal && (
           <motion.div
@@ -3073,11 +3073,11 @@ export default function MessageCollectorManager() {
                   Excluir Todos os Coletores
                 </h3>
               </div>
-              
+
               <p className="text-gray-600 mb-6">
                 Tem certeza que deseja excluir <strong>TODOS os {collectors.length} coletores</strong> e suas mensagens?
               </p>
-              
+
               <div className="bg-red-50 border border-red-200 rounded-lg p-3 mb-6">
                 <div className="flex items-start space-x-2">
                   <ExclamationTriangleIcon className="w-5 h-5 text-red-600 mt-0.5 flex-shrink-0" />

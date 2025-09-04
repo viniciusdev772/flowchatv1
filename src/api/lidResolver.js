@@ -2,16 +2,16 @@ const express = require('express');
 const { jidDecode, areJidsSameUser } = require('@whiskeysockets/baileys');
 const logger = require('pino')({ level: 'info' });
 
-// Tentar importar USync com diferentes caminhos possíveis
+
 let USyncQuery, USyncUser;
 try {
-  // Método 1: Importação direta
+
   const WAUSync = require('@whiskeysockets/baileys/lib/WAUSync');
   USyncQuery = WAUSync.USyncQuery;
   USyncUser = WAUSync.USyncUser;
 } catch (e1) {
   try {
-    // Método 2: Importação por partes
+
     USyncQuery = require('@whiskeysockets/baileys/lib/WAUSync/USyncQuery');
     USyncUser = require('@whiskeysockets/baileys/lib/WAUSync/USyncUser');
   } catch (e2) {
@@ -21,104 +21,104 @@ try {
 
 const router = express.Router();
 
-/**
- * @swagger
- * /api/baileys/session/{sessionId}/lid/resolve:
- *   post:
- *     tags:
- *       - Sessões
- *     summary: Resolver LID para número de telefone
- *     description: Converte um LID (Local Identifier) para número de telefone WhatsApp
- *     security:
- *       - ApiKeyAuth: []
- *     parameters:
- *       - in: path
- *         name: sessionId
- *         required: true
- *         schema:
- *           type: string
- *         description: ID da sessão ativa do WhatsApp
- *         example: "686191ff31d679b27dcf47e5_92133798"
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - lid
- *             properties:
- *               lid:
- *                 type: string
- *                 description: LID a ser resolvido (deve terminar com @lid)
- *                 example: "1111111@lid"
- *     responses:
- *       200:
- *         description: LID resolvido com sucesso
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: true
- *                 message:
- *                   type: string
- *                   example: "LID resolvido com sucesso"
- *                 data:
- *                   type: object
- *                   properties:
- *                     lid:
- *                       type: string
- *                       example: "1111111@lid"
- *                     pn:
- *                       type: string
- *                       example: "3333333@c.us"
- *       400:
- *         description: Dados inválidos ou LID mal formado
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: false
- *                 message:
- *                   type: string
- *                   example: "LID deve terminar com @lid"
- *       404:
- *         description: Sessão não encontrada ou LID não resolvido
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: false
- *                 message:
- *                   type: string
- *                   example: "Sessão não encontrada"
- *       500:
- *         description: Erro interno do servidor
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                   example: false
- *                 message:
- *                   type: string
- *                   example: "Erro interno do servidor"
- *                 error:
- *                   type: string
- *                   example: "Detalhes do erro"
- */
-// Importar middleware de verificação de sessão
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 const checkSessionOwnership = (req, res, next) => {
   const { sessionId } = req.params;
   const userId = req.user?.id || req.user?._id;
@@ -137,12 +137,12 @@ const checkSessionOwnership = (req, res, next) => {
     });
   }
 
-  // Usar a mesma lógica do app.js original
-  // sessions é um Map que mapeia sessionId para dados da sessão
+
+
   const { getSessions } = require('../app');
   const sessions = getSessions();
   const session = sessions.get(sessionId);
-  
+
   if (!session || !session.userId) {
     return res.status(404).json({
       success: false,
@@ -150,7 +150,7 @@ const checkSessionOwnership = (req, res, next) => {
     });
   }
 
-  // Convert both to strings for comparison (handles ObjectId vs string)
+
   const sessionUserId = session.userId.toString();
   const requestUserId = userId.toString();
 
@@ -169,7 +169,7 @@ router.post('/:sessionId/lid/resolve', checkSessionOwnership, async (req, res) =
     const { sessionId } = req.params;
     const { lid } = req.body;
 
-    // Validar parâmetros obrigatórios
+
     if (!sessionId || !lid) {
       return res.status(400).json({
         success: false,
@@ -177,7 +177,7 @@ router.post('/:sessionId/lid/resolve', checkSessionOwnership, async (req, res) =
       });
     }
 
-    // Validar formato do LID
+
     if (!lid.endsWith('@lid')) {
       return res.status(400).json({
         success: false,
@@ -185,21 +185,21 @@ router.post('/:sessionId/lid/resolve', checkSessionOwnership, async (req, res) =
       });
     }
 
-    // Buscar a sessão ativa usando a mesma lógica do app.js
+
     const { getSessions } = require('../app');
     const sessions = getSessions();
     const session = sessions.get(sessionId);
-    
+
     if (!session || !session.sock) {
       return res.status(404).json({
         success: false,
         message: 'Sessão não encontrada ou socket não disponível'
       });
     }
-    
+
     const sock = session.sock;
 
-    // Verificar se a sessão está conectada
+
     if (!sock.user) {
       return res.status(400).json({
         success: false,
@@ -210,7 +210,7 @@ router.post('/:sessionId/lid/resolve', checkSessionOwnership, async (req, res) =
     logger.info(`🔍 Resolvendo LID: ${lid} para sessão: ${sessionId}`);
     logger.info(`📱 Sessão user: ${JSON.stringify(sock.user)}`);
 
-    // ESTRATÉGIA PRINCIPAL: Verificar se é o próprio LID da sessão
+
     if (sock.user.lid === lid) {
       logger.info(`✅ LID é da própria sessão conectada`);
       return res.status(200).json({
@@ -226,7 +226,7 @@ router.post('/:sessionId/lid/resolve', checkSessionOwnership, async (req, res) =
       });
     }
 
-    // Decodificar o LID para extrair o número base
+
     const decoded = jidDecode(lid);
     if (!decoded || decoded.server !== 'lid') {
       return res.status(400).json({
@@ -241,11 +241,11 @@ router.post('/:sessionId/lid/resolve', checkSessionOwnership, async (req, res) =
     let resolvedData = null;
     let allAttempts = [];
 
-    // ESTRATÉGIA 1: onWhatsApp com o LID direto
+
     try {
       logger.info(`🎯 Tentativa 1: onWhatsApp com LID direto`);
       const result = await sock.onWhatsApp(lid);
-      
+
       allAttempts.push({
         method: 'onWhatsApp_lid_direct',
         input: lid,
@@ -277,12 +277,12 @@ router.post('/:sessionId/lid/resolve', checkSessionOwnership, async (req, res) =
       });
     }
 
-    // ESTRATÉGIA 2: Buscar no contact store por LID
+
     if (!resolvedData && sock.store && sock.store.contacts) {
       try {
         logger.info(`🎯 Tentativa 2: Contact Store por LID`);
         const contacts = sock.store.contacts;
-        
+
         for (const [jid, contact] of Object.entries(contacts)) {
           if (contact.lid === lid) {
             resolvedData = {
@@ -292,19 +292,19 @@ router.post('/:sessionId/lid/resolve', checkSessionOwnership, async (req, res) =
               method: 'contact_store_lid',
               contact: contact
             };
-            
+
             allAttempts.push({
               method: 'contact_store_lid',
               jid: jid,
               contact: contact,
               success: true
             });
-            
+
             logger.info(`✅ SUCESSO via Contact Store LID: ${jid}`);
             break;
           }
         }
-        
+
         if (!resolvedData) {
           allAttempts.push({
             method: 'contact_store_lid',
@@ -321,9 +321,9 @@ router.post('/:sessionId/lid/resolve', checkSessionOwnership, async (req, res) =
       }
     }
 
-    // ESTRATÉGIA 3: onWhatsApp com variações do número (modo WAHA-style)
+
     if (!resolvedData) {
-      // Implementar múltiplas variações como WAHA faz
+
       const phoneVariations = [
         baseNumber,
         `+${baseNumber}`,
@@ -331,14 +331,14 @@ router.post('/:sessionId/lid/resolve', checkSessionOwnership, async (req, res) =
         `${baseNumber}@s.whatsapp.net`
       ];
 
-      // Também testar com códigos de país comuns se o número for muito curto
+
       if (baseNumber.length < 13) {
         phoneVariations.push(
-          `55${baseNumber}`, // Brasil
+          `55${baseNumber}`,
           `+55${baseNumber}`,
           `55${baseNumber}@c.us`,
           `55${baseNumber}@s.whatsapp.net`,
-          `1${baseNumber}`, // EUA/Canadá
+          `1${baseNumber}`,
           `+1${baseNumber}`,
           `1${baseNumber}@c.us`,
           `1${baseNumber}@s.whatsapp.net`
@@ -347,11 +347,11 @@ router.post('/:sessionId/lid/resolve', checkSessionOwnership, async (req, res) =
 
       for (const variation of phoneVariations) {
         if (resolvedData) break;
-        
+
         try {
           logger.info(`🎯 Tentativa 3: onWhatsApp com ${variation}`);
           const result = await sock.onWhatsApp(variation);
-          
+
           allAttempts.push({
             method: 'onWhatsApp_phone_variation',
             input: variation,
@@ -361,9 +361,9 @@ router.post('/:sessionId/lid/resolve', checkSessionOwnership, async (req, res) =
 
           if (result && Array.isArray(result) && result.length > 0) {
             for (const item of result) {
-              // Aceitar qualquer match válido, não apenas LID exato
+
               if (item.exists && item.jid) {
-                // Se tem LID e combina, é match perfeito
+
                 if (item.lid === lid) {
                   resolvedData = {
                     lid: lid,
@@ -377,7 +377,7 @@ router.post('/:sessionId/lid/resolve', checkSessionOwnership, async (req, res) =
                   logger.info(`✅ SUCESSO PERFEITO via variação ${variation}: ${item.jid} com LID ${item.lid}`);
                   break;
                 }
-                // Se não tem LID mas número base combina, é match parcial
+
                 else if (!resolvedData && variation.includes(baseNumber)) {
                   resolvedData = {
                     lid: lid,
@@ -406,12 +406,12 @@ router.post('/:sessionId/lid/resolve', checkSessionOwnership, async (req, res) =
       }
     }
 
-    // ESTRATÉGIA 4: Buscar no contact store por número base
+
     if (!resolvedData && sock.store && sock.store.contacts) {
       try {
         logger.info(`🎯 Tentativa 4: Contact Store por número base`);
         const contacts = sock.store.contacts;
-        
+
         for (const [jid, contact] of Object.entries(contacts)) {
           if (jid.includes(baseNumber) && contact.lid === lid) {
             resolvedData = {
@@ -421,19 +421,19 @@ router.post('/:sessionId/lid/resolve', checkSessionOwnership, async (req, res) =
               method: 'contact_store_phone',
               contact: contact
             };
-            
+
             allAttempts.push({
               method: 'contact_store_phone',
               jid: jid,
               contact: contact,
               success: true
             });
-            
+
             logger.info(`✅ SUCESSO via Contact Store Phone: ${jid}`);
             break;
           }
         }
-        
+
         if (!resolvedData) {
           allAttempts.push({
             method: 'contact_store_phone',
@@ -450,19 +450,19 @@ router.post('/:sessionId/lid/resolve', checkSessionOwnership, async (req, res) =
       }
     }
 
-    // ESTRATÉGIA 5: Buscar em grupos (como WAHA faz - "refresh groups to populate LID mappings")
+
     if (!resolvedData && sock.store && sock.store.groupMetadata) {
       try {
         logger.info(`🎯 Tentativa 5: Group Store LID mapping`);
         const groups = sock.store.groupMetadata;
         let foundInGroups = false;
-        
+
         for (const [groupId, group] of Object.entries(groups)) {
           if (resolvedData) break;
-          
+
           if (group.participants) {
             for (const participant of group.participants) {
-              // Procurar por LID match nos participantes
+
               if (participant.lid === lid) {
                 resolvedData = {
                   lid: lid,
@@ -477,9 +477,9 @@ router.post('/:sessionId/lid/resolve', checkSessionOwnership, async (req, res) =
                 logger.info(`✅ SUCESSO via Group LID: ${participant.id} no grupo ${group.subject}`);
                 break;
               }
-              // Procurar por match de número base
+
               else if (participant.id && participant.id.includes(baseNumber)) {
-                if (!resolvedData) { // Só usar se não tiver algo melhor
+                if (!resolvedData) {
                   resolvedData = {
                     lid: lid,
                     pn: participant.id,
@@ -498,14 +498,14 @@ router.post('/:sessionId/lid/resolve', checkSessionOwnership, async (req, res) =
             }
           }
         }
-        
+
         allAttempts.push({
           method: 'group_store_search',
           totalGroups: Object.keys(groups).length,
           foundInGroups: foundInGroups,
           success: !!resolvedData
         });
-        
+
       } catch (error) {
         logger.error(`❌ Erro Group Store: ${error.message}`);
         allAttempts.push({
@@ -515,11 +515,11 @@ router.post('/:sessionId/lid/resolve', checkSessionOwnership, async (req, res) =
       }
     }
 
-    // Preparar resposta
+
     const response = {
       success: !!resolvedData,
-      message: resolvedData 
-        ? `LID resolvido via ${resolvedData.method}` 
+      message: resolvedData
+        ? `LID resolvido via ${resolvedData.method}`
         : 'LID não pôde ser resolvido',
       data: resolvedData,
       sessionInfo: {
@@ -538,7 +538,7 @@ router.post('/:sessionId/lid/resolve', checkSessionOwnership, async (req, res) =
 
   } catch (error) {
     logger.error(`❌ Erro no endpoint de resolução LID: ${error.message}`);
-    
+
     return res.status(500).json({
       success: false,
       message: 'Erro interno do servidor',

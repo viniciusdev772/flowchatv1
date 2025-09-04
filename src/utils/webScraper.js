@@ -4,9 +4,9 @@ const UserAgent = require('user-agents');
 const retry = require('retry');
 const { JSDOM } = jsdom;
 
-/**
- * Enhanced Web Scraper with multiple strategies and robust error handling
- */
+
+
+
 class WebScraper {
   constructor(options = {}) {
     this.timeout = options.timeout || 30000;
@@ -15,9 +15,9 @@ class WebScraper {
     this.strategies = ['cheerio', 'jsdom', 'fallback'];
   }
 
-  /**
-   * Main scraping function with strategy fallbacks
-   */
+
+
+
   async scrapeWithRetry(url, options = {}) {
     const operation = retry.operation({
       retries: this.maxRetries,
@@ -34,12 +34,12 @@ class WebScraper {
           resolve(result);
         } catch (error) {
           console.error(`❌ Attempt ${currentAttempt} failed:`, error.message);
-          
+
           if (operation.retry(error)) {
             return;
           }
-          
-          // All retries failed, try basic fallback
+
+
           try {
             const fallbackResult = await this.basicFallback(url);
             resolve(fallbackResult);
@@ -51,9 +51,9 @@ class WebScraper {
     });
   }
 
-  /**
-   * Try multiple scraping strategies
-   */
+
+
+
   async scrapeWithStrategies(url, options = {}) {
     const errors = [];
 
@@ -75,9 +75,9 @@ class WebScraper {
     throw new Error(`All strategies failed: ${errors.map(e => `${e.strategy}: ${e.error}`).join(', ')}`);
   }
 
-  /**
-   * Execute specific scraping strategy
-   */
+
+
+
   async executeStrategy(strategy, url, options = {}) {
     switch (strategy) {
       case 'cheerio':
@@ -91,9 +91,9 @@ class WebScraper {
     }
   }
 
-  /**
-   * Cheerio-based scraping (fastest)
-   */
+
+
+
   async scrapeWithCheerio(url, options = {}) {
     const fetch = require('node-fetch');
     const headers = this.getHeaders(options);
@@ -103,7 +103,7 @@ class WebScraper {
       timeout: this.timeout,
       follow: 5,
       compress: true,
-      size: 50000000, // 50MB limit
+      size: 50000000,
     });
 
     if (!response.ok) {
@@ -121,9 +121,9 @@ class WebScraper {
     return this.extractData($, url, 'cheerio');
   }
 
-  /**
-   * JSDOM-based scraping (more robust for dynamic content)
-   */
+
+
+
   async scrapeWithJSDOM(url, options = {}) {
     const fetch = require('node-fetch');
     const headers = this.getHeaders(options);
@@ -139,7 +139,7 @@ class WebScraper {
     }
 
     const html = await response.text();
-    
+
     const dom = new JSDOM(html, {
       url: url,
       referrer: url,
@@ -150,13 +150,13 @@ class WebScraper {
     });
 
     const document = dom.window.document;
-    
+
     return this.extractDataFromDOM(document, url, 'jsdom');
   }
 
-  /**
-   * Basic fetch fallback
-   */
+
+
+
   async scrapeWithBasicFetch(url, options = {}) {
     const fetch = require('node-fetch');
     const headers = {
@@ -183,18 +183,18 @@ class WebScraper {
     };
   }
 
-  /**
-   * Extract comprehensive data using Cheerio
-   */
+
+
+
   extractData($, url, strategy) {
     const title = $('title').text().trim() || 'No title';
-    const description = $('meta[name="description"]').attr('content') || 
+    const description = $('meta[name="description"]').attr('content') ||
                       $('meta[property="og:description"]').attr('content') || '';
 
-    // Extract main content using multiple strategies
+
     const mainContent = this.extractMainContent($);
-    
-    // Extract structured data
+
+
     const jsonLd = this.extractJsonLd($);
     const metaTags = this.extractMetaTags($);
     const headings = this.extractHeadings($);
@@ -203,7 +203,7 @@ class WebScraper {
     const tables = this.extractTables($);
     const forms = this.extractForms($);
 
-    // Extract text content with better cleaning
+
     const textContent = this.cleanTextContent(mainContent);
 
     return {
@@ -211,23 +211,23 @@ class WebScraper {
       title: title,
       description: description,
       content: textContent,
-      
-      // Structured data
+
+
       jsonLd: jsonLd,
       metaTags: metaTags,
-      
-      // Content structure
+
+
       headings: headings,
-      links: links.slice(0, 20), // Limit to 20 links
-      images: images.slice(0, 15), // Limit to 15 images
+      links: links.slice(0, 20),
+      images: images.slice(0, 15),
       tables: tables,
       forms: forms,
-      
-      // Technical info
+
+
       language: $('html').attr('lang') || metaTags.language || 'unknown',
       charset: metaTags.charset || 'utf-8',
-      
-      // Statistics
+
+
       stats: {
         totalLinks: links.length,
         totalImages: images.length,
@@ -237,17 +237,17 @@ class WebScraper {
         wordCount: textContent.split(/\s+/).length,
         paragraphs: $('p').length,
       },
-      
-      // Metadata
+
+
       strategy: strategy,
       timestamp: new Date().toISOString(),
       success: true
     };
   }
 
-  /**
-   * Extract data from DOM (for JSDOM)
-   */
+
+
+
   extractDataFromDOM(document, url, strategy) {
     const title = document.title || 'No title';
     const metaDesc = document.querySelector('meta[name="description"]');
@@ -260,30 +260,30 @@ class WebScraper {
       url: url,
       title: title,
       description: description,
-      content: cleanContent.substring(0, 5000), // Limit content
-      
+      content: cleanContent.substring(0, 5000),
+
       headings: {
         h1: Array.from(document.querySelectorAll('h1')).map(h => h.textContent.trim()).slice(0, 5),
         h2: Array.from(document.querySelectorAll('h2')).map(h => h.textContent.trim()).slice(0, 8),
         h3: Array.from(document.querySelectorAll('h3')).map(h => h.textContent.trim()).slice(0, 10),
       },
-      
+
       stats: {
         contentLength: cleanContent.length,
         wordCount: cleanContent.split(/\s+/).length,
         links: document.querySelectorAll('a[href]').length,
         images: document.querySelectorAll('img[src]').length,
       },
-      
+
       strategy: strategy,
       timestamp: new Date().toISOString(),
       success: true
     };
   }
 
-  /**
-   * Enhanced main content extraction
-   */
+
+
+
   extractMainContent($) {
     const contentSelectors = [
       'article',
@@ -300,10 +300,10 @@ class WebScraper {
       '.post-body',
       '.article-body'
     ];
-    
+
     let mainContent = '';
-    
-    // Try structured content selectors first
+
+
     for (const selector of contentSelectors) {
       const element = $(selector).first();
       if (element.length > 0) {
@@ -313,63 +313,63 @@ class WebScraper {
         }
       }
     }
-    
-    // Fallback: get paragraphs
+
+
     if (!mainContent || mainContent.length < 200) {
       const paragraphs = $('p').map((i, el) => $(el).text().trim()).get();
       mainContent = paragraphs.join(' ');
     }
-    
-    // Last resort: body content with cleaning
+
+
     if (!mainContent || mainContent.length < 100) {
-      // Remove unwanted elements
+
       $('script, style, nav, footer, aside, .sidebar, .menu, .navigation, .ads, .advertisement, .social-share, .comments').remove();
       mainContent = $('body').text().trim();
     }
-    
+
     return mainContent;
   }
 
-  /**
-   * Extract JSON-LD structured data
-   */
+
+
+
   extractJsonLd($) {
     const jsonLdData = [];
-    
+
     $('script[type="application/ld+json"]').each((i, script) => {
       try {
         const data = JSON.parse($(script).html());
         jsonLdData.push(data);
       } catch (error) {
-        // Ignore invalid JSON-LD
+
       }
     });
-    
+
     return jsonLdData;
   }
 
-  /**
-   * Extract meta tags
-   */
+
+
+
   extractMetaTags($) {
     const metaTags = {};
-    
+
     $('meta').each((i, meta) => {
       const $meta = $(meta);
       const name = $meta.attr('name') || $meta.attr('property') || $meta.attr('http-equiv');
       const content = $meta.attr('content');
-      
+
       if (name && content) {
         metaTags[name] = content;
       }
     });
-    
+
     return metaTags;
   }
 
-  /**
-   * Extract headings structure
-   */
+
+
+
   extractHeadings($) {
     return {
       h1: $('h1').map((i, el) => $(el).text().trim()).get().slice(0, 5),
@@ -381,17 +381,17 @@ class WebScraper {
     };
   }
 
-  /**
-   * Extract links with better filtering
-   */
+
+
+
   extractLinks($, baseUrl) {
     const links = [];
-    
+
     $('a[href]').each((i, link) => {
       const $link = $(link);
       const href = $link.attr('href');
       const text = $link.text().trim();
-      
+
       if (href && text && href.length > 1 && text.length > 1) {
         try {
           const absoluteUrl = new URL(href, baseUrl).href;
@@ -401,26 +401,26 @@ class WebScraper {
             isExternal: !absoluteUrl.includes(new URL(baseUrl).hostname)
           });
         } catch (error) {
-          // Skip invalid URLs
+
         }
       }
     });
-    
+
     return links;
   }
 
-  /**
-   * Extract images with metadata
-   */
+
+
+
   extractImages($, baseUrl) {
     const images = [];
-    
+
     $('img[src]').each((i, img) => {
       const $img = $(img);
       const src = $img.attr('src');
       const alt = $img.attr('alt') || '';
       const title = $img.attr('title') || '';
-      
+
       if (src) {
         try {
           const absoluteUrl = new URL(src, baseUrl).href;
@@ -432,36 +432,36 @@ class WebScraper {
             height: $img.attr('height') || null,
           });
         } catch (error) {
-          // Skip invalid URLs
+
         }
       }
     });
-    
+
     return images;
   }
 
-  /**
-   * Extract table data
-   */
+
+
+
   extractTables($) {
     const tables = [];
-    
+
     $('table').each((i, table) => {
-      if (i >= 5) return false; // Limit to 5 tables
-      
+      if (i >= 5) return false;
+
       const $table = $(table);
       const headers = $table.find('th').map((j, th) => $(th).text().trim()).get();
       const rows = [];
-      
+
       $table.find('tr').each((j, tr) => {
-        if (j >= 10) return false; // Limit to 10 rows per table
-        
+        if (j >= 10) return false;
+
         const cells = $(tr).find('td').map((k, td) => $(td).text().trim()).get();
         if (cells.length > 0) {
           rows.push(cells);
         }
       });
-      
+
       if (headers.length > 0 || rows.length > 0) {
         tables.push({
           headers: headers,
@@ -471,21 +471,21 @@ class WebScraper {
         });
       }
     });
-    
+
     return tables;
   }
 
-  /**
-   * Extract form information
-   */
+
+
+
   extractForms($) {
     const forms = [];
-    
+
     $('form').each((i, form) => {
       const $form = $(form);
       const action = $form.attr('action') || '';
       const method = $form.attr('method') || 'GET';
-      
+
       const inputs = $form.find('input').map((j, input) => {
         const $input = $(input);
         return {
@@ -495,7 +495,7 @@ class WebScraper {
           required: $input.attr('required') !== undefined
         };
       }).get();
-      
+
       forms.push({
         action: action,
         method: method.toUpperCase(),
@@ -505,29 +505,29 @@ class WebScraper {
         buttons: $form.find('button, input[type="submit"]').length
       });
     });
-    
+
     return forms;
   }
 
-  /**
-   * Clean and normalize text content
-   */
+
+
+
   cleanTextContent(text) {
     if (!text) return '';
-    
+
     return text
-      .replace(/\s+/g, ' ') // Normalize whitespace
-      .replace(/\n\s*\n/g, '\n') // Remove empty lines
+      .replace(/\s+/g, ' ')
+      .replace(/\n\s*\n/g, '\n')
       .replace(/[^\w\s\-.,!?;:()\[\]"']/g, '') // Remove special chars
       .trim();
   }
 
-  /**
-   * Get appropriate headers for requests
-   */
+
+
+
   getHeaders(options = {}) {
     const userAgent = options.userAgent || this.userAgent.toString();
-    
+
     return {
       'User-Agent': userAgent,
       'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
@@ -544,20 +544,20 @@ class WebScraper {
     };
   }
 
-  /**
-   * Basic fallback for when all strategies fail
-   */
+
+
+
   async basicFallback(url) {
     const fetch = require('node-fetch');
-    
+
     try {
       const response = await fetch(url, {
         headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Bot)' },
         timeout: 10000,
       });
-      
+
       const text = await response.text();
-      
+
       return {
         url: url,
         title: 'Basic Fallback',

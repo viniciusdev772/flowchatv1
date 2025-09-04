@@ -11,14 +11,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../components/ui/tabs'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../components/ui/dialog'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select'
 import { useToast } from '../hooks/use-toast'
-import { 
-  Bot, 
-  Sparkles, 
-  Settings, 
-  Plus, 
-  CheckCircle, 
-  AlertCircle, 
-  Loader2, 
+import {
+  Bot,
+  Sparkles,
+  Settings,
+  Plus,
+  CheckCircle,
+  AlertCircle,
+  Loader2,
   ChevronRight,
   Zap,
   Brain,
@@ -62,45 +62,45 @@ export default function AIAgent() {
   })
 
   const personalities = [
-    { 
-      id: 'professional', 
-      name: 'Profissional', 
+    {
+      id: 'professional',
+      name: 'Profissional',
       desc: 'Formal e objetivo',
       icon: '💼'
     },
-    { 
-      id: 'friendly', 
-      name: 'Amigável', 
+    {
+      id: 'friendly',
+      name: 'Amigável',
       desc: 'Caloroso e acolhedor',
       icon: '😊'
     },
-    { 
-      id: 'creative', 
-      name: 'Criativo', 
+    {
+      id: 'creative',
+      name: 'Criativo',
       desc: 'Inovador e artístico',
       icon: '🎨'
     },
-    { 
-      id: 'analytical', 
-      name: 'Analítico', 
+    {
+      id: 'analytical',
+      name: 'Analítico',
       desc: 'Lógico e detalhado',
       icon: '📊'
     },
-    { 
-      id: 'casual', 
-      name: 'Casual', 
+    {
+      id: 'casual',
+      name: 'Casual',
       desc: 'Descontraído e informal',
       icon: '😎'
     },
-    { 
-      id: 'empathetic', 
-      name: 'Empático', 
+    {
+      id: 'empathetic',
+      name: 'Empático',
       desc: 'Compreensivo e sensível',
       icon: '❤️'
     },
-    { 
-      id: 'custom', 
-      name: 'Personalizado', 
+    {
+      id: 'custom',
+      name: 'Personalizado',
       desc: 'Defina sua própria personalidade',
       icon: '🎭'
     },
@@ -114,21 +114,21 @@ export default function AIAgent() {
   ]
 
   const steps = [
-    { 
-      id: 1, 
-      name: 'Sessão', 
+    {
+      id: 1,
+      name: 'Sessão',
       description: 'Conectar WhatsApp',
       icon: Bot
     },
-    { 
-      id: 2, 
-      name: 'Configuração', 
+    {
+      id: 2,
+      name: 'Configuração',
       description: 'Personalizar agente',
       icon: Settings
     },
-    { 
-      id: 3, 
-      name: 'Finalização', 
+    {
+      id: 3,
+      name: 'Finalização',
       description: 'Revisar e criar',
       icon: Rocket
     }
@@ -139,41 +139,41 @@ export default function AIAgent() {
   }, [])
 
   useEffect(() => {
-    // Atualizar progress baseado no step
+
     const stepProgress = ((currentStep - 1) / (steps.length - 1)) * 100
     setProgress(stepProgress)
   }, [currentStep])
 
   useEffect(() => {
-    // Validação em tempo real
+
     validateForm()
   }, [formData, currentStep])
 
   const validateForm = () => {
     const errors = {}
-    
+
     if (currentStep >= 1 && !formData.sessionId) {
       errors.sessionId = 'Selecione uma sessão WhatsApp'
     }
-    
+
     if (currentStep >= 2) {
       if (!formData.name.trim()) {
         errors.name = 'Nome é obrigatório'
       } else if (formData.name.length < 2) {
         errors.name = 'Nome deve ter pelo menos 2 caracteres'
       }
-      
+
       if (!formData.apiKey.trim()) {
         errors.apiKey = 'Chave da API é obrigatória'
       } else if (!formData.apiKey.startsWith('sk-')) {
         errors.apiKey = 'Chave deve começar com "sk-"'
       }
-      
+
       if (formData.personality === 'custom' && !formData.customSystemPrompt.trim()) {
         errors.customSystemPrompt = 'System prompt personalizado é obrigatório'
       }
     }
-    
+
     setValidationErrors(errors)
     return Object.keys(errors).length === 0
   }
@@ -182,14 +182,14 @@ export default function AIAgent() {
     try {
       setLoading(true)
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000'
-      
-      // Get token first
+
+
       const tokenResponse = await fetch(`${apiUrl}/api/management/tokens/list`, {
         credentials: 'include',
       })
-      
+
       if (!tokenResponse.ok) throw new Error('Failed to get token')
-      
+
       const tokenData = await tokenResponse.json()
       if (!tokenData.success || !tokenData.tokens.length) {
         throw new Error('No tokens available')
@@ -199,15 +199,15 @@ export default function AIAgent() {
       const fullTokenResponse = await fetch(`${apiUrl}/api/management/tokens/${firstToken._id}/full`, {
         credentials: 'include',
       })
-      
+
       if (!fullTokenResponse.ok) throw new Error('Failed to get full token')
-      
+
       const fullTokenData = await fullTokenResponse.json()
       if (!fullTokenData.success) throw new Error('Invalid token response')
 
       const token = fullTokenData.token
 
-      // Get sessions
+
       const sessionsResponse = await fetch(`${apiUrl}/api/baileys/sessions`, {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -251,8 +251,8 @@ export default function AIAgent() {
       setProgress(0)
 
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000'
-      
-      // Simulate progress
+
+
       const progressSteps = [
         { value: 20, message: "Validando dados..." },
         { value: 40, message: "Obtendo token..." },
@@ -266,20 +266,20 @@ export default function AIAgent() {
         await new Promise(resolve => setTimeout(resolve, 500))
       }
 
-      // Get token
+
       const tokenResponse = await fetch(`${apiUrl}/api/management/tokens/list`, {
         credentials: 'include',
       })
       const tokenData = await tokenResponse.json()
       const firstToken = tokenData.tokens[0]
-      
+
       const fullTokenResponse = await fetch(`${apiUrl}/api/management/tokens/${firstToken._id}/full`, {
         credentials: 'include',
       })
       const fullTokenData = await fullTokenResponse.json()
       const token = fullTokenData.token
 
-      // Create agent
+
       const response = await fetch(`${apiUrl}/api/baileys/agents/create`, {
         method: 'POST',
         headers: {
@@ -309,14 +309,14 @@ export default function AIAgent() {
         throw new Error(errorData.message || 'Failed to create agent')
       }
 
-      // Success
+
       setShowSuccessDialog(true)
       toast({
         title: "Agente criado com sucesso! 🎉",
         description: "Seu agente de IA está pronto para uso",
       })
 
-      // Reset form
+
       setFormData({
         sessionId: '',
         name: '',
@@ -349,7 +349,7 @@ export default function AIAgent() {
   const canProceed = () => {
     switch (currentStep) {
       case 1: return formData.sessionId && !validationErrors.sessionId
-      case 2: return formData.name.trim() && formData.apiKey.trim() && !validationErrors.name && !validationErrors.apiKey && 
+      case 2: return formData.name.trim() && formData.apiKey.trim() && !validationErrors.name && !validationErrors.apiKey &&
         (formData.personality !== 'custom' || (formData.customSystemPrompt.trim() && !validationErrors.customSystemPrompt))
       case 3: return true
       default: return false
@@ -392,7 +392,7 @@ export default function AIAgent() {
   return (
     <div className="min-h-screen bg-background">
       <div className="container mx-auto px-4 py-4 md:py-8 space-y-4 md:space-y-8">
-      {/* Header */}
+      {}
       <Card className="border-0 shadow-none bg-transparent">
         <CardHeader className="text-center space-y-2 md:space-y-4">
           <div className="flex items-center justify-center space-x-2 md:space-x-3">
@@ -409,7 +409,7 @@ export default function AIAgent() {
         </CardHeader>
       </Card>
 
-      {/* Tab Navigation */}
+      {}
       <Card className="mx-auto max-w-md">
         <CardContent className="p-4">
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -430,14 +430,14 @@ export default function AIAgent() {
       </Card>
 
 
-      {/* Content */}
+      {}
       {activeTab === 'manage' ? (
         <div>
           <AgentsList onRefresh={() => {}} />
         </div>
       ) : (
         <div className="max-w-4xl mx-auto px-4">
-            {/* Progress Steps */}
+            {}
             <div className="mb-6 md:mb-12">
               <div className="flex justify-between items-center mb-4 md:mb-6 overflow-x-auto">
                 {steps.map((step, index) => (
@@ -477,7 +477,7 @@ export default function AIAgent() {
               <Progress value={progress} className="h-1 md:h-2" />
             </div>
 
-            {/* Error Display */}
+            {}
             {error && (
               <div className="mb-4 md:mb-6 p-3 md:p-4 border border-destructive/50 bg-destructive/10 rounded-lg flex items-start gap-2 md:gap-3">
                 <AlertCircle className="h-4 w-4 md:h-5 md:w-5 text-destructive mt-0.5 flex-shrink-0" />
@@ -488,11 +488,11 @@ export default function AIAgent() {
               </div>
             )}
 
-            {/* Step Content */}
+            {}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-8">
-              {/* Main Content */}
+              {}
               <div className="lg:col-span-2">
-                  {/* Step 1: Session Selection */}
+                  {}
                   {currentStep === 1 && (
                     <div>
                       <Card>
@@ -510,8 +510,8 @@ export default function AIAgent() {
                             <Label htmlFor="session" className="text-sm md:text-base font-medium">
                               Sessão WhatsApp
                             </Label>
-                            <Select 
-                              value={formData.sessionId} 
+                            <Select
+                              value={formData.sessionId}
                               onValueChange={(value) => {
                                 setFormData(prev => ({ ...prev, sessionId: value }))
                                 setValidationErrors(prev => ({ ...prev, sessionId: undefined }))
@@ -554,7 +554,7 @@ export default function AIAgent() {
                     </div>
                   )}
 
-                  {/* Step 2: Configuration */}
+                  {}
                   {currentStep === 2 && (
                     <div className="space-y-4 md:space-y-6">
                       <Card>
@@ -568,7 +568,7 @@ export default function AIAgent() {
                           </CardDescription>
                         </CardHeader>
                         <CardContent className="p-4 md:p-6 space-y-4 md:space-y-6">
-                          {/* Basic Info */}
+                          {}
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                             <div className="space-y-3">
                               <Label htmlFor="name" className="text-sm md:text-base font-medium">
@@ -591,11 +591,11 @@ export default function AIAgent() {
                                 </p>
                               )}
                             </div>
-                            
+
                             <div className="space-y-3">
                               <Label className="text-sm md:text-base font-medium">Especialização</Label>
-                              <Select 
-                                value={formData.specialization} 
+                              <Select
+                                value={formData.specialization}
                                 onValueChange={(value) =>
                                   setFormData(prev => ({ ...prev, specialization: value }))
                                 }
@@ -617,7 +617,7 @@ export default function AIAgent() {
                             </div>
                           </div>
 
-                          {/* Description */}
+                          {}
                           <div className="space-y-3">
                             <Label htmlFor="description" className="text-sm md:text-base font-medium">
                               Descrição (Opcional)
@@ -632,7 +632,7 @@ export default function AIAgent() {
                             />
                           </div>
 
-                          {/* API Key */}
+                          {}
                           <div className="space-y-3">
                             <Label htmlFor="apiKey" className="text-sm md:text-base font-medium">
                               Chave OpenAI API
@@ -660,7 +660,7 @@ export default function AIAgent() {
                             </p>
                           </div>
 
-                          {/* Personality */}
+                          {}
                           <div className="space-y-4">
                             <Label className="text-sm md:text-base font-medium">Personalidade</Label>
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -684,8 +684,8 @@ export default function AIAgent() {
                                 </div>
                               ))}
                             </div>
-                            
-                            {/* Custom System Prompt */}
+
+                            {}
                             {formData.personality === 'custom' && (
                               <div className="space-y-3 p-4 border rounded-lg bg-muted/30">
                                 <Label htmlFor="customSystemPrompt" className="text-sm md:text-base font-medium flex items-center gap-2">
@@ -697,13 +697,13 @@ export default function AIAgent() {
                                   placeholder="Defina como seu agente deve se comportar...
 
 Exemplo:
-Você é {agentName}, um assistente especializado em marketing digital. 
+Você é {agentName}, um assistente especializado em marketing digital.
 Sempre se dirija ao usuário como {userName}.
 Mantenha um tom {communicationStyle} e seja {responseMode}.
 
 Variáveis disponíveis:
 - {agentName}: Nome do agente
-- {userName}: Nome do usuário  
+- {userName}: Nome do usuário
 - {context}: Contexto da conversa
 - {communicationStyle}: Estilo de comunicação
 - {responseMode}: Modo de resposta"
@@ -739,7 +739,7 @@ Variáveis disponíveis:
                     </div>
                   )}
 
-                  {/* Step 3: Advanced Settings */}
+                  {}
                   {currentStep === 3 && (
                     <div className="space-y-4 md:space-y-6">
                       <Card>
@@ -753,7 +753,7 @@ Variáveis disponíveis:
                           </CardDescription>
                         </CardHeader>
                         <CardContent className="p-4 md:p-6 space-y-6 md:space-y-8">
-                          {/* Creativity Slider */}
+                          {}
                           <div className="space-y-4">
                             <Label className="text-sm md:text-base font-medium flex items-center gap-2">
                               <Brain className="h-4 w-4" />
@@ -766,9 +766,9 @@ Variáveis disponíveis:
                                 max="100"
                                 step="10"
                                 value={formData.creativity}
-                                onChange={(e) => setFormData(prev => ({ 
-                                  ...prev, 
-                                  creativity: parseInt(e.target.value) 
+                                onChange={(e) => setFormData(prev => ({
+                                  ...prev,
+                                  creativity: parseInt(e.target.value)
                                 }))}
                                 className="w-full h-2 bg-muted rounded-lg appearance-none cursor-pointer"
                               />
@@ -780,7 +780,7 @@ Variáveis disponíveis:
                             </div>
                           </div>
 
-                          {/* Feature Toggles */}
+                          {}
                           <div className="grid gap-4 md:gap-6">
                             {[
                               {
@@ -826,7 +826,7 @@ Variáveis disponíveis:
                             ))}
                           </div>
 
-                          {/* Summary */}
+                          {}
                           <div className="border-t pt-4 md:pt-6">
                             <h4 className="font-semibold mb-4 md:mb-6 flex items-center gap-2 text-sm md:text-base">
                               <Activity className="h-4 w-4 md:h-5 md:w-5" />
@@ -862,7 +862,7 @@ Variáveis disponíveis:
                   )}
               </div>
 
-              {/* Sidebar */}
+              {}
               <div className="lg:col-span-1">
                 <Card className="sticky top-4 md:top-8">
                   <CardHeader>
@@ -894,7 +894,7 @@ Variáveis disponíveis:
               </div>
             </div>
 
-            {/* Navigation */}
+            {}
             <div className="flex justify-between items-center mt-4 md:mt-8 pt-4 md:pt-6 border-t">
               <Button
                 variant="outline"
@@ -946,7 +946,7 @@ Variáveis disponíveis:
               )}
             </div>
 
-            {/* Progress during creation */}
+            {}
             {creating && (
               <Card className="fixed bottom-4 right-4 min-w-[250px] md:min-w-[300px] z-50 shadow-lg">
                 <CardContent className="p-3 md:p-4">
@@ -966,7 +966,7 @@ Variáveis disponíveis:
         </div>
       )}
 
-      {/* Success Dialog */}
+      {}
       <Dialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
         <DialogContent className="max-w-sm md:max-w-md mx-4">
           <div className="text-center space-y-3 md:space-y-4">
@@ -980,15 +980,15 @@ Variáveis disponíveis:
               </DialogDescription>
             </DialogHeader>
             <div className="flex flex-col sm:flex-row gap-2">
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 onClick={() => setShowSuccessDialog(false)}
                 className="flex-1 h-9 md:h-10"
                 size="sm"
               >
                 Fechar
               </Button>
-              <Button 
+              <Button
                 onClick={() => {
                   setShowSuccessDialog(false)
                   setActiveTab('manage')

@@ -7,30 +7,30 @@ class CSRFProtection {
     this.secret = process.env.CSRF_SECRET || crypto.randomBytes(32).toString('hex');
   }
 
-  // Gerar token CSRF
+
   generateToken(req) {
     if (!req.session) {
       req.session = {};
     }
-    
+
     if (!req.session.csrfSecret) {
       req.session.csrfSecret = this.tokens.secretSync();
     }
-    
+
     return this.tokens.create(req.session.csrfSecret);
   }
-  // Middleware para adicionar token CSRF à resposta
+
   addTokenToResponse() {
     return (req, res, next) => {
       try {
-        // Gerar token apenas para GET requests de páginas
+
         if (req.method === 'GET' && req.path.includes('csrf-token')) {
           const token = this.generateToken(req);
-          
-          // Adicionar headers para CORS
+
+
           res.header('Access-Control-Expose-Headers', 'X-CSRF-Token');
           res.header('X-CSRF-Token', token);
-          
+
           return res.json({
             success: true,
             csrfToken: token,
@@ -47,17 +47,17 @@ class CSRFProtection {
       }
     };
   }
-  // Middleware para verificar token CSRF
+
   verifyToken() {
     return (req, res, next) => {
       try {
-        // Pular verificação para GET requests
+
         if (req.method === 'GET') {
           return next();
         }
 
-        // Obter token do header ou body
-        const token = req.headers['x-csrf-token'] || 
+
+        const token = req.headers['x-csrf-token'] ||
                      req.headers['csrf-token'] ||
                      req.body._csrf ||
                      req.query._csrf;
@@ -70,7 +70,7 @@ class CSRFProtection {
           });
         }
 
-        // Verificar se existe sessão com secret
+
         if (!req.session || !req.session.csrfSecret) {
           return res.status(403).json({
             success: false,
@@ -79,9 +79,9 @@ class CSRFProtection {
           });
         }
 
-        // Verificar token
+
         const isValid = this.tokens.verify(req.session.csrfSecret, token);
-        
+
         if (!isValid) {
           return res.status(403).json({
             success: false,
@@ -90,7 +90,7 @@ class CSRFProtection {
           });
         }
 
-        // Log sucesso em desenvolvimento
+
         if (process.env.NODE_ENV === 'development') {
           console.log('✅ Token CSRF validado com sucesso');
         }
@@ -106,7 +106,7 @@ class CSRFProtection {
       }
     };
   }
-  // Middleware específico para autenticação (mais rigoroso)
+
   verifyAuthToken() {
     return (req, res, next) => {
       try {
@@ -114,15 +114,15 @@ class CSRFProtection {
           return next();
         }
 
-        // CSRF é SEMPRE obrigatório para auth (produção e desenvolvimento)
-        const token = req.headers['x-csrf-token'] || 
+
+        const token = req.headers['x-csrf-token'] ||
                      req.headers['csrf-token'] ||
                      req.body._csrf;
 
         if (!token) {
-          // Log tentativa suspeita
+
           console.warn(`Tentativa de auth sem CSRF token do IP: ${req.ip}, User-Agent: ${req.headers['user-agent']}`);
-          
+
           return res.status(403).json({
             success: false,
             message: 'Acesso negado. Token de segurança obrigatório.',
@@ -139,7 +139,7 @@ class CSRFProtection {
             cookies: req.headers.cookie,
             origin: req.headers.origin || req.headers.referer
           });
-          
+
           return res.status(403).json({
             success: false,
             message: 'Sessão de segurança inválida. Acesso negado.',
@@ -148,10 +148,10 @@ class CSRFProtection {
         }
 
         const isValid = this.tokens.verify(req.session.csrfSecret, token);
-        
+
         if (!isValid) {
           console.warn(`Token CSRF inválido em tentativa de auth do IP: ${req.ip}`);
-          
+
           return res.status(403).json({
             success: false,
             message: 'Token de segurança inválido. Possível ataque detectado.',
@@ -159,7 +159,7 @@ class CSRFProtection {
           });
         }
 
-        // Log sucesso em desenvolvimento
+
         if (process.env.NODE_ENV === 'development') {
           console.log('✅ Token CSRF validado com sucesso para auth');
         }
@@ -175,28 +175,28 @@ class CSRFProtection {
       }
     };
   }
-  // Middleware para refresh de token (após uso)
+
   refreshToken() {
     return (req, res, next) => {
       try {
-        // Gerar novo token após operações sensíveis
-        if (req.session && req.session.csrfSecret && 
+
+        if (req.session && req.session.csrfSecret &&
             (req.path.includes('login') || req.path.includes('register'))) {
-          
+
           const newToken = this.generateToken(req);
-          
-          // Adicionar novo token na resposta e headers
+
+
           const originalJson = res.json;
           res.json = function(data) {
             if (data && data.success) {
               data.newCsrfToken = newToken;
-              // Também adicionar no header para facilitar acesso
+
               res.header('X-New-CSRF-Token', newToken);
             }
             return originalJson.call(this, data);
           };
         }
-        
+
         next();
       } catch (error) {
         console.error('Erro ao refresh CSRF token:', error);
@@ -205,7 +205,7 @@ class CSRFProtection {
     };
   }
 
-  // Limpar sessão CSRF
+
   clearSession() {
     return (req, res, next) => {
       if (req.session) {
@@ -216,7 +216,7 @@ class CSRFProtection {
   }
 }
 
-// Singleton instance
+
 const csrfProtection = new CSRFProtection();
 
 module.exports = csrfProtection;

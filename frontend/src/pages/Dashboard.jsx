@@ -43,7 +43,7 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 
 export default function Dashboard() {
-  // Estado principal
+
   const [activeTab, setActiveTab] = useState('overview');
   const [sessions, setSessions] = useState([]);
   const [stats, setStats] = useState({
@@ -64,15 +64,15 @@ export default function Dashboard() {
   const [tokenForm, setTokenForm] = useState({ name: '', expiresIn: 'never' });
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
 
-  // Funções de formatação e validação de número brasileiro
+
   const formatBrazilianPhone = (value) => {
-    // Remove tudo que não é número
+
     const numbers = value.replace(/\D/g, '');
-    
-    // Limita a 11 dígitos (55 + DDD + número)
+
+
     const limited = numbers.slice(0, 13);
-    
-    // Aplica formatação: +55 (11) 99999-9999
+
+
     if (limited.length === 0) return '';
     if (limited.length <= 2) return `+${limited}`;
     if (limited.length <= 4) return `+${limited.slice(0, 2)} (${limited.slice(2)}`;
@@ -80,60 +80,60 @@ export default function Dashboard() {
     if (limited.length <= 13) {
       return `+${limited.slice(0, 2)} (${limited.slice(2, 4)}) ${limited.slice(4, 9)}-${limited.slice(9)}`;
     }
-    
+
     return `+${limited.slice(0, 2)} (${limited.slice(2, 4)}) ${limited.slice(4, 9)}-${limited.slice(9, 13)}`;
   };
 
   const validateBrazilianPhone = (phoneNumber) => {
     const numbers = phoneNumber.replace(/\D/g, '');
-    
-    // Deve ter exatamente 13 dígitos (55 + 11 dígitos do número)
+
+
     if (numbers.length !== 13) return false;
-    
-    // Deve começar com 55 (código do Brasil)
+
+
     if (!numbers.startsWith('55')) return false;
-    
-    // DDD deve estar entre 11 e 99
+
+
     const ddd = parseInt(numbers.slice(2, 4));
     if (ddd < 11 || ddd > 99) return false;
-    
-    // Número deve ter 9 dígitos e começar com 9
+
+
     const phoneNum = numbers.slice(4);
     if (phoneNum.length !== 9 || !phoneNum.startsWith('9')) return false;
-    
+
     return true;
   };
 
   const getPhoneValidationMessage = (phoneNumber) => {
     const numbers = phoneNumber.replace(/\D/g, '');
-    
+
     if (numbers.length === 0) return 'Digite o número do telefone';
     if (numbers.length < 2) return 'Digite o código do país (55)';
     if (!numbers.startsWith('55')) return 'Código do país deve ser 55';
     if (numbers.length < 4) return 'Digite o DDD (11-99)';
-    
+
     const ddd = parseInt(numbers.slice(2, 4));
     if (ddd < 11 || ddd > 99) return 'DDD inválido (deve ser entre 11-99)';
-    
+
     if (numbers.length < 13) return `Digite mais ${13 - numbers.length} dígitos`;
     if (numbers.length === 13) {
       const phoneNum = numbers.slice(4);
       if (!phoneNum.startsWith('9')) return 'Número deve começar com 9';
       return '✓ Número válido';
     }
-    
+
     return 'Número muito longo';
   };
 
-  // Função para regenerar código de pareamento
+
   const regeneratePairingCode = async () => {
     if (!pairingCodeData || isRegenerating) return;
-    
+
     setIsRegenerating(true);
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
-      // Get active token for API authentication (mesma lógica da createWhatsAppSession)
+
       let authHeaders = {
         'Content-Type': 'application/json',
       };
@@ -155,7 +155,7 @@ export default function Dashboard() {
 
           if (activeToken) {
             try {
-              // Get the full token
+
               const tokenResponse = await fetch(
                 `${apiUrl}/api/management/tokens/${activeToken._id}/full`,
                 {
@@ -198,7 +198,7 @@ export default function Dashboard() {
           ...prev,
           code: result.pairingCode
         }));
-        setTimeRemaining(60); // Reset timer
+        setTimeRemaining(60);
         setCodeCopied(false);
         setShowRegeneratedMessage(true);
         setTimeout(() => setShowRegeneratedMessage(false), 3000);
@@ -212,18 +212,18 @@ export default function Dashboard() {
     }
   };
 
-  // Função para formatar tempo restante
+
   const formatTimeRemaining = (seconds) => {
     return `${seconds}s`;
   };
 
-  // Função para formatar código de pareamento (XXXX-XXXX)
+
   const formatPairingCode = (code) => {
     if (!code || code.length !== 8) return code;
     return `${code.slice(0, 4)}-${code.slice(4)}`;
   };
 
-  // Performance mode - detecta dispositivos menos potentes
+
   const [performanceMode, setPerformanceMode] = useState(() => {
     const isLowEnd =
       navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4;
@@ -240,7 +240,7 @@ export default function Dashboard() {
     return isLowEnd || isSlowConnection || isOldBrowser || isMobile;
   });
 
-  // Modal states
+
   const [showNewSession, setShowNewSession] = useState(false);
   const [showQRCode, setShowQRCode] = useState(false);
   const [showUserProfile, setShowUserProfile] = useState(false);
@@ -248,9 +248,9 @@ export default function Dashboard() {
   const [qrCodeData, setQrCodeData] = useState(null);
   const [loadingQrCode, setLoadingQrCode] = useState(false);
   const [showCreateSessionModal, setShowCreateSessionModal] = useState(false);
-  const [sessionForm, setSessionForm] = useState({ 
+  const [sessionForm, setSessionForm] = useState({
     sessionId: '',
-    pairingMethod: 'qr', // 'qr' ou 'code'
+    pairingMethod: 'qr',
     phoneNumber: '',
     proxy: {
       enabled: false,
@@ -265,20 +265,20 @@ export default function Dashboard() {
   const [showPairingCodeModal, setShowPairingCodeModal] = useState(false);
   const [pairingCodeData, setPairingCodeData] = useState(null);
   const [codeCopied, setCodeCopied] = useState(false);
-  const [timeRemaining, setTimeRemaining] = useState(60); // 60 segundos (mais realista)
+  const [timeRemaining, setTimeRemaining] = useState(60);
   const [isRegenerating, setIsRegenerating] = useState(false);
   const [showRegeneratedMessage, setShowRegeneratedMessage] = useState(false);
 
-  // Timer effect for pairing code
+
   useEffect(() => {
     let timer;
     if (showPairingCodeModal && timeRemaining > 0 && !isRegenerating) {
       timer = setInterval(() => {
         setTimeRemaining(prev => {
           if (prev <= 1) {
-            // Tempo esgotado, regenerar automaticamente
+
             regeneratePairingCode();
-            return 60; // Reset para 60 segundos
+            return 60;
           }
           return prev - 1;
         });
@@ -290,14 +290,14 @@ export default function Dashboard() {
     };
   }, [showPairingCodeModal, timeRemaining, isRegenerating]);
 
-  // Reset timer when modal opens/closes
+
   useEffect(() => {
     if (showPairingCodeModal) {
       setTimeRemaining(60);
       setIsRegenerating(false);
       setShowRegeneratedMessage(false);
     } else {
-      // Reset all states when modal closes
+
       setTimeRemaining(60);
       setIsRegenerating(false);
       setShowRegeneratedMessage(false);
@@ -305,22 +305,22 @@ export default function Dashboard() {
     }
   }, [showPairingCodeModal]);
 
-  // Webhook management state
+
   const [showWebhookManager, setShowWebhookManager] = useState(false);
   const [selectedSessionForWebhooks, setSelectedSessionForWebhooks] =
     useState(null);
 
-  // Media management state
+
   const [showMediaManager, setShowMediaManager] = useState(false);
 
-  // Session configuration state
+
   const [showSessionConfig, setShowSessionConfig] = useState(false);
   const [selectedSessionForConfig, setSelectedSessionForConfig] =
     useState(null);
   const [selectedTokenForExamples, setSelectedTokenForExamples] = useState('');
   const [fullTokenForExamples, setFullTokenForExamples] = useState('');
 
-  // Carregar dados reais do usuário da API
+
   useEffect(() => {
     const fetchUserProfile = async () => {
       try {
@@ -334,18 +334,18 @@ export default function Dashboard() {
             const userData = result.data.user;
             setUser(userData);
 
-            // Atualizar stats com dados reais do usuário
+
             setStats({
               totalSessions: userData.stats?.totalSessions || 0,
               activeSessions: userData.stats?.activeConnections || 0,
               totalMessages: userData.stats?.messagesCount || 0,
-              totalGroups: 0, // Will be updated when we fetch groups data
-              activeWebhooks: 0, // Will be updated when we fetch webhooks data
-              uptime: '0h 0m', // Will be calculated from session data
+              totalGroups: 0,
+              activeWebhooks: 0,
+              uptime: '0h 0m',
             });
           } else {
             console.error('Erro ao carregar perfil:', result.message);
-            // Fallback para dados de exemplo
+
             setUser({
               name: 'Usuário Demo',
               email: 'demo@whatsapp-api.com',
@@ -353,13 +353,13 @@ export default function Dashboard() {
             });
           }
         } else if (response.status === 401) {
-          // Usuário não autenticado, redirecionar para login
+
           console.log('Usuário não autenticado, redirecionando...');
           window.location.href = '/login';
           return;
         } else {
           console.error('Erro ao buscar perfil do usuário:', response.status);
-          // Fallback para dados de exemplo
+
           setUser({
             name: 'Usuário Demo',
             email: 'demo@whatsapp-api.com',
@@ -368,7 +368,7 @@ export default function Dashboard() {
         }
       } catch (error) {
         console.error('Erro de conexão ao buscar perfil:', error);
-        // Fallback para dados de exemplo em caso de erro
+
         setUser({
           name: 'Usuário Demo',
           email: 'demo@whatsapp-api.com',
@@ -392,34 +392,34 @@ export default function Dashboard() {
           const result = await response.json();
           if (result.success) {
             setApiTokens(result.tokens || []);
-            setUserSessions(result.sessions || []); // Store sessions with QR codes
+            setUserSessions(result.sessions || []);
           }
         }
       } catch (error) {
         console.error('Erro ao carregar tokens:', error);
       }
-    }; // Executar todas as funções
+    };
     const initializeData = async () => {
       await fetchUserProfile();
-      await fetchApiTokens(); // Load tokens first to get userSessions
-      await fetchRealSessions(); // Then load all sessions including userSessions
-      setIsLoading(false); // Set loading to false after everything is loaded
+      await fetchApiTokens();
+      await fetchRealSessions();
+      setIsLoading(false);
     };
 
     initializeData();
 
-    // Auto-refresh das sessões com intervalo baseado no performance mode
-    const refreshInterval = performanceMode ? 30000 : 15000; // 30s em modo performance, 15s normal
+
+    const refreshInterval = performanceMode ? 30000 : 15000;
 
     const interval = setInterval(async () => {
-      // Só atualiza se a página estiver visível para economizar recursos
+
       if (!document.hidden) {
-        await fetchApiTokens(); // Refresh tokens to get updated userSessions
-        await fetchRealSessions(); // Then refresh all sessions
+        await fetchApiTokens();
+        await fetchRealSessions();
       }
     }, refreshInterval);
 
-    // Cleanup do interval
+
     return () => clearInterval(interval);
   }, []);
 
@@ -466,7 +466,7 @@ export default function Dashboard() {
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
-      // Fazer logout na API
+
       await fetch(`${apiUrl}/api/management/auth/logout`, {
         method: 'POST',
         credentials: 'include',
@@ -477,7 +477,7 @@ export default function Dashboard() {
     } catch (error) {
       console.error('Erro ao fazer logout na API:', error);
     } finally {
-      // Limpar dados locais e redirecionar independentemente do resultado da API
+
       sessionStorage.removeItem('user');
       window.location.href = '/login';
     }
@@ -488,7 +488,7 @@ export default function Dashboard() {
       const { name, expiresIn } = tokenForm;
 
       if (!name.trim()) {
-        return; // Validation handled by disabled button
+        return;
       }
 
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
@@ -511,7 +511,7 @@ export default function Dashboard() {
           setShowTokenModal(true);
           setShowCreateTokenModal(false);
           setTokenForm({ name: '', expiresIn: 'never' });
-          // Reload tokens list
+
           const tokensResponse = await fetch(
             `${apiUrl}/api/management/tokens/list`,
             {
@@ -551,7 +551,7 @@ export default function Dashboard() {
       );
 
       if (response.ok) {
-        // Reload tokens list
+
         const tokensResponse = await fetch(
           `${apiUrl}/api/management/tokens/list`,
           {
@@ -597,7 +597,7 @@ export default function Dashboard() {
           );
 
           if (activeToken) {
-            // Get the full token
+
             const tokenResponse = await fetch(
               `${apiUrl}/api/management/tokens/${activeToken._id}/full`,
               {
@@ -635,7 +635,7 @@ export default function Dashboard() {
         return;
       }
 
-      // Get active API token
+
       const token = await getActiveApiToken();
       if (!token) {
         alert(
@@ -659,11 +659,11 @@ export default function Dashboard() {
       if (response.ok) {
         const result = await response.json();
         if (result.success) {
-          // Close the session config modal
+
           setShowSessionConfig(false);
           setSelectedSessionForConfig(null);
 
-          // Reload sessions to reflect the deletion
+
           await fetchRealSessions();
           await fetchApiTokens();
 
@@ -684,7 +684,7 @@ export default function Dashboard() {
 
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text).then(() => {
-      // Could add a toast notification here
+
     });
   };
 
@@ -695,7 +695,7 @@ export default function Dashboard() {
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
-      // Try management API first
+
       const managementResponse = await fetch(
         `${apiUrl}/api/management/sessions/list`,
         {
@@ -725,7 +725,7 @@ export default function Dashboard() {
         }
       }
 
-      // Try to get an active API token and use Baileys API as fallback
+
       const tokensResponse = await fetch(
         `${apiUrl}/api/management/tokens/list`,
         {
@@ -745,7 +745,7 @@ export default function Dashboard() {
           );
 
           if (activeToken) {
-            // Get the full token
+
             const tokenResponse = await fetch(
               `${apiUrl}/api/management/tokens/${activeToken._id}/full`,
               {
@@ -760,7 +760,7 @@ export default function Dashboard() {
             if (tokenResponse.ok) {
               const tokenResult = await tokenResponse.json();
               if (tokenResult.success && tokenResult.token) {
-                // Get session status from Baileys API
+
                 const statusResponse = await fetch(
                   `${apiUrl}/api/baileys/session/${sessionId}/status`,
                   {
@@ -775,7 +775,7 @@ export default function Dashboard() {
                 if (statusResponse.ok) {
                   const statusResult = await statusResponse.json();
                   if (statusResult.success && statusResult.hasQrCode) {
-                    // Try to regenerate QR if no current QR code
+
                     const regenerateResponse = await fetch(
                       `${apiUrl}/api/baileys/session/${sessionId}/regenerate-qr`,
                       {
@@ -807,7 +807,7 @@ export default function Dashboard() {
         }
       }
 
-      // If no QR code found
+
       setQrCodeData({ hasQrCode: false });
       setLoadingQrCode(false);
     } catch (error) {
@@ -840,7 +840,7 @@ export default function Dashboard() {
 
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
-      // Get active token for API authentication
+
       let authHeaders = {
         'Content-Type': 'application/json',
       };
@@ -859,7 +859,7 @@ export default function Dashboard() {
           const activeToken = tokensResult.tokens.find(
             (token) => token.isActive && !token.isExpired
           );
-          
+
           if (activeToken) {
             try {
               const tokenResponse = await fetch(
@@ -886,7 +886,7 @@ export default function Dashboard() {
         }
       }
 
-      // Create session using token authentication
+
       const response = await fetch(`${apiUrl}/api/baileys/session/create`, {
         method: 'POST',
         headers: authHeaders,
@@ -901,9 +901,9 @@ export default function Dashboard() {
       const result = await response.json();
 
       if (response.ok && result.success) {
-        // Session created successfully
+
         setShowCreateSessionModal(false);
-        setSessionForm({ 
+        setSessionForm({
           sessionId: '',
           pairingMethod: 'qr',
           phoneNumber: '',
@@ -917,7 +917,7 @@ export default function Dashboard() {
           }
         });
 
-        // Show QR code if available
+
         if (result.qrCode) {
           setSelectedSession({
             id: sessionId,
@@ -928,7 +928,7 @@ export default function Dashboard() {
           setShowQRCode(true);
         }
 
-        // Handle pairing code and registration status
+
         if (result.pairingCode) {
           setPairingCodeData({
             code: result.pairingCode,
@@ -944,7 +944,7 @@ export default function Dashboard() {
           alert('Sessão WhatsApp criada com sucesso!');
         }
 
-        // Refresh sessions list
+
         fetchRealSessions();
       } else {
         alert(`Erro ao criar sessão: ${result.message}`);
@@ -961,7 +961,7 @@ export default function Dashboard() {
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
-      // Try to fetch from the Baileys API directly (requires token) first
+
       const tokensResponse = await fetch(
         `${apiUrl}/api/management/tokens/list`,
         {
@@ -979,13 +979,13 @@ export default function Dashboard() {
       if (tokensResponse.ok) {
         const tokensResult = await tokensResponse.json();
         if (tokensResult.success && tokensResult.tokens.length > 0) {
-          // Get first active token to fetch Baileys sessions
+
           activeToken = tokensResult.tokens.find(
             (token) => token.isActive && !token.isExpired
           );
           if (activeToken) {
             try {
-              // Get the full token to make Baileys API request
+
               const tokenResponse = await fetch(
                 `${apiUrl}/api/management/tokens/${activeToken._id}/full`,
                 {
@@ -1000,7 +1000,7 @@ export default function Dashboard() {
               if (tokenResponse.ok) {
                 const tokenResult = await tokenResponse.json();
                 if (tokenResult.success && tokenResult.token) {
-                  // Fetch sessions from Baileys API
+
                   const baileysResponse = await fetch(
                     `${apiUrl}/api/baileys/sessions`,
                     {
@@ -1027,7 +1027,7 @@ export default function Dashboard() {
         }
       }
 
-      // Also try the management API sessions endpoint as fallback
+
       const response = await fetch(`${apiUrl}/api/management/sessions/list`, {
         method: 'GET',
         credentials: 'include',
@@ -1044,10 +1044,10 @@ export default function Dashboard() {
         }
       }
 
-      // Also include userSessions data (from tokens API with QR codes)
+
       const userSessionsData = userSessions || [];
 
-      // Debug logs
+
       console.log('📱 Sessions data:', {
         baileysSessionsData: baileysSessionsData.length,
         managementSessionsData: managementSessionsData.length,
@@ -1056,8 +1056,8 @@ export default function Dashboard() {
         managementSessions: managementSessionsData,
       });
 
-      // Merge and transform sessions from all sources
-      // Prioritize managementSessionsData as it has QR code data
+
+
       const allSessions = [
         ...baileysSessionsData,
         ...managementSessionsData,
@@ -1094,7 +1094,7 @@ export default function Dashboard() {
             user: session.user,
             lastError: session.lastError,
           };
-          // Debug log for QR code data
+
           if (sessionId === 'ddeed') {
             console.log('🔍 Session ddeed data:', {
               sessionData,
@@ -1109,11 +1109,11 @@ export default function Dashboard() {
       }, []);
       setSessions(uniqueSessions);
 
-      // Fetch detailed stats for each session if we have an active token
+
       if (activeToken && uniqueSessions.length > 0) {
         await fetchDetailedStats(uniqueSessions, activeToken);
       } else {
-        // Update basic stats based on sessions
+
         setStats((prev) => ({
           ...prev,
           totalSessions: uniqueSessions.length,
@@ -1130,7 +1130,7 @@ export default function Dashboard() {
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
-      // Get the full token
+
       const tokenResponse = await fetch(
         `${apiUrl}/api/management/tokens/${activeToken._id}/full`,
         {
@@ -1156,7 +1156,7 @@ export default function Dashboard() {
       let totalGroups = 0;
       let totalWebhooks = 0;
 
-      // Fetch detailed data for each session in parallel - but limit to connected sessions for better performance
+
       const connectedSessions = sessions.filter(
         (s) => s.status === 'connected'
       );
@@ -1168,9 +1168,9 @@ export default function Dashboard() {
         };
 
         try {
-          // Create parallel requests for this session
+
           const [webhooksResponse, groupsResponse] = await Promise.all([
-            // Fetch webhooks for this session
+
             fetch(`${apiUrl}/api/baileys/session/${session.id}/webhooks`, {
               method: 'GET',
               headers: {
@@ -1178,7 +1178,7 @@ export default function Dashboard() {
                 'Content-Type': 'application/json',
               },
             }),
-            // Fetch groups for this session
+
             fetch(`${apiUrl}/api/baileys/groups/${session.id}/list`, {
               method: 'GET',
               headers: {
@@ -1188,17 +1188,17 @@ export default function Dashboard() {
             }),
           ]);
 
-          // Process webhooks response
+
           if (webhooksResponse.ok) {
             const webhooksResult = await webhooksResponse.json();
             if (webhooksResult.success) {
-              // Count all webhooks (both active and inactive) for total count
+
               sessionStats.webhooks =
                 webhooksResult.total || webhooksResult.webhooks?.length || 0;
             }
           }
 
-          // Process groups response
+
           if (groupsResponse.ok) {
             const groupsResult = await groupsResponse.json();
             if (groupsResult.success) {
@@ -1207,7 +1207,7 @@ export default function Dashboard() {
             }
           }
 
-          // For messages, we'll use the messageCount from the session data
+
           sessionStats.messages = session.messages || 0;
         } catch (error) {
           console.warn(
@@ -1219,21 +1219,21 @@ export default function Dashboard() {
         return sessionStats;
       });
 
-      // Also aggregate from all sessions (including disconnected) for basic counts
+
       sessions.forEach((session) => {
         totalMessages += session.messages || 0;
       });
 
-      // Wait for all connected session data to be fetched
+
       const sessionStatsArray = await Promise.all(sessionPromises);
 
-      // Aggregate totals from connected sessions
+
       sessionStatsArray.forEach((stats) => {
         totalGroups += stats.groups;
         totalWebhooks += stats.webhooks;
       });
 
-      // Update stats with real data
+
       setStats((prev) => ({
         ...prev,
         totalSessions: sessions.length,
@@ -1244,7 +1244,7 @@ export default function Dashboard() {
       }));
     } catch (error) {
       console.warn('Failed to fetch detailed stats:', error);
-      // Fallback to basic stats
+
       setStats((prev) => ({
         ...prev,
         totalSessions: sessions.length,
@@ -1253,7 +1253,7 @@ export default function Dashboard() {
     }
   };
 
-  // Fetch full token for API examples
+
   const fetchFullTokenForExamples = async (tokenId) => {
     if (!tokenId) {
       setFullTokenForExamples('');
@@ -1296,7 +1296,7 @@ export default function Dashboard() {
     }
   };
 
-  // Effect to fetch token when selection changes
+
   useEffect(() => {
     fetchFullTokenForExamples(selectedTokenForExamples);
   }, [selectedTokenForExamples]);
@@ -1329,7 +1329,7 @@ export default function Dashboard() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Floating Elements Background - removidos em modo performance */}
+      {}
       {!performanceMode && (
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
           {[...Array(2)].map((_, i) => (
@@ -1356,7 +1356,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Header */}
+      {}
       <motion.header
         className="bg-card border rounded-lg mx-2 md:mx-4 mt-2 md:mt-4 mb-4 md:mb-6"
         initial={{ opacity: 0, y: -10 }}
@@ -1366,7 +1366,7 @@ export default function Dashboard() {
         <div className="px-3 md:px-6 py-3 md:py-4">
           <div className="flex items-center justify-between flex-wrap gap-4">
             <div className="flex items-center space-x-3 md:space-x-4">
-              {/* Mobile Menu Button */}
+              {}
               <button
                 onClick={(e) => {
                   e.preventDefault();
@@ -1379,7 +1379,7 @@ export default function Dashboard() {
               >
                 <Bars3Icon className="w-6 h-6 text-foreground" />
               </button>
-              
+
               <div className="w-10 h-10 md:w-12 md:h-12 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
                 <ChatBubbleLeftRightIcon className="w-5 h-5 md:w-6 md:h-6 text-foreground" />
               </div>
@@ -1394,7 +1394,7 @@ export default function Dashboard() {
             </div>
 
             <div className="flex items-center space-x-2 md:space-x-4 flex-wrap">
-              {/* Performance Mode Toggle */}
+              {}
               <motion.button
                 onClick={() => setPerformanceMode(!performanceMode)}
                 className={`px-3 py-2 rounded-lg text-xs transition-colors ${
@@ -1413,7 +1413,7 @@ export default function Dashboard() {
                 {performanceMode ? '🚀 Performance' : '✨ Efeitos'}
               </motion.button>
 
-              {/* Status Indicator */}
+              {}
               <div
                 className={`${
                   'bg-card border rounded-lg'
@@ -1425,7 +1425,7 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* User Menu */}
+              {}
               <div className="flex items-center space-x-3">
                 <div className="text-right">
                   <div className="text-sm font-medium text-foreground">
@@ -1487,11 +1487,11 @@ export default function Dashboard() {
         </div>
       </motion.header>
 
-      {/* Mobile Drawer Navigation */}
+      {}
       <AnimatePresence>
         {isMobileDrawerOpen && (
           <>
-            {/* Backdrop */}
+            {}
             <motion.div
               className="fixed inset-0 bg-black/50 z-[9998] lg:hidden"
               initial={{ opacity: 0 }}
@@ -1508,8 +1508,8 @@ export default function Dashboard() {
                 setIsMobileDrawerOpen(false);
               }}
             />
-            
-            {/* Drawer */}
+
+            {}
             <motion.div
               className="fixed left-0 top-0 bottom-0 w-80 bg-card border-r z-[9999] lg:hidden overflow-y-auto"
               initial={{ x: -320 }}
@@ -1518,7 +1518,7 @@ export default function Dashboard() {
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
             >
               <div className="p-4">
-                {/* Drawer Header */}
+                {}
                 <div className="flex items-center justify-between mb-6">
                   <div className="flex items-center space-x-3">
                     <div className="w-10 h-10 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
@@ -1543,7 +1543,7 @@ export default function Dashboard() {
                   </button>
                 </div>
 
-                {/* Navigation Items */}
+                {}
                 <div className="space-y-2 mb-6">
                   {tabs.map((tab) => {
                     const Icon = tab.icon;
@@ -1576,7 +1576,7 @@ export default function Dashboard() {
                   })}
                 </div>
 
-                {/* Quick Stats in Drawer */}
+                {}
                 <div className="bg-card border rounded-lg p-4">
                   <h3 className="text-sm font-semibold text-muted-foreground mb-3">
                     Estatísticas Rápidas
@@ -1615,7 +1615,7 @@ export default function Dashboard() {
       </AnimatePresence>
 
       <div className="flex flex-col lg:flex-row">
-        {/* Sidebar Navigation - Desktop */}
+        {}
         <motion.nav
           className="hidden lg:block lg:w-64 bg-card border rounded-lg mx-2 md:mx-4 mb-4 p-3 md:p-4 overflow-hidden"
           initial={{ opacity: 0, x: -10 }}
@@ -1649,7 +1649,7 @@ export default function Dashboard() {
             })}
           </div>
 
-          {/* Quick Stats */}
+          {}
           <div
             className={`mt-8 ${
               'bg-card border rounded-lg'
@@ -1681,7 +1681,7 @@ export default function Dashboard() {
           </div>
         </motion.nav>
 
-        {/* Main Content */}
+        {}
         <motion.main
           className="flex-1 mx-2 md:mx-4 mb-4"
           initial={{ opacity: 0, y: 10 }}
@@ -1698,7 +1698,7 @@ export default function Dashboard() {
                 transition={{ duration: performanceMode ? 0.1 : 0.2 }}
                 className="space-y-6"
               >
-                {/* Stats Cards */}
+                {}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                   {[
                     {
@@ -1761,7 +1761,7 @@ export default function Dashboard() {
                   })}
                 </div>
 
-                {/* Recent Sessions */}
+                {}
                 <div
                   className={`${
                     performanceMode ? 'bg-card border rounded-lg' : 'bg-card border rounded-lg shadow-sm'
@@ -1904,7 +1904,7 @@ export default function Dashboard() {
                 transition={{ duration: performanceMode ? 0.1 : 0.2 }}
                 className="space-y-6"
               >
-                <AITaskManager 
+                <AITaskManager
                   tokenId={apiTokens.find(token => token.isActive && !token.isExpired)?._id || ''}
                 />
               </motion.div>
@@ -2000,7 +2000,7 @@ export default function Dashboard() {
                           </div>
 
                           <div className="flex flex-col space-y-2">
-                            {/* Always show QR Code button if there's QR data or if disconnected (likely has QR) */}
+                            {}
                             {(session.qrCode ||
                               session.qrCodeImage ||
                               session.status === 'disconnected' ||
@@ -2054,7 +2054,7 @@ export default function Dashboard() {
                           </div>
                         </div>
 
-                        {/* QR Code Preview */}
+                        {}
                         {session.qrCodeImage && (
                           <div className="mt-4 pt-4 border-t border-white/10">
                             <div className="flex items-center justify-between">
@@ -2312,7 +2312,7 @@ export default function Dashboard() {
               </motion.div>
             )}
 
-            {/* Webhooks Tab */}
+            {}
             {activeTab === 'webhooks' && (
               <motion.div
                 key="webhooks"
@@ -2517,7 +2517,7 @@ export default function Dashboard() {
               </motion.div>
             )}
 
-            {/* Placeholder para outras abas */}
+            {}
             {activeTab !== 'overview' &&
               activeTab !== 'ai-agent' &&
               activeTab !== 'ai-tasks' &&
@@ -2559,7 +2559,7 @@ export default function Dashboard() {
         </motion.main>
       </div>
 
-      {/* Modals */}
+      {}
       <AnimatePresence>
         {showNewSession && (
           <motion.div
@@ -2982,7 +2982,7 @@ export default function Dashboard() {
             exit={{ opacity: 0 }}
             onClick={() => {
               setShowCreateSessionModal(false);
-              setSessionForm({ 
+              setSessionForm({
           sessionId: '',
           proxy: {
             enabled: false,
@@ -3004,17 +3004,17 @@ export default function Dashboard() {
               exit={{ scale: 0.9, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Header fixo */}
+              {}
               <div className="p-4 sm:p-6 pb-3 sm:pb-4 border-b border-border/50">
                 <h3 className="text-lg sm:text-xl font-semibold text-foreground">
                   Criar Sessão WhatsApp
                 </h3>
               </div>
 
-              {/* Conteúdo com scroll */}
+              {}
               <div className="flex-1 overflow-y-auto p-4 sm:p-6 pt-3 sm:pt-4 space-y-4 custom-scrollbar"
-                   style={{ 
-                     scrollbarWidth: 'thin', 
+                   style={{
+                     scrollbarWidth: 'thin',
                      scrollbarColor: 'rgba(255,255,255,0.3) transparent',
                      scrollBehavior: 'smooth'
                    }}
@@ -3041,7 +3041,7 @@ export default function Dashboard() {
                   />
                 </div>
 
-                {/* Método de Pareamento */}
+                {}
                 <div className="space-y-4">
                   <div className="flex items-center space-x-2">
                     <QrCodeIcon className="w-5 h-5 text-green-400" />
@@ -3049,7 +3049,7 @@ export default function Dashboard() {
                       Método de Pareamento
                     </label>
                   </div>
-                  
+
                   <div className="grid grid-cols-2 gap-3">
                     <button
                       type="button"
@@ -3069,7 +3069,7 @@ export default function Dashboard() {
                       <div className="text-sm font-medium">QR Code</div>
                       <div className="text-xs text-muted-foreground">Escaneie com WhatsApp</div>
                     </button>
-                    
+
                     <button
                       type="button"
                       onClick={() =>
@@ -3133,7 +3133,7 @@ export default function Dashboard() {
                   )}
                 </div>
 
-                {/* Configuração de Proxy */}
+                {}
                 <div className="space-y-4">
                   <div className="flex items-center space-x-2">
                     <ServerIcon className="w-5 h-5 text-blue-400" />
@@ -3141,7 +3141,7 @@ export default function Dashboard() {
                       Configuração de Proxy (Opcional)
                     </label>
                   </div>
-                  
+
                   <div className="flex items-center space-x-2">
                     <input
                       type="checkbox"
@@ -3210,7 +3210,7 @@ export default function Dashboard() {
                           />
                         </div>
                       </div>
-                      
+
                       <div>
                         <label className="text-xs font-medium text-foreground mb-1 block">
                           Host do Proxy
@@ -3308,13 +3308,13 @@ export default function Dashboard() {
               </div>
               </div>
 
-              {/* Footer fixo com botões */}
+              {}
               <div className="p-4 sm:p-6 pt-3 sm:pt-4 border-t border-border/50 bg-card">
                 <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
                 <motion.button
                   onClick={() => {
                     setShowCreateSessionModal(false);
-                    setSessionForm({ 
+                    setSessionForm({
           sessionId: '',
           proxy: {
             enabled: false,
@@ -3335,12 +3335,12 @@ export default function Dashboard() {
                 <motion.button
                   onClick={createWhatsAppSession}
                   disabled={
-                    !sessionForm.sessionId.trim() || 
+                    !sessionForm.sessionId.trim() ||
                     creatingSession ||
                     (sessionForm.pairingMethod === 'code' && !validateBrazilianPhone(sessionForm.phoneNumber))
                   }
                   className={`flex-1 bg-primary text-primary-foreground hover:bg-primary/90 px-4 py-2 rounded-md transition-colors ${
-                    !sessionForm.sessionId.trim() || 
+                    !sessionForm.sessionId.trim() ||
                     creatingSession ||
                     (sessionForm.pairingMethod === 'code' && !validateBrazilianPhone(sessionForm.phoneNumber))
                       ? 'opacity-50 cursor-not-allowed'
@@ -3378,7 +3378,7 @@ export default function Dashboard() {
           </motion.div>
         )}
 
-        {/* Pairing Code Modal */}
+        {}
         {showPairingCodeModal && pairingCodeData && (
           <motion.div
             className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
@@ -3406,16 +3406,16 @@ export default function Dashboard() {
                   <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-gradient-to-r from-green-500 to-blue-500 flex items-center justify-center">
                     <PhoneIcon className="w-8 h-8 text-white" />
                   </div>
-                  
+
                   <h3 className="text-xl font-semibold text-foreground mb-2">
                     Código de Pareamento
                   </h3>
-                  
+
                   <p className="text-muted-foreground mb-4">
                     Sessão criada para {pairingCodeData.phoneNumber}
                   </p>
-                  
-                  {/* Mensagem de código regenerado */}
+
+                  {}
                   {showRegeneratedMessage && (
                     <motion.div
                       initial={{ opacity: 0, y: -10 }}
@@ -3429,7 +3429,7 @@ export default function Dashboard() {
                       </span>
                     </motion.div>
                   )}
-                  
+
                   <div className="bg-gradient-to-r from-green-500/20 to-blue-500/20 rounded-xl p-6 mb-4 border border-green-500/30">
                     <div className="text-3xl font-mono font-bold text-foreground tracking-wider mb-2">
                       {isRegenerating ? '••••-••••' : formatPairingCode(pairingCodeData.code)}
@@ -3446,17 +3446,17 @@ export default function Dashboard() {
                       </div>
                     </div>
                   </div>
-                  
-                  {/* Progress bar para o timer */}
+
+                  {}
                   <div className="w-full bg-muted rounded-full h-2 mb-6">
-                    <div 
+                    <div
                       className={`h-2 rounded-full transition-all duration-1000 ${
                         timeRemaining <= 10 ? 'bg-red-500' : timeRemaining <= 30 ? 'bg-yellow-500' : 'bg-green-500'
                       }`}
                       style={{ width: `${(timeRemaining / 60) * 100}%` }}
                     ></div>
                   </div>
-                  
+
                   <div className="bg-card/50 rounded-lg p-4 mb-4 text-left">
                     <h4 className="font-semibold text-foreground mb-3 flex items-center">
                       <SparklesIcon className="w-4 h-4 mr-2 text-blue-400" />
@@ -3481,8 +3481,8 @@ export default function Dashboard() {
                       </li>
                     </ol>
                   </div>
-                  
-                  {/* Warning sobre validade do código */}
+
+                  {}
                   <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 mb-6">
                     <div className="flex items-start">
                       <ExclamationTriangleIcon className="w-5 h-5 text-amber-400 mr-2 mt-0.5 flex-shrink-0" />
@@ -3496,7 +3496,7 @@ export default function Dashboard() {
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="flex flex-col gap-2 sm:gap-3 sm:flex-row">
                     <motion.button
                       onClick={async () => {
@@ -3513,8 +3513,8 @@ export default function Dashboard() {
                       className={`flex-1 px-4 py-2 rounded-md transition-colors flex items-center justify-center ${
                         isRegenerating
                           ? 'bg-muted text-muted-foreground cursor-not-allowed'
-                          : codeCopied 
-                          ? 'bg-green-500 text-white' 
+                          : codeCopied
+                          ? 'bg-green-500 text-white'
                           : 'bg-primary text-primary-foreground hover:bg-primary/90'
                       }`}
                       whileHover={!isRegenerating && performanceMode ? {} : { scale: 1.02 }}
@@ -3537,7 +3537,7 @@ export default function Dashboard() {
                         </>
                       )}
                     </motion.button>
-                    
+
                     <motion.button
                       onClick={regeneratePairingCode}
                       disabled={isRegenerating}
@@ -3561,7 +3561,7 @@ export default function Dashboard() {
                         </>
                       )}
                     </motion.button>
-                    
+
                     <motion.button
                       onClick={() => {
                         setShowPairingCodeModal(false);
@@ -3582,7 +3582,7 @@ export default function Dashboard() {
           </motion.div>
         )}
 
-        {/* Webhook Manager Modal */}
+        {}
         {showWebhookManager && selectedSessionForWebhooks && (
           <WebhookManager
             sessionId={selectedSessionForWebhooks}
@@ -3594,7 +3594,7 @@ export default function Dashboard() {
           />
         )}
 
-        {/* Session Configuration Modal */}
+        {}
         {showSessionConfig && selectedSessionForConfig && (
           <motion.div
             className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"
@@ -3647,7 +3647,7 @@ export default function Dashboard() {
                 </motion.button>
               </div>
 
-              {/* Session Status Overview */}
+              {}
               <div
                 className={`${
                   'bg-card border rounded-lg'
@@ -3697,9 +3697,9 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* Configuration Tabs */}
+              {}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Session Actions */}
+                {}
                 <div
                   className={`${
                     'bg-card border rounded-lg'
@@ -3712,7 +3712,7 @@ export default function Dashboard() {
                   <div className="space-y-3">
                     <motion.button
                       onClick={() => {
-                        // Regenerar QR Code
+
                         setSelectedSession({
                           id: selectedSessionForConfig.id,
                           name: selectedSessionForConfig.name,
@@ -3730,7 +3730,7 @@ export default function Dashboard() {
 
                     <motion.button
                       onClick={() => {
-                        // Abrir webhook manager
+
                         setSelectedSessionForWebhooks(
                           selectedSessionForConfig.id
                         );
@@ -3759,7 +3759,7 @@ export default function Dashboard() {
                   </div>
                 </div>
 
-                {/* Session Information */}
+                {}
                 <div
                   className={`${
                     'bg-card border rounded-lg'
@@ -3800,7 +3800,7 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* API Usage Examples */}
+              {}
               <div
                 className={`${
                   'bg-card border rounded-lg'
@@ -4086,7 +4086,7 @@ export default function Dashboard() {
               exit={{ scale: 0.9, opacity: 0 }}
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Header fixo */}
+              {}
               <div className="p-6 pb-4 flex-shrink-0">
                 <div className="text-center">
                   <div className="relative mx-auto mb-4">
@@ -4134,7 +4134,7 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* Conteúdo com scroll */}
+              {}
               <div className="flex-1 overflow-y-auto px-6 pb-4 modal-scroll">
                 <div className="space-y-4">
                   <div
@@ -4191,7 +4191,7 @@ export default function Dashboard() {
                     </div>
                   </div>
 
-                  {/* Estatísticas da API */}
+                  {}
                   <div
                     className={`${
                       'bg-card border rounded-lg'
@@ -4222,7 +4222,7 @@ export default function Dashboard() {
                     </div>
                   </div>
 
-                  {/* Configurações */}
+                  {}
                   {user.settings && (
                     <div
                       className={`${
@@ -4273,7 +4273,7 @@ export default function Dashboard() {
                     </div>
                   )}
 
-                  {/* Informações Adicionais */}
+                  {}
                   <div
                     className={`${
                       'bg-card border rounded-lg'
@@ -4298,7 +4298,7 @@ export default function Dashboard() {
                     </div>
                   </div>
 
-                  {/* Atividade Recente */}
+                  {}
                   <div
                     className={`${
                       'bg-card border rounded-lg'
@@ -4350,7 +4350,7 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              {/* Footer fixo */}
+              {}
               <div className="p-6 pt-4 flex-shrink-0">
                 <motion.button
                   onClick={() => setShowUserProfile(false)}
@@ -4365,7 +4365,7 @@ export default function Dashboard() {
           </motion.div>
         )}
 
-        {/* Media Manager Modal */}
+        {}
         {showMediaManager && (
           <motion.div
             className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50"

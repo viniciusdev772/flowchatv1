@@ -6,15 +6,15 @@ const { getEnrichedSessionData } = require('../app');
 
 const router = express.Router();
 
-// DEPRECATED: create-with-token endpoint was removed
-// Frontend now calls Baileys API directly with Authorization header
 
-// Get user sessions (using internal session store)
+
+
+
 router.get('/list', authenticateToken, async (req, res) => {
   try {
     const userId = req.user._id;
-    
-    // Access global sessions from app.js
+
+
     const sessions = global.whatsappSessions;
     if (!sessions) {
       return res.status(500).json({
@@ -23,11 +23,11 @@ router.get('/list', authenticateToken, async (req, res) => {
       });
     }
 
-    // Filter sessions by userId and enrich with MongoDB data
+
     const userSessions = [];
     for (const [sessionId, sessionData] of sessions.entries()) {
       if (sessionData.userId && sessionData.userId.toString() === userId.toString()) {
-        // Get enriched session data that includes QR codes from MongoDB
+
         const enrichedData = await getEnrichedSessionData(sessionId, sessionData);
         userSessions.push(enrichedData);
       }
@@ -48,15 +48,15 @@ router.get('/list', authenticateToken, async (req, res) => {
   }
 });
 
-// Get groups for a specific session
+
 router.get('/:sessionId/groups', authenticateToken, async (req, res) => {
   try {
     const { sessionId } = req.params;
     const userId = req.user._id;
     const limit = Math.min(Math.max(parseInt(req.query.limit) || 50, 1), 100);
     const search = req.query.search?.trim();
-    
-    // Access global sessions from app.js
+
+
     const sessions = global.whatsappSessions;
     if (!sessions || !sessions.has(sessionId)) {
       return res.status(404).json({
@@ -67,7 +67,7 @@ router.get('/:sessionId/groups', authenticateToken, async (req, res) => {
 
     const session = sessions.get(sessionId);
 
-    // Check if user owns this session
+
     if (session.userId && session.userId.toString() !== userId.toString()) {
       return res.status(403).json({
         success: false,
@@ -82,12 +82,12 @@ router.get('/:sessionId/groups', authenticateToken, async (req, res) => {
       });
     }
 
-    // Get groups from WhatsApp
+
     const sock = session.sock;
     const groups = await sock.groupFetchAllParticipating();
     let groupEntries = Object.entries(groups);
 
-    // Apply search filter if provided
+
     if (search) {
       const searchLower = search.toLowerCase();
       groupEntries = groupEntries.filter(([groupId, groupData]) => {
@@ -96,17 +96,17 @@ router.get('/:sessionId/groups', authenticateToken, async (req, res) => {
       });
     }
 
-    // Apply limit
+
     const limitedEntries = groupEntries.slice(0, limit);
 
-    // Process and format group data
+
     const groupList = [];
     for (const [groupId, groupData] of limitedEntries) {
       try {
-        // Get group metadata
+
         const groupMetadata = await sock.groupMetadata(groupId);
-        const participants = Array.isArray(groupMetadata.participants) 
-          ? groupMetadata.participants 
+        const participants = Array.isArray(groupMetadata.participants)
+          ? groupMetadata.participants
           : [];
 
         const groupInfo = {
@@ -120,15 +120,15 @@ router.get('/:sessionId/groups', authenticateToken, async (req, res) => {
             announce: groupMetadata.announce || false,
             restrict: groupMetadata.restrict || false,
           },
-          createdAt: groupMetadata.creation 
-            ? new Date(groupMetadata.creation * 1000).toISOString() 
+          createdAt: groupMetadata.creation
+            ? new Date(groupMetadata.creation * 1000).toISOString()
             : null,
         };
 
         groupList.push(groupInfo);
       } catch (metaError) {
         console.warn(`Erro ao obter metadados do grupo ${groupId}:`, metaError.message);
-        // Fallback to basic info
+
         const basicInfo = {
           jid: groupId,
           name: groupData.subject || 'Grupo',
@@ -147,7 +147,7 @@ router.get('/:sessionId/groups', authenticateToken, async (req, res) => {
       }
     }
 
-    // Sort groups by name
+
     groupList.sort((a, b) => a.name.localeCompare(b.name));
 
     res.json({

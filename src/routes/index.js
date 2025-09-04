@@ -9,7 +9,7 @@ const aiSummaryRoutes = require('../api/aiSummary');
 
 const router = express.Router();
 
-// Health check endpoint
+
 router.get('/health', (req, res) => {
   res.json({
     success: true,
@@ -19,30 +19,30 @@ router.get('/health', (req, res) => {
   });
 });
 
-// Auth routes
+
 router.use('/auth', authRoutes);
 
-// Token routes
+
 router.use('/tokens', tokenRoutes);
 
-// Session routes
+
 router.use('/sessions', sessionRoutes);
 
-// Media routes
+
 router.use('/media', mediaRoutes);
 
-// AI Assistant routes
+
 router.use('/ai', aiRoutes);
 
-// Message Collector routes
+
 router.use('/message-collector', messageCollectorRoutes);
 
-// AI Summary routes
+
 router.use('/ai-summary', aiSummaryRoutes);
 
 
 
-// API info endpoint
+
 router.get('/info', (req, res) => {
   res.json({
     success: true,

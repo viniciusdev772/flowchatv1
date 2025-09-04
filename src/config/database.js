@@ -13,13 +13,13 @@ class Database {
         return this.db;
       }
 
-      // Use default MongoDB URI if not provided
+
       const mongoUri = process.env.MONGODB_URI || 'mongodb://mongouser:mongopassword@mongodb:27017/baileys?authSource=admin';
       const dbName = process.env.DB_NAME || 'baileys';
 
       console.log('🔄 Connecting to MongoDB...');
       console.log(`📍 Connection URI: ${mongoUri}`);
-      
+
       this.client = new MongoClient(mongoUri, {
         maxPoolSize: 10,
         serverSelectionTimeoutMS: 8000,
@@ -28,20 +28,20 @@ class Database {
       });
 
       await this.client.connect();
-      
-      // Test the connection
+
+
       await this.client.db(dbName).admin().ping();
-      
+
       this.db = this.client.db(dbName);
-      
+
       console.log('✅ Connected to MongoDB successfully');
       console.log(`📂 Database: ${dbName}`);
       return this.db;
     } catch (error) {
       console.error('❌ MongoDB connection error:', error.message);
       console.error('❌ MongoDB é obrigatório para este sistema funcionar!');
-      
-      // MongoDB é obrigatório - não continue sem ele
+
+
       throw new Error(`MongoDB connection failed: ${error.message}`);
     }
   }
@@ -60,18 +60,18 @@ class Database {
   }
 
   getDb() {
-    return this.db; // Return null if not connected, let caller handle
+    return this.db;
   }
 
   getClient() {
-    return this.client; // Return client for session store
+    return this.client;
   }
-  
+
   isConnected() {
     return this.db !== null;
   }
 
-  // Helper method to get a collection
+
   getCollection(name) {
     const db = this.getDb();
     if (!db) {
@@ -81,7 +81,7 @@ class Database {
   }
 }
 
-// Create singleton instance
+
 const database = new Database();
 
 module.exports = database;

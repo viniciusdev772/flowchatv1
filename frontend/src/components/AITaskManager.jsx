@@ -11,15 +11,15 @@ import { Switch } from './ui/switch';
 import { Label } from './ui/label';
 import { useToast } from '../hooks/use-toast';
 import DateTimePicker from './DateTimePicker';
-import { 
-  Plus, 
-  MessageSquare, 
-  Clock, 
-  CheckCircle2, 
-  AlertCircle, 
-  Play, 
-  Pause, 
-  Trash2, 
+import {
+  Plus,
+  MessageSquare,
+  Clock,
+  CheckCircle2,
+  AlertCircle,
+  Play,
+  Pause,
+  Trash2,
   Edit3,
   Calendar,
   Users,
@@ -47,7 +47,7 @@ const AITaskManager = ({ tokenId }) => {
   const [fetchingContactInfo, setFetchingContactInfo] = useState(false);
   const [selectedGroups, setSelectedGroups] = useState([]);
   const [selectedContacts, setSelectedContacts] = useState([]);
-  const [manualContacts, setManualContacts] = useState(['']); // Array for manual contact inputs
+  const [manualContacts, setManualContacts] = useState(['']);
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -66,19 +66,19 @@ const AITaskManager = ({ tokenId }) => {
 
   const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
-  // Get user timezone
+
   const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
   const [newTask, setNewTask] = useState({
     title: '',
     type: 'send_message',
     sessionId: '',
-    targetType: 'group', // 'group' or 'contact'
+    targetType: 'group',
     targetId: 'none',
-    targetIds: [], // New: array for multiple targets
+    targetIds: [],
     message: '',
-    scheduleType: 'once', // 'once', 'daily', 'weekly'
-    scheduledTime: null, // Date object
+    scheduleType: 'once',
+    scheduledTime: null,
     cronExpression: '',
     isActive: true,
     mediaUrl: '',
@@ -89,7 +89,7 @@ const AITaskManager = ({ tokenId }) => {
     timezone: userTimezone
   });
 
-  // WhatsApp task types
+
   const taskTypes = [
     { value: 'send_message', label: 'Enviar Mensagem', icon: Send },
     { value: 'send_media', label: 'Enviar Mídia', icon: Image },
@@ -113,7 +113,7 @@ const AITaskManager = ({ tokenId }) => {
     scheduled: 'bg-purple-100 text-purple-800 border-purple-200'
   };
 
-  // Predefined templates
+
   const taskTemplates = [
     {
       id: 'daily_greeting',
@@ -126,7 +126,7 @@ const AITaskManager = ({ tokenId }) => {
     {
       id: 'weekly_reminder',
       name: 'Lembrete Semanal',
-      type: 'send_message', 
+      type: 'send_message',
       message: 'Lembrete: Não esqueça de participar da reunião semanal! 📅',
       scheduleType: 'weekly',
       targetType: 'group'
@@ -267,12 +267,12 @@ const AITaskManager = ({ tokenId }) => {
           },
         }
       );
-      
+
       if (response.ok) {
         const result = await response.json();
         if (result.success && result.sessions) {
           setSessions(result.sessions);
-          // Load groups and contacts for connected sessions (isConnected = true)
+
           const activeSessions = result.sessions.filter(s => s.isConnected === true);
           await loadGroupsForSessions(activeSessions);
           await loadContactsForSessions(activeSessions);
@@ -300,7 +300,7 @@ const AITaskManager = ({ tokenId }) => {
               },
             }
           );
-          
+
           if (response.ok) {
             const result = await response.json();
             if (result.success && result.groups) {
@@ -339,7 +339,7 @@ const AITaskManager = ({ tokenId }) => {
               },
             }
           );
-          
+
           if (response.ok) {
             const result = await response.json();
             if (result.success && result.contacts) {
@@ -349,7 +349,7 @@ const AITaskManager = ({ tokenId }) => {
                 phone: contact.jid.split('@')[0],
                 sessionId: session.sessionId,
                 sessionName: session.sessionId,
-                lid: contact.lid, // Local ID para multi-device
+                lid: contact.lid,
                 ...contact
               }));
               allContacts.push(...sessionContacts);
@@ -367,9 +367,9 @@ const AITaskManager = ({ tokenId }) => {
 
   const fetchContactInfo = async (jid, sessionId) => {
     if (!jid || !sessionId || !token) return null;
-    
+
     setFetchingContactInfo(true);
-    
+
     try {
       const response = await fetch(
         `${apiUrl}/api/baileys/session/${sessionId}/contacts/info`,
@@ -409,19 +409,19 @@ const AITaskManager = ({ tokenId }) => {
                            task.message.toLowerCase().includes(searchTerm.toLowerCase());
       const matchesStatus = filterStatus === 'all' || task.status === filterStatus;
       const matchesType = filterType === 'all' || task.type === filterType;
-      
+
       return matchesSearch && matchesStatus && matchesType;
     });
 
     filtered.sort((a, b) => {
       let aValue = a[sortBy];
       let bValue = b[sortBy];
-      
+
       if (sortBy === 'created' || sortBy === 'dueDate') {
         aValue = new Date(aValue);
         bValue = new Date(bValue);
       }
-      
+
       if (sortOrder === 'asc') {
         return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
       } else {
@@ -436,7 +436,7 @@ const AITaskManager = ({ tokenId }) => {
     if (!file) return;
 
     setUploading(true);
-    
+
     try {
       const formData = new FormData();
       formData.append('file', file);
@@ -458,9 +458,9 @@ const AITaskManager = ({ tokenId }) => {
             mediaPath: result.file.path,
             fileName: result.file.originalName,
             mediaType: result.file.mimetype,
-            mediaUrl: '' // Clear URL if file is uploaded
+            mediaUrl: ''
           });
-          
+
           toast({
             title: "Arquivo Enviado",
             description: `${result.file.originalName} foi enviado com sucesso`,
@@ -494,18 +494,18 @@ const AITaskManager = ({ tokenId }) => {
     });
   };
 
-  // Functions for managing multiple selections
+
   const toggleGroupSelection = (groupId) => {
-    setSelectedGroups(prev => 
-      prev.includes(groupId) 
+    setSelectedGroups(prev =>
+      prev.includes(groupId)
         ? prev.filter(id => id !== groupId)
         : [...prev, groupId]
     );
   };
 
   const toggleContactSelection = (contactId) => {
-    setSelectedContacts(prev => 
-      prev.includes(contactId) 
+    setSelectedContacts(prev =>
+      prev.includes(contactId)
         ? prev.filter(id => id !== contactId)
         : [...prev, contactId]
     );
@@ -523,21 +523,21 @@ const AITaskManager = ({ tokenId }) => {
     setManualContacts(prev => prev.map((contact, i) => i === index ? value : contact));
   };
 
-  // Helper function to format manual contacts (add @s.whatsapp.net if needed)
+
   const formatManualContacts = (contacts) => {
     return contacts
       .filter(contact => contact.trim() !== '')
       .map(contact => {
         const trimmed = contact.trim();
-        // If it doesn't include @ and looks like a phone number, add @s.whatsapp.net
+
         if (!trimmed.includes('@') && /^[\+]?[1-9]\d{1,14}$/.test(trimmed.replace(/\s+/g, ''))) {
           return `${trimmed}@s.whatsapp.net`;
         }
-        // If it already has @s.whatsapp.net or @g.us, return as is
+
         if (trimmed.includes('@s.whatsapp.net') || trimmed.includes('@g.us')) {
           return trimmed;
         }
-        // For any other format, assume it needs @s.whatsapp.net
+
         return `${trimmed}@s.whatsapp.net`;
       });
   };
@@ -570,14 +570,14 @@ const AITaskManager = ({ tokenId }) => {
       return;
     }
 
-    // Check if we have at least one target (single, multiple, or manual)
+
     const formattedManualContacts = formatManualContacts(manualContacts);
-    const hasMultipleTargets = newTask.targetType === 'group' 
-      ? selectedGroups.length > 0 
+    const hasMultipleTargets = newTask.targetType === 'group'
+      ? selectedGroups.length > 0
       : selectedContacts.length > 0 || formattedManualContacts.length > 0;
-    
+
     const hasSingleTarget = (newTask.targetIds && newTask.targetIds.length > 0) || (newTask.targetId && newTask.targetId !== 'none');
-    
+
     if (!hasMultipleTargets && !hasSingleTarget) {
       toast({
         title: "Erro",
@@ -588,21 +588,21 @@ const AITaskManager = ({ tokenId }) => {
     }
 
     try {
-      // Convert Date object to ISO string for API
-      // Prepare target IDs from multiple selections
+
+
       let finalTargetIds = [];
-      
+
       if (newTask.targetType === 'group') {
         finalTargetIds = selectedGroups;
       } else {
-        // For contacts: combine selected contacts + formatted manual contacts
+
         finalTargetIds = [
           ...selectedContacts,
           ...formattedManualContacts
         ];
       }
-      
-      // Fallback to single target if no multiple targets selected
+
+
       if (finalTargetIds.length === 0) {
         if (newTask.targetIds && newTask.targetIds.length > 0) {
           finalTargetIds = newTask.targetIds;
@@ -614,9 +614,9 @@ const AITaskManager = ({ tokenId }) => {
       const taskData = {
         ...newTask,
         scheduledTime: newTask.scheduledTime ? newTask.scheduledTime.toISOString() : null,
-        // Sempre criar como ativa, independente do agendamento
+
         isActive: true,
-        // Include multiple targets for API
+
         targetIds: finalTargetIds
       };
 
@@ -635,11 +635,11 @@ const AITaskManager = ({ tokenId }) => {
       if (response.ok) {
         const result = await response.json();
         if (result.success && result.task) {
-          // Reload tasks to get the updated list
+
           await loadTasks();
           setIsCreateModalOpen(false);
           resetNewTask();
-          
+
           toast({
             title: "Tarefa Criada",
             description: `Tarefa "${result.task.title}" foi criada com sucesso`,
@@ -676,7 +676,7 @@ const AITaskManager = ({ tokenId }) => {
       sessionId: '',
       targetType: 'group',
       targetId: 'none',
-      targetIds: [], // Reset multiple targets
+      targetIds: [],
       message: '',
       scheduleType: 'once',
       scheduledTime: null,
@@ -691,10 +691,10 @@ const AITaskManager = ({ tokenId }) => {
     });
     setSelectedTemplate('none');
     setUploadedFile(null);
-    setContactInfo(null); // Limpar informações do contato
+    setContactInfo(null);
     setSelectedGroups([]);
     setSelectedContacts([]);
-    setManualContacts(['']); // Reset manual contacts
+    setManualContacts(['']);
   };
 
 
@@ -729,9 +729,9 @@ const AITaskManager = ({ tokenId }) => {
       if (response.ok) {
         const result = await response.json();
         if (result.success) {
-          // Reload tasks to get the updated list
+
           await loadTasks();
-          
+
           const statusLabels = {
             active: 'ativa',
             paused: 'pausada',
@@ -739,7 +739,7 @@ const AITaskManager = ({ tokenId }) => {
             failed: 'falhada',
             scheduled: 'agendada'
           };
-          
+
           toast({
             title: "Status Atualizado",
             description: `Tarefa alterada para ${statusLabels[newStatus] || newStatus}`,
@@ -785,9 +785,9 @@ const AITaskManager = ({ tokenId }) => {
       if (response.ok) {
         const result = await response.json();
         if (result.success) {
-          // Reload tasks to get the updated list
+
           await loadTasks();
-          
+
           toast({
             title: "Tarefa Removida",
             description: "Tarefa foi removida com sucesso",
@@ -819,10 +819,10 @@ const AITaskManager = ({ tokenId }) => {
 
   const executeTaskNow = async (taskId, taskTitle) => {
     try {
-      // Add task to executing set
+
       setExecutingTasks(prev => new Set([...prev, taskId]));
-      
-      // Show loading toast
+
+
       toast({
         title: "🚀 Executando Tarefa",
         description: `Executando "${taskTitle}" agora...`,
@@ -842,9 +842,9 @@ const AITaskManager = ({ tokenId }) => {
       if (response.ok) {
         const result = await response.json();
         if (result.success) {
-          // Reload tasks to get the updated execution count
+
           await loadTasks();
-          
+
           toast({
             title: "✅ Tarefa Executada",
             description: `Tarefa "${taskTitle}" foi executada com sucesso!`,
@@ -872,7 +872,7 @@ const AITaskManager = ({ tokenId }) => {
         variant: "destructive"
       });
     } finally {
-      // Remove task from executing set
+
       setExecutingTasks(prev => {
         const newSet = new Set(prev);
         newSet.delete(taskId);
@@ -925,7 +925,7 @@ const AITaskManager = ({ tokenId }) => {
   };
 
   const getTargetName = (task) => {
-    // Check if task has multiple targets
+
     if (task.targetIds && task.targetIds.length > 1) {
       const targetCount = task.targetCount || task.targetIds.length;
       if (task.targetType === 'group') {
@@ -955,7 +955,7 @@ const AITaskManager = ({ tokenId }) => {
                 if (contact) {
                   return contact.name;
                 } else {
-                  // Manual contact or not found in list
+
                   return targetId.includes('@') ? targetId.split('@')[0] : targetId;
                 }
               }).join(', ')}
@@ -965,13 +965,13 @@ const AITaskManager = ({ tokenId }) => {
         );
       }
     }
-    
-    // Single target (backward compatibility)
+
+
     if (task.targetType === 'group') {
       const group = groups.find(g => g.id === task.targetId && g.sessionId === task.sessionId);
       return group ? group.subject : task.targetId;
     } else {
-      // Para contatos
+
       const contact = contacts.find(c => c.id === task.targetId && c.sessionId === task.sessionId);
       if (contact) {
         return (
@@ -986,7 +986,7 @@ const AITaskManager = ({ tokenId }) => {
           </div>
         );
       }
-      // Fallback: mostrar JID completo para testes
+
       return (
         <div className="flex flex-col">
           <span>{task.targetId.split('@')[0] || task.targetId}</span>
@@ -996,7 +996,7 @@ const AITaskManager = ({ tokenId }) => {
     }
   };
 
-  // Loading states
+
   if (tokenLoading || loading) {
     return (
       <div className="bg-card border rounded-lg shadow-sm p-8 text-center rounded-xl">
@@ -1036,7 +1036,7 @@ const AITaskManager = ({ tokenId }) => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
           <div className="w-12 h-12 rounded-xl bg-gradient-to-r from-blue-500 to-purple-600 flex items-center justify-center">
@@ -1053,7 +1053,7 @@ const AITaskManager = ({ tokenId }) => {
         </div>
       </div>
 
-        {/* Controls */}
+        {}
         <div className="bg-card border rounded-lg shadow-sm p-6 rounded-xl">
               <div className="flex flex-col lg:flex-row gap-4 items-center justify-between">
                 <div className="flex flex-col sm:flex-row gap-3 flex-1">
@@ -1066,7 +1066,7 @@ const AITaskManager = ({ tokenId }) => {
                       className="pl-10"
                     />
                   </div>
-                  
+
                   <Select value={filterStatus} onValueChange={setFilterStatus}>
                     <SelectTrigger className="w-40">
                       <SelectValue placeholder="Status" />
@@ -1122,9 +1122,9 @@ const AITaskManager = ({ tokenId }) => {
                           Configure uma tarefa automatizada para suas sessões WhatsApp com agendamento e repetição.
                         </DialogDescription>
                       </DialogHeader>
-                      
+
                       <div className="space-y-6 mt-6">
-                        {/* Template Selection */}
+                        {}
                         <div className="space-y-2">
                           <Label>Template Pré-definido (Opcional)</Label>
                           <Select value={selectedTemplate} onValueChange={(value) => {
@@ -1224,7 +1224,7 @@ const AITaskManager = ({ tokenId }) => {
                             </Select>
                           </div>
 
-                          {/* Multiple Groups Selection */}
+                          {}
                           {newTask.targetType === 'group' && (
                             <div className="space-y-3">
                               <div className="flex items-center justify-between">
@@ -1233,12 +1233,12 @@ const AITaskManager = ({ tokenId }) => {
                                   {selectedGroups.length} selecionado(s)
                                 </span>
                               </div>
-                              
+
                               <div className="border rounded-lg p-3 max-h-48 overflow-y-auto space-y-2">
                                 {groups
                                   .filter(g => g.sessionId === newTask.sessionId)
                                   .map(group => (
-                                    <div 
+                                    <div
                                       key={group.id}
                                       className={`flex items-center justify-between p-2 rounded border cursor-pointer transition-colors ${
                                         selectedGroups.includes(group.id)
@@ -1268,7 +1268,7 @@ const AITaskManager = ({ tokenId }) => {
                                   </div>
                                 )}
                               </div>
-                              
+
                               {selectedGroups.length > 0 && (
                                 <div className="bg-green-50 border border-green-200 rounded-lg p-3">
                                   <div className="text-sm font-medium text-green-800 mb-2">
@@ -1301,7 +1301,7 @@ const AITaskManager = ({ tokenId }) => {
                             </div>
                           )}
 
-                          {/* Multiple Contacts Selection */}
+                          {}
                           {newTask.targetType === 'contact' && (
                             <div className="space-y-4">
                               <div className="space-y-3">
@@ -1311,12 +1311,12 @@ const AITaskManager = ({ tokenId }) => {
                                     {selectedContacts.length} selecionado(s)
                                   </span>
                                 </div>
-                                
+
                                 <div className="border rounded-lg p-3 max-h-48 overflow-y-auto space-y-2">
                                   {contacts
                                     .filter(c => c.sessionId === newTask.sessionId)
                                     .map(contact => (
-                                      <div 
+                                      <div
                                         key={contact.id}
                                         className={`flex items-center justify-between p-2 rounded border cursor-pointer transition-colors ${
                                           selectedContacts.includes(contact.id)
@@ -1352,7 +1352,7 @@ const AITaskManager = ({ tokenId }) => {
                                     </div>
                                   )}
                                 </div>
-                                
+
                                 {selectedContacts.length > 0 && (
                                   <div className="bg-green-50 border border-green-200 rounded-lg p-3">
                                     <div className="text-sm font-medium text-green-800 mb-2">
@@ -1384,7 +1384,7 @@ const AITaskManager = ({ tokenId }) => {
                                 )}
                               </div>
 
-                              {/* Manual Contacts Input */}
+                              {}
                               <div className="space-y-3">
                                 <div className="flex items-center justify-between">
                                   <Label>Adicionar Contatos Manualmente</Label>
@@ -1399,7 +1399,7 @@ const AITaskManager = ({ tokenId }) => {
                                     Adicionar
                                   </Button>
                                 </div>
-                                
+
                                 <div className="space-y-2">
                                   {manualContacts.map((contact, index) => (
                                     <div key={index} className="flex gap-2">
@@ -1423,7 +1423,7 @@ const AITaskManager = ({ tokenId }) => {
                                     </div>
                                   ))}
                                 </div>
-                                
+
                                 <div className="text-xs text-gray-500">
                                   💡 <strong>Formato:</strong> número@s.whatsapp.net ou apenas o número (ex: 5511999999999)
                                 </div>
@@ -1439,8 +1439,8 @@ const AITaskManager = ({ tokenId }) => {
                           <Textarea
                             id="message"
                             placeholder={
-                              (newTask.type === 'send_media' || newTask.type === 'send_document') 
-                                ? "Digite a legenda que acompanha o arquivo..." 
+                              (newTask.type === 'send_media' || newTask.type === 'send_document')
+                                ? "Digite a legenda que acompanha o arquivo..."
                                 : "Digite a mensagem que será enviada..."
                             }
                             value={newTask.message}
@@ -1455,7 +1455,7 @@ const AITaskManager = ({ tokenId }) => {
                           )}
                         </div>
 
-                        {/* Media Upload for media tasks */}
+                        {}
                         {(newTask.type === 'send_media' || newTask.type === 'send_document') && (
                           <div className="space-y-4">
                             <div className="space-y-3">
@@ -1465,8 +1465,8 @@ const AITaskManager = ({ tokenId }) => {
                               <div className="flex items-center gap-3 text-sm text-gray-600">
                                 <span>Escolha uma das opções:</span>
                               </div>
-                              
-                              {/* File Upload Option */}
+
+                              {}
                               <div className="space-y-2">
                                 <Label className="text-sm font-medium">📁 Upload de Arquivo</Label>
                                 {!uploadedFile ? (
@@ -1498,7 +1498,7 @@ const AITaskManager = ({ tokenId }) => {
                                             Clique para selecionar um arquivo
                                           </span>
                                           <span className="text-xs text-gray-500">
-                                            {newTask.type === 'send_media' 
+                                            {newTask.type === 'send_media'
                                               ? 'Imagens, vídeos, áudios, stickers (máx. 50MB)'
                                               : 'Documentos PDF, DOC, XLS, TXT (máx. 50MB)'
                                             }
@@ -1531,13 +1531,13 @@ const AITaskManager = ({ tokenId }) => {
                                 )}
                               </div>
 
-                              {/* URL Option */}
+                              {}
                               <div className="space-y-2">
                                 <Label className="text-sm font-medium">🔗 Ou informe a URL</Label>
                                 <Input
                                   placeholder={
-                                    newTask.type === 'send_media' 
-                                      ? "https://exemplo.com/imagem.jpg" 
+                                    newTask.type === 'send_media'
+                                      ? "https://exemplo.com/imagem.jpg"
                                       : "https://exemplo.com/documento.pdf"
                                   }
                                   value={newTask.mediaUrl}
@@ -1554,17 +1554,17 @@ const AITaskManager = ({ tokenId }) => {
                           </div>
                         )}
 
-                        {/* Seção de Agendamento Simplificada */}
+                        {}
                         <div className="space-y-4">
                           <div className="space-y-3">
                             <Label className="text-base font-medium">📅 Quando executar?</Label>
                             <div className="grid grid-cols-1 gap-3">
                               {scheduleTypes.map(type => (
-                                <div 
+                                <div
                                   key={type.value}
                                   className={`p-4 border-2 rounded-xl cursor-pointer transition-all ${
-                                    newTask.scheduleType === type.value 
-                                      ? 'border-blue-500 bg-blue-50' 
+                                    newTask.scheduleType === type.value
+                                      ? 'border-blue-500 bg-blue-50'
                                       : 'border-gray-200 hover:border-gray-300 bg-white'
                                   }`}
                                   onClick={() => setNewTask({...newTask, scheduleType: type.value})}
@@ -1584,8 +1584,8 @@ const AITaskManager = ({ tokenId }) => {
                                       </div>
                                     </div>
                                     <div className={`w-4 h-4 rounded-full border-2 ${
-                                      newTask.scheduleType === type.value 
-                                        ? 'border-blue-500 bg-blue-500' 
+                                      newTask.scheduleType === type.value
+                                        ? 'border-blue-500 bg-blue-500'
                                         : 'border-gray-300'
                                     }`}>
                                       {newTask.scheduleType === type.value && (
@@ -1606,8 +1606,8 @@ const AITaskManager = ({ tokenId }) => {
                               selected={newTask.scheduledTime}
                               onChange={(date) => setNewTask({...newTask, scheduledTime: date})}
                               placeholderText={
-                                newTask.scheduleType === 'once' 
-                                  ? 'Clique para escolher data e hora' 
+                                newTask.scheduleType === 'once'
+                                  ? 'Clique para escolher data e hora'
                                   : 'Clique para definir primeiro horário'
                               }
                               minDate={new Date()}
@@ -1667,21 +1667,21 @@ const AITaskManager = ({ tokenId }) => {
                           </div>
                         </div>
 
-                        {/* Task Summary Preview */}
+                        {}
                         {(newTask.title || newTask.message || uploadedFile || newTask.mediaUrl || selectedGroups.length > 0 || selectedContacts.length > 0 || formatManualContacts(manualContacts).length > 0) && (
                           <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
                             <div className="flex items-start gap-2">
                               <MessageSquare className="w-5 h-5 text-gray-500 mt-0.5" />
                               <div className="flex-1 space-y-2">
                                 <p className="text-sm font-medium text-gray-800">Resumo da Tarefa</p>
-                                
+
                                 {newTask.title && (
                                   <p className="text-sm text-gray-600">
                                     <strong>Título:</strong> {newTask.title}
                                   </p>
                                 )}
-                                
-                                {/* Show multiple destinations */}
+
+                                {}
                                 {(selectedGroups.length > 0 || selectedContacts.length > 0 || formatManualContacts(manualContacts).length > 0) && (
                                   <div className="text-sm text-gray-600">
                                     <strong>Destinos:</strong>
@@ -1702,7 +1702,7 @@ const AITaskManager = ({ tokenId }) => {
                                           </div>
                                         </div>
                                       )}
-                                      
+
                                       {selectedContacts.length > 0 && (
                                         <div>
                                           <span className="text-green-600 font-medium">{selectedContacts.length} Contato(s) da Lista:</span>
@@ -1719,7 +1719,7 @@ const AITaskManager = ({ tokenId }) => {
                                           </div>
                                         </div>
                                       )}
-                                      
+
                                       {(() => {
                                         const formattedManual = formatManualContacts(manualContacts);
                                         return formattedManual.length > 0 && (
@@ -1736,7 +1736,7 @@ const AITaskManager = ({ tokenId }) => {
                                           </div>
                                         );
                                       })()}
-                                      
+
                                       <div className="bg-blue-50 border border-blue-200 rounded p-2 mt-2">
                                         <span className="text-blue-700 font-medium text-xs">
                                           Total de Destinos: {selectedGroups.length + selectedContacts.length + formatManualContacts(manualContacts).length}
@@ -1745,13 +1745,13 @@ const AITaskManager = ({ tokenId }) => {
                                     </div>
                                   </div>
                                 )}
-                                
+
                                 {(uploadedFile || newTask.mediaUrl) && (
                                   <p className="text-sm text-gray-600">
                                     <strong>Arquivo:</strong> {uploadedFile?.originalName || 'URL fornecida'}
                                   </p>
                                 )}
-                                
+
                                 {newTask.message && (
                                   <p className="text-sm text-gray-600">
                                     <strong>
@@ -1765,14 +1765,14 @@ const AITaskManager = ({ tokenId }) => {
                         )}
 
                         <div className="flex flex-col sm:flex-row justify-end gap-3 pt-4 border-t">
-                          <Button 
-                            variant="outline" 
+                          <Button
+                            variant="outline"
                             onClick={() => setIsCreateModalOpen(false)}
                             className="w-full sm:w-auto"
                           >
                             Cancelar
                           </Button>
-                          <Button 
+                          <Button
                             onClick={createTask}
                             className="bg-gradient-to-r from-green-500 to-blue-500 hover:from-green-600 hover:to-blue-600 w-full sm:w-auto"
                           >
@@ -1788,7 +1788,7 @@ const AITaskManager = ({ tokenId }) => {
               </div>
             </div>
 
-        {/* Tasks Grid */}
+        {}
         <div>
           {filteredTasks.length === 0 ? (
             <div className="text-center py-16">
@@ -1799,7 +1799,7 @@ const AITaskManager = ({ tokenId }) => {
                 {tasks.length === 0 ? 'Nenhuma tarefa WhatsApp criada' : 'Nenhuma tarefa encontrada'}
               </h3>
               <p className="text-muted-foreground">
-                {tasks.length === 0 
+                {tasks.length === 0
                   ? 'Crie sua primeira tarefa automatizada para WhatsApp'
                   : 'Tente ajustar os filtros de pesquisa'
                 }
@@ -1816,8 +1816,8 @@ const AITaskManager = ({ tokenId }) => {
                   transition={{ delay: index * 0.1 }}
                 >
                   <Card className={`bg-card border rounded-lg shadow-sm hover:shadow-md transition-all duration-200 ${
-                    executingTasks.has(task.id) 
-                      ? 'border-purple-200 animate-pulse' 
+                    executingTasks.has(task.id)
+                      ? 'border-purple-200 animate-pulse'
                       : ''
                   }`}>
                     <CardHeader className="p-4 sm:p-6">
@@ -1861,10 +1861,10 @@ const AITaskManager = ({ tokenId }) => {
                         </p>
                       </CardDescription>
                     </CardHeader>
-                    
+
                     <CardContent className="p-4 sm:p-6">
                       <div className="space-y-3 sm:space-y-4">
-                        {/* Execution Info */}
+                        {}
                         <div className="grid grid-cols-2 gap-2 sm:gap-4 text-xs sm:text-sm">
                           <div>
                             <p className="text-gray-500 text-xs">Próxima Execução</p>
@@ -1878,7 +1878,7 @@ const AITaskManager = ({ tokenId }) => {
                           </div>
                         </div>
 
-                        {/* Schedule Info */}
+                        {}
                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 sm:gap-0 text-xs text-gray-500">
                           <div className="flex items-center gap-1">
                             <Timer className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
@@ -1894,7 +1894,7 @@ const AITaskManager = ({ tokenId }) => {
 
                         <div className="flex flex-col sm:flex-row sm:justify-between gap-2 sm:gap-0 pt-3 border-t border-gray-100">
                           <div className="flex flex-wrap gap-1 sm:gap-2">
-                            {/* Botão Executar Agora - sempre visível para tarefas ativas */}
+                            {}
                             {(task.status === 'active' || task.status === 'scheduled' || task.status === 'paused') && (
                               <Button
                                 size="sm"
@@ -1922,7 +1922,7 @@ const AITaskManager = ({ tokenId }) => {
                                 )}
                               </Button>
                             )}
-                            
+
                             {task.status === 'scheduled' && (
                               <Button
                                 size="sm"
@@ -1974,7 +1974,7 @@ const AITaskManager = ({ tokenId }) => {
                               </Button>
                             )}
                           </div>
-                          
+
                           <div className="flex gap-1 justify-end sm:justify-start">
                             <Button
                               size="sm"
@@ -2003,7 +2003,7 @@ const AITaskManager = ({ tokenId }) => {
           )}
         </div>
 
-        {/* Stats Footer */}
+        {}
         {tasks.length > 0 && (
           <div className="bg-card border rounded-lg shadow-sm p-6 rounded-xl">
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 sm:gap-4 text-center">

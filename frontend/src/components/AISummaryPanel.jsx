@@ -29,8 +29,8 @@ export default function AISummaryPanel({ collectedMessages, collectorId }) {
   const [showSummaryModal, setShowSummaryModal] = useState(false);
   const [selectedSummary, setSelectedSummary] = useState(null);
   const [showConfigModal, setShowConfigModal] = useState(false);
-  
-  // Summary configuration
+
+
   const [summaryConfig, setSummaryConfig] = useState({
     tone: 'professional',
     style: 'bullet_points',
@@ -79,7 +79,7 @@ export default function AISummaryPanel({ collectedMessages, collectorId }) {
 
   useEffect(() => {
     loadSummaries();
-    // Carregar API key do localStorage se disponível
+
     const savedApiKey = localStorage.getItem('openai_api_key');
     if (savedApiKey && !summaryConfig.customApiKey) {
       setSummaryConfig(prev => ({
@@ -94,7 +94,7 @@ export default function AISummaryPanel({ collectedMessages, collectorId }) {
       const response = await fetch(`${apiUrl}/api/management/ai-summary/list`, {
         credentials: 'include'
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
@@ -112,7 +112,7 @@ export default function AISummaryPanel({ collectedMessages, collectorId }) {
       return;
     }
 
-    // Obter chave OpenAI do localStorage
+
     const openaiApiKey = localStorage.getItem('openai_api_key');
     if (!openaiApiKey) {
       alert('Chave OpenAI não configurada. Configure em AI Assistant > Configurações');
@@ -162,11 +162,11 @@ export default function AISummaryPanel({ collectedMessages, collectorId }) {
             if (line.startsWith('data: ')) {
               try {
                 const data = JSON.parse(line.slice(6));
-                
+
                 if (data.type === 'content') {
                   setStreamingContent(prev => prev + data.content);
                 } else if (data.type === 'complete') {
-                  // Streaming concluído
+
                   break;
                 }
               } catch (e) {
@@ -188,7 +188,7 @@ export default function AISummaryPanel({ collectedMessages, collectorId }) {
         }
       }
 
-      await loadSummaries(); // Recarregar lista
+      await loadSummaries();
     } catch (error) {
       console.error('Erro ao gerar resumo:', error);
       alert(`Erro: ${error.message}`);
@@ -202,7 +202,7 @@ export default function AISummaryPanel({ collectedMessages, collectorId }) {
       const response = await fetch(`${apiUrl}/api/management/ai-summary/${summaryId}`, {
         credentials: 'include'
       });
-      
+
       if (response.ok) {
         const data = await response.json();
         if (data.success) {
@@ -223,7 +223,7 @@ export default function AISummaryPanel({ collectedMessages, collectorId }) {
         method: 'DELETE',
         credentials: 'include'
       });
-      
+
       if (response.ok) {
         loadSummaries();
       }
@@ -235,7 +235,7 @@ export default function AISummaryPanel({ collectedMessages, collectorId }) {
   const analyzeSentiment = async () => {
     if (!collectorId) return;
 
-    // Obter chave OpenAI do localStorage
+
     const openaiApiKey = localStorage.getItem('openai_api_key');
     if (!openaiApiKey) {
       alert('Chave OpenAI não configurada. Configure em AI Assistant > Configurações');
@@ -248,7 +248,7 @@ export default function AISummaryPanel({ collectedMessages, collectorId }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           collectorId,
           customApiKey: openaiApiKey
         })
@@ -273,13 +273,13 @@ export default function AISummaryPanel({ collectedMessages, collectorId }) {
     }
   };
 
-  // Função para analisar estatísticas das mensagens
+
   const analyzeMessageStats = (messages) => {
     const phoneStats = {};
     const hourStats = {};
-    
+
     messages.forEach(msg => {
-      // Estatísticas por número
+
       const phone = msg.phone || msg.from || 'Desconhecido';
       if (!phoneStats[phone]) {
         phoneStats[phone] = {
@@ -291,17 +291,17 @@ export default function AISummaryPanel({ collectedMessages, collectorId }) {
       }
       phoneStats[phone].count++;
       phoneStats[phone].lastMessage = msg.timestamp;
-      
-      // Estatísticas por hora
+
+
       const hour = new Date(msg.timestamp).getHours();
       hourStats[hour] = (hourStats[hour] || 0) + 1;
     });
-    
-    // Ordenar usuários por quantidade de mensagens
+
+
     const topUsers = Object.entries(phoneStats)
       .sort(([,a], [,b]) => b.count - a.count)
       .slice(0, 10);
-    
+
     return { phoneStats, hourStats, topUsers };
   };
 
@@ -313,22 +313,22 @@ export default function AISummaryPanel({ collectedMessages, collectorId }) {
 
     const stats = analyzeMessageStats(collectedMessages);
     const sortedMessages = [...collectedMessages].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-    
+
     let content = `CONVERSA WHATSAPP - EXPORTAÇÃO\n`;
     content += `${'='.repeat(50)}\n\n`;
     content += `Data de Exportação: ${new Date().toLocaleString('pt-BR')}\n`;
     content += `Total de Mensagens: ${collectedMessages.length}\n`;
     content += `Período: ${new Date(sortedMessages[0]?.timestamp).toLocaleString('pt-BR')} até ${new Date(sortedMessages[sortedMessages.length - 1]?.timestamp).toLocaleString('pt-BR')}\n`;
     content += `Participantes: ${stats.topUsers.length}\n\n`;
-    
-    // Estatísticas de usuários
+
+
     content += `ESTATÍSTICAS DE PARTICIPANTES\n`;
     content += `${'-'.repeat(30)}\n\n`;
     content += `Top Participantes:\n`;
     stats.topUsers.forEach(([phone, data], index) => {
       content += `${index + 1}. ${data.pushName} (${phone.replace('@s.whatsapp.net', '')}) - ${data.count} mensagem${data.count > 1 ? 's' : ''}\n`;
     });
-    
+
     content += `\nHorários Mais Ativos:\n`;
     Object.entries(stats.hourStats)
       .sort(([,a], [,b]) => b - a)
@@ -336,24 +336,24 @@ export default function AISummaryPanel({ collectedMessages, collectorId }) {
       .forEach(([hour, count]) => {
         content += `${hour}h: ${count} mensagens\n`;
       });
-    
+
     content += `\nMENSAGENS\n`;
     content += `${'-'.repeat(20)}\n\n`;
-    
+
     sortedMessages.forEach((message, index) => {
-      const time = new Date(message.timestamp).toLocaleTimeString('pt-BR', { 
-        hour: '2-digit', 
-        minute: '2-digit' 
+      const time = new Date(message.timestamp).toLocaleTimeString('pt-BR', {
+        hour: '2-digit',
+        minute: '2-digit'
       });
       const date = new Date(message.timestamp).toLocaleDateString('pt-BR');
       const phone = (message.phone || message.from || 'Desconhecido').replace('@s.whatsapp.net', '');
       const name = message.pushName || 'Usuário';
-      
+
       content += `[${date} ${time}] ${name} (${phone})\n`;
       content += `${message.text || '[Mídia não disponível]'}\n`;
       content += `${'-'.repeat(50)}\n\n`;
     });
-    
+
     content += `Exportado por FlowChat API em ${new Date().toLocaleString('pt-BR')}\n`;
     content += `Esta conversa foi coletada automaticamente.`;
 
@@ -376,8 +376,8 @@ export default function AISummaryPanel({ collectedMessages, collectorId }) {
 
     const stats = analyzeMessageStats(collectedMessages);
     const sortedMessages = [...collectedMessages].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-    
-    // Criar HTML com CSS inline para melhor visualização
+
+
     const htmlContent = `
 <!DOCTYPE html>
 <html lang="pt-BR">
@@ -387,25 +387,25 @@ export default function AISummaryPanel({ collectedMessages, collectorId }) {
     <title>Conversa WhatsApp - ${new Date().toLocaleDateString('pt-BR')}</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { 
+        body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            line-height: 1.6; 
-            color: #333; 
-            max-width: 800px; 
-            margin: 0 auto; 
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
             padding: 20px;
             background: #f5f5f5;
         }
-        .container { 
-            background: white; 
-            border-radius: 12px; 
-            padding: 30px; 
+        .container {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
             box-shadow: 0 2px 10px rgba(0,0,0,0.1);
         }
-        h1 { 
-            color: #25D366; 
-            border-bottom: 3px solid #25D366; 
-            padding-bottom: 10px; 
+        h1 {
+            color: #25D366;
+            border-bottom: 3px solid #25D366;
+            padding-bottom: 10px;
             margin-bottom: 20px;
             display: flex;
             align-items: center;
@@ -415,109 +415,109 @@ export default function AISummaryPanel({ collectedMessages, collectorId }) {
             margin-right: 10px;
             font-size: 1.2em;
         }
-        .info-grid { 
-            display: grid; 
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); 
-            gap: 15px; 
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 15px;
             margin-bottom: 30px;
             padding: 20px;
             background: #f8f9fa;
             border-radius: 8px;
         }
-        .info-item { 
-            display: flex; 
+        .info-item {
+            display: flex;
             flex-direction: column;
         }
-        .info-label { 
-            font-weight: 600; 
-            color: #666; 
+        .info-label {
+            font-weight: 600;
+            color: #666;
             font-size: 0.9em;
             margin-bottom: 5px;
         }
-        .info-value { 
-            font-weight: 500; 
+        .info-value {
+            font-weight: 500;
             color: #333;
         }
-        h2 { 
-            color: #128C7E; 
-            margin: 30px 0 15px 0; 
+        h2 {
+            color: #128C7E;
+            margin: 30px 0 15px 0;
             display: flex;
             align-items: center;
         }
-        .stats-grid { 
-            display: grid; 
-            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); 
-            gap: 20px; 
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
             margin-bottom: 30px;
         }
-        .stat-card { 
-            background: #f8f9fa; 
-            padding: 20px; 
-            border-radius: 8px; 
+        .stat-card {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
             border-left: 4px solid #25D366;
         }
-        .stat-title { 
-            font-weight: 600; 
-            margin-bottom: 10px; 
+        .stat-title {
+            font-weight: 600;
+            margin-bottom: 10px;
             color: #333;
         }
-        .stat-list { 
-            list-style: none; 
+        .stat-list {
+            list-style: none;
         }
-        .stat-list li { 
-            padding: 5px 0; 
-            display: flex; 
+        .stat-list li {
+            padding: 5px 0;
+            display: flex;
             justify-content: space-between;
             border-bottom: 1px solid #e9ecef;
         }
-        .stat-list li:last-child { 
-            border-bottom: none; 
+        .stat-list li:last-child {
+            border-bottom: none;
         }
-        .message { 
-            margin: 15px 0; 
-            padding: 15px; 
-            background: #fff; 
-            border-radius: 8px; 
+        .message {
+            margin: 15px 0;
+            padding: 15px;
+            background: #fff;
+            border-radius: 8px;
             border-left: 4px solid #25D366;
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
-        .message-header { 
-            display: flex; 
-            justify-content: space-between; 
+        .message-header {
+            display: flex;
+            justify-content: space-between;
             align-items: center;
             margin-bottom: 10px;
             font-size: 0.9em;
         }
-        .message-author { 
-            font-weight: 600; 
+        .message-author {
+            font-weight: 600;
             color: #128C7E;
         }
-        .message-time { 
-            color: #666; 
+        .message-time {
+            color: #666;
             font-size: 0.8em;
         }
-        .message-phone { 
-            color: #999; 
+        .message-phone {
+            color: #999;
             font-size: 0.8em;
         }
-        .message-content { 
-            color: #333; 
-            white-space: pre-wrap; 
+        .message-content {
+            color: #333;
+            white-space: pre-wrap;
             word-wrap: break-word;
             background: #f8f9fa;
             padding: 10px;
             border-radius: 6px;
             margin-top: 8px;
         }
-        .footer { 
-            text-align: center; 
-            margin-top: 40px; 
-            padding-top: 20px; 
-            border-top: 1px solid #e9ecef; 
-            color: #666; 
+        .footer {
+            text-align: center;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid #e9ecef;
+            color: #666;
             font-size: 0.9em;
         }
-        @media (max-width: 600px) { 
+        @media (max-width: 600px) {
             .container { padding: 20px; }
             .info-grid { grid-template-columns: 1fr; }
             .stats-grid { grid-template-columns: 1fr; }
@@ -531,7 +531,7 @@ export default function AISummaryPanel({ collectedMessages, collectorId }) {
 <body>
     <div class="container">
         <h1>Conversa WhatsApp</h1>
-        
+
         <div class="info-grid">
             <div class="info-item">
                 <div class="info-label">📅 Data de Exportação</div>
@@ -583,14 +583,14 @@ export default function AISummaryPanel({ collectedMessages, collectorId }) {
         <h2>💬 Mensagens</h2>
         <div class="messages">
             ${sortedMessages.map((message, index) => {
-                const time = new Date(message.timestamp).toLocaleTimeString('pt-BR', { 
-                    hour: '2-digit', 
-                    minute: '2-digit' 
+                const time = new Date(message.timestamp).toLocaleTimeString('pt-BR', {
+                    hour: '2-digit',
+                    minute: '2-digit'
                 });
                 const date = new Date(message.timestamp).toLocaleDateString('pt-BR');
                 const phone = (message.phone || message.from || 'Desconhecido').replace('@s.whatsapp.net', '');
                 const name = message.pushName || 'Usuário';
-                
+
                 return `
                     <div class="message">
                         <div class="message-header">
@@ -655,12 +655,12 @@ export default function AISummaryPanel({ collectedMessages, collectorId }) {
     );
   }
 
-  // Calcular estatísticas das mensagens
+
   const messageStats = collectedMessages ? analyzeMessageStats(collectedMessages) : null;
 
   return (
     <div className="space-y-6">
-      {/* Header */}
+      {}
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-xl font-bold text-gray-800 flex items-center">
@@ -697,7 +697,7 @@ export default function AISummaryPanel({ collectedMessages, collectorId }) {
             <ArrowDownTrayIcon className="w-4 h-4 mr-1" />
             TXT
           </motion.button>
-          
+
           <motion.button
             onClick={() => setShowConfigModal(true)}
             className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
@@ -710,7 +710,7 @@ export default function AISummaryPanel({ collectedMessages, collectorId }) {
         </div>
       </div>
 
-      {/* Message Statistics */}
+      {}
       {messageStats && (
         <div className="bg-white border border-gray-200 p-4 rounded-xl">
           <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
@@ -719,7 +719,7 @@ export default function AISummaryPanel({ collectedMessages, collectorId }) {
             </div>
             Estatísticas das Mensagens
           </h4>
-          
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <h5 className="font-medium text-gray-700 mb-2 flex items-center">
@@ -739,7 +739,7 @@ export default function AISummaryPanel({ collectedMessages, collectorId }) {
                 ))}
               </div>
             </div>
-            
+
             <div>
               <h5 className="font-medium text-gray-700 mb-2 flex items-center">
                 <ClockIcon className="w-4 h-4 mr-1" />
@@ -762,7 +762,7 @@ export default function AISummaryPanel({ collectedMessages, collectorId }) {
         </div>
       )}
 
-      {/* Action Buttons */}
+      {}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <motion.button
           onClick={() => generateSummary(false)}
@@ -804,7 +804,7 @@ export default function AISummaryPanel({ collectedMessages, collectorId }) {
         </motion.button>
       </div>
 
-      {/* Streaming Content */}
+      {}
       {streamingContent && (
         <motion.div
           className="bg-white border border-gray-200 p-4 rounded-xl"
@@ -823,7 +823,7 @@ export default function AISummaryPanel({ collectedMessages, collectorId }) {
         </motion.div>
       )}
 
-      {/* Previous Summaries */}
+      {}
       {summaries.length > 0 && (
         <div className="bg-white border border-gray-200 p-4 rounded-xl">
           <h4 className="text-lg font-semibold text-gray-800 mb-4 flex items-center">
@@ -898,7 +898,7 @@ export default function AISummaryPanel({ collectedMessages, collectorId }) {
         </div>
       )}
 
-      {/* Configuration Modal */}
+      {}
       <AnimatePresence>
         {showConfigModal && (
           <motion.div
@@ -1056,9 +1056,9 @@ export default function AISummaryPanel({ collectedMessages, collectorId }) {
                         min="3"
                         max="20"
                         value={summaryConfig.topParticipants}
-                        onChange={(e) => setSummaryConfig(prev => ({ 
-                          ...prev, 
-                          topParticipants: parseInt(e.target.value) || 5 
+                        onChange={(e) => setSummaryConfig(prev => ({
+                          ...prev,
+                          topParticipants: parseInt(e.target.value) || 5
                         }))}
                         className="w-16 px-2 py-1 bg-gray-50 rounded-lg text-gray-800 focus:ring-2 focus:ring-blue-500 focus:outline-none border border-gray-200 focus:bg-white transition-colors text-sm text-center"
                       />
@@ -1088,7 +1088,7 @@ export default function AISummaryPanel({ collectedMessages, collectorId }) {
                     value={summaryConfig.customApiKey}
                     onChange={(e) => {
                       setSummaryConfig(prev => ({ ...prev, customApiKey: e.target.value }));
-                      // Salvar no localStorage também
+
                       localStorage.setItem('openai_api_key', e.target.value);
                     }}
                     placeholder="sk-..."
@@ -1109,7 +1109,7 @@ export default function AISummaryPanel({ collectedMessages, collectorId }) {
                 >
                   Salvar
                 </motion.button>
-                
+
                 <motion.button
                   onClick={() => setShowConfigModal(false)}
                   className="flex-1 py-3 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 font-medium transition-colors"
@@ -1124,7 +1124,7 @@ export default function AISummaryPanel({ collectedMessages, collectorId }) {
         )}
       </AnimatePresence>
 
-      {/* Summary Modal */}
+      {}
       <AnimatePresence>
         {showSummaryModal && selectedSummary && (
           <motion.div
@@ -1150,7 +1150,7 @@ export default function AISummaryPanel({ collectedMessages, collectorId }) {
                     {new Date(selectedSummary.createdAt).toLocaleString('pt-BR')}
                   </p>
                 </div>
-                
+
                 <div className="flex items-center gap-2">
                   <motion.button
                     onClick={() => exportSummary(selectedSummary)}
@@ -1161,7 +1161,7 @@ export default function AISummaryPanel({ collectedMessages, collectorId }) {
                   >
                     <ArrowDownTrayIcon className="w-5 h-5" />
                   </motion.button>
-                  
+
                   <motion.button
                     onClick={() => setShowSummaryModal(false)}
                     className="p-2 text-gray-400 hover:text-gray-600 rounded-lg hover:bg-gray-100 transition-colors"

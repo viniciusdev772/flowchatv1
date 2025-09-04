@@ -6,10 +6,10 @@ const logger = require('pino')();
 const { authenticateToken } = require('../middleware/auth');
 const apiTokenAuth = require('../middleware/apiTokenAuth');
 
-// Configuração do OpenAI
+
 const OpenAI = require('openai');
 
-// Função para obter cliente OpenAI
+
 function getOpenAIClient(customApiKey = null) {
   const apiKey = customApiKey || process.env.OPENAI_API_KEY;
 
@@ -22,7 +22,7 @@ function getOpenAIClient(customApiKey = null) {
   });
 }
 
-// Prompts para diferentes tipos de resumo
+
 const SUMMARY_PROMPTS = {
   professional: {
     system:
@@ -46,7 +46,7 @@ const SUMMARY_PROMPTS = {
   },
 };
 
-// Função para processar mensagens em lotes
+
 function processMessagesInBatches(messages, batchSize = 100) {
   const batches = [];
   for (let i = 0; i < messages.length; i += batchSize) {
@@ -55,23 +55,23 @@ function processMessagesInBatches(messages, batchSize = 100) {
   return batches;
 }
 
-// Função para filtrar links de download internos do texto
+
 function filterInternalDownloadLinks(text) {
   if (!text) return text;
-  
-  // Pattern para identificar links de download internos
-  // Matches URLs que contêm /api/baileys/download/ ou /download/ + ID
+
+
+
   const internalDownloadPattern = /https?:\/\/[^\s]+\/api\/baileys\/download\/[^\s]+/gi;
   const genericDownloadPattern = /https?:\/\/[^\s]+\/download\/[a-zA-Z0-9_]+/gi;
-  
-  // Remover links de download internos
+
+
   let filteredText = text.replace(internalDownloadPattern, '[Arquivo compartilhado]');
   filteredText = filteredText.replace(genericDownloadPattern, '[Arquivo compartilhado]');
-  
+
   return filteredText;
 }
 
-// Função para formatar mensagens para o prompt
+
 function formatMessagesForPrompt(messages) {
   return messages
     .map((msg) => {
@@ -80,59 +80,59 @@ function formatMessagesForPrompt(messages) {
         minute: '2-digit',
       });
       const name = msg.pushName || 'Usuário';
-      
-      // Filtrar links de download internos do texto da mensagem
+
+
       let filteredText = filterInternalDownloadLinks(msg.text);
-      
-      // Construir texto da mensagem com informações adicionais
+
+
       let messageContent = '';
-      
-      // Adicionar informação de mensagem citada se existir
+
+
       if (msg.quotedMessage) {
-        const quotedUser = msg.quotedMessage.participant ? 
+        const quotedUser = msg.quotedMessage.participant ?
           msg.quotedMessage.participant.split('@')[0] : 'Usuário';
         const quotedText = msg.quotedMessage.text || '[Mídia]';
         messageContent += `(respondendo a ${quotedUser}: "${quotedText}") `;
       }
-      
-      // Adicionar conteúdo principal
+
+
       if (msg.caption && msg.hasMedia) {
-        // Se há caption e mídia, mostrar caption e tipo de mídia
-        const mediaType = msg.mediaType === 'image' ? 'imagem' : 
-                         msg.mediaType === 'video' ? 'vídeo' : 
-                         msg.mediaType === 'audio' ? 'áudio' : 
-                         msg.mediaType === 'document' ? 'documento' : 
+
+        const mediaType = msg.mediaType === 'image' ? 'imagem' :
+                         msg.mediaType === 'video' ? 'vídeo' :
+                         msg.mediaType === 'audio' ? 'áudio' :
+                         msg.mediaType === 'document' ? 'documento' :
                          msg.mediaType === 'sticker' ? 'figurinha' : 'mídia';
         messageContent += `${msg.caption} [${mediaType} compartilhada]`;
       } else if (msg.hasMedia) {
-        // Se só há mídia sem caption
-        const mediaType = msg.mediaType === 'image' ? 'Imagem' : 
-                         msg.mediaType === 'video' ? 'Vídeo' : 
-                         msg.mediaType === 'audio' ? 'Áudio' : 
-                         msg.mediaType === 'document' ? 'Documento' : 
+
+        const mediaType = msg.mediaType === 'image' ? 'Imagem' :
+                         msg.mediaType === 'video' ? 'Vídeo' :
+                         msg.mediaType === 'audio' ? 'Áudio' :
+                         msg.mediaType === 'document' ? 'Documento' :
                          msg.mediaType === 'sticker' ? 'Figurinha' : 'Mídia';
         messageContent += `[${mediaType} compartilhada]`;
       } else {
-        // Mensagem de texto normal
+
         messageContent += filteredText;
       }
-      
+
       return `[${time}] ${name}: ${messageContent}`;
     })
     .join('\n');
 }
 
-// POST /api/ai-summary/summarize  
-// Criar resumo com IA das mensagens coletadas
-// Aceita tanto autenticação de sessão quanto API token
+
+
+
 router.post('/summarize', (req, res, next) => {
-  // Verificar se é uma chamada interna (com API token) ou externa (com sessão)
+
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer baileys_')) {
-    // Usar middleware de API token para chamadas internas
+
     apiTokenAuth(req, res, next);
   } else {
-    // Usar middleware de sessão para chamadas do frontend
+
     authenticateToken(req, res, next);
   }
 }, async (req, res) => {
@@ -155,7 +155,7 @@ router.post('/summarize', (req, res, next) => {
       });
     }
 
-    // Buscar coletor primeiro para verificar permissões (permite status completed)
+
     const db = database.getDb();
     const collector = await db.collection('messageCollectors').findOne({
       _id: collectorId,
@@ -169,7 +169,7 @@ router.post('/summarize', (req, res, next) => {
       });
     }
 
-    // Permitir resumos para coletores ativos ou completados
+
     if (!['active', 'completed'].includes(collector.status)) {
       return res.status(400).json({
         success: false,
@@ -177,7 +177,7 @@ router.post('/summarize', (req, res, next) => {
       });
     }
 
-    // Buscar mensagens coletadas na collection separada
+
     const messages = await db
       .collection('collectedMessages')
       .find({ collectorId })
@@ -191,15 +191,15 @@ router.post('/summarize', (req, res, next) => {
       });
     }
 
-    // Buscar e validar chave OpenAI do usuário
+
     let effectiveApiKey = customApiKey;
-    
+
     if (!effectiveApiKey) {
-      // Buscar chave do usuário no banco
+
       const user = await db.collection('users').findOne({ _id: req.user._id });
       effectiveApiKey = user?.openaiApiKey;
     }
-    
+
     if (!effectiveApiKey) {
       return res.status(400).json({
         success: false,
@@ -207,8 +207,8 @@ router.post('/summarize', (req, res, next) => {
         needsApiKey: true
       });
     }
-    
-    // Salvar/atualizar chave no usuário se fornecida
+
+
     if (customApiKey && customApiKey !== req.user.openaiApiKey) {
       await db.collection('users').updateOne(
         { _id: req.user._id },
@@ -216,17 +216,17 @@ router.post('/summarize', (req, res, next) => {
       );
     }
 
-    // Configurar OpenAI
+
     const openai = getOpenAIClient(effectiveApiKey);
 
-    // Construir template dinâmico baseado no número de participantes
+
     const topParticipantsCount = parseInt(req.body.topParticipants) || 5;
     const validatedCount = Math.max(3, Math.min(20, topParticipantsCount));
-    const participantsList = Array.from({length: validatedCount}, (_, i) => 
+    const participantsList = Array.from({length: validatedCount}, (_, i) =>
       `${i + 1}. [Nome] - [X] mensagens`
     ).join('\n');
-    
-    // Template de resumo estruturado
+
+
     const summaryTemplate = `
 Siga este formato exato para o resumo:
 
@@ -235,7 +235,7 @@ Resumo do Grupo - [Nome do Grupo] 📆 - [Data]
 👥 Top ${validatedCount} Participantes Ativos:
 ${participantsList}
 
-📌 Assunto Principal: 
+📌 Assunto Principal:
 [Descrição geral dos temas mais discutidos]
 
 💡 Assuntos Relevantes:
@@ -263,43 +263,43 @@ Encerramento 🌟
 [Frase de fechamento sobre o dia]
 `;
 
-    // Obter prompt baseado no tom
+
     const promptConfig = SUMMARY_PROMPTS[tone] || SUMMARY_PROMPTS.professional;
 
-    // Extrair informações do coletor para preencher o template
+
     const groupName = collector.config?.name || collector.groupId || 'Grupo WhatsApp';
     const startDate = collector.startTime ? new Date(collector.startTime).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR');
-    
+
     let systemPrompt = customPrompt || `${promptConfig.system}\n\nIMPORTANTE: Siga exatamente este template estruturado, substituindo os placeholders:\n\n${summaryTemplate}\n\nDados do grupo:\n- Nome do Grupo: ${groupName}\n- Data da coleta: ${startDate}\n- Total de mensagens: ${messages.length}`;
 
-    // Adicionar contexto específico
-    systemPrompt += `\n\nVocê receberá mensagens de um grupo do WhatsApp coletadas durante um período específico. 
+
+    systemPrompt += `\n\nVocê receberá mensagens de um grupo do WhatsApp coletadas durante um período específico.
     As mensagens estão no formato: [Hora] Nome: Mensagem
-    
+
     IMPORTANTE - Links e Arquivos:
     - NUNCA inclua links de download internos (que contêm /api/baileys/download/ ou /download/ + ID) na seção de Links Compartilhados
-    - Substitua referências a arquivos baixados por "[Arquivo compartilhado]" 
+    - Substitua referências a arquivos baixados por "[Arquivo compartilhado]"
     - Na seção "🔗 Links Compartilhados" inclua APENAS links externos relevantes (sites, ferramentas, plataformas)
     - Ignore completamente links de download interno do sistema
-    
+
     ${
       includeStats
         ? 'Inclua no final um resumo estatístico com: total de mensagens, participantes mais ativos, horários de maior atividade.'
         : ''
     }
-    
+
     Responda em português brasileiro com tom ${promptConfig.tone}.`;
 
-    // Processar mensagens em lotes se necessário
+
     const batches = processMessagesInBatches(messages, 200);
     let summaries = [];
 
-    // Set para rastrear streaming response
+
     const isStreaming =
       req.headers.accept && req.headers.accept.includes('text/stream');
 
     if (isStreaming) {
-      // Configurar streaming response
+
       res.writeHead(200, {
         'Content-Type': 'text/plain; charset=utf-8',
         'Transfer-Encoding': 'chunked',
@@ -350,7 +350,7 @@ Encerramento 🌟
       });
 
       if (isStreaming) {
-        // Streaming response
+
         for await (const chunk of completion) {
           const content = chunk.choices[0]?.delta?.content;
           if (content) {
@@ -366,12 +366,12 @@ Encerramento 🌟
           })}\n\n`
         );
       } else {
-        // Non-streaming response
+
         summaries.push(completion.choices[0].message.content);
       }
     }
 
-    // Salvar resumo no banco
+
     const summaryData = {
       collectorId,
       userId: new ObjectId(userId),
@@ -393,18 +393,18 @@ Encerramento 🌟
       res.write(`data: ${JSON.stringify({ type: 'complete' })}\n\n`);
       res.end();
 
-      // Salvar sem o conteúdo do resumo (já foi enviado via stream)
+
       await db.collection('aiSummaries').insertOne({
         ...summaryData,
         isStreamed: true,
       });
     } else {
-      // Combinar resumos se houver múltiplos lotes
+
       let finalSummary = summaries.join('\n\n---\n\n');
 
       if (summaries.length > 1) {
-        // Criar um resumo consolidado dos resumos
-        const consolidationPrompt = `Você recebeu ${summaries.length} resumos parciais de um grupo do WhatsApp. 
+
+        const consolidationPrompt = `Você recebeu ${summaries.length} resumos parciais de um grupo do WhatsApp.
         Crie um resumo final consolidado e coerente integrando todas as informações:
 
         ${finalSummary}`;
@@ -422,7 +422,7 @@ Encerramento 🌟
         finalSummary = finalCompletion.choices[0].message.content;
       }
 
-      // Salvar resumo completo
+
       const savedSummary = await db.collection('aiSummaries').insertOne({
         ...summaryData,
         summary: finalSummary,
@@ -459,8 +459,8 @@ Encerramento 🌟
   }
 });
 
-// GET /api/ai-summary/list
-// Listar resumos do usuário
+
+
 router.get('/list', authenticateToken, async (req, res) => {
   try {
     const userId = req.user._id;
@@ -497,8 +497,8 @@ router.get('/list', authenticateToken, async (req, res) => {
   }
 });
 
-// GET /api/ai-summary/:summaryId
-// Obter resumo específico
+
+
 router.get('/:summaryId', authenticateToken, async (req, res) => {
   try {
     const { summaryId } = req.params;
@@ -530,8 +530,8 @@ router.get('/:summaryId', authenticateToken, async (req, res) => {
   }
 });
 
-// DELETE /api/ai-summary/:summaryId
-// Deletar resumo
+
+
 router.delete('/:summaryId', authenticateToken, async (req, res) => {
   try {
     const { summaryId } = req.params;
@@ -563,14 +563,14 @@ router.delete('/:summaryId', authenticateToken, async (req, res) => {
   }
 });
 
-// POST /api/ai-summary/analyze-sentiment
-// Análise de sentimento das mensagens
+
+
 router.post('/analyze-sentiment', authenticateToken, async (req, res) => {
   try {
     const { collectorId, customApiKey } = req.body;
     const userId = req.user._id;
 
-    // Buscar coletor e mensagens
+
     const db = database.getDb();
     const collector = await db.collection('messageCollectors').findOne({
       _id: collectorId,
@@ -584,11 +584,11 @@ router.post('/analyze-sentiment', authenticateToken, async (req, res) => {
       });
     }
 
-    // Buscar mensagens coletadas
+
     const collectedMessages = await db
       .collection('collectedMessages')
       .find({ collectorId })
-      .limit(200) // Limitar para análise
+      .limit(200)
       .toArray();
 
     if (!collectedMessages.length) {
@@ -598,15 +598,15 @@ router.post('/analyze-sentiment', authenticateToken, async (req, res) => {
       });
     }
 
-    // Buscar e validar chave OpenAI do usuário
+
     let effectiveApiKey = customApiKey;
-    
+
     if (!effectiveApiKey) {
-      // Buscar chave do usuário no banco
+
       const user = await db.collection('users').findOne({ _id: req.user._id });
       effectiveApiKey = user?.openaiApiKey;
     }
-    
+
     if (!effectiveApiKey) {
       return res.status(400).json({
         success: false,
@@ -614,8 +614,8 @@ router.post('/analyze-sentiment', authenticateToken, async (req, res) => {
         needsApiKey: true
       });
     }
-    
-    // Salvar/atualizar chave no usuário se fornecida
+
+
     if (customApiKey && customApiKey !== req.user.openaiApiKey) {
       await db.collection('users').updateOne(
         { _id: req.user._id },
@@ -632,7 +632,7 @@ router.post('/analyze-sentiment', authenticateToken, async (req, res) => {
       messages: [
         {
           role: 'system',
-          content: `Analise o sentimento geral das mensagens do grupo WhatsApp. 
+          content: `Analise o sentimento geral das mensagens do grupo WhatsApp.
           Classifique como: Positivo, Neutro, Negativo ou Misto.
           Identifique também os temas principais e momentos de maior emoção.
           Forneça uma análise em português brasileiro.`,
@@ -648,7 +648,7 @@ router.post('/analyze-sentiment', authenticateToken, async (req, res) => {
 
     const analysis = completion.choices[0].message.content;
 
-    // Salvar análise
+
     await db.collection('sentimentAnalysis').insertOne({
       collectorId,
       userId: new ObjectId(userId),

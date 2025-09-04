@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 
-/**
- * Baileys Multi-Session WhatsApp API
- * Entry point - starts the Express application
- */
+
+
+
+
 
 const express = require('express');
 const path = require('path');
@@ -20,7 +20,7 @@ const managementRoutes = require('./src/routes');
 const { app: baileysApp, initializeApp } = require('./src/app');
 const apiTokenAuth = require('./src/middleware/apiTokenAuth');
 
-// Swagger setup
+
 const swaggerUi = require('swagger-ui-express');
 const { swaggerSpec } = require('./src/config/swagger');
 
@@ -34,31 +34,31 @@ class Server {
   }
 
   setupMiddleware() {
-    // Security headers
+
     this.app.use(
       helmet({
         crossOriginResourcePolicy: { policy: 'cross-origin' },
       })
-    ); // CORS configuration
+    );
     this.app.use(
       cors({
         origin: function (origin, callback) {
-          // Allow requests with no origin (mobile apps, curl, etc.)
+
           if (!origin) return callback(null, true);
 
-          // Basic allowed origins
+
           const allowedOrigins = [
             'http://localhost:3000',
             'https://localhost:3000',
             'http://127.0.0.1:3000',
           ];
 
-          // Add CORS_ORIGIN from environment if it exists
+
           if (process.env.CORS_ORIGIN) {
             allowedOrigins.push(process.env.CORS_ORIGIN);
           }
 
-          // Allow all baileys subdomains
+
           if (origin && origin.includes('.baileys.marketcodebrasil.com.br')) {
             console.log('CORS allowed baileys subdomain:', origin);
             return callback(null, true);
@@ -74,7 +74,7 @@ class Server {
               'Allowed:',
               allowedOrigins
             );
-            // Em produção, permitir temporariamente para debug
+
             if (process.env.NODE_ENV === 'production') {
               console.log('⚠️ Allowing origin in production for debug:', origin);
               callback(null, true);
@@ -92,44 +92,44 @@ class Server {
           'csrf-token',
         ],
         exposedHeaders: ['X-CSRF-Token', 'X-New-CSRF-Token'],
-        optionsSuccessStatus: 200, // For legacy browser support
+        optionsSuccessStatus: 200,
       })
     );
 
-    // Handle preflight OPTIONS requests explicitly
+
     this.app.options('*', (req, res) => {
       res.status(200).end();
     });
 
-    // Request logging
+
     if (process.env.NODE_ENV !== 'test') {
       this.app.use(morgan('combined'));
     }
 
-    // Body parsing
+
     this.app.use(express.json({ limit: '10mb' }));
     this.app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-    // Cookie parsing with signature
+
     this.app.use(
       cookieParser(process.env.COOKIE_SECRET || 'your-cookie-secret-key')
     );
 
-    // Session configuration
+
     const sessionConfig = {
       secret: process.env.SESSION_SECRET || 'your-session-secret-key',
       resave: false,
       saveUninitialized: false,
       cookie: {
-        secure: 'auto', // Auto-detect HTTPS
+        secure: 'auto',
         httpOnly: true,
-        maxAge: 24 * 60 * 60 * 1000, // 24 hours
-        sameSite: 'lax', // Permitir cookies entre subdomínios
+        maxAge: 24 * 60 * 60 * 1000,
+        sameSite: 'lax',
       },
-      name: 'sessionId', // Hide default session name
+      name: 'sessionId',
     };
 
-    // Add MongoDB store if database is available
+
     try {
       const client = database.getClient();
       if (database.getDb() && client) {
@@ -137,7 +137,7 @@ class Server {
           client: client,
           dbName: process.env.DB_NAME,
           collectionName: 'sessions',
-          ttl: 24 * 60 * 60, // 24 hours
+          ttl: 24 * 60 * 60,
         });
         console.log('✅ Using MongoDB for session storage');
       } else {
@@ -152,7 +152,7 @@ class Server {
 
     this.app.use(session(sessionConfig));
 
-    // Request timestamp middleware
+
     this.app.use((req, res, next) => {
       req.timestamp = new Date().toISOString();
       next();
@@ -160,7 +160,7 @@ class Server {
   }
 
   setupRoutes() {
-    // Swagger Documentation (before other routes)
+
     this.app.use(
       '/api-docs',
       swaggerUi.serve,
@@ -171,23 +171,23 @@ class Server {
       })
     );
 
-    // API routes
-    // Management API routes
+
+
     this.app.use('/api/management', managementRoutes);
 
-    // Mount Baileys app routes (already includes /api/baileys prefix)
+
     this.app.use('/', baileysApp);
 
-    // Serve temporary images
+
     this.app.use('/temp-images', express.static(path.join(__dirname, 'temp-images')));
 
-    // Serve uploaded task files
+
     this.app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
-    // Serve static files from frontend build
+
     this.app.use(express.static(path.join(__dirname, 'frontend/dist')));
 
-    // API info endpoint (fallback for /api requests)
+
     this.app.get('/api', (req, res) => {
       res.json({
         success: true,
@@ -202,14 +202,14 @@ class Server {
       });
     });
 
-    // Catch-all handler for SPA - must be last
+
     this.app.get('*', (req, res) => {
       res.sendFile(path.join(__dirname, 'frontend/dist/index.html'));
     });
   }
 
   setupErrorHandling() {
-    // Global error handler
+
     this.app.use((error, req, res, next) => {
       console.error('Unhandled error:', error);
 
@@ -241,7 +241,7 @@ class Server {
 
   async start() {
     try {
-      // Try to connect to database
+
       try {
         await database.connect();
       } catch (dbError) {
@@ -252,11 +252,11 @@ class Server {
         }
       }
 
-      // Initialize Baileys app first
+
       await initializeApp();
 
 
-      // Start server
+
       this.server = this.app.listen(this.port, () => {
         console.log('🎉 ===========================================');
         console.log(`🚀 Server running on port ${this.port}`);
@@ -284,7 +284,7 @@ class Server {
         }
       });
 
-      // Graceful shutdown
+
       process.on('SIGTERM', () => this.gracefulShutdown());
       process.on('SIGINT', () => this.gracefulShutdown());
     } catch (error) {
@@ -313,7 +313,7 @@ class Server {
   }
 }
 
-// Create and start server
+
 const server = new Server();
 server.start();
 

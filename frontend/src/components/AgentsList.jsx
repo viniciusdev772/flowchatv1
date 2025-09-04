@@ -5,19 +5,19 @@ import { Badge } from './ui/badge'
 import { Switch } from './ui/switch'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from './ui/tabs'
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog'
-import { 
-  Trash2, 
-  Eye, 
-  Pause, 
-  Play, 
-  MessageCircle, 
-  Cpu, 
-  Users, 
-  Calendar, 
-  BarChart3, 
-  AlertTriangle, 
-  CheckCircle, 
-  X, 
+import {
+  Trash2,
+  Eye,
+  Pause,
+  Play,
+  MessageCircle,
+  Cpu,
+  Users,
+  Calendar,
+  BarChart3,
+  AlertTriangle,
+  CheckCircle,
+  X,
   Sparkles,
   Bot,
   Activity,
@@ -103,7 +103,7 @@ export default function AgentsList({ onRefresh }) {
       setIsLoading(true);
       setError(null);
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-      
+
       const response = await fetch(`${apiUrl}/api/baileys/agents/list`, {
         method: 'GET',
         headers: {
@@ -150,7 +150,7 @@ export default function AgentsList({ onRefresh }) {
       }
     } catch (error) {
       console.error('Error fetching agent details:', error);
-      // Mostrar detalhes básicos mesmo se falhar
+
       setSelectedAgent(agent);
       setShowDetailModal(true);
     }
@@ -167,7 +167,7 @@ export default function AgentsList({ onRefresh }) {
     try {
       setIsDeleting(true);
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
-      
+
       const response = await fetch(`${apiUrl}/api/baileys/agents/${agentToDelete.id}`, {
         method: 'DELETE',
         headers: {
@@ -201,7 +201,7 @@ export default function AgentsList({ onRefresh }) {
     try {
       const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000';
       const endpoint = agent.isActive ? 'deactivate' : 'activate';
-      
+
       const response = await fetch(`${apiUrl}/api/baileys/agents/${agent.id}/${endpoint}`, {
         method: 'PATCH',
         headers: {
@@ -213,7 +213,7 @@ export default function AgentsList({ onRefresh }) {
       if (response.ok) {
         const result = await response.json();
         if (result.success) {
-          setAgents(agents.map(a => 
+          setAgents(agents.map(a =>
             a.id === agent.id ? { ...a, isActive: !a.isActive } : a
           ));
           if (onRefresh) onRefresh();
@@ -285,7 +285,7 @@ export default function AgentsList({ onRefresh }) {
             {agents.map((agent) => {
               const personality = personalities[agent.personality] || {};
               const specialization = specializations[agent.specialization] || {};
-              
+
               return (
                 <Card
                   key={agent.id}
@@ -305,7 +305,7 @@ export default function AgentsList({ onRefresh }) {
                             <div className={`w-2 h-2 rounded-full mr-2 ${
                               agent.isActive ? 'bg-green-500' : 'bg-muted-foreground'
                             }`} />
-                            <Badge 
+                            <Badge
                               variant={agent.isActive ? "default" : "secondary"}
                               className="text-xs"
                             >
@@ -314,7 +314,7 @@ export default function AgentsList({ onRefresh }) {
                           </div>
                         </div>
                       </div>
-                      
+
                       <Switch
                         checked={agent.isActive}
                         onCheckedChange={() => toggleAgentStatus(agent)}
@@ -327,12 +327,12 @@ export default function AgentsList({ onRefresh }) {
                         <span className="text-base md:text-lg mr-2">{specialization.emoji || '🤖'}</span>
                         <span>{specialization.name || 'Especialização'}</span>
                       </div>
-                      
+
                       <div className="flex items-center text-xs md:text-sm text-muted-foreground">
                         <Cpu className="w-3 h-3 md:w-4 md:h-4 mr-2" />
                         <span>{agent.model}</span>
                       </div>
-                      
+
                       <div className="flex items-center text-xs md:text-sm text-muted-foreground">
                         <MessageCircle className="w-3 h-3 md:w-4 md:h-4 mr-2" />
                         <span>{agent.messageCount || 0} mensagens</span>
@@ -357,7 +357,7 @@ export default function AgentsList({ onRefresh }) {
                         <span className="hidden sm:inline">Detalhes</span>
                         <span className="sm:hidden">Ver</span>
                       </Button>
-                      
+
                       <Button
                         onClick={() => handleDeleteAgent(agent)}
                         variant="outline"
@@ -375,7 +375,7 @@ export default function AgentsList({ onRefresh }) {
         )}
       </CardContent>
 
-      {/* Detail Modal */}
+      {}
       <Dialog open={showDetailModal} onOpenChange={setShowDetailModal}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           {selectedAgent && (
@@ -407,7 +407,7 @@ export default function AgentsList({ onRefresh }) {
                     Estatísticas
                   </TabsTrigger>
                 </TabsList>
-                
+
                 <TabsContent value="config" className="space-y-4 mt-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                     <Card>
@@ -416,7 +416,7 @@ export default function AgentsList({ onRefresh }) {
                         <div className="font-medium text-sm md:text-base">{selectedAgent.model}</div>
                       </CardContent>
                     </Card>
-                    
+
                     <Card>
                       <CardContent className="p-3 md:p-4">
                         <div className="text-xs md:text-sm text-muted-foreground mb-1">Personalidade</div>
@@ -425,14 +425,14 @@ export default function AgentsList({ onRefresh }) {
                         </div>
                       </CardContent>
                     </Card>
-                    
+
                     <Card>
                       <CardContent className="p-3 md:p-4">
                         <div className="text-xs md:text-sm text-muted-foreground mb-1">Sessão WhatsApp</div>
                         <div className="font-medium text-xs md:text-sm">{selectedAgent.sessionId}</div>
                       </CardContent>
                     </Card>
-                    
+
                     <Card>
                       <CardContent className="p-3 md:p-4">
                         <div className="text-xs md:text-sm text-muted-foreground mb-1">Status</div>
@@ -447,7 +447,7 @@ export default function AgentsList({ onRefresh }) {
                       </CardContent>
                     </Card>
                   </div>
-                  
+
                   {selectedAgent.description && (
                     <Card>
                       <CardContent className="p-3 md:p-4">
@@ -456,7 +456,7 @@ export default function AgentsList({ onRefresh }) {
                       </CardContent>
                     </Card>
                   )}
-                  
+
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
                     <Card>
                       <CardContent className="p-3 md:p-4">
@@ -464,7 +464,7 @@ export default function AgentsList({ onRefresh }) {
                         <div className="text-xs md:text-sm">{formatDate(selectedAgent.createdAt)}</div>
                       </CardContent>
                     </Card>
-                    
+
                     <Card>
                       <CardContent className="p-3 md:p-4">
                         <div className="text-xs md:text-sm text-muted-foreground mb-1">Atualizado em</div>
@@ -473,7 +473,7 @@ export default function AgentsList({ onRefresh }) {
                     </Card>
                   </div>
                 </TabsContent>
-                
+
                 <TabsContent value="stats" className="space-y-4 mt-4">
                   {selectedAgent.conversations ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
@@ -490,7 +490,7 @@ export default function AgentsList({ onRefresh }) {
                           </div>
                         </CardContent>
                       </Card>
-                      
+
                       <Card className="border">
                         <CardContent className="p-3 md:p-4">
                           <div className="flex items-center">
@@ -504,7 +504,7 @@ export default function AgentsList({ onRefresh }) {
                           </div>
                         </CardContent>
                       </Card>
-                      
+
                       <Card className="border">
                         <CardContent className="p-3 md:p-4">
                           <div className="flex items-center">
@@ -518,7 +518,7 @@ export default function AgentsList({ onRefresh }) {
                           </div>
                         </CardContent>
                       </Card>
-                      
+
                       <Card className="border">
                         <CardContent className="p-3 md:p-4">
                           <div className="flex items-center">
@@ -546,7 +546,7 @@ export default function AgentsList({ onRefresh }) {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Modal */}
+      {}
       <Dialog open={showDeleteModal} onOpenChange={setShowDeleteModal}>
         <DialogContent className="max-w-md">
           <div className="flex items-center">
@@ -554,14 +554,14 @@ export default function AgentsList({ onRefresh }) {
               <AlertTriangle className="h-5 w-5 md:h-6 md:w-6 text-destructive" />
             </div>
           </div>
-          
+
           <div className="mt-4 text-center">
             <DialogTitle className="text-base md:text-lg font-medium">
               Deletar Agente
             </DialogTitle>
-            
+
             <DialogDescription className="mt-2 text-sm md:text-base">
-              Tem certeza que deseja deletar o agente <strong>{agentToDelete?.name}</strong>? 
+              Tem certeza que deseja deletar o agente <strong>{agentToDelete?.name}</strong>?
               Esta ação não pode ser desfeita e todos os dados do agente serão perdidos.
             </DialogDescription>
           </div>
@@ -575,7 +575,7 @@ export default function AgentsList({ onRefresh }) {
             >
               Cancelar
             </Button>
-            
+
             <Button
               onClick={confirmDelete}
               disabled={isDeleting}
