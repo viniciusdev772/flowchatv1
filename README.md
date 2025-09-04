@@ -725,5 +725,5 @@ Este projeto está licenciado sob a Licença MIT - veja o arquivo [LICENSE](LICE
 
 ⭐ **Se este projeto foi útil, considere dar uma estrela!** ⭐
 
-📧 **Contato**: [Seu Email](mailto:seu-email@exemplo.com)
-🌐 **Website**: [Seu Website](https://seu-website.com)
+📧 **Contato**: [vinil6006@gmail.com](mailto:vinil6006@gmail.com)
+💰 **PIX**: vinil6006@gmail.com
