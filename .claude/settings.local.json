@@ -39,7 +39,17 @@
       "WebFetch(domain:waha.devlike.pro)",
       "mcp__memory-bank__list_projects",
       "WebFetch(domain:docs.dndkit.com)",
-      "Bash(where:*)"
+      "Bash(where:*)",
+      "mcp__github__get_me",
+      "mcp__github__get_file_contents",
+      "mcp__github__list_issues",
+      "mcp__github__create_issue",
+      "mcp__github__update_issue",
+      "mcp__github__list_branches",
+      "Bash(curl:*)",
+      "mcp__github__list_workflows",
+      "mcp__github__create_branch",
+      "Read(/C:\\Users\\vinicius\\Documents\\baileys/**)"
     ],
     "deny": []
   },

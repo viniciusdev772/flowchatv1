@@ -1,0 +1,40 @@
+# FlowChat API Code Owners
+# https://docs.github.com/en/repositories/managing-your-repositorys-settings-and-features/customizing-your-repository/about-code-owners
+
+# Global ownership
+* @viniciusdev772
+
+# Core API files - require review from maintainer
+/src/app.js @viniciusdev772
+/main.js @viniciusdev772
+/package.json @viniciusdev772
+/package-lock.json @viniciusdev772
+
+# Configuration files - require careful review
+/.env* @viniciusdev772
+/docker-compose*.yml @viniciusdev772
+/Dockerfile* @viniciusdev772
+
+# Security sensitive files
+/.github/ @viniciusdev772
+/src/middleware/ @viniciusdev772
+/src/config/ @viniciusdev772
+
+# Documentation - can be reviewed by community
+/README.md @viniciusdev772
+/CONTRIBUTING.md @viniciusdev772
+/docs/ @viniciusdev772
+/*.md @viniciusdev772
+
+# API routes - require technical review
+/src/routes/ @viniciusdev772
+/src/api/ @viniciusdev772
+
+# AI integration - specialized knowledge needed
+/src/ai/ @viniciusdev772
+
+# Database and storage
+/src/config/database.js @viniciusdev772
+
+# Frontend (when available)
+/frontend/ @viniciusdev772

@@ -1,0 +1,111 @@
+# Sourcery AI Configuration for FlowChat API
+# https://docs.sourcery.ai/
+
+# Language settings
+javascript:
+  enabled: true
+  version: "es2020"
+
+python:
+  enabled: false
+
+# Code quality rules
+rules:
+  - all
+  - complexity-too-high
+  - use-named-expression
+  - for-loop-set-comprehension
+  - merge-duplicate-blocks
+  - remove-redundant-if
+  - simplify-boolean-expression
+  - swap-if-else-branches
+  - merge-nested-if
+  - remove-unnecessary-else
+  - hoist-statement-from-loop
+  - convert-to-enumerate
+  - use-fstring-for-formatting
+  - remove-pass-elif
+  - merge-comparisons
+  - simplify-len-comparison
+
+# Refactoring settings
+refactor:
+  skip_default_rules: false
+  rule_types:
+    - suggestion
+    - refactoring
+
+# GitHub integration
+github:
+  # Create separate branch for Sourcery suggestions
+  sourcery_branch: sourcery/{base_branch}
+  
+  # Only review pull requests (not individual commits)
+  review_pr_only: true
+  
+  # Request reviews from Sourcery
+  request_review: true
+  
+  # Auto-approve simple refactors
+  auto_approve_threshold: 0.7
+
+# Quality gate settings
+quality_gate:
+  # Minimum code quality score (0-1)
+  min_quality_score: 0.6
+  
+  # Fail PR if quality decreases
+  fail_on_quality_decrease: false
+  
+  # Maximum complexity allowed
+  max_complexity: 10
+
+# File patterns to include/exclude
+include:
+  - "src/**/*.js"
+  - "main.js"
+  - "test-scraping.js"
+  - "remove-comments.js"
+
+exclude:
+  - "node_modules/**"
+  - "frontend/**"
+  - "uploads/**"
+  - "downloads/**"
+  - "auth_sessions/**"
+  - "dist/**"
+  - "*.min.js"
+  - "package-lock.json"
+
+# Metrics to track
+metrics:
+  - duplicated_lines
+  - method_length
+  - complexity
+  - maintainability_index
+  - test_coverage
+
+# Notification settings  
+notifications:
+  # Notify on significant quality changes
+  quality_threshold: 0.1
+  
+  # Comment on PRs with suggestions
+  pr_comments: true
+  
+  # Create issues for technical debt
+  create_issues: false
+
+# Custom rules (specific to FlowChat API)
+custom_rules:
+  # Encourage async/await over Promises
+  prefer_async_await: true
+  
+  # Enforce error handling
+  require_error_handling: true
+  
+  # Prefer const over let when possible
+  prefer_const: true
+  
+  # Enforce JSDoc for public functions
+  require_jsdoc: false

@@ -4,8 +4,20 @@
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Open Source](https://img.shields.io/badge/Open%20Source-%E2%9D%A4-red.svg)](https://github.com/viniciusdev772/flowchatv1)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/viniciusdev772/flowchatv1/pulls)
+
 [![Node.js](https://img.shields.io/badge/node.js-%3E%3D14.0.0-brightgreen.svg)](https://nodejs.org/)
 [![MongoDB](https://img.shields.io/badge/MongoDB-%3E%3D4.0-green.svg)](https://www.mongodb.com/)
+[![Docker](https://img.shields.io/badge/Docker-supported-2496ED.svg)](https://www.docker.com/)
+
+[![CI/CD](https://github.com/viniciusdev772/flowchatv1/workflows/CI/CD%20Pipeline/badge.svg)](https://github.com/viniciusdev772/flowchatv1/actions)
+[![Code Quality](https://github.com/viniciusdev772/flowchatv1/workflows/Code%20Quality%20%26%20Security/badge.svg)](https://github.com/viniciusdev772/flowchatv1/actions)
+[![Sourcery](https://img.shields.io/badge/Sourcery-enabled-brightgreen.svg)](https://sourcery.ai)
+[![Security](https://img.shields.io/badge/Security-audited-success.svg)](https://github.com/viniciusdev772/flowchatv1/security)
+
+[![Issues](https://img.shields.io/github/issues/viniciusdev772/flowchatv1)](https://github.com/viniciusdev772/flowchatv1/issues)
+[![Pull Requests](https://img.shields.io/github/issues-pr/viniciusdev772/flowchatv1)](https://github.com/viniciusdev772/flowchatv1/pulls)
+[![Stars](https://img.shields.io/github/stars/viniciusdev772/flowchatv1)](https://github.com/viniciusdev772/flowchatv1/stargazers)
+[![Forks](https://img.shields.io/github/forks/viniciusdev772/flowchatv1)](https://github.com/viniciusdev772/flowchatv1/network)
 
 > **Fluxo inteligente de mensagens WhatsApp com multi-sessões e automação segura**
 
