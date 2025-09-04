@@ -1,0 +1,127 @@
+name: ✨ Feature Request
+description: Sugira uma nova funcionalidade para a FlowChat API
+title: "[FEATURE] "
+labels: ["enhancement", "feature-request"]
+assignees: ["viniciusdev772"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Obrigado por sugerir uma nova funcionalidade! Sua contribuição é valiosa para melhorar a FlowChat API.
+
+  - type: textarea
+    id: feature-description
+    attributes:
+      label: 🚀 Descrição da Funcionalidade
+      description: Descreva claramente a funcionalidade que você gostaria de ver implementada
+      placeholder: Ex. "Gostaria de uma funcionalidade para agendar mensagens..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem-solution
+    attributes:
+      label: 🎯 Problema que Resolve
+      description: Que problema esta funcionalidade resolveria? Por que é importante?
+      placeholder: Ex. "Atualmente não é possível enviar mensagens em horários específicos, o que seria útil para campanhas de marketing..."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: feature-type
+    attributes:
+      label: 📂 Tipo de Funcionalidade
+      description: Que tipo de funcionalidade você está sugerindo?
+      options:
+        - API Endpoint (nova rota)
+        - Melhorias em endpoint existente
+        - Sistema de webhook
+        - Integração IA
+        - Gerenciamento de mídia
+        - Operações de grupo
+        - Segurança/Autenticação
+        - Performance/Otimização
+        - Documentação
+        - Outro (especificar nos detalhes)
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed-solution
+    attributes:
+      label: 💡 Solução Proposta
+      description: Como você imagina que essa funcionalidade funcionaria? Inclua detalhes técnicos se possível.
+      placeholder: |
+        Ex. "Um novo endpoint POST /api/baileys/session/:sessionId/schedule-message que aceite:
+        - message: string
+        - number: string  
+        - scheduleTime: ISO date
+        - timezone: string"
+
+  - type: textarea
+    id: api-example
+    attributes:
+      label: 🔧 Exemplo de API (se aplicável)
+      description: Como seria a interface/API desta funcionalidade?
+      render: javascript
+      placeholder: |
+        // Exemplo de como a API funcionaria
+        POST /api/baileys/session/teste/schedule-message
+        {
+          "number": "5511999999999",
+          "message": "Mensagem agendada!",
+          "scheduleTime": "2024-12-31T10:00:00Z",
+          "timezone": "America/Sao_Paulo"
+        }
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: 🔄 Alternativas Consideradas
+      description: Você considerou outras formas de resolver esse problema? Se sim, quais?
+      placeholder: Ex. "Poderia usar cron jobs externos, mas seria mais conveniente ter integrado na API..."
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: ⭐ Prioridade
+      description: Qual a prioridade desta funcionalidade para você?
+      options:
+        - 🔥 Alta - Preciso urgentemente
+        - 🟡 Média - Seria muito útil
+        - 🟢 Baixa - Nice to have
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: implementation
+    attributes:
+      label: 🤝 Disposição para Contribuir
+      description: Você estaria disposto a ajudar com a implementação?
+      options:
+        - label: Posso ajudar com a implementação (código)
+        - label: Posso ajudar com testes
+        - label: Posso ajudar com documentação
+        - label: Posso fornecer feedback durante desenvolvimento
+        - label: Apenas sugestão (sem implementação)
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: 📎 Contexto Adicional
+      description: Qualquer informação adicional, links, referências, ou screenshots
+      placeholder: Links úteis, referências de outras APIs, etc.
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: ✅ Checklist
+      description: Confirme que você verificou os itens abaixo
+      options:
+        - label: Procurei por features similares já solicitadas
+          required: true
+        - label: Esta funcionalidade se encaixa no escopo da FlowChat API
+          required: true
+        - label: Forneci informações suficientes para entender a necessidade
+          required: true

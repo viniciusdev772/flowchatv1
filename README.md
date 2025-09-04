@@ -2,12 +2,34 @@
 
 [![Version](https://img.shields.io/badge/version-1.0.0-blue.svg)](https://github.com/viniciusdev772/flowchatv1)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Open Source](https://img.shields.io/badge/Open%20Source-%E2%9D%A4-red.svg)](https://github.com/viniciusdev772/flowchatv1)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/viniciusdev772/flowchatv1/pulls)
 [![Node.js](https://img.shields.io/badge/node.js-%3E%3D14.0.0-brightgreen.svg)](https://nodejs.org/)
 [![MongoDB](https://img.shields.io/badge/MongoDB-%3E%3D4.0-green.svg)](https://www.mongodb.com/)
 
 > **Fluxo inteligente de mensagens WhatsApp com multi-sessões e automação segura**
 
 FlowChat API é uma sofisticada API WhatsApp multi-sessão construída com Node.js, Express e a biblioteca Baileys. Fornece recursos abrangentes de automação WhatsApp com integração de IA, gerenciamento avançado de webhooks, operações de grupo e processamento de mídia.
+
+## 🌟 Projeto Open Source
+
+**Este é um projeto 100% open source!** Contribuições da comunidade são não apenas bem-vindas, mas essenciais para o crescimento e melhoria contínua da FlowChat API. 
+
+**🤝 Como você pode contribuir:**
+- 🐛 Reportar bugs e problemas
+- ✨ Sugerir novas funcionalidades  
+- 📝 Melhorar a documentação
+- 🔧 Submeter correções e melhorias
+- ⭐ Dar uma estrela no projeto
+- 🗣️ Compartilhar com a comunidade
+
+**💡 Ideias para contribuições:**
+- Novos endpoints para automação WhatsApp
+- Otimizações de performance
+- Testes automatizados
+- Tradução da documentação
+- Integração com outras plataformas
+- Melhorias na interface de webhook
 
 ## 🚀 Recursos Principais
 
@@ -654,13 +676,25 @@ node -c src/app.js
 node -c main.js
 ```
 
-### Contribuição
+### 🤝 Contribuição
 
+**Pull Requests são muito bem-vindos!** Leia nosso [Guia de Contribuição](CONTRIBUTING.md) para começar.
+
+**Processo rápido:**
 1. Fork o repositório
 2. Crie uma branch para sua feature (`git checkout -b feature/nova-funcionalidade`)
-3. Commit suas mudanças (`git commit -am 'Adiciona nova funcionalidade'`)
+3. Commit suas mudanças seguindo [Conventional Commits](https://conventionalcommits.org/)
 4. Push para a branch (`git push origin feature/nova-funcionalidade`)
-5. Abra um Pull Request
+5. Abra um Pull Request usando nosso [template](.github/pull_request_template.md)
+
+**Áreas que precisam de ajuda:**
+- 🧪 Testes automatizados
+- 📝 Documentação e exemplos
+- ⚡ Otimizações de performance
+- 🔧 Novas funcionalidades WhatsApp
+- 🐛 Correções de bugs
+
+Veja issues marcadas com [`good first issue`](https://github.com/viniciusdev772/flowchatv1/labels/good%20first%20issue) para começar!
 
 ## ❓ FAQ
 

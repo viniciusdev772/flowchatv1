@@ -1,0 +1,112 @@
+name: 🐛 Bug Report
+description: Reporte um bug ou problema na FlowChat API
+title: "[BUG] "
+labels: ["bug", "needs-triage"]
+assignees: ["viniciusdev772"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Obrigado por reportar um bug! Por favor, preencha as informações abaixo para nos ajudar a entender e resolver o problema.
+
+  - type: textarea
+    id: bug-description
+    attributes:
+      label: 📝 Descrição do Bug
+      description: Descreva claramente o problema que você encontrou
+      placeholder: Ex. "Ao tentar enviar uma mensagem, recebo erro 500..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps-reproduce
+    attributes:
+      label: 🔄 Passos para Reproduzir
+      description: Liste os passos exatos para reproduzir o problema
+      placeholder: |
+        1. Fazer requisição POST para /api/baileys/session/teste/send-message
+        2. Com o payload: { "number": "5511999999999", "message": "teste" }
+        3. Recebo erro...
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: ✅ Comportamento Esperado
+      description: O que você esperava que acontecesse?
+      placeholder: Ex. "A mensagem deveria ser enviada com sucesso"
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual-behavior
+    attributes:
+      label: ❌ Comportamento Atual
+      description: O que realmente aconteceu?
+      placeholder: Ex. "Recebo erro 500 e a mensagem não é enviada"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: environment
+    attributes:
+      label: 🌍 Ambiente
+      description: Em qual ambiente o bug ocorre?
+      options:
+        - Desenvolvimento (local)
+        - Produção (servidor)
+        - Docker
+        - Outro (especificar nos detalhes)
+    validations:
+      required: true
+
+  - type: textarea
+    id: system-info
+    attributes:
+      label: 💻 Informações do Sistema
+      description: |
+        Informações sobre seu ambiente:
+        - Node.js version: (rode `node --version`)
+        - Sistema operacional:
+        - Versão da FlowChat API:
+        - MongoDB version (se aplicável):
+      value: |
+        - Node.js version: 
+        - Sistema operacional: 
+        - Versão da FlowChat API: 
+        - MongoDB version: 
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: 📋 Logs/Erros
+      description: Cole aqui qualquer log de erro ou saída relevante
+      render: shell
+      placeholder: |
+        Cole aqui os logs do console, erros do servidor, etc.
+
+  - type: textarea
+    id: additional-context
+    attributes:
+      label: 📎 Contexto Adicional
+      description: Qualquer informação adicional que possa ajudar (screenshots, configurações, etc.)
+      placeholder: Informações extras...
+
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: ✅ Checklist
+      description: Confirme que você verificou os itens abaixo
+      options:
+        - label: Procurei por issues similares existentes
+          required: true
+        - label: Li a documentação e FAQ
+          required: true
+        - label: Testei com a versão mais recente
+          required: true
+        - label: Forneço informações suficientes para reproduzir o problema
+          required: true

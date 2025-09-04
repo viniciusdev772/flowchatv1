@@ -1,0 +1,92 @@
+name: ❓ Question
+description: Faça uma pergunta sobre a FlowChat API
+title: "[QUESTION] "
+labels: ["question", "help-wanted"]
+assignees: ["viniciusdev772"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Tem uma pergunta sobre como usar a FlowChat API? Estamos aqui para ajudar!
+        
+        **💡 Dica:** Verifique primeiro a [documentação](https://github.com/viniciusdev772/flowchatv1#readme) e [FAQ](https://github.com/viniciusdev772/flowchatv1#-faq).
+
+  - type: textarea
+    id: question
+    attributes:
+      label: ❓ Sua Pergunta
+      description: Descreva sua pergunta de forma clara e detalhada
+      placeholder: Ex. "Como faço para configurar múltiplos webhooks para uma sessão?"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: question-category
+    attributes:
+      label: 📂 Categoria da Pergunta
+      description: Sobre qual área é sua pergunta?
+      options:
+        - Instalação e configuração
+        - API Endpoints
+        - Sistema de webhook
+        - Autenticação/Tokens
+        - Operações WhatsApp
+        - Gerenciamento de grupos
+        - Upload/Download de mídia
+        - Integração IA
+        - Performance/Otimização
+        - Deploy/Docker
+        - Desenvolvimento
+        - Outro (especificar nos detalhes)
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: 📋 Contexto
+      description: Forneça contexto sobre o que você está tentando fazer
+      placeholder: |
+        Ex. "Estou desenvolvendo um chatbot para atendimento ao cliente e preciso receber mensagens em tempo real..."
+
+  - type: textarea
+    id: what-tried
+    attributes:
+      label: 🔍 O que já tentei
+      description: O que você já tentou fazer? Inclua códigos, configurações, etc.
+      placeholder: |
+        Ex. "Tentei fazer uma requisição POST para /api/baileys/session/teste/webhooks mas recebi erro 400..."
+      render: javascript
+
+  - type: textarea
+    id: expected-result
+    attributes:
+      label: 🎯 Resultado Esperado
+      description: O que você espera que aconteça ou como gostaria que funcionasse?
+      placeholder: Ex. "Gostaria que o webhook recebesse todas as mensagens em tempo real..."
+
+  - type: textarea
+    id: system-info
+    attributes:
+      label: 💻 Informações do Ambiente (se relevante)
+      description: Versões, sistema operacional, etc.
+      value: |
+        - Node.js version: 
+        - Sistema operacional: 
+        - Versão da FlowChat API: 
+        - Usando Docker: Sim/Não
+      placeholder: Preencha apenas se relevante para sua pergunta
+
+  - type: checkboxes
+    id: documentation-check
+    attributes:
+      label: 📚 Verificação de Documentação
+      description: Confirme que você verificou a documentação
+      options:
+        - label: Li o README.md completo
+          required: true
+        - label: Verifiquei a seção FAQ
+          required: true
+        - label: Procurei por issues similares
+          required: true
