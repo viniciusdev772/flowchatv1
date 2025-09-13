@@ -1,6 +1,14 @@
 const { Type } = require('@sinclair/typebox');
 
+/**
+ * @fileoverview This file defines the tools that can be used by an AI agent to interact with the WhatsApp API.
+ * @module ai/tools
+ */
 
+/**
+ * @const {object} toolSchemas
+ * @description A collection of schemas for each tool, defining the expected parameters.
+ */
 const toolSchemas = {
 
   createSession: Type.Object({
@@ -773,11 +781,19 @@ const toolSchemas = {
 };
 
 
+/**
+ * Formats a phone number to a JID.
+ * @param {string} phone - The phone number.
+ * @returns {string} The formatted JID.
+ */
 const formatPhoneToJid = (phone) => {
   return phone.includes('@') ? phone : `${phone}@s.whatsapp.net`;
 };
 
-
+/**
+ * @const {object} toolImplementations
+ * @description A collection of implementations for each tool, defining how the tool should be executed.
+ */
 const toolImplementations = {
 
   async createSession({ sessionId }) {
@@ -3652,6 +3668,10 @@ const toolImplementations = {
 };
 
 
+/**
+ * @const {Array<object>} openAITools
+ * @description A list of the tools in a format that can be used by the OpenAI API.
+ */
 const openAITools = [
 
   {

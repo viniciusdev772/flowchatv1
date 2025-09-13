@@ -1,3 +1,7 @@
+/**
+ * @fileoverview This is the main application file. It sets up the Express server, manages WhatsApp sessions, and defines the API routes.
+ * @module app
+ */
 const express = require('express');
 const makeWASocket = require('@whiskeysockets/baileys').default;
 const {
@@ -28,12 +32,21 @@ const crypto = require('crypto');
 const database = require('./config/database');
 const apiTokenAuth = require('./middleware/apiTokenAuth');
 
-
+/**
+ * Creates a unique session ID by combining the user ID and session ID.
+ * @param {string} userId - The ID of the user.
+ * @param {string} sessionId - The ID of the session.
+ * @returns {string} The unique session ID.
+ */
 function createUniqueSessionId(userId, sessionId) {
   return `${userId}_${sessionId}`;
 }
 
-
+/**
+ * Extracts the original session ID from a unique session ID.
+ * @param {string} uniqueSessionId - The unique session ID.
+ * @returns {string} The original session ID.
+ */
 function extractOriginalSessionId(uniqueSessionId) {
   const parts = uniqueSessionId.split('_');
   return parts.slice(1).join('_');
@@ -219,12 +232,20 @@ const messageTimers = new Map();
 
 global.whatsappSessions = sessions;
 
-
+/**
+ * Gets all active WhatsApp sessions.
+ * @returns {Map<string, object>} A map of active sessions.
+ */
 function getSessions() {
   return sessions;
 }
 
-
+/**
+ * Gets enriched data for a specific session.
+ * @param {string} sessionId - The ID of the session.
+ * @param {object} sessionData - The session data.
+ * @returns {Promise<object>} The enriched session data.
+ */
 async function getEnrichedSessionData(sessionId, sessionData) {
   try {
 
@@ -276,7 +297,11 @@ async function getEnrichedSessionData(sessionId, sessionData) {
   }
 }
 
-
+/**
+ * Gets all sessions for a specific user.
+ * @param {string} userId - The ID of the user.
+ * @returns {Map<string, object>} A map of user sessions.
+ */
 function getUserSessions(userId) {
   const userSessions = new Map();
   for (const [sessionId, sessionData] of sessions.entries()) {
@@ -287,7 +312,12 @@ function getUserSessions(userId) {
   return userSessions;
 }
 
-
+/**
+ * Checks if a user is the owner of a session.
+ * @param {string} sessionId - The ID of the session.
+ * @param {string} userId - The ID of the user.
+ * @returns {boolean} True if the user is the owner, false otherwise.
+ */
 function isUserSessionOwner(sessionId, userId) {
   const session = sessions.get(sessionId);
   if (!session || !session.userId) {
@@ -301,7 +331,13 @@ function isUserSessionOwner(sessionId, userId) {
   return sessionUserId === requestUserId;
 }
 
-
+/**
+ * Middleware to check if the user owns the session.
+ * @param {object} req - The Express request object.
+ * @param {object} res - The Express response object.
+ * @param {function} next - The next middleware function.
+ * @returns {void}
+ */
 function checkSessionOwnership(req, res, next) {
   const { sessionId } = req.params;
   const userId = req.user?.id || req.user?._id;
@@ -332,6 +368,11 @@ function checkSessionOwnership(req, res, next) {
 }
 
 
+/**
+ * Gets all webhooks for a specific session from memory.
+ * @param {string} sessionId - The ID of the session.
+ * @returns {Array<object>} An array of webhooks.
+ */
 function getSessionWebhooks(sessionId) {
 
   const sessionWebhooks = webhooks.get(sessionId) || [];
@@ -341,7 +382,11 @@ function getSessionWebhooks(sessionId) {
   return sessionWebhooks;
 }
 
-
+/**
+ * Gets all webhooks for a specific session from the database.
+ * @param {string} sessionId - The ID of the session.
+ * @returns {Promise<Array<object>>} An array of webhooks.
+ */
 async function getSessionWebhooksFromDB(sessionId) {
   try {
     const db = database.getDb();
@@ -381,6 +426,13 @@ async function getSessionWebhooksFromDB(sessionId) {
   }
 }
 
+/**
+ * Adds a webhook to a session.
+ * @param {string} sessionId - The ID of the session.
+ * @param {object} webhookData - The webhook data.
+ * @param {string|null} userId - The ID of the user.
+ * @returns {object} The new webhook object.
+ */
 function addWebhookToSession(sessionId, webhookData, userId = null) {
   const sessionWebhooks = getSessionWebhooks(sessionId);
 
@@ -416,6 +468,13 @@ function addWebhookToSession(sessionId, webhookData, userId = null) {
   return newWebhook;
 }
 
+/**
+ * Removes a webhook from a session.
+ * @param {string} sessionId - The ID of the session.
+ * @param {string} webhookId - The ID of the webhook to remove.
+ * @param {string|null} userId - The ID of the user.
+ * @returns {object} The removed webhook object.
+ */
 function removeWebhookFromSession(sessionId, webhookId, userId = null) {
   const sessionWebhooks = getSessionWebhooks(sessionId);
   const webhookIndex = sessionWebhooks.findIndex((w) => w.id === webhookId);
@@ -437,6 +496,14 @@ function removeWebhookFromSession(sessionId, webhookId, userId = null) {
   return removedWebhook;
 }
 
+/**
+ * Updates a webhook in a session.
+ * @param {string} sessionId - The ID of the session.
+ * @param {string} webhookId - The ID of the webhook to update.
+ * @param {object} updateData - The data to update.
+ * @param {string|null} userId - The ID of the user.
+ * @returns {object} The updated webhook object.
+ */
 function updateWebhookInSession(
   sessionId,
   webhookId,
@@ -478,6 +545,12 @@ function updateWebhookInSession(
   return webhook;
 }
 
+/**
+ * Gets all active webhooks for a specific session from memory.
+ * @param {string} sessionId - The ID of the session.
+ * @param {string|null} eventType - The type of event to filter by.
+ * @returns {Array<object>} An array of active webhooks.
+ */
 function getActiveWebhooks(sessionId, eventType = null) {
 
   const sessionWebhooks = getSessionWebhooks(sessionId);
@@ -500,7 +573,12 @@ function getActiveWebhooks(sessionId, eventType = null) {
   return activeWebhooks;
 }
 
-
+/**
+ * Gets all active webhooks for a specific session from the database.
+ * @param {string} sessionId - The ID of the session.
+ * @param {string|null} eventType - The type of event to filter by.
+ * @returns {Promise<Array<object>>} An array of active webhooks.
+ */
 async function getActiveWebhooksFromDB(sessionId, eventType = null) {
   const sessionWebhooks = await getSessionWebhooksFromDB(sessionId);
   logger.info(
@@ -562,6 +640,11 @@ const RECONNECTION_CONFIG = {
 };
 
 
+/**
+ * Calculates the typing time for a message.
+ * @param {number} messageLength - The length of the message.
+ * @returns {number} The typing time in milliseconds.
+ */
 function calculateTypingTime(messageLength) {
   const baseTime = Math.max(
     HUMAN_BEHAVIOR.MIN_TYPING_TIME,
@@ -576,7 +659,10 @@ function calculateTypingTime(messageLength) {
   return baseTime + (Math.random() * variation * 2 - variation);
 }
 
-
+/**
+ * Gets a random delay between messages.
+ * @returns {number} The delay in milliseconds.
+ */
 function getRandomDelay() {
   return (
     Math.random() *
@@ -586,7 +672,11 @@ function getRandomDelay() {
   );
 }
 
-
+/**
+ * Checks if a session has exceeded the message rate limit.
+ * @param {string} sessionId - The ID of the session.
+ * @returns {boolean} True if the rate limit has not been exceeded, false otherwise.
+ */
 function checkRateLimit(sessionId) {
   const now = Date.now();
   const limit = messageRateLimit.get(sessionId) || [];
@@ -603,7 +693,14 @@ function checkRateLimit(sessionId) {
   return true;
 }
 
-
+/**
+ * Sends a message with human-like behavior.
+ * @param {object} sock - The Baileys socket instance.
+ * @param {string} jid - The JID of the recipient.
+ * @param {string|object} message - The message to send.
+ * @param {object|null} quotedMessage - The message to quote.
+ * @returns {Promise<object>} The sent message object.
+ */
 async function sendMessageWithHumanBehavior(
   sock,
   jid,
@@ -691,7 +788,11 @@ async function sendMessageWithHumanBehavior(
   }
 }
 
-
+/**
+ * Processes the message queue for a session.
+ * @param {string} sessionId - The ID of the session.
+ * @returns {Promise<void>}
+ */
 async function processMessageQueue(sessionId) {
   const queue = sessionQueues.get(sessionId);
   if (!queue || queue.processing) return;
@@ -723,7 +824,15 @@ async function processMessageQueue(sessionId) {
   queue.processing = false;
 }
 
-
+/**
+ * Queues a message to be sent.
+ * @param {string} sessionId - The ID of the session.
+ * @param {object} sock - The Baileys socket instance.
+ * @param {string} jid - The JID of the recipient.
+ * @param {string|object} message - The message to send.
+ * @param {object|null} quotedMessage - The message to quote.
+ * @returns {Promise<object>} A promise that resolves with the sent message object.
+ */
 function queueMessage(sessionId, sock, jid, message, quotedMessage = null) {
   return new Promise((resolve, reject) => {
     if (!sessionQueues.has(sessionId)) {
@@ -739,6 +848,12 @@ function queueMessage(sessionId, sock, jid, message, quotedMessage = null) {
 }
 
 
+/**
+ * Saves session data to a file and the database.
+ * @param {string} sessionId - The ID of the session.
+ * @param {object} sessionData - The session data.
+ * @returns {Promise<void>}
+ */
 async function saveSessionData(sessionId, sessionData) {
   try {
 
@@ -783,7 +898,13 @@ async function saveSessionData(sessionId, sessionData) {
   }
 }
 
-
+/**
+ * Saves QR code data to the database.
+ * @param {string} sessionId - The ID of the session.
+ * @param {string} qrCode - The QR code string.
+ * @param {string} qrCodeImage - The QR code image data URL.
+ * @returns {Promise<void>}
+ */
 async function saveQRCodeData(sessionId, qrCode, qrCodeImage) {
   const db = database.getDb();
   if (!db) return;
@@ -810,7 +931,11 @@ async function saveQRCodeData(sessionId, qrCode, qrCodeImage) {
   }
 }
 
-
+/**
+ * Loads QR code data from the database.
+ * @param {string} sessionId - The ID of the session.
+ * @returns {Promise<object|null>} The QR code data, or null if not found.
+ */
 async function loadQRCodeData(sessionId) {
   const db = database.getDb();
   if (!db) return null;
@@ -838,7 +963,11 @@ async function loadQRCodeData(sessionId) {
   }
 }
 
-
+/**
+ * Clears QR code data from the database.
+ * @param {string} sessionId - The ID of the session.
+ * @returns {Promise<void>}
+ */
 async function clearQRCodeData(sessionId) {
   const db = database.getDb();
   if (!db) return;
@@ -855,7 +984,10 @@ async function clearQRCodeData(sessionId) {
   }
 }
 
-
+/**
+ * Cleans up expired QR codes from the database.
+ * @returns {Promise<void>}
+ */
 async function cleanupExpiredQRCodes() {
   const db = database.getDb();
   if (!db) return;
@@ -873,7 +1005,13 @@ async function cleanupExpiredQRCodes() {
   }
 }
 
-
+/**
+ * Saves webhook data to the database.
+ * @param {string} sessionId - The ID of the session.
+ * @param {object} webhookData - The webhook data.
+ * @param {string|null} userId - The ID of the user.
+ * @returns {Promise<void>}
+ */
 async function saveWebhookData(sessionId, webhookData, userId = null) {
   const db = database.getDb();
   if (!db) return;
@@ -918,7 +1056,11 @@ async function saveWebhookData(sessionId, webhookData, userId = null) {
   }
 }
 
-
+/**
+ * Loads webhook data from the database.
+ * @param {string} sessionId - The ID of the session.
+ * @returns {Promise<object|null>} The webhook data, or null if not found.
+ */
 async function loadWebhookData(sessionId) {
   const db = database.getDb();
   if (!db) return null;
@@ -943,7 +1085,12 @@ async function loadWebhookData(sessionId) {
   }
 }
 
-
+/**
+ * Deletes webhook data from the database.
+ * @param {string} sessionId - The ID of the session.
+ * @param {string|null} userId - The ID of the user.
+ * @returns {Promise<void>}
+ */
 async function deleteWebhookData(sessionId, userId = null) {
   const db = database.getDb();
   if (!db) return;
@@ -966,7 +1113,13 @@ async function deleteWebhookData(sessionId, userId = null) {
   }
 }
 
-
+/**
+ * Checks if a webhook URL is already in use.
+ * @param {string} url - The webhook URL.
+ * @param {string|null} excludeSessionId - The session ID to exclude from the check.
+ * @param {string|null} excludeUserId - The user ID to exclude from the check.
+ * @returns {Promise<object>} An object with the result of the check.
+ */
 async function checkWebhookUrlDuplication(
   url,
   excludeSessionId = null,
@@ -1017,7 +1170,13 @@ async function checkWebhookUrlDuplication(
   }
 }
 
-
+/**
+ * Saves a message to the database.
+ * @param {string} sessionId - The ID of the session.
+ * @param {string} messageId - The ID of the message.
+ * @param {object} messageData - The message data.
+ * @returns {Promise<void>}
+ */
 async function saveMessageToMongoDB(sessionId, messageId, messageData) {
   const db = database.getDb();
   if (!db) return;
@@ -1071,7 +1230,13 @@ async function saveMessageToMongoDB(sessionId, messageId, messageData) {
   }
 }
 
-
+/**
+ * Saves group info to the database.
+ * @param {string} sessionId - The ID of the session.
+ * @param {string} groupJid - The JID of the group.
+ * @param {object} groupInfo - The group info.
+ * @returns {Promise<void>}
+ */
 async function saveGroupInfoToMongoDB(sessionId, groupJid, groupInfo) {
   const db = database.getDb();
   if (!db) return;
@@ -1097,7 +1262,13 @@ async function saveGroupInfoToMongoDB(sessionId, groupJid, groupInfo) {
   }
 }
 
-
+/**
+ * Loads messages from the database.
+ * @param {string} sessionId - The ID of the session.
+ * @param {number} limit - The number of messages to load.
+ * @param {number} offset - The number of messages to skip.
+ * @returns {Promise<Array<object>>} An array of messages.
+ */
 async function loadMessagesFromMongoDB(sessionId, limit = 50, offset = 0) {
   const db = database.getDb();
   if (!db) return [];
@@ -1128,6 +1299,11 @@ async function loadMessagesFromMongoDB(sessionId, limit = 50, offset = 0) {
 }
 
 
+/**
+ * Extracts the text from a message object.
+ * @param {object} message - The message object.
+ * @returns {string} The extracted text.
+ */
 function extractMessageText(message) {
   return (
     message.message?.conversation ||
@@ -1139,7 +1315,11 @@ function extractMessageText(message) {
   );
 }
 
-
+/**
+ * Gets the type of a message.
+ * @param {object} message - The message object.
+ * @returns {string} The message type.
+ */
 function getMessageType(message) {
   if (message.message?.conversation) return 'text';
   if (message.message?.extendedTextMessage) return 'text';
@@ -1153,7 +1333,12 @@ function getMessageType(message) {
   return 'unknown';
 }
 
-
+/**
+ * Applies a field mapping to a data object.
+ * @param {object} data - The data object.
+ * @param {object} fieldMapping - The field mapping.
+ * @returns {object} The data object with the field mapping applied.
+ */
 function applyFieldMapping(data, fieldMapping) {
   if (!fieldMapping || Object.keys(fieldMapping).length === 0) {
     return data;
@@ -1200,6 +1385,10 @@ function applyFieldMapping(data, fieldMapping) {
 }
 
 
+/**
+ * Loads existing sessions from the file system and database.
+ * @returns {Promise<void>}
+ */
 async function loadExistingSessions() {
   try {
     const authDir = './auth_sessions';
@@ -1302,7 +1491,10 @@ async function loadExistingSessions() {
   }
 }
 
-
+/**
+ * Cleans up orphaned sessions from the database.
+ * @returns {Promise<void>}
+ */
 async function cleanupOrphanedSessions() {
   try {
     const db = database.getDb();
@@ -1351,6 +1543,13 @@ async function cleanupOrphanedSessions() {
 }
 
 
+/**
+ * Stores a message in memory and the database.
+ * @param {string} sessionId - The ID of the session.
+ * @param {string} messageId - The ID of the message.
+ * @param {object} message - The message object.
+ * @returns {void}
+ */
 function storeMessage(sessionId, messageId, message) {
   try {
     if (!messageStore.has(sessionId)) {
@@ -1381,7 +1580,12 @@ function storeMessage(sessionId, messageId, message) {
   }
 }
 
-
+/**
+ * Gets a message by its ID.
+ * @param {string} sessionId - The ID of the session.
+ * @param {string} messageId - The ID of the message.
+ * @returns {object|null} The message object, or null if not found.
+ */
 function getMessageById(sessionId, messageId) {
   try {
     const sessionMessages = messageStore.get(sessionId);
@@ -1393,6 +1597,12 @@ function getMessageById(sessionId, messageId) {
 }
 
 
+/**
+ * Gets contact or group information.
+ * @param {string} jid - The JID of the contact or group.
+ * @param {object} sock - The Baileys socket instance.
+ * @returns {Promise<object>} The contact or group information.
+ */
 async function getContactOrGroupInfo(jid, sock) {
   try {
 
@@ -1598,7 +1808,13 @@ async function getContactOrGroupInfo(jid, sock) {
   }
 }
 
-
+/**
+ * Sends a webhook.
+ * @param {string} sessionId - The ID of the session.
+ * @param {string} eventType - The type of the event.
+ * @param {object} data - The event data.
+ * @returns {Promise<void>}
+ */
 async function sendWebhook(sessionId, eventType, data) {
   try {
 
@@ -1870,6 +2086,14 @@ async function sendWebhook(sessionId, eventType, data) {
 }
 
 
+/**
+ * Sends a v2 webhook.
+ * @param {string} sessionId - The ID of the session.
+ * @param {string} eventType - The type of the event.
+ * @param {object} originalMessage - The original message object.
+ * @param {object|null} baileysRawEvent - The raw Baileys event.
+ * @returns {Promise<void>}
+ */
 async function sendWebhookV2(
   sessionId,
   eventType,
@@ -2010,7 +2234,14 @@ async function sendWebhookV2(
   }
 }
 
-
+/**
+ * Sends a v1 webhook directly.
+ * @param {string} sessionId - The ID of the session.
+ * @param {string} eventType - The type of the event.
+ * @param {object} data - The event data.
+ * @param {Array<object>} webhooksList - The list of webhooks to send to.
+ * @returns {Promise<void>}
+ */
 async function sendWebhookV1Direct(sessionId, eventType, data, webhooksList) {
   try {
     if (webhooksList.length === 0) return;
@@ -2024,6 +2255,11 @@ async function sendWebhookV1Direct(sessionId, eventType, data, webhooksList) {
 }
 
 
+/**
+ * Detects the type of a message.
+ * @param {object} msgContent - The message content.
+ * @returns {string} The message type.
+ */
 function detectMessageType(msgContent) {
   if (msgContent.conversation) return 'text';
   if (msgContent.extendedTextMessage) return 'text';
@@ -2043,6 +2279,11 @@ function detectMessageType(msgContent) {
   return 'unknown';
 }
 
+/**
+ * Extracts the text content from a message.
+ * @param {object} msgContent - The message content.
+ * @returns {string|null} The extracted text, or null if not found.
+ */
 function extractTextContent(msgContent) {
   if (msgContent.conversation) return msgContent.conversation;
   if (msgContent.extendedTextMessage?.text)
@@ -2054,6 +2295,11 @@ function extractTextContent(msgContent) {
   return null;
 }
 
+/**
+ * Extracts media information from a message.
+ * @param {object} msgContent - The message content.
+ * @returns {object|null} The extracted media information, or null if not found.
+ */
 function extractMediaInfo(msgContent) {
   const media =
     msgContent.imageMessage ||
@@ -2078,6 +2324,11 @@ function extractMediaInfo(msgContent) {
   };
 }
 
+/**
+ * Extracts quoted message information from a message.
+ * @param {object} msgContent - The message content.
+ * @returns {object|null} The extracted quoted message information, or null if not found.
+ */
 function extractQuotedMessage(msgContent) {
   const contextInfo =
     msgContent.extendedTextMessage?.contextInfo ||
@@ -2099,6 +2350,11 @@ function extractQuotedMessage(msgContent) {
   };
 }
 
+/**
+ * Extracts contact information from a message.
+ * @param {object} msgContent - The message content.
+ * @returns {object|null} The extracted contact information, or null if not found.
+ */
 function extractContactInfo(msgContent) {
   if (msgContent.contactMessage) {
     return {
@@ -2114,6 +2370,11 @@ function extractContactInfo(msgContent) {
   return null;
 }
 
+/**
+ * Extracts location information from a message.
+ * @param {object} msgContent - The message content.
+ * @returns {object|null} The extracted location information, or null if not found.
+ */
 function extractLocationInfo(msgContent) {
   const location = msgContent.locationMessage || msgContent.liveLocationMessage;
   if (!location) return null;
@@ -2128,6 +2389,11 @@ function extractLocationInfo(msgContent) {
   };
 }
 
+/**
+ * Extracts mentions from a message.
+ * @param {object} msgContent - The message content.
+ * @returns {Array<string>} An array of mentioned JIDs.
+ */
 function extractMentions(msgContent) {
   const contextInfo =
     msgContent.extendedTextMessage?.contextInfo ||
@@ -2137,6 +2403,11 @@ function extractMentions(msgContent) {
   return contextInfo?.mentionedJid || [];
 }
 
+/**
+ * Extracts reaction information from a message.
+ * @param {object} msgContent - The message content.
+ * @returns {object|null} The extracted reaction information, or null if not found.
+ */
 function extractReactionInfo(msgContent) {
   if (!msgContent.reactionMessage) return null;
 
@@ -2147,6 +2418,11 @@ function extractReactionInfo(msgContent) {
   };
 }
 
+/**
+ * Extracts poll information from a message.
+ * @param {object} msgContent - The message content.
+ * @returns {object|null} The extracted poll information, or null if not found.
+ */
 function extractPollInfo(msgContent) {
   if (msgContent.pollCreationMessage) {
     return {
@@ -2518,7 +2794,15 @@ async function sendWebhookV2Direct(
   }
 }
 
-
+/**
+ * Sends a v2 webhook directly.
+ * @param {string} sessionId - The ID of the session.
+ * @param {string} eventType - The type of the event.
+ * @param {object} originalMessage - The original message object.
+ * @param {object} baileysRawEvent - The raw Baileys event.
+ * @param {Array<object>} webhooksList - The list of webhooks to send to.
+ * @returns {Promise<void>}
+ */
 async function sendWebhooksByVersion(
   sessionId,
   eventType,
@@ -2579,6 +2863,10 @@ async function sendWebhooksByVersion(
 const DOWNLOADS_COLLECTION = 'downloaded_files';
 
 
+/**
+ * Creates indexes for the downloads collection in the database.
+ * @returns {Promise<void>}
+ */
 async function createDownloadIndexes() {
   try {
     const db = database.getDb();
@@ -2612,7 +2900,11 @@ logger.info(
   '🔄 Sistema de downloads migrado para MongoDB - metadados persistidos permanentemente'
 );
 
-
+/**
+ * Saves download metadata to the database.
+ * @param {object} downloadMetadata - The download metadata.
+ * @returns {Promise<boolean>} True if the metadata was saved successfully, false otherwise.
+ */
 async function saveDownloadMetadata(downloadMetadata) {
   try {
     const db = database.getDb();
@@ -2639,6 +2931,11 @@ async function saveDownloadMetadata(downloadMetadata) {
   }
 }
 
+/**
+ * Gets download metadata from the database.
+ * @param {string} downloadId - The ID of the download.
+ * @returns {Promise<object|null>} The download metadata, or null if not found.
+ */
 async function getDownloadMetadata(downloadId) {
   try {
     const db = database.getDb();
@@ -2658,6 +2955,11 @@ async function getDownloadMetadata(downloadId) {
   }
 }
 
+/**
+ * Deletes download metadata from the database.
+ * @param {string} downloadId - The ID of the download.
+ * @returns {Promise<boolean>} True if the metadata was deleted successfully, false otherwise.
+ */
 async function deleteDownloadMetadata(downloadId) {
   try {
     const db = database.getDb();
@@ -2679,6 +2981,10 @@ async function deleteDownloadMetadata(downloadId) {
   }
 }
 
+/**
+ * Gets all expired downloads from the database.
+ * @returns {Promise<Array<object>>} An array of expired downloads.
+ */
 async function getExpiredDownloads() {
   try {
     const db = database.getDb();
@@ -2701,6 +3007,11 @@ async function getExpiredDownloads() {
   }
 }
 
+/**
+ * Gets all downloads from the database.
+ * @param {string|null} sessionId - The ID of the session to filter by.
+ * @returns {Promise<Array<object>>} An array of downloads.
+ */
 async function getAllDownloads(sessionId = null) {
   try {
     const db = database.getDb();
@@ -2723,6 +3034,10 @@ async function getAllDownloads(sessionId = null) {
 }
 
 
+/**
+ * Cleans up expired files from the disk and database.
+ * @returns {Promise<void>}
+ */
 async function cleanupExpiredFiles() {
   const fs = require('fs');
   let cleanedCount = 0;
@@ -2766,14 +3081,23 @@ setInterval(cleanupExpiredFiles, 6 * 60 * 60 * 1000);
 
 setTimeout(cleanupExpiredFiles, 60 * 1000);
 
-
+/**
+ * Generates a unique download ID.
+ * @returns {string} The download ID.
+ */
 function generateDownloadId() {
   const timestamp = Date.now();
   const random = Math.random().toString(36).substring(2, 15);
   return `${timestamp}_${random}`;
 }
 
-
+/**
+ * Gets the file extension for a given mimetype.
+ * @param {string} mimetype - The mimetype.
+ * @param {string|null} messageType - The message type.
+ * @param {boolean} isPtt - Whether the audio is a push-to-talk message.
+ * @returns {string} The file extension.
+ */
 function getFileExtension(mimetype, messageType = null, isPtt = false) {
   const mimeToExt = {
 
@@ -2910,6 +3234,13 @@ function getFileExtension(mimetype, messageType = null, isPtt = false) {
 }
 
 
+/**
+ * Downloads media from a message and saves it to a file.
+ * @param {object} sock - The Baileys socket instance.
+ * @param {object} message - The message object.
+ * @param {string} sessionId - The ID of the session.
+ * @returns {Promise<object>} An object with the result of the download.
+ */
 async function downloadMediaToFile(sock, message, sessionId) {
   try {
     const MAX_FILE_SIZE = 50 * 1024 * 1024;
@@ -3119,7 +3450,12 @@ async function downloadMediaToFile(sock, message, sessionId) {
   }
 }
 
-
+/**
+ * Downloads media from a message and returns it as a base64 string.
+ * @param {object} sock - The Baileys socket instance.
+ * @param {object} message - The message object.
+ * @returns {Promise<object>} An object with the base64 string or an error.
+ */
 async function downloadMediaAsBase64(sock, message) {
   const downloadResult = await downloadMediaToFile(sock, message, 'legacy');
 
@@ -3146,6 +3482,12 @@ async function downloadMediaAsBase64(sock, message) {
 }
 
 
+/**
+ * Extracts all relevant data from a message.
+ * @param {object} message - The message object.
+ * @param {object|null} sock - The Baileys socket instance.
+ * @returns {Promise<object|null>} The extracted message data, or null if invalid.
+ */
 async function extractMessageData(message, sock = null) {
   const isGroup = message.key.remoteJid?.endsWith('@g.us') || false;
   const isBusinessAccount =
@@ -3819,6 +4161,11 @@ async function extractMessageData(message, sock = null) {
 }
 
 
+/**
+ * Creates a proxy agent from a proxy configuration.
+ * @param {object} proxyConfig - The proxy configuration.
+ * @returns {HttpsProxyAgent|SocksProxyAgent|null} The proxy agent, or null if not applicable.
+ */
 function createProxyAgent(proxyConfig) {
   if (!proxyConfig || !proxyConfig.enabled) {
     return null;
@@ -3860,7 +4207,15 @@ function createProxyAgent(proxyConfig) {
   }
 }
 
-
+/**
+ * Creates a new WhatsApp session.
+ * @param {string} sessionId - The ID of the session.
+ * @param {string|null} userId - The ID of the user.
+ * @param {object|null} proxyConfig - The proxy configuration.
+ * @param {string} pairingMethod - The pairing method ('qr' or 'code').
+ * @param {string|null} phoneNumber - The phone number for pairing code.
+ * @returns {Promise<object>} An object with the result of the session creation.
+ */
 async function createWhatsAppSession(
   sessionId,
   userId = null,
@@ -4360,6 +4715,13 @@ async function createWhatsAppSession(
 
 
 
+/**
+ * Handles multipart messages.
+ * @param {object} sock - The Baileys socket instance.
+ * @param {object} message - The message object.
+ * @param {string} sessionId - The ID of the session.
+ * @returns {Promise<void>}
+ */
 async function handleMessageParts(sock, message, sessionId) {
   const jid = message.key.remoteJid;
   const messageText =
@@ -4466,7 +4828,11 @@ async function handleMessageParts(sock, message, sessionId) {
   messageTimers.set(senderKey, timer);
 }
 
-
+/**
+ * Checks if a message is from a group.
+ * @param {object} message - The message object.
+ * @returns {boolean} True if the message is from a group, false otherwise.
+ */
 function isMessageFromGroup(message) {
   const {
     isJidGroup,
@@ -4493,6 +4859,14 @@ function isMessageFromGroup(message) {
   return isGroup && !isBroadcast && !isStatusBroadcast && !isNewsletter;
 }
 
+/**
+ * Processes a complete message after all parts have been received.
+ * @param {object} sock - The Baileys socket instance.
+ * @param {object} message - The message object.
+ * @param {string} sessionId - The ID of the session.
+ * @param {Array<object>} allMessageParts - An array of all message parts.
+ * @returns {Promise<void>}
+ */
 async function processCompleteMessage(
   sock,
   message,
@@ -4767,7 +5141,13 @@ async function processCompleteMessage(
   }
 }
 
-
+/**
+ * Downloads media from a message.
+ * @param {object} sock - The Baileys socket instance.
+ * @param {object} message - The message object.
+ * @param {string} filename - The filename to save the media as.
+ * @returns {Promise<object>} An object with the result of the download.
+ */
 async function downloadMedia(sock, message, filename) {
   try {
     const buffer = await downloadMediaMessage(
@@ -4801,6 +5181,13 @@ async function downloadMedia(sock, message, filename) {
 }
 
 
+/**
+ * Middleware to handle dual authentication (API token or JWT).
+ * @param {object} req - The Express request object.
+ * @param {object} res - The Express response object.
+ * @param {function} next - The next middleware function.
+ * @returns {void}
+ */
 const dualAuth = async (req, res, next) => {
   const authHeader = req.headers.authorization;
 
@@ -4814,6 +5201,34 @@ const dualAuth = async (req, res, next) => {
   return authenticateToken(req, res, next);
 };
 
+/**
+ * @swagger
+ * /api/baileys/session/create:
+ *   post:
+ *     summary: Create a new WhatsApp session
+ *     description: Creates a new WhatsApp session with the provided session ID.
+ *     tags: [Session Management]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               sessionId:
+ *                 type: string
+ *     responses:
+ *       '200':
+ *         description: The session was created successfully.
+ *       '400':
+ *         description: Bad request, missing required parameters.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '500':
+ *         description: Internal server error.
+ */
 app.post('/api/baileys/session/create', dualAuth, async (req, res) => {
   try {
     const { sessionId, proxy, pairingMethod = 'qr', phoneNumber } = req.body;
@@ -4951,6 +5366,35 @@ app.post('/api/baileys/session/create', dualAuth, async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/baileys/session/{sessionId}/regenerate-qr:
+ *   post:
+ *     summary: Regenerate the QR code for a session
+ *     description: Regenerates the QR code for a specific WhatsApp session.
+ *     tags: [Session Management]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       '200':
+ *         description: The QR code was regenerated successfully.
+ *       '400':
+ *         description: Bad request, session already connected.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '403':
+ *         description: Forbidden, user does not have permission to access the session.
+ *       '404':
+ *         description: Session not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 app.post(
   '/api/baileys/session/:sessionId/regenerate-qr',
   checkSessionOwnership,
@@ -5013,6 +5457,33 @@ app.post(
   }
 );
 
+/**
+ * @swagger
+ * /api/baileys/session/{sessionId}/status:
+ *   get:
+ *     summary: Get the status of a session
+ *     description: Retrieves the status of a specific WhatsApp session.
+ *     tags: [Session Management]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       '200':
+ *         description: The session status was retrieved successfully.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '403':
+ *         description: Forbidden, user does not have permission to access the session.
+ *       '404':
+ *         description: Session not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 app.get(
   '/api/baileys/session/:sessionId/status',
   checkSessionOwnership,
@@ -5053,6 +5524,23 @@ app.get(
   }
 );
 
+/**
+ * @swagger
+ * /api/baileys/sessions:
+ *   get:
+ *     summary: List all sessions
+ *     description: Retrieves a list of all WhatsApp sessions for the authenticated user.
+ *     tags: [Session Management]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       '200':
+ *         description: A list of sessions.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '500':
+ *         description: Internal server error.
+ */
 app.get('/api/baileys/sessions', (req, res) => {
   try {
     const userId = req.user?.id || req.user?._id;
@@ -5099,7 +5587,23 @@ app.get('/api/baileys/sessions', (req, res) => {
   }
 });
 
-
+/**
+ * @swagger
+ * /api/baileys/sessions/cleanup-orphaned:
+ *   post:
+ *     summary: Clean up orphaned sessions
+ *     description: Cleans up orphaned sessions that are no longer associated with a user.
+ *     tags: [Session Management]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       '200':
+ *         description: The orphaned sessions were cleaned up successfully.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '500':
+ *         description: Internal server error.
+ */
 app.post('/api/baileys/sessions/cleanup-orphaned', async (req, res) => {
   try {
     const userId = req.user?.id || req.user?._id;
@@ -5130,6 +5634,46 @@ app.post('/api/baileys/sessions/cleanup-orphaned', async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/baileys/session/{sessionId}/send-message:
+ *   post:
+ *     summary: Send a text message
+ *     description: Sends a text message to a specific contact or group.
+ *     tags: [Messaging]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               to:
+ *                 type: string
+ *               message:
+ *                 type: string
+ *     responses:
+ *       '200':
+ *         description: The message was sent successfully.
+ *       '400':
+ *         description: Bad request, missing required parameters.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '403':
+ *         description: Forbidden, user does not have permission to access the session.
+ *       '404':
+ *         description: Session not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 app.post(
   '/api/baileys/session/:sessionId/send-message',
   checkSessionOwnership,
@@ -5193,6 +5737,47 @@ app.post(
   }
 );
 
+/**
+ * @swagger
+ * /api/baileys/session/{sessionId}/send-media:
+ *   post:
+ *     summary: Send a media message
+ *     description: Sends a media message (image, video, audio, or document) to a specific contact or group.
+ *     tags: [Messaging]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               to:
+ *                 type: string
+ *               media:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       '200':
+ *         description: The media message was sent successfully.
+ *       '400':
+ *         description: Bad request, missing required parameters.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '403':
+ *         description: Forbidden, user does not have permission to access the session.
+ *       '404':
+ *         description: Session not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 app.post(
   '/api/baileys/session/:sessionId/send-media',
   checkSessionOwnership,
@@ -5371,6 +5956,46 @@ app.post(
 );
 
 
+/**
+ * @swagger
+ * /api/baileys/session/{sessionId}/mention-all:
+ *   post:
+ *     summary: Mention all participants in a group
+ *     description: Sends a message to a group mentioning all participants.
+ *     tags: [Messaging]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               groupId:
+ *                 type: string
+ *               message:
+ *                 type: string
+ *     responses:
+ *       '200':
+ *         description: The message was sent successfully.
+ *       '400':
+ *         description: Bad request, missing required parameters.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '403':
+ *         description: Forbidden, user does not have permission to access the session.
+ *       '404':
+ *         description: Session or group not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 app.post(
   '/api/baileys/session/:sessionId/mention-all',
   checkSessionOwnership,
@@ -5486,6 +6111,44 @@ app.post(
   }
 );
 
+/**
+ * @swagger
+ * /api/baileys/session/{sessionId}/download-media:
+ *   post:
+ *     summary: Download media from a message
+ *     description: Downloads media from a specific message.
+ *     tags: [Messaging]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               messageId:
+ *                 type: string
+ *     responses:
+ *       '200':
+ *         description: The media was downloaded successfully.
+ *       '400':
+ *         description: Bad request, missing required parameters.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '403':
+ *         description: Forbidden, user does not have permission to access the session.
+ *       '404':
+ *         description: Session or message not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 app.post(
   '/api/baileys/session/:sessionId/download-media',
   checkSessionOwnership,
@@ -5592,6 +6255,29 @@ app.post(
 );
 
 
+/**
+ * @swagger
+ * /api/baileys/download/{downloadId}:
+ *   get:
+ *     summary: Download a media file
+ *     description: Downloads a media file that was previously downloaded from a message.
+ *     tags: [Messaging]
+ *     parameters:
+ *       - in: path
+ *         name: downloadId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       '200':
+ *         description: The media file was downloaded successfully.
+ *       '404':
+ *         description: File not found or link expired.
+ *       '410':
+ *         description: Download link expired.
+ *       '500':
+ *         description: Internal server error.
+ */
 app.get('/api/baileys/download/:downloadId', async (req, res) => {
   try {
     const { downloadId } = req.params;
@@ -5695,7 +6381,19 @@ app.get('/api/baileys/download/:downloadId', async (req, res) => {
   }
 });
 
-
+/**
+ * @swagger
+ * /api/baileys/downloads:
+ *   get:
+ *     summary: List all downloaded files
+ *     description: Retrieves a list of all downloaded files.
+ *     tags: [Messaging]
+ *     responses:
+ *       '200':
+ *         description: A list of downloaded files.
+ *       '500':
+ *         description: Internal server error.
+ */
 app.get('/api/baileys/downloads', async (req, res) => {
   try {
     const sessionId = req.query.sessionId;
@@ -5738,6 +6436,46 @@ app.get('/api/baileys/downloads', async (req, res) => {
   }
 });
 
+/**
+ * @swagger
+ * /api/baileys/session/{sessionId}/mark-read:
+ *   post:
+ *     summary: Mark a message as read
+ *     description: Marks a specific message as read.
+ *     tags: [Messaging]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               jid:
+ *                 type: string
+ *               messageId:
+ *                 type: string
+ *     responses:
+ *       '200':
+ *         description: The message was marked as read successfully.
+ *       '400':
+ *         description: Bad request, missing required parameters.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '403':
+ *         description: Forbidden, user does not have permission to access the session.
+ *       '404':
+ *         description: Session not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 app.post(
   '/api/baileys/session/:sessionId/mark-read',
   checkSessionOwnership,
@@ -5775,6 +6513,46 @@ app.post(
   }
 );
 
+/**
+ * @swagger
+ * /api/baileys/session/{sessionId}/typing:
+ *   post:
+ *     summary: Set typing status
+ *     description: Sets the typing status for a specific chat.
+ *     tags: [Messaging]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               jid:
+ *                 type: string
+ *               isTyping:
+ *                 type: boolean
+ *     responses:
+ *       '200':
+ *         description: The typing status was set successfully.
+ *       '400':
+ *         description: Bad request, missing required parameters.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '403':
+ *         description: Forbidden, user does not have permission to access the session.
+ *       '404':
+ *         description: Session not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 app.post(
   '/api/baileys/session/:sessionId/typing',
   checkSessionOwnership,
@@ -5808,6 +6586,46 @@ app.post(
   }
 );
 
+/**
+ * @swagger
+ * /api/baileys/session/{sessionId}/reply-message:
+ *   post:
+ *     summary: Reply to a message
+ *     description: Replies to a specific message.
+ *     tags: [Messaging]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               messageId:
+ *                 type: string
+ *               reply:
+ *                 type: string
+ *     responses:
+ *       '200':
+ *         description: The reply was sent successfully.
+ *       '400':
+ *         description: Bad request, missing required parameters.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '403':
+ *         description: Forbidden, user does not have permission to access the session.
+ *       '404':
+ *         description: Session or message not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 app.post(
   '/api/baileys/session/:sessionId/reply-message',
   checkSessionOwnership,
@@ -5885,6 +6703,33 @@ app.post(
   }
 );
 
+/**
+ * @swagger
+ * /api/baileys/session/{sessionId}/messages:
+ *   get:
+ *     summary: Get messages from a session
+ *     description: Retrieves a paginated list of messages from a specific session.
+ *     tags: [Messaging]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       '200':
+ *         description: A list of messages.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '403':
+ *         description: Forbidden, user does not have permission to access the session.
+ *       '404':
+ *         description: Session not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 app.get(
   '/api/baileys/session/:sessionId/messages',
   checkSessionOwnership,
@@ -6059,6 +6904,44 @@ app.get(
   }
 );
 
+/**
+ * @swagger
+ * /api/baileys/session/{sessionId}/webhook:
+ *   post:
+ *     summary: Set the webhook for a session (legacy)
+ *     description: Sets the main webhook for a specific WhatsApp session.
+ *     tags: [Webhook Management]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               webhookUrl:
+ *                 type: string
+ *     responses:
+ *       '200':
+ *         description: The webhook was set successfully.
+ *       '400':
+ *         description: Bad request, missing required parameters.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '403':
+ *         description: Forbidden, user does not have permission to access the session.
+ *       '404':
+ *         description: Session not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 app.post(
   '/api/baileys/session/:sessionId/webhook',
   checkSessionOwnership,
@@ -6172,6 +7055,33 @@ app.post(
   }
 );
 
+/**
+ * @swagger
+ * /api/baileys/session/{sessionId}/webhook:
+ *   get:
+ *     summary: Get the webhook for a session (legacy)
+ *     description: Retrieves the main webhook for a specific WhatsApp session.
+ *     tags: [Webhook Management]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       '200':
+ *         description: The webhook was retrieved successfully.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '403':
+ *         description: Forbidden, user does not have permission to access the session.
+ *       '404':
+ *         description: Session or webhook not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 app.get(
   '/api/baileys/session/:sessionId/webhook',
   checkSessionOwnership,
@@ -6245,6 +7155,33 @@ app.get(
   }
 );
 
+/**
+ * @swagger
+ * /api/baileys/session/{sessionId}/webhook:
+ *   delete:
+ *     summary: Delete the webhook for a session (legacy)
+ *     description: Deletes the main webhook for a specific WhatsApp session.
+ *     tags: [Webhook Management]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       '200':
+ *         description: The webhook was deleted successfully.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '403':
+ *         description: Forbidden, user does not have permission to access the session.
+ *       '404':
+ *         description: Session or webhook not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 app.delete(
   '/api/baileys/session/:sessionId/webhook',
   checkSessionOwnership,
@@ -6324,6 +7261,33 @@ app.delete(
 
 
 
+/**
+ * @swagger
+ * /api/baileys/session/{sessionId}/webhooks:
+ *   get:
+ *     summary: List all webhooks for a session
+ *     description: Retrieves a list of all webhooks for a specific WhatsApp session.
+ *     tags: [Webhook Management]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       '200':
+ *         description: A list of webhooks.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '403':
+ *         description: Forbidden, user does not have permission to access the session.
+ *       '404':
+ *         description: Session not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 app.get(
   '/api/baileys/session/:sessionId/webhooks',
   apiTokenAuth,
@@ -6382,7 +7346,44 @@ app.get(
   }
 );
 
-
+/**
+ * @swagger
+ * /api/baileys/session/{sessionId}/webhooks:
+ *   post:
+ *     summary: Create a new webhook
+ *     description: Creates a new webhook for a specific WhatsApp session.
+ *     tags: [Webhook Management]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               url:
+ *                 type: string
+ *     responses:
+ *       '200':
+ *         description: The webhook was created successfully.
+ *       '400':
+ *         description: Bad request, missing required parameters.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '403':
+ *         description: Forbidden, user does not have permission to access the session.
+ *       '404':
+ *         description: Session not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 app.post(
   '/api/baileys/session/:sessionId/webhooks',
   apiTokenAuth,
@@ -6520,6 +7521,38 @@ app.post(
 );
 
 
+/**
+ * @swagger
+ * /api/baileys/session/{sessionId}/webhooks/{webhookId}:
+ *   get:
+ *     summary: Get a specific webhook
+ *     description: Retrieves a specific webhook for a WhatsApp session.
+ *     tags: [Webhook Management]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: path
+ *         name: webhookId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       '200':
+ *         description: The webhook was retrieved successfully.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '403':
+ *         description: Forbidden, user does not have permission to access the session.
+ *       '404':
+ *         description: Session or webhook not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 app.get(
   '/api/baileys/session/:sessionId/webhooks/:webhookId',
   apiTokenAuth,
@@ -6586,7 +7619,46 @@ app.get(
   }
 );
 
-
+/**
+ * @swagger
+ * /api/baileys/session/{sessionId}/webhooks/{webhookId}:
+ *   put:
+ *     summary: Update a webhook
+ *     description: Updates a specific webhook for a WhatsApp session.
+ *     tags: [Webhook Management]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: path
+ *         name: webhookId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *     responses:
+ *       '200':
+ *         description: The webhook was updated successfully.
+ *       '400':
+ *         description: Bad request, missing required parameters.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '403':
+ *         description: Forbidden, user does not have permission to access the session.
+ *       '404':
+ *         description: Session or webhook not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 app.put(
   '/api/baileys/session/:sessionId/webhooks/:webhookId',
   apiTokenAuth,
@@ -6708,6 +7780,38 @@ app.put(
 );
 
 
+/**
+ * @swagger
+ * /api/baileys/session/{sessionId}/webhooks/{webhookId}:
+ *   delete:
+ *     summary: Delete a webhook
+ *     description: Deletes a specific webhook for a WhatsApp session.
+ *     tags: [Webhook Management]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: path
+ *         name: webhookId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       '200':
+ *         description: The webhook was deleted successfully.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '403':
+ *         description: Forbidden, user does not have permission to access the session.
+ *       '404':
+ *         description: Session or webhook not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 app.delete(
   '/api/baileys/session/:sessionId/webhooks/:webhookId',
   apiTokenAuth,
@@ -6768,7 +7872,38 @@ app.delete(
   }
 );
 
-
+/**
+ * @swagger
+ * /api/baileys/session/{sessionId}/webhooks/{webhookId}/toggle:
+ *   patch:
+ *     summary: Toggle a webhook
+ *     description: Toggles the active status of a specific webhook for a WhatsApp session.
+ *     tags: [Webhook Management]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: path
+ *         name: webhookId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       '200':
+ *         description: The webhook was toggled successfully.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '403':
+ *         description: Forbidden, user does not have permission to access the session.
+ *       '404':
+ *         description: Session or webhook not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 app.patch(
   '/api/baileys/session/:sessionId/webhooks/:webhookId/toggle',
   apiTokenAuth,
@@ -6861,6 +7996,40 @@ app.patch(
 );
 
 
+/**
+ * @swagger
+ * /api/baileys/session/{sessionId}/webhooks/{webhookId}/test:
+ *   post:
+ *     summary: Test a webhook
+ *     description: Sends a test event to a specific webhook.
+ *     tags: [Webhook Management]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: path
+ *         name: webhookId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       '200':
+ *         description: The test event was sent successfully.
+ *       '400':
+ *         description: Bad request, failed to send test event.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '403':
+ *         description: Forbidden, user does not have permission to access the session.
+ *       '404':
+ *         description: Session or webhook not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 app.post(
   '/api/baileys/session/:sessionId/webhooks/:webhookId/test',
   apiTokenAuth,
@@ -6984,6 +8153,14 @@ app.post(
 );
 
 
+/**
+ * Sends a message with advanced human-like behavior.
+ * @param {object} sock - The Baileys socket instance.
+ * @param {string} jid - The JID of the recipient.
+ * @param {string|object} message - The message to send.
+ * @param {object} options - The options for human-like behavior.
+ * @returns {Promise<object>} The sent message object and behavior stats.
+ */
 async function sendMessageWithAdvancedHumanBehavior(
   sock,
   jid,
@@ -7206,6 +8383,46 @@ async function sendMessageWithAdvancedHumanBehavior(
   }
 }
 
+/**
+ * @swagger
+ * /api/baileys/session/{sessionId}/smart-reply:
+ *   post:
+ *     summary: Send a smart reply
+ *     description: Sends a reply with advanced human-like behavior.
+ *     tags: [Messaging]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               to:
+ *                 type: string
+ *               message:
+ *                 type: string
+ *     responses:
+ *       '200':
+ *         description: The smart reply was sent successfully.
+ *       '400':
+ *         description: Bad request, missing required parameters.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '403':
+ *         description: Forbidden, user does not have permission to access the session.
+ *       '404':
+ *         description: Session not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 app.post(
   '/api/baileys/session/:sessionId/smart-reply',
   checkSessionOwnership,
@@ -7335,6 +8552,33 @@ app.post(
   }
 );
 
+/**
+ * @swagger
+ * /api/baileys/session/{sessionId}:
+ *   delete:
+ *     summary: Delete a session
+ *     description: Deletes a specific WhatsApp session.
+ *     tags: [Session Management]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       '200':
+ *         description: The session was deleted successfully.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '403':
+ *         description: Forbidden, user does not have permission to access the session.
+ *       '404':
+ *         description: Session not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 app.delete(
   '/api/baileys/session/:sessionId',
   checkSessionOwnership,
@@ -7433,6 +8677,46 @@ app.delete(
 
 
 
+/**
+ * @swagger
+ * /api/baileys/session/{sessionId}/contacts/check:
+ *   post:
+ *     summary: Check if contacts exist on WhatsApp
+ *     description: Checks if a list of phone numbers exist on WhatsApp.
+ *     tags: [Contact Management]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               numbers:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *     responses:
+ *       '200':
+ *         description: The contacts were checked successfully.
+ *       '400':
+ *         description: Bad request, missing required parameters.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '403':
+ *         description: Forbidden, user does not have permission to access the session.
+ *       '404':
+ *         description: Session not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 app.post(
   '/api/baileys/session/:sessionId/contacts/check',
   checkSessionOwnership,
@@ -7550,6 +8834,46 @@ app.post(
 
 
 
+/**
+ * @swagger
+ * /api/baileys/session/{sessionId}/contacts/info:
+ *   post:
+ *     summary: Get contact information
+ *     description: Retrieves information for a list of contacts.
+ *     tags: [Contact Management]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               contacts:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *     responses:
+ *       '200':
+ *         description: The contact information was retrieved successfully.
+ *       '400':
+ *         description: Bad request, missing required parameters.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '403':
+ *         description: Forbidden, user does not have permission to access the session.
+ *       '404':
+ *         description: Session not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 app.post(
   '/api/baileys/session/:sessionId/contacts/info',
   checkSessionOwnership,
@@ -7663,6 +8987,40 @@ app.post(
 
 
 
+/**
+ * @swagger
+ * /api/baileys/session/{sessionId}/contacts/profile:
+ *   get:
+ *     summary: Get a contact's profile picture
+ *     description: Retrieves the profile picture URL for a specific contact.
+ *     tags: [Contact Management]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: jid
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       '200':
+ *         description: The profile picture URL was retrieved successfully.
+ *       '400':
+ *         description: Bad request, missing required parameters.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '403':
+ *         description: Forbidden, user does not have permission to access the session.
+ *       '404':
+ *         description: Session or profile picture not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 app.get(
   '/api/baileys/session/:sessionId/contacts/profile',
   checkSessionOwnership,
@@ -7770,6 +9128,40 @@ app.get(
 
 
 
+/**
+ * @swagger
+ * /api/baileys/session/{sessionId}/contacts/status:
+ *   get:
+ *     summary: Get a contact's status
+ *     description: Retrieves the status for a specific contact.
+ *     tags: [Contact Management]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: jid
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       '200':
+ *         description: The contact status was retrieved successfully.
+ *       '400':
+ *         description: Bad request, missing required parameters.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '403':
+ *         description: Forbidden, user does not have permission to access the session.
+ *       '404':
+ *         description: Session not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 app.get(
   '/api/baileys/session/:sessionId/contacts/status',
   checkSessionOwnership,
@@ -7874,6 +9266,46 @@ app.get(
 
 
 
+/**
+ * @swagger
+ * /api/baileys/session/{sessionId}/contacts/block:
+ *   post:
+ *     summary: Block contacts
+ *     description: Blocks a list of contacts.
+ *     tags: [Contact Management]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               contacts:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *     responses:
+ *       '200':
+ *         description: The contacts were blocked successfully.
+ *       '400':
+ *         description: Bad request, missing required parameters.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '403':
+ *         description: Forbidden, user does not have permission to access the session.
+ *       '404':
+ *         description: Session not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 app.post(
   '/api/baileys/session/:sessionId/contacts/block',
   checkSessionOwnership,
@@ -7981,6 +9413,46 @@ app.post(
 
 
 
+/**
+ * @swagger
+ * /api/baileys/session/{sessionId}/contacts/unblock:
+ *   post:
+ *     summary: Unblock contacts
+ *     description: Unblocks a list of contacts.
+ *     tags: [Contact Management]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               contacts:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *     responses:
+ *       '200':
+ *         description: The contacts were unblocked successfully.
+ *       '400':
+ *         description: Bad request, missing required parameters.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '403':
+ *         description: Forbidden, user does not have permission to access the session.
+ *       '404':
+ *         description: Session not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 app.post(
   '/api/baileys/session/:sessionId/contacts/unblock',
   checkSessionOwnership,
@@ -8037,6 +9509,17 @@ app.post(
   }
 );
 
+/**
+ * @swagger
+ * /api/baileys/info:
+ *   get:
+ *     summary: Get API information
+ *     description: Retrieves information about the API.
+ *     tags: [System]
+ *     responses:
+ *       '200':
+ *         description: The API information was retrieved successfully.
+ */
 app.get('/api/baileys/info', (req, res) => {
   res.json({
     name: 'Baileys Multi-Session API',
@@ -8199,6 +9682,10 @@ app.use((error, req, res, next) => {
 });
 
 
+/**
+ * Initializes the application.
+ * @returns {Promise<void>}
+ */
 async function initializeApp() {
 
   const dirs = ['./auth_sessions', './uploads', './downloads'];

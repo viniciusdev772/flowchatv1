@@ -1,12 +1,26 @@
 const { MongoClient } = require('mongodb');
 require('dotenv').config();
 
+/**
+ * @class Database
+ * @classdesc Manages the connection to the MongoDB database. This class follows the singleton pattern to ensure a single database connection.
+ */
 class Database {
+  /**
+   * @constructor
+   * Initializes the database client and connection to null.
+   */
   constructor() {
     this.client = null;
     this.db = null;
   }
 
+  /**
+   * Connects to the MongoDB database using the URI and database name from environment variables.
+   * If a connection is already established, it returns the existing database instance.
+   * @returns {Promise<Db>} A promise that resolves to the database instance.
+   * @throws {Error} If the connection to MongoDB fails.
+   */
   async connect() {
     try {
       if (this.client) {
@@ -46,6 +60,10 @@ class Database {
     }
   }
 
+  /**
+   * Disconnects from the MongoDB database.
+   * @returns {Promise<void>}
+   */
   async disconnect() {
     try {
       if (this.client) {
@@ -59,19 +77,36 @@ class Database {
     }
   }
 
+  /**
+   * Gets the database instance.
+   * @returns {Db|null} The database instance, or null if not connected.
+   */
   getDb() {
     return this.db;
   }
 
+  /**
+   * Gets the MongoClient instance.
+   * @returns {MongoClient|null} The MongoClient instance, or null if not connected.
+   */
   getClient() {
     return this.client;
   }
 
+  /**
+   * Checks if the database is connected.
+   * @returns {boolean} True if connected, false otherwise.
+   */
   isConnected() {
     return this.db !== null;
   }
 
-
+  /**
+   * Gets a collection from the database.
+   * @param {string} name - The name of the collection.
+   * @returns {Collection} The collection instance.
+   * @throws {Error} If the database is not connected.
+   */
   getCollection(name) {
     const db = this.getDb();
     if (!db) {
@@ -81,7 +116,10 @@ class Database {
   }
 }
 
-
+/**
+ * @type {Database}
+ * @description A singleton instance of the Database class.
+ */
 const database = new Database();
 
 module.exports = database;

@@ -3,24 +3,34 @@ const fs = require('fs').promises;
 const path = require('path');
 const crypto = require('crypto');
 
-
-
-
+/**
+ * @class ZipGenerator
+ * @description Generates ZIP archives from scraped data or search results,
+ * including JSON, CSV, HTML reports, and a README file.
+ */
 class ZipGenerator {
+  /**
+   * @constructor
+   * @param {object} options - Configuration options for the ZIP generator.
+   * @param {string} [options.outputDir] - The directory to save the generated ZIP files.
+   * @param {number} [options.compressionLevel=6] - The compression level for the ZIP archive (0-9).
+   * @param {number} [options.maxFileSize] - The maximum file size for the ZIP archive.
+   */
   constructor(options = {}) {
     this.outputDir = options.outputDir || path.join(process.cwd(), 'downloads', 'exports');
     this.compressionLevel = options.compressionLevel || 6;
-    this.maxFileSize = options.maxFileSize || 50 * 1024 * 1024;
+    this.maxFileSize = options.maxFileSize || 50 * 1024 * 1024; // 50 MB
     this.baseUrl = process.env.BASE_URL || 'http://localhost:3000';
   }
 
-
-
-
+  /**
+   * Generates a download URL for a given file name.
+   * @param {string} fileName - The name of the file.
+   * @returns {{url: string, downloadUrl: string}} - An object containing the relative and full download URLs.
+   */
   generateDownloadUrl(fileName) {
     const relativePath = `/downloads/exports/${fileName}`;
     const fullUrl = `${this.baseUrl}${relativePath}`;
-
     console.log(`📎 Generated download URL: ${fullUrl}`);
     return {
       url: relativePath,
@@ -28,9 +38,10 @@ class ZipGenerator {
     };
   }
 
-
-
-
+  /**
+   * Ensures that the output directory exists.
+   * @returns {Promise<void>}
+   */
   async ensureOutputDir() {
     try {
       await fs.mkdir(this.outputDir, { recursive: true });
@@ -40,9 +51,12 @@ class ZipGenerator {
     }
   }
 
-
-
-
+  /**
+   * Generates a ZIP file from scraped data.
+   * @param {object} data - The scraped data.
+   * @param {object} options - Options for generating the ZIP file.
+   * @returns {Promise<object>} - A promise that resolves with information about the generated ZIP file.
+   */
   async generateScrapingZip(data, options = {}) {
     await this.ensureOutputDir();
 
@@ -75,64 +89,46 @@ class ZipGenerator {
       });
 
       archive.pipe(output);
-
-
       archive.append(JSON.stringify(data, null, 2), { name: 'scraped-data.json' });
-
-
       if (data.rawHtml) {
         archive.append(data.rawHtml, { name: 'page.html' });
       }
-
-
       if (data.content) {
         archive.append(data.content, { name: 'content.txt' });
       }
-
-
       if (data.jsonLd && data.jsonLd.length > 0) {
         archive.append(JSON.stringify(data.jsonLd, null, 2), { name: 'structured-data.json' });
       }
-
-
       const metadata = this.generateMetadata(data);
       archive.append(JSON.stringify(metadata, null, 2), { name: 'metadata.json' });
-
-
       if (data.tables && data.tables.length > 0) {
         data.tables.forEach((table, index) => {
           const csv = this.tableToCsv(table);
           archive.append(csv, { name: `table-${index + 1}.csv` });
         });
       }
-
-
       if (data.links && data.links.length > 0) {
         const linksCsv = this.linksToCsv(data.links);
         archive.append(linksCsv, { name: 'links.csv' });
       }
-
-
       if (data.images && data.images.length > 0) {
         const imagesCsv = this.imagesToCsv(data.images);
         archive.append(imagesCsv, { name: 'images.csv' });
       }
-
-
       const htmlReport = this.generateHtmlReport(data);
       archive.append(htmlReport, { name: 'report.html' });
-
-
       const readme = this.generateReadme(data);
       archive.append(readme, { name: 'README.md' });
-
       archive.finalize();
     });
   }
 
-
-
-
+  /**
+   * Generates a ZIP file from search results.
+   * @param {object} searchData - The search results data.
+   * @param {object} options - Options for generating the ZIP file.
+   * @returns {Promise<object>} - A promise that resolves with information about the generated ZIP file.
+   */
   async generateSearchZip(searchData, options = {}) {
     await this.ensureOutputDir();
 
@@ -165,39 +161,30 @@ class ZipGenerator {
       });
 
       archive.pipe(output);
-
-
       archive.append(JSON.stringify(searchData, null, 2), { name: 'search-results.json' });
-
-
       if (searchData.results && searchData.results.length > 0) {
         const resultsCsv = this.searchResultsToCsv(searchData.results);
         archive.append(resultsCsv, { name: 'results.csv' });
       }
-
-
       const resultsBySource = this.groupResultsBySource(searchData.results || []);
       for (const [source, results] of Object.entries(resultsBySource)) {
         if (results.length > 0) {
           archive.append(JSON.stringify(results, null, 2), { name: `results-${source}.json` });
         }
       }
-
-
       const htmlReport = this.generateSearchHtmlReport(searchData);
       archive.append(htmlReport, { name: 'search-report.html' });
-
-
       const readme = this.generateSearchReadme(searchData);
       archive.append(readme, { name: 'README.md' });
-
       archive.finalize();
     });
   }
 
-
-
-
+  /**
+   * Generates metadata for a scraped page.
+   * @param {object} data - The scraped data.
+   * @returns {object} - The metadata object.
+   */
   generateMetadata(data) {
     return {
       url: data.url,
@@ -212,32 +199,32 @@ class ZipGenerator {
     };
   }
 
-
-
-
+  /**
+   * Converts a table object to a CSV string.
+   * @param {object} table - The table object.
+   * @returns {string} - The CSV string.
+   */
   tableToCsv(table) {
     const rows = [];
-
     if (table.headers && table.headers.length > 0) {
       rows.push(table.headers.map(h => this.escapeCsv(h)).join(','));
     }
-
     if (table.rows && table.rows.length > 0) {
       table.rows.forEach(row => {
         rows.push(row.map(cell => this.escapeCsv(cell)).join(','));
       });
     }
-
     return rows.join('\n');
   }
 
-
-
-
+  /**
+   * Converts an array of links to a CSV string.
+   * @param {object[]} links - The array of link objects.
+   * @returns {string} - The CSV string.
+   */
   linksToCsv(links) {
     const headers = ['Text', 'URL', 'Is External'];
     const rows = [headers.join(',')];
-
     links.forEach(link => {
       const row = [
         this.escapeCsv(link.text || ''),
@@ -246,17 +233,17 @@ class ZipGenerator {
       ].join(',');
       rows.push(row);
     });
-
     return rows.join('\n');
   }
 
-
-
-
+  /**
+   * Converts an array of images to a CSV string.
+   * @param {object[]} images - The array of image objects.
+   * @returns {string} - The CSV string.
+   */
   imagesToCsv(images) {
     const headers = ['URL', 'Alt Text', 'Title', 'Width', 'Height'];
     const rows = [headers.join(',')];
-
     images.forEach(img => {
       const row = [
         this.escapeCsv(img.src || ''),
@@ -267,17 +254,17 @@ class ZipGenerator {
       ].join(',');
       rows.push(row);
     });
-
     return rows.join('\n');
   }
 
-
-
-
+  /**
+   * Converts search results to a CSV string.
+   * @param {object[]} results - The array of search result objects.
+   * @returns {string} - The CSV string.
+   */
   searchResultsToCsv(results) {
     const headers = ['Title', 'URL', 'Snippet', 'Source', 'Relevance Score'];
     const rows = [headers.join(',')];
-
     results.forEach(result => {
       const row = [
         this.escapeCsv(result.title || ''),
@@ -288,16 +275,16 @@ class ZipGenerator {
       ].join(',');
       rows.push(row);
     });
-
     return rows.join('\n');
   }
 
-
-
-
+  /**
+   * Groups search results by their source.
+   * @param {object[]} results - The array of search result objects.
+   * @returns {object} - An object with results grouped by source.
+   */
   groupResultsBySource(results) {
     const grouped = {};
-
     results.forEach(result => {
       const source = result.source || 'unknown';
       if (!grouped[source]) {
@@ -305,28 +292,29 @@ class ZipGenerator {
       }
       grouped[source].push(result);
     });
-
     return grouped;
   }
 
-
-
-
+  /**
+   * Escapes a value for use in a CSV file.
+   * @param {string|number} value - The value to escape.
+   * @returns {string} - The escaped value.
+   */
   escapeCsv(value) {
     if (typeof value !== 'string') {
       value = String(value);
     }
-
     if (value.includes(',') || value.includes('"') || value.includes('\n')) {
       return `"${value.replace(/"/g, '""')}"`;
     }
-
     return value;
   }
 
-
-
-
+  /**
+   * Generates an HTML report for scraped data.
+   * @param {object} data - The scraped data.
+   * @returns {string} - The HTML report as a string.
+   */
   generateHtmlReport(data) {
     return `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -432,9 +420,11 @@ class ZipGenerator {
 </html>`;
   }
 
-
-
-
+  /**
+   * Generates an HTML report for search results.
+   * @param {object} searchData - The search results data.
+   * @returns {string} - The HTML report as a string.
+   */
   generateSearchHtmlReport(searchData) {
     return `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -513,9 +503,11 @@ class ZipGenerator {
 </html>`;
   }
 
-
-
-
+  /**
+   * Generates a README.md file for a scraping export.
+   * @param {object} data - The scraped data.
+   * @returns {string} - The README content.
+   */
   generateReadme(data) {
     return `# Web Scraping Export
 
@@ -567,9 +559,11 @@ FlowChat API Web Scraper v2.0.0
 https://github.com/your-repo/flowchat-api`;
   }
 
-
-
-
+  /**
+   * Generates a README.md file for a search export.
+   * @param {object} searchData - The search results data.
+   * @returns {string} - The README content.
+   */
   generateSearchReadme(searchData) {
     return `# Web Search Export
 
@@ -622,14 +616,15 @@ FlowChat API Web Search v2.0.0
 https://github.com/your-repo/flowchat-api`;
   }
 
-
-
-
+  /**
+   * Escapes HTML special characters in a string.
+   * @param {string} text - The text to escape.
+   * @returns {string} - The escaped text.
+   */
   escapeHtml(text) {
     if (typeof text !== 'string') {
       text = String(text);
     }
-
     return text
       .replace(/&/g, '&amp;')
       .replace(/</g, '&lt;')
@@ -638,19 +633,19 @@ https://github.com/your-repo/flowchat-api`;
       .replace(/'/g, '&#39;');
   }
 
-
-
-
-  async cleanupOldFiles(maxAge = 7 * 24 * 60 * 60 * 1000) {
+  /**
+   * Cleans up old ZIP files from the output directory.
+   * @param {number} [maxAge] - The maximum age of files to keep, in milliseconds.
+   * @returns {Promise<void>}
+   */
+  async cleanupOldFiles(maxAge = 7 * 24 * 60 * 60 * 1000) { // 7 days
     try {
       const files = await fs.readdir(this.outputDir);
       const now = Date.now();
-
       for (const file of files) {
         if (file.endsWith('.zip')) {
           const filePath = path.join(this.outputDir, file);
           const stats = await fs.stat(filePath);
-
           if (now - stats.mtime.getTime() > maxAge) {
             await fs.unlink(filePath);
             console.log(`🗑️ Cleaned up old ZIP file: ${file}`);

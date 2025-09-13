@@ -1,8 +1,16 @@
 const database = require('../config/database');
 
-
-
-
+/**
+ * Middleware to authenticate requests using an API token.
+ * It checks for a 'Bearer' token in the 'Authorization' header,
+ * validates it against the database, and attaches the user and token
+ * information to the request object.
+ *
+ * @param {object} req - The Express request object.
+ * @param {object} res - The Express response object.
+ * @param {function} next - The next middleware function.
+ * @returns {void}
+ */
 const apiTokenAuth = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
@@ -17,7 +25,6 @@ const apiTokenAuth = async (req, res, next) => {
 
     const token = authHeader.substring(7);
     console.log('🔍 Received token:', token.substring(0, 20) + '...');
-
 
     if (!token.startsWith('baileys_')) {
       console.log('❌ Token does not start with baileys_ prefix');
@@ -35,7 +42,6 @@ const apiTokenAuth = async (req, res, next) => {
         message: 'Banco de dados não disponível'
       });
     }
-
 
     console.log('🔍 Searching for token in database...');
     const tokenDoc = await db.collection('api_tokens').findOne({
@@ -55,14 +61,12 @@ const apiTokenAuth = async (req, res, next) => {
       });
     }
 
-
     if (tokenDoc.expiresAt && new Date() > tokenDoc.expiresAt) {
       return res.status(401).json({
         success: false,
         message: 'Token de API expirado'
       });
     }
-
 
     const user = await db.collection('users').findOne({
       _id: tokenDoc.userId
@@ -75,12 +79,10 @@ const apiTokenAuth = async (req, res, next) => {
       });
     }
 
-
     await db.collection('api_tokens').updateOne(
       { _id: tokenDoc._id },
       { $set: { lastUsedAt: new Date() } }
     );
-
 
     req.user = user;
     req.apiToken = tokenDoc;

@@ -6,14 +6,42 @@ const { getEnrichedSessionData } = require('../app');
 
 const router = express.Router();
 
+/**
+ * @fileoverview This file defines the routes for managing WhatsApp sessions.
+ * @module routes/sessions
+ */
 
-
-
-
+/**
+ * @swagger
+ * /sessions/list:
+ *   get:
+ *     summary: List all active sessions for the authenticated user
+ *     description: Retrieves a list of all active WhatsApp sessions associated with the authenticated user.
+ *     tags: [Sessions]
+ *     security:
+ *       - ApiTokenAuth: []
+ *     responses:
+ *       '200':
+ *         description: A list of active sessions.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 sessions:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Session'
+ *                 total:
+ *                   type: integer
+ *       '500':
+ *         description: Internal server error.
+ */
 router.get('/list', authenticateToken, async (req, res) => {
   try {
     const userId = req.user._id;
-
 
     const sessions = global.whatsappSessions;
     if (!sessions) {
@@ -23,11 +51,9 @@ router.get('/list', authenticateToken, async (req, res) => {
       });
     }
 
-
     const userSessions = [];
     for (const [sessionId, sessionData] of sessions.entries()) {
       if (sessionData.userId && sessionData.userId.toString() === userId.toString()) {
-
         const enrichedData = await getEnrichedSessionData(sessionId, sessionData);
         userSessions.push(enrichedData);
       }
@@ -38,7 +64,6 @@ router.get('/list', authenticateToken, async (req, res) => {
       sessions: userSessions,
       total: userSessions.length
     });
-
   } catch (error) {
     console.error('Error listing sessions:', error);
     res.status(500).json({
@@ -48,14 +73,68 @@ router.get('/list', authenticateToken, async (req, res) => {
   }
 });
 
-
+/**
+ * @swagger
+ * /sessions/{sessionId}/groups:
+ *   get:
+ *     summary: Get all groups for a session
+ *     description: Retrieves a list of all groups that the WhatsApp session is a part of.
+ *     tags: [Groups]
+ *     security:
+ *       - ApiTokenAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The ID of the session.
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 50
+ *         description: The maximum number of groups to return.
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: A search term to filter groups by name.
+ *     responses:
+ *       '200':
+ *         description: A list of groups.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 groups:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Group'
+ *                 total:
+ *                   type: integer
+ *                 returned:
+ *                   type: integer
+ *                 sessionId:
+ *                   type: string
+ *                 filters:
+ *                   type: object
+ *       '400':
+ *         description: Session not connected.
+ *       '404':
+ *         description: Session not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 router.get('/:sessionId/groups', authenticateToken, async (req, res) => {
   try {
     const { sessionId } = req.params;
     const userId = req.user._id;
     const limit = Math.min(Math.max(parseInt(req.query.limit) || 50, 1), 100);
     const search = req.query.search?.trim();
-
 
     const sessions = global.whatsappSessions;
     if (!sessions || !sessions.has(sessionId)) {
@@ -66,7 +145,6 @@ router.get('/:sessionId/groups', authenticateToken, async (req, res) => {
     }
 
     const session = sessions.get(sessionId);
-
 
     if (session.userId && session.userId.toString() !== userId.toString()) {
       return res.status(403).json({
@@ -82,11 +160,9 @@ router.get('/:sessionId/groups', authenticateToken, async (req, res) => {
       });
     }
 
-
     const sock = session.sock;
     const groups = await sock.groupFetchAllParticipating();
     let groupEntries = Object.entries(groups);
-
 
     if (search) {
       const searchLower = search.toLowerCase();
@@ -96,14 +172,11 @@ router.get('/:sessionId/groups', authenticateToken, async (req, res) => {
       });
     }
 
-
     const limitedEntries = groupEntries.slice(0, limit);
-
 
     const groupList = [];
     for (const [groupId, groupData] of limitedEntries) {
       try {
-
         const groupMetadata = await sock.groupMetadata(groupId);
         const participants = Array.isArray(groupMetadata.participants)
           ? groupMetadata.participants
@@ -147,7 +220,6 @@ router.get('/:sessionId/groups', authenticateToken, async (req, res) => {
       }
     }
 
-
     groupList.sort((a, b) => a.name.localeCompare(b.name));
 
     res.json({
@@ -161,7 +233,6 @@ router.get('/:sessionId/groups', authenticateToken, async (req, res) => {
         limit: limit
       }
     });
-
   } catch (error) {
     console.error('Error listing groups for session:', error);
     res.status(500).json({

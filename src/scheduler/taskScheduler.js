@@ -2,13 +2,23 @@ const cron = require('node-cron');
 const database = require('../config/database');
 const { ObjectId } = require('mongodb');
 
+/**
+ * @class TaskScheduler
+ * @description A class to schedule and execute WhatsApp tasks.
+ */
 class TaskScheduler {
+  /**
+   * Creates an instance of TaskScheduler.
+   */
   constructor() {
     this.scheduledTasks = new Map();
     this.isInitialized = false;
   }
 
-
+  /**
+   * Initializes the task scheduler.
+   * @returns {Promise<void>}
+   */
   async initialize() {
     if (this.isInitialized) return;
 
@@ -29,7 +39,10 @@ class TaskScheduler {
     }
   }
 
-
+  /**
+   * Loads scheduled tasks from the database.
+   * @returns {Promise<void>}
+   */
   async loadScheduledTasks() {
     try {
       const db = database.getDb();
@@ -55,7 +68,11 @@ class TaskScheduler {
     }
   }
 
-
+  /**
+   * Schedules a task.
+   * @param {object} task - The task object to schedule.
+   * @returns {void}
+   */
   scheduleTask(task) {
     try {
       const taskId = task._id.toString();
@@ -92,7 +109,11 @@ class TaskScheduler {
     }
   }
 
-
+  /**
+   * Generates a cron expression for a task.
+   * @param {object} task - The task object.
+   * @returns {string|null} The cron expression, or null if not applicable.
+   */
   generateCronExpression(task) {
     if (task.cronExpression) {
       return task.cronExpression;
@@ -127,7 +148,11 @@ class TaskScheduler {
     }
   }
 
-
+  /**
+   * Executes a scheduled task.
+   * @param {object} task - The task object to execute.
+   * @returns {Promise<void>}
+   */
   async executeScheduledTask(task) {
     try {
       const db = database.getDb();
@@ -192,7 +217,11 @@ class TaskScheduler {
     }
   }
 
-
+  /**
+   * Calculates the typing delay for a message.
+   * @param {string} message - The message text.
+   * @returns {number} The typing delay in milliseconds.
+   */
   calculateTypingDelay(message) {
     const baseDelay = 1000;
     const wordsPerMinute = 60;
@@ -206,7 +235,13 @@ class TaskScheduler {
     return Math.floor(typingTime * randomFactor);
   }
 
-
+  /**
+   * Simulates typing presence in a chat.
+   * @param {object} sock - The Baileys socket instance.
+   * @param {string} targetJid - The JID of the target chat.
+   * @param {number} duration - The duration to simulate typing for.
+   * @returns {Promise<void>}
+   */
   async simulateTyping(sock, targetJid, duration) {
     try {
       console.log(`🔤 Simulando digitação por ${duration}ms para ${targetJid}`);
@@ -229,7 +264,11 @@ class TaskScheduler {
     }
   }
 
-
+  /**
+   * Executes a task.
+   * @param {object} task - The task object to execute.
+   * @returns {Promise<object>} An object with the result of the execution.
+   */
   async executeTask(task) {
     try {
       const sessions = global.whatsappSessions;
@@ -351,7 +390,13 @@ class TaskScheduler {
     }
   }
 
-
+  /**
+   * Executes a task for a single target.
+   * @param {object} sock - The Baileys socket instance.
+   * @param {object} task - The task object.
+   * @param {string} targetJid - The JID of the target.
+   * @returns {Promise<object>} An object with the result of the execution.
+   */
   async executeSingleTarget(sock, task, targetJid) {
     const fs = require('fs');
     const { delay } = require('@whiskeysockets/baileys');
@@ -573,7 +618,10 @@ class TaskScheduler {
     }
   }
 
-
+  /**
+   * Checks for and executes tasks that are due.
+   * @returns {Promise<void>}
+   */
   async checkAndExecuteTasks() {
     try {
       const db = database.getDb();
@@ -603,7 +651,11 @@ class TaskScheduler {
     }
   }
 
-
+  /**
+   * Calculates the next execution time for a recurring task.
+   * @param {object} task - The task object.
+   * @returns {Date|null} The next execution time, or null if not applicable.
+   */
   calculateNextExecution(task) {
     if (task.scheduleType === 'once') return null;
     if (!task.scheduledTime) return null;
@@ -633,7 +685,11 @@ class TaskScheduler {
     return next;
   }
 
-
+  /**
+   * Unschedules a task.
+   * @param {string} taskId - The ID of the task to unschedule.
+   * @returns {void}
+   */
   unscheduleTask(taskId) {
     const cronJob = this.scheduledTasks.get(taskId);
     if (cronJob) {
@@ -644,7 +700,11 @@ class TaskScheduler {
     }
   }
 
-
+  /**
+   * Reschedules a task.
+   * @param {object} taskData - The task data.
+   * @returns {Promise<void>}
+   */
   async rescheduleTask(taskData) {
     const taskId = taskData._id ? taskData._id.toString() : taskData.id;
 
@@ -657,7 +717,10 @@ class TaskScheduler {
     }
   }
 
-
+  /**
+   * Gets statistics about the scheduled tasks.
+   * @returns {object} An object with statistics.
+   */
   getStats() {
     return {
       scheduledTasksCount: this.scheduledTasks.size,
@@ -666,7 +729,10 @@ class TaskScheduler {
     };
   }
 
-
+  /**
+   * Stops all scheduled tasks.
+   * @returns {void}
+   */
   stopAll() {
     console.log('🛑 Parando todos os agendamentos...');
     for (const [taskId, cronJob] of this.scheduledTasks) {

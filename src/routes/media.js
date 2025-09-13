@@ -6,57 +6,57 @@ const database = require('../config/database');
 
 const router = express.Router();
 
+/**
+ * @fileoverview This file defines the routes for managing media files.
+ * @module routes/media
+ */
 
 const DOWNLOADS_COLLECTION = 'downloaded_files';
 const SESSIONS_COLLECTION = 'whatsapp_sessions';
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+/**
+ * @swagger
+ * /media/session/{sessionId}:
+ *   get:
+ *     summary: List media files for a session
+ *     description: Retrieves a list of media files associated with a specific session, or from the general 'uploads' directory.
+ *     tags: [Media]
+ *     security:
+ *       - ApiTokenAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The ID of the session, or 'uploads' for general files.
+ *     responses:
+ *       '200':
+ *         description: A list of media files.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 sessionId:
+ *                   type: string
+ *                 sessionName:
+ *                   type: string
+ *                 media:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                 totalFiles:
+ *                   type: integer
+ *                 totalSize:
+ *                   type: integer
+ *       '404':
+ *         description: Session not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 router.get('/session/:sessionId', authenticateToken, async (req, res) => {
   try {
     const { sessionId } = req.params;
@@ -72,7 +72,6 @@ router.get('/session/:sessionId', authenticateToken, async (req, res) => {
 
     const getFileType = (mimetype, filename) => {
       if (!mimetype) {
-
         const ext = path.extname(filename).toLowerCase();
         if (['.jpg', '.jpeg', '.png', '.gif', '.webp'].includes(ext)) return 'image';
         if (['.mp4', '.avi', '.mov', '.wmv', '.webm'].includes(ext)) return 'video';
@@ -93,7 +92,6 @@ router.get('/session/:sessionId', authenticateToken, async (req, res) => {
     let media = [];
 
     if (sessionId === 'uploads') {
-
       const uploadsDir = path.join(process.cwd(), 'uploads');
       try {
         const uploadFiles = await fs.readdir(uploadsDir, { withFileTypes: true });
@@ -123,7 +121,6 @@ router.get('/session/:sessionId', authenticateToken, async (req, res) => {
         console.warn('Uploads directory not accessible:', error.message);
       }
     } else {
-
       const sessions = global.whatsappSessions;
       if (!sessions || !sessions.has(sessionId)) {
         return res.status(404).json({
@@ -140,16 +137,13 @@ router.get('/session/:sessionId', authenticateToken, async (req, res) => {
         });
       }
 
-
       const mediaFiles = await db.collection(DOWNLOADS_COLLECTION)
         .find({ sessionId: sessionId })
         .sort({ createdAt: -1 })
         .toArray();
 
-
       for (const mediaFile of mediaFiles) {
         const fileType = getFileType(mediaFile.mimetype, mediaFile.originalFileName);
-
 
         const filePath = mediaFile.filePath;
         let fileExists = true;
@@ -203,40 +197,48 @@ router.get('/session/:sessionId', authenticateToken, async (req, res) => {
   }
 });
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+/**
+ * @swagger
+ * /media/download/{sessionId}/{filename}:
+ *   get:
+ *     summary: Download a media file
+ *     description: Downloads a specific media file from a session or the 'uploads' directory.
+ *     tags: [Media]
+ *     security:
+ *       - ApiTokenAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The ID of the session, or 'uploads' for general files.
+ *       - in: path
+ *         name: filename
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The name of the file to download.
+ *     responses:
+ *       '200':
+ *         description: The media file to download.
+ *         content:
+ *           application/octet-stream:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *       '400':
+ *         description: Invalid filename.
+ *       '404':
+ *         description: Session or file not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 router.get('/download/:sessionId/:filename', authenticateToken, async (req, res) => {
   try {
     const { sessionId, filename } = req.params;
     const userId = req.user.id || req.user._id?.toString();
     const db = database.getDb();
-
 
     if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
       return res.status(400).json({
@@ -250,7 +252,6 @@ router.get('/download/:sessionId/:filename', authenticateToken, async (req, res)
     let mimetype = 'application/octet-stream';
 
     if (sessionId === 'uploads') {
-
       const uploadsPath = path.join(process.cwd(), 'uploads', filename);
       try {
         await fs.access(uploadsPath);
@@ -263,7 +264,6 @@ router.get('/download/:sessionId/:filename', authenticateToken, async (req, res)
         });
       }
     } else {
-
       const sessions = global.whatsappSessions;
       if (!sessions || !sessions.has(sessionId)) {
         return res.status(404).json({
@@ -280,10 +280,7 @@ router.get('/download/:sessionId/:filename', authenticateToken, async (req, res)
         });
       }
 
-
       if (db) {
-
-
         const mediaFile = await db.collection(DOWNLOADS_COLLECTION).findOne({
           sessionId: sessionId,
           $or: [
@@ -297,7 +294,6 @@ router.get('/download/:sessionId/:filename', authenticateToken, async (req, res)
           originalFileName = mediaFile.originalFileName || filename;
           mimetype = mediaFile.mimetype || 'application/octet-stream';
 
-
           try {
             await fs.access(filePath);
           } catch (error) {
@@ -307,7 +303,6 @@ router.get('/download/:sessionId/:filename', authenticateToken, async (req, res)
             });
           }
         } else {
-
           const downloadsPath = path.join(process.cwd(), 'downloads', filename);
           try {
             await fs.access(downloadsPath);
@@ -320,7 +315,6 @@ router.get('/download/:sessionId/:filename', authenticateToken, async (req, res)
           }
         }
       } else {
-
         const downloadsPath = path.join(process.cwd(), 'downloads', filename);
         try {
           await fs.access(downloadsPath);
@@ -341,10 +335,8 @@ router.get('/download/:sessionId/:filename', authenticateToken, async (req, res)
       });
     }
 
-
     res.setHeader('Content-Disposition', `attachment; filename="${originalFileName}"`);
     res.setHeader('Content-Type', mimetype);
-
 
     const fileStream = require('fs').createReadStream(filePath);
     fileStream.pipe(res);
@@ -359,40 +351,48 @@ router.get('/download/:sessionId/:filename', authenticateToken, async (req, res)
   }
 });
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+/**
+ * @swagger
+ * /media/preview/{sessionId}/{filename}:
+ *   get:
+ *     summary: Preview a media file
+ *     description: Previews a specific media file from a session or the 'uploads' directory. Only works for images.
+ *     tags: [Media]
+ *     security:
+ *       - ApiTokenAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The ID of the session, or 'uploads' for general files.
+ *       - in: path
+ *         name: filename
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The name of the file to preview.
+ *     responses:
+ *       '200':
+ *         description: The media file to preview.
+ *         content:
+ *           image/*:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *       '400':
+ *         description: Invalid filename or file is not an image.
+ *       '404':
+ *         description: Session or file not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 router.get('/preview/:sessionId/:filename', authenticateToken, async (req, res) => {
   try {
     const { sessionId, filename } = req.params;
     const userId = req.user.id || req.user._id?.toString();
     const db = database.getDb();
-
 
     if (filename.includes('..') || filename.includes('/') || filename.includes('\\')) {
       return res.status(400).json({
@@ -405,7 +405,6 @@ router.get('/preview/:sessionId/:filename', authenticateToken, async (req, res) 
     let mimetype = 'application/octet-stream';
 
     if (sessionId === 'uploads') {
-
       const uploadsPath = path.join(process.cwd(), 'uploads', filename);
       try {
         await fs.access(uploadsPath);
@@ -417,7 +416,6 @@ router.get('/preview/:sessionId/:filename', authenticateToken, async (req, res) 
         });
       }
     } else {
-
       const sessions = global.whatsappSessions;
       if (!sessions || !sessions.has(sessionId)) {
         return res.status(404).json({
@@ -434,10 +432,7 @@ router.get('/preview/:sessionId/:filename', authenticateToken, async (req, res) 
         });
       }
 
-
       if (db) {
-
-
         const mediaFile = await db.collection(DOWNLOADS_COLLECTION).findOne({
           sessionId: sessionId,
           $or: [
@@ -450,7 +445,6 @@ router.get('/preview/:sessionId/:filename', authenticateToken, async (req, res) 
           filePath = mediaFile.filePath;
           mimetype = mediaFile.mimetype || 'application/octet-stream';
 
-
           try {
             await fs.access(filePath);
           } catch (error) {
@@ -460,7 +454,6 @@ router.get('/preview/:sessionId/:filename', authenticateToken, async (req, res) 
             });
           }
         } else {
-
           const downloadsPath = path.join(process.cwd(), 'downloads', filename);
           try {
             await fs.access(downloadsPath);
@@ -473,7 +466,6 @@ router.get('/preview/:sessionId/:filename', authenticateToken, async (req, res) 
           }
         }
       } else {
-
         const downloadsPath = path.join(process.cwd(), 'downloads', filename);
         try {
           await fs.access(downloadsPath);
@@ -494,10 +486,8 @@ router.get('/preview/:sessionId/:filename', authenticateToken, async (req, res) 
       });
     }
 
-
     let contentType = mimetype;
     if (!contentType || contentType === 'application/octet-stream') {
-
       const ext = path.extname(filename).toLowerCase();
       switch (ext) {
         case '.jpg':
@@ -518,7 +508,6 @@ router.get('/preview/:sessionId/:filename', authenticateToken, async (req, res) 
       }
     }
 
-
     if (!contentType.startsWith('image/')) {
       return res.status(400).json({
         success: false,
@@ -528,7 +517,6 @@ router.get('/preview/:sessionId/:filename', authenticateToken, async (req, res) 
 
     res.setHeader('Content-Type', contentType);
     res.setHeader('Cache-Control', 'public, max-age=31536000');
-
 
     const fileStream = require('fs').createReadStream(filePath);
     fileStream.pipe(res);
