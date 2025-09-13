@@ -13,7 +13,19 @@ const {
 } = require('../ai/tools');
 const router = express.Router();
 
+/**
+ * @fileoverview This file contains the routes for the AI assistant.
+ * It handles chat requests, tool usage, and other AI-related functionalities.
+ * @module routes/ai
+ */
 
+/**
+ * Processes a string of content to find base64 encoded images,
+ * save them as files, and replace the base64 data with the URL of the saved image.
+ *
+ * @param {string} content The content to process.
+ * @returns {Promise<string>} The processed content with image URLs.
+ */
 async function processBase64Images(content) {
   if (!content || typeof content !== 'string') {
     return content;
@@ -110,7 +122,11 @@ async function processBase64Images(content) {
   return processedContent;
 }
 
-
+/**
+ * Retrieves the API token for a given user.
+ * @param {string|ObjectId} userId - The ID of the user.
+ * @returns {Promise<string>} The user's API token, or a default token if not found.
+ */
 async function getUserApiToken(userId) {
   try {
     const db = database.getDb();
@@ -121,10 +137,8 @@ async function getUserApiToken(userId) {
 
     const tokensCollection = db.collection('api_tokens');
 
-
     const userObjectId =
       typeof userId === 'string' ? new ObjectId(userId) : userId;
-
 
     const tokenRecord = await tokensCollection.findOne(
       {
@@ -155,12 +169,20 @@ async function getUserApiToken(userId) {
   }
 }
 
-
+/**
+ * @type {OpenAI}
+ * @description The default OpenAI instance.
+ */
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-
+/**
+ * Creates a new OpenAI instance with a custom API key.
+ * @param {string} customApiKey - The custom OpenAI API key.
+ * @returns {OpenAI} A new OpenAI instance.
+ * @throws {Error} If the custom API key is not provided.
+ */
 function createOpenAIInstance(customApiKey) {
   if (!customApiKey) {
     throw new Error('Chave OpenAI personalizada é obrigatória');
@@ -170,82 +192,52 @@ function createOpenAIInstance(customApiKey) {
   });
 }
 
-
-router.use((req, res, next) => {
-
-  if (req.path === '/health' || req.path === '/tools') {
-    return next();
-  }
-
-  const customApiKey = req.body?.customApiKey;
-
-
-  if (!customApiKey) {
-    return res.status(400).json({
-      success: false,
-      error: 'CUSTOM_API_KEY_REQUIRED',
-      message: 'Chave OpenAI personalizada é obrigatória',
-      userMessage: 'Configure sua chave OpenAI nas configurações para usar o chat de IA',
-      timestamp: new Date().toISOString()
-    });
-  }
-
-
-  if (!customApiKey.startsWith('sk-') || customApiKey.length < 48) {
-    return res.status(400).json({
-      success: false,
-      error: 'INVALID_API_KEY_FORMAT',
-      message: 'Formato de chave OpenAI inválido',
-      userMessage: 'A chave OpenAI deve começar com "sk-" e ter pelo menos 48 caracteres',
-      timestamp: new Date().toISOString()
-    });
-  }
-
-  console.log(`🔐 Usuário ${req.user?._id || 'unknown'} usando chave OpenAI personalizada`);
-  next();
-});
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+/**
+ * @swagger
+ * /ai/chat:
+ *   post:
+ *     summary: Interacts with the AI assistant
+ *     description: Sends a message to the AI assistant and receives a streamed response, potentially including tool calls.
+ *     tags: [AI Assistant]
+ *     security:
+ *       - ApiTokenAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               message:
+ *                 type: string
+ *                 description: The user's message to the AI.
+ *               conversation:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     role:
+ *                       type: string
+ *                       enum: [user, assistant]
+ *                     content:
+ *                       type: string
+ *                 description: The conversation history.
+ *               customApiKey:
+ *                 type: string
+ *                 description: The user's custom OpenAI API key.
+ *     responses:
+ *       '200':
+ *         description: A streamed response from the AI assistant.
+ *         content:
+ *           text/plain:
+ *             schema:
+ *               type: string
+ *               example: "data: {\"type\":\"content\",\"content\":\"Olá!\"}\n\ndata: {\"type\":\"done\"}\n"
+ *       '400':
+ *         description: Bad request, missing message or API key.
+ *       '500':
+ *         description: Internal server error.
+ */
 router.post('/chat', authenticateToken, async (req, res) => {
   try {
     const { message, conversation = [], customApiKey } = req.body;

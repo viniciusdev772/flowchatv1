@@ -4,9 +4,11 @@ const database = require('../config/database');
 
 
 const userCache = new Map();
-const CACHE_TTL = 5 * 60 * 1000;
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
-
+/**
+ * Periodically cleans the user cache to remove expired entries.
+ */
 setInterval(() => {
   const now = Date.now();
   for (const [key, value] of userCache.entries()) {
@@ -16,9 +18,17 @@ setInterval(() => {
   }
 }, 60000);
 
+/**
+ * Middleware to authenticate a user with a JWT.
+ * It checks for a token in cookies or the Authorization header, verifies it,
+ * and fetches the user from the database or cache.
+ * In development, it can use a mock user if the database is unavailable.
+ * @param {object} req - The Express request object.
+ * @param {object} res - The Express response object.
+ * @param {function} next - The next middleware function.
+ */
 const authenticateToken = async (req, res, next) => {
   try {
-
     let token = req.signedCookies.authToken;
 
     if (!token) {
@@ -37,13 +47,11 @@ const authenticateToken = async (req, res, next) => {
     const userId = decoded.userId;
     const cacheKey = `user:${userId}`;
 
-
     const cachedUser = userCache.get(cacheKey);
     if (cachedUser && (Date.now() - cachedUser.timestamp) < CACHE_TTL) {
       req.user = cachedUser.data;
       return next();
     }
-
 
     try {
       const db = database.getDb();
@@ -51,9 +59,7 @@ const authenticateToken = async (req, res, next) => {
         throw new Error('Database not available');
       }
 
-
       const users = database.getCollection('users');
-
 
       let userIdObj = userId;
       try {
@@ -61,7 +67,7 @@ const authenticateToken = async (req, res, next) => {
           userIdObj = new ObjectId(userId);
         }
       } catch (error) {
-
+        // Ignore errors for non-ObjectId strings
       }
 
       const user = await users.findOne(
@@ -87,7 +93,6 @@ const authenticateToken = async (req, res, next) => {
         });
       }
 
-
       userCache.set(cacheKey, {
         data: user,
         timestamp: Date.now()
@@ -95,7 +100,6 @@ const authenticateToken = async (req, res, next) => {
 
       req.user = user;
     } catch (dbError) {
-
       if (process.env.NODE_ENV === 'development') {
         const mockUser = {
           _id: userId,
@@ -106,7 +110,6 @@ const authenticateToken = async (req, res, next) => {
           profile: { avatar: null, phone: null, company: null },
           stats: { totalSessions: 0, activeConnections: 0, messagesCount: 0 }
         };
-
 
         userCache.set(cacheKey, {
           data: mockUser,
@@ -135,6 +138,11 @@ const authenticateToken = async (req, res, next) => {
   }
 };
 
+/**
+ * Middleware to check if a user has one of the required roles.
+ * @param {string[]} roles - An array of roles that are allowed to access the route.
+ * @returns {function} - The middleware function.
+ */
 const requireRole = (roles) => {
   return (req, res, next) => {
     if (!req.user) {
@@ -155,13 +163,18 @@ const requireRole = (roles) => {
   };
 };
 
-
+/**
+ * Clears the cache for a specific user.
+ * @param {string} userId - The ID of the user to clear from the cache.
+ */
 const clearUserCache = (userId) => {
   const cacheKey = `user:${userId}`;
   userCache.delete(cacheKey);
 };
 
-
+/**
+ * Clears the entire user cache.
+ */
 const clearAllCache = () => {
   userCache.clear();
 };

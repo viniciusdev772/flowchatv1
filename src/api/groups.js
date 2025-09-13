@@ -1,7 +1,16 @@
 const express = require('express');
 const router = express.Router();
 
+/**
+ * @fileoverview This file defines the routes for managing WhatsApp groups.
+ * @module api/groups
+ */
 
+/**
+ * Extracts the text from a message object.
+ * @param {object} message - The message object.
+ * @returns {string} The extracted text.
+ */
 function extractMessageText(message) {
   try {
     if (!message || !message.message) return '';
@@ -30,6 +39,11 @@ function extractMessageText(message) {
   }
 }
 
+/**
+ * Gets the type of a message.
+ * @param {object} message - The message object.
+ * @returns {string} The message type.
+ */
 function getMessageType(message) {
   try {
     if (!message || !message.message) return 'unknown';
@@ -67,7 +81,13 @@ function getMessageType(message) {
   }
 }
 
-
+/**
+ * Middleware to check if a WhatsApp session is valid and connected.
+ * @param {object} req - The Express request object.
+ * @param {object} res - The Express response object.
+ * @param {function} next - The next middleware function.
+ * @returns {void}
+ */
 const checkSession = (req, res, next) => {
   const { sessionId } = req.params;
   const userId = req.user?.id || req.user?._id;
@@ -112,7 +132,11 @@ const checkSession = (req, res, next) => {
   next();
 };
 
-
+/**
+ * Formats a group ID to the correct JID format.
+ * @param {string} groupId - The group ID.
+ * @returns {string} The formatted group JID.
+ */
 const formatGroupJid = (groupId) => {
   if (groupId.includes('@g.us')) {
     return groupId;
@@ -120,7 +144,11 @@ const formatGroupJid = (groupId) => {
   return `${groupId}@g.us`;
 };
 
-
+/**
+ * Formats a user ID to the correct JID format.
+ * @param {string} userId - The user ID.
+ * @returns {string} The formatted user JID.
+ */
 const formatUserJid = (userId) => {
   if (userId.includes('@s.whatsapp.net')) {
     return userId;
@@ -129,6 +157,54 @@ const formatUserJid = (userId) => {
 };
 
 
+/**
+ * @swagger
+ * /groups/{sessionId}/create:
+ *   post:
+ *     summary: Create a new WhatsApp group
+ *     description: Creates a new WhatsApp group with the provided name and participants.
+ *     tags: [Groups]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The ID of the WhatsApp session.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               groupName:
+ *                 type: string
+ *                 description: The name of the group.
+ *               participants:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: An array of participant JIDs to add to the group.
+ *               description:
+ *                 type: string
+ *                 description: The group description.
+ *     responses:
+ *       '200':
+ *         description: The group was created successfully.
+ *       '400':
+ *         description: Bad request, missing required parameters.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '403':
+ *         description: Forbidden, user does not have permission to access the session.
+ *       '404':
+ *         description: Session not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 router.post('/:sessionId/create', checkSession, async (req, res) => {
   try {
     const { groupName, participants, description } = req.body;
@@ -183,6 +259,40 @@ router.post('/:sessionId/create', checkSession, async (req, res) => {
 });
 
 
+/**
+ * @swagger
+ * /groups/{sessionId}/{groupId}/info:
+ *   get:
+ *     summary: Get group information
+ *     description: Retrieves metadata for a specific WhatsApp group.
+ *     tags: [Groups]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The ID of the WhatsApp session.
+ *       - in: path
+ *         name: groupId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The ID of the WhatsApp group.
+ *     responses:
+ *       '200':
+ *         description: Successfully retrieved group metadata.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '403':
+ *         description: Forbidden, user does not have permission to access the session.
+ *       '404':
+ *         description: Session or group not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 router.get('/:sessionId/:groupId/info', checkSession, async (req, res) => {
   try {
     const { groupId } = req.params;
@@ -208,6 +318,54 @@ router.get('/:sessionId/:groupId/info', checkSession, async (req, res) => {
 });
 
 
+/**
+ * @swagger
+ * /groups/{sessionId}/{groupId}/add-participants:
+ *   post:
+ *     summary: Add participants to a group
+ *     description: Adds one or more participants to a specific WhatsApp group.
+ *     tags: [Groups]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The ID of the WhatsApp session.
+ *       - in: path
+ *         name: groupId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The ID of the WhatsApp group.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               participants:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: An array of participant JIDs to add to the group.
+ *     responses:
+ *       '200':
+ *         description: Participants added successfully.
+ *       '400':
+ *         description: Bad request, missing required parameters.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '403':
+ *         description: Forbidden, user does not have permission to access the session.
+ *       '404':
+ *         description: Session or group not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 router.post(
   '/:sessionId/:groupId/add-participants',
   checkSession,
@@ -251,6 +409,54 @@ router.post(
 );
 
 
+/**
+ * @swagger
+ * /groups/{sessionId}/{groupId}/remove-participants:
+ *   post:
+ *     summary: Remove participants from a group
+ *     description: Removes one or more participants from a specific WhatsApp group.
+ *     tags: [Groups]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The ID of the WhatsApp session.
+ *       - in: path
+ *         name: groupId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The ID of the WhatsApp group.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               participants:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: An array of participant JIDs to remove from the group.
+ *     responses:
+ *       '200':
+ *         description: Participants removed successfully.
+ *       '400':
+ *         description: Bad request, missing required parameters.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '403':
+ *         description: Forbidden, user does not have permission to access the session.
+ *       '404':
+ *         description: Session or group not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 router.post(
   '/:sessionId/:groupId/remove-participants',
   checkSession,
@@ -294,6 +500,54 @@ router.post(
 );
 
 
+/**
+ * @swagger
+ * /groups/{sessionId}/{groupId}/promote:
+ *   post:
+ *     summary: Promote participants to admin
+ *     description: Promotes one or more participants to admin status in a specific WhatsApp group.
+ *     tags: [Groups]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The ID of the WhatsApp session.
+ *       - in: path
+ *         name: groupId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The ID of the WhatsApp group.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               participants:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: An array of participant JIDs to promote to admin.
+ *     responses:
+ *       '200':
+ *         description: Participants promoted successfully.
+ *       '400':
+ *         description: Bad request, missing required parameters.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '403':
+ *         description: Forbidden, user does not have permission to access the session.
+ *       '404':
+ *         description: Session or group not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 router.post('/:sessionId/:groupId/promote', checkSession, async (req, res) => {
   try {
     const { groupId } = req.params;
@@ -333,6 +587,54 @@ router.post('/:sessionId/:groupId/promote', checkSession, async (req, res) => {
 });
 
 
+/**
+ * @swagger
+ * /groups/{sessionId}/{groupId}/demote:
+ *   post:
+ *     summary: Demote participants from admin
+ *     description: Demotes one or more participants from admin status in a specific WhatsApp group.
+ *     tags: [Groups]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The ID of the WhatsApp session.
+ *       - in: path
+ *         name: groupId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The ID of the WhatsApp group.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               participants:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: An array of participant JIDs to demote from admin.
+ *     responses:
+ *       '200':
+ *         description: Participants demoted successfully.
+ *       '400':
+ *         description: Bad request, missing required parameters.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '403':
+ *         description: Forbidden, user does not have permission to access the session.
+ *       '404':
+ *         description: Session or group not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 router.post('/:sessionId/:groupId/demote', checkSession, async (req, res) => {
   try {
     const { groupId } = req.params;
@@ -372,6 +674,52 @@ router.post('/:sessionId/:groupId/demote', checkSession, async (req, res) => {
 });
 
 
+/**
+ * @swagger
+ * /groups/{sessionId}/{groupId}/subject:
+ *   put:
+ *     summary: Update group subject
+ *     description: Updates the subject (name) of a specific WhatsApp group.
+ *     tags: [Groups]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The ID of the WhatsApp session.
+ *       - in: path
+ *         name: groupId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The ID of the WhatsApp group.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               subject:
+ *                 type: string
+ *                 description: The new subject for the group.
+ *     responses:
+ *       '200':
+ *         description: Group subject updated successfully.
+ *       '400':
+ *         description: Bad request, missing required parameters.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '403':
+ *         description: Forbidden, user does not have permission to access the session.
+ *       '404':
+ *         description: Session or group not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 router.put('/:sessionId/:groupId/subject', checkSession, async (req, res) => {
   try {
     const { groupId } = req.params;
@@ -408,6 +756,50 @@ router.put('/:sessionId/:groupId/subject', checkSession, async (req, res) => {
 });
 
 
+/**
+ * @swagger
+ * /groups/{sessionId}/{groupId}/description:
+ *   put:
+ *     summary: Update group description
+ *     description: Updates the description of a specific WhatsApp group.
+ *     tags: [Groups]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The ID of the WhatsApp session.
+ *       - in: path
+ *         name: groupId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The ID of the WhatsApp group.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               description:
+ *                 type: string
+ *                 description: The new description for the group.
+ *     responses:
+ *       '200':
+ *         description: Group description updated successfully.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '403':
+ *         description: Forbidden, user does not have permission to access the session.
+ *       '404':
+ *         description: Session or group not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 router.put(
   '/:sessionId/:groupId/description',
   checkSession,
@@ -441,6 +833,53 @@ router.put(
 );
 
 
+/**
+ * @swagger
+ * /groups/{sessionId}/{groupId}/settings:
+ *   put:
+ *     summary: Update group settings
+ *     description: Updates the settings of a specific WhatsApp group, such as who can send messages or edit group info.
+ *     tags: [Groups]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The ID of the WhatsApp session.
+ *       - in: path
+ *         name: groupId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The ID of the WhatsApp group.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               onlyAdminsCanSend:
+ *                 type: boolean
+ *                 description: Set to true to allow only admins to send messages.
+ *               onlyAdminsCanEditInfo:
+ *                 type: boolean
+ *                 description: Set to true to allow only admins to edit group info.
+ *     responses:
+ *       '200':
+ *         description: Group settings updated successfully.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '403':
+ *         description: Forbidden, user does not have permission to access the session.
+ *       '404':
+ *         description: Session or group not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 router.put('/:sessionId/:groupId/settings', checkSession, async (req, res) => {
   try {
     const { groupId } = req.params;
@@ -483,6 +922,40 @@ router.put('/:sessionId/:groupId/settings', checkSession, async (req, res) => {
 });
 
 
+/**
+ * @swagger
+ * /groups/{sessionId}/{groupId}/leave:
+ *   post:
+ *     summary: Leave a group
+ *     description: Leaves a specific WhatsApp group.
+ *     tags: [Groups]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The ID of the WhatsApp session.
+ *       - in: path
+ *         name: groupId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The ID of the WhatsApp group.
+ *     responses:
+ *       '200':
+ *         description: Successfully left the group.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '403':
+ *         description: Forbidden, user does not have permission to access the session.
+ *       '404':
+ *         description: Session or group not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 router.post('/:sessionId/:groupId/leave', checkSession, async (req, res) => {
   try {
     const { groupId } = req.params;
@@ -506,6 +979,57 @@ router.post('/:sessionId/:groupId/leave', checkSession, async (req, res) => {
 });
 
 
+/**
+ * @swagger
+ * /groups/{sessionId}/list:
+ *   get:
+ *     summary: List all groups
+ *     description: Retrieves a paginated list of all WhatsApp groups the user is participating in.
+ *     tags: [Groups]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The ID of the WhatsApp session.
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: The maximum number of groups to return.
+ *       - in: query
+ *         name: offset
+ *         schema:
+ *           type: integer
+ *           default: 0
+ *         description: The number of groups to skip before starting to collect the result set.
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: A search term to filter groups by name.
+ *       - in: query
+ *         name: includeParticipants
+ *         schema:
+ *           type: boolean
+ *           default: false
+ *         description: Whether to include the list of participants in the response.
+ *     responses:
+ *       '200':
+ *         description: A list of groups.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '403':
+ *         description: Forbidden, user does not have permission to access the session.
+ *       '404':
+ *         description: Session not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 router.get('/:sessionId/list', checkSession, async (req, res) => {
   try {
     const sock = req.whatsappSession.sock;
@@ -718,6 +1242,40 @@ router.get('/:sessionId/list', checkSession, async (req, res) => {
 });
 
 
+/**
+ * @swagger
+ * /groups/{sessionId}/{groupId}/invite-code:
+ *   get:
+ *     summary: Get group invite code
+ *     description: Retrieves the invite code for a specific WhatsApp group.
+ *     tags: [Groups]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The ID of the WhatsApp session.
+ *       - in: path
+ *         name: groupId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The ID of the WhatsApp group.
+ *     responses:
+ *       '200':
+ *         description: Successfully retrieved the invite code.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '403':
+ *         description: Forbidden, user does not have permission to access the session.
+ *       '404':
+ *         description: Session or group not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 router.get(
   '/:sessionId/:groupId/invite-code',
   checkSession,
@@ -748,6 +1306,40 @@ router.get(
 );
 
 
+/**
+ * @swagger
+ * /groups/{sessionId}/{groupId}/revoke-invite:
+ *   post:
+ *     summary: Revoke group invite code
+ *     description: Revokes the current invite code for a specific WhatsApp group and generates a new one.
+ *     tags: [Groups]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The ID of the WhatsApp session.
+ *       - in: path
+ *         name: groupId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The ID of the WhatsApp group.
+ *     responses:
+ *       '200':
+ *         description: Successfully revoked the invite code.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '403':
+ *         description: Forbidden, user does not have permission to access the session.
+ *       '404':
+ *         description: Session or group not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 router.post(
   '/:sessionId/:groupId/revoke-invite',
   checkSession,
@@ -781,6 +1373,68 @@ router.post(
 
 
 
+/**
+ * @swagger
+ * /groups/{sessionId}/{groupId}/messages:
+ *   get:
+ *     summary: Get group messages
+ *     description: Retrieves a paginated list of messages from a specific WhatsApp group.
+ *     tags: [Groups]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The ID of the WhatsApp session.
+ *       - in: path
+ *         name: groupId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The ID of the WhatsApp group.
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 50
+ *         description: The maximum number of messages to return.
+ *       - in: query
+ *         name: offset
+ *         schema:
+ *           type: integer
+ *           default: 0
+ *         description: The number of messages to skip before starting to collect the result set.
+ *       - in: query
+ *         name: before
+ *         schema:
+ *           type: string
+ *         description: A timestamp to fetch messages before this point.
+ *       - in: query
+ *         name: includeParticipants
+ *         schema:
+ *           type: boolean
+ *           default: false
+ *         description: Whether to include the group participant information in the response.
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: A search term to filter messages by text.
+ *     responses:
+ *       '200':
+ *         description: A list of messages.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '403':
+ *         description: Forbidden, user does not have permission to access the session.
+ *       '404':
+ *         description: Session or group not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 router.get('/:sessionId/:groupId/messages', checkSession, async (req, res) => {
   try {
     const { sessionId, groupId } = req.params;
@@ -1076,6 +1730,69 @@ router.get('/:sessionId/:groupId/messages', checkSession, async (req, res) => {
 });
 
 
+/**
+ * @swagger
+ * /groups/{sessionId}/messages/search:
+ *   get:
+ *     summary: Search for messages in groups
+ *     description: Searches for messages across all groups based on a search term and/or group name.
+ *     tags: [Groups]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The ID of the WhatsApp session.
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 50
+ *         description: The maximum number of messages to return.
+ *       - in: query
+ *         name: offset
+ *         schema:
+ *           type: integer
+ *           default: 0
+ *         description: The number of messages to skip before starting to collect the result set.
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: A search term to filter messages by text.
+ *       - in: query
+ *         name: groupName
+ *         schema:
+ *           type: string
+ *         description: A search term to filter messages by group name.
+ *       - in: query
+ *         name: includeParticipants
+ *         schema:
+ *           type: boolean
+ *           default: false
+ *         description: Whether to include the group participant information in the response.
+ *       - in: query
+ *         name: before
+ *         schema:
+ *           type: string
+ *         description: A timestamp to fetch messages before this point.
+ *     responses:
+ *       '200':
+ *         description: A list of messages that match the search criteria.
+ *       '400':
+ *         description: Bad request, missing required parameters.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '403':
+ *         description: Forbidden, user does not have permission to access the session.
+ *       '404':
+ *         description: Session not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 router.get('/:sessionId/messages/search', checkSession, async (req, res) => {
   try {
     const { sessionId } = req.params;
@@ -1532,6 +2249,11 @@ router.get('/:sessionId/contacts', checkSession, async (req, res) => {
 });
 
 
+/**
+ * Extracts the phone number from a JID.
+ * @param {string} jid - The JID.
+ * @returns {string} The extracted phone number.
+ */
 function extractPhoneFromJid(jid) {
   if (!jid) return '';
   return jid.split('@')[0] || '';

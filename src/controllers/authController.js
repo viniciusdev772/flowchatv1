@@ -4,12 +4,20 @@ const { ObjectId } = require('mongodb');
 const database = require('../config/database');
 const { clearUserCache } = require('../middleware/auth');
 
+/**
+ * @class AuthController
+ * @description Handles authentication-related operations such as user registration, login, and profile management.
+ */
 class AuthController {
-
+  /**
+   * Registers a new user.
+   * @param {object} req - The Express request object.
+   * @param {object} res - The Express response object.
+   * @returns {Promise<void>}
+   */
   async register(req, res) {
     try {
       const { name, email, password } = req.body;
-
 
       const validationErrors = [];
 
@@ -31,7 +39,6 @@ class AuthController {
       } else if (password.length < 8) {
         validationErrors.push({ path: 'password', msg: 'Senha deve ter pelo menos 8 caracteres' });
       } else {
-
         const hasLowercase = /[a-z]/.test(password);
         const hasUppercase = /[A-Z]/.test(password);
         const hasNumber = /\d/.test(password);
@@ -53,7 +60,6 @@ class AuthController {
         });
       }
 
-
       try {
         const db = database.getDb();
         if (!db) {
@@ -61,7 +67,6 @@ class AuthController {
         }
 
         const users = database.getCollection('users');
-
 
         const existingUser = await users.findOne({ email: email.toLowerCase() });
         if (existingUser) {
@@ -72,10 +77,8 @@ class AuthController {
           });
         }
 
-
         const saltRounds = 12;
         const hashedPassword = await bcrypt.hash(password, saltRounds);
-
 
         const userData = {
           name: name.trim(),
@@ -105,13 +108,11 @@ class AuthController {
 
         const result = await users.insertOne(userData);
 
-
         const token = jwt.sign(
           { userId: result.insertedId.toString() },
           process.env.JWT_SECRET,
           { expiresIn: process.env.JWT_EXPIRES_IN }
         );
-
 
         res.cookie('authToken', token, {
           httpOnly: true,
@@ -120,7 +121,6 @@ class AuthController {
           maxAge: 7 * 24 * 60 * 60 * 1000,
           signed: true
         });
-
 
         delete userData.password;
         userData._id = result.insertedId;
@@ -132,12 +132,9 @@ class AuthController {
             user: userData
           }
         });
-
       } catch (dbError) {
-
         if (process.env.NODE_ENV === 'development') {
           console.log('⚠️  Registration in development mode without database');
-
 
           const mockUserId = '507f1f77bcf86cd799439011';
           const token = jwt.sign(
@@ -145,7 +142,6 @@ class AuthController {
             process.env.JWT_SECRET,
             { expiresIn: process.env.JWT_EXPIRES_IN }
           );
-
 
           res.cookie('authToken', token, {
             httpOnly: true,
@@ -175,7 +171,6 @@ class AuthController {
         }
         throw dbError;
       }
-
     } catch (error) {
       console.error('Registration error:', error);
       res.status(500).json({
@@ -185,11 +180,15 @@ class AuthController {
     }
   }
 
-
+  /**
+   * Logs in a user.
+   * @param {object} req - The Express request object.
+   * @param {object} res - The Express response object.
+   * @returns {Promise<void>}
+   */
   async login(req, res) {
     try {
       const { email, password, remember } = req.body;
-
 
       if (!email || !password) {
         return res.status(400).json({
@@ -198,7 +197,6 @@ class AuthController {
         });
       }
 
-
       try {
         const db = database.getDb();
         if (!db) {
@@ -206,7 +204,6 @@ class AuthController {
         }
 
         const users = database.getCollection('users');
-
 
         const user = await users.findOne({ email: email.toLowerCase() });
         if (!user) {
@@ -223,21 +220,19 @@ class AuthController {
           });
         }
 
-
         const isPasswordValid = await bcrypt.compare(password, user.password);
         if (!isPasswordValid) {
-          return res.status(401).json({
+          return res.s
+tatus(401).json({
             success: false,
             message: 'Credenciais inválidas'
           });
         }
 
-
         await users.updateOne(
           { _id: user._id },
           { $set: { lastLogin: new Date(), updatedAt: new Date() } }
         );
-
 
         const expiresIn = remember ? '30d' : process.env.JWT_EXPIRES_IN;
         const token = jwt.sign(
@@ -245,7 +240,6 @@ class AuthController {
           process.env.JWT_SECRET,
           { expiresIn }
         );
-
 
         const cookieMaxAge = remember ? 30 * 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000;
         res.cookie('authToken', token, {
@@ -256,7 +250,6 @@ class AuthController {
           signed: true
         });
 
-
         delete user.password;
 
         res.json({
@@ -266,12 +259,9 @@ class AuthController {
             user
           }
         });
-
       } catch (dbError) {
-
         if (process.env.NODE_ENV === 'development') {
           console.log('⚠️  Login in development mode without database');
-
 
           const mockUserId = '507f1f77bcf86cd799439011';
           const expiresIn = remember ? '30d' : process.env.JWT_EXPIRES_IN;
@@ -280,7 +270,6 @@ class AuthController {
             process.env.JWT_SECRET,
             { expiresIn }
           );
-
 
           const cookieMaxAge = remember ? 30 * 24 * 60 * 60 * 1000 : 7 * 24 * 60 * 60 * 1000;
           res.cookie('authToken', token, {
@@ -311,7 +300,6 @@ class AuthController {
         }
         throw dbError;
       }
-
     } catch (error) {
       console.error('Login error:', error);
       res.status(500).json({
@@ -321,10 +309,12 @@ class AuthController {
     }
   }
 
-
+  /**
+   * Gets the profile of the currently authenticated user.
+   * @param {object} req - The Express request object.
+   * @param {object} res - The Express response object.
+   */
   getProfile(req, res) {
-
-
     res.json({
       success: true,
       data: {
@@ -333,7 +323,12 @@ class AuthController {
     });
   }
 
-
+  /**
+   * Updates the profile of the currently authenticated user.
+   * @param {object} req - The Express request object.
+   * @param {object} res - The Express response object.
+   * @returns {Promise<void>}
+   */
   async updateProfile(req, res) {
     try {
       const { name, phone, company } = req.body;
@@ -352,12 +347,10 @@ class AuthController {
         { $set: updateData }
       );
 
-
       const updatedUser = await users.findOne(
         { _id: new ObjectId(req.user._id) },
         { projection: { password: 0 } }
       );
-
 
       clearUserCache(req.user._id);
 
@@ -368,7 +361,6 @@ class AuthController {
           user: updatedUser
         }
       });
-
     } catch (error) {
       console.error('Update profile error:', error);
       res.status(500).json({
@@ -378,7 +370,12 @@ class AuthController {
     }
   }
 
-
+  /**
+   * Changes the password of the currently authenticated user.
+   * @param {object} req - The Express request object.
+   * @param {object} res - The Express response object.
+   * @returns {Promise<void>}
+   */
   async changePassword(req, res) {
     try {
       const { currentPassword, newPassword } = req.body;
@@ -400,7 +397,6 @@ class AuthController {
       const users = database.getCollection('users');
       const user = await users.findOne({ _id: new ObjectId(req.user._id) });
 
-
       const isCurrentPasswordValid = await bcrypt.compare(currentPassword, user.password);
       if (!isCurrentPasswordValid) {
         return res.status(400).json({
@@ -409,10 +405,8 @@ class AuthController {
         });
       }
 
-
       const saltRounds = 12;
       const hashedNewPassword = await bcrypt.hash(newPassword, saltRounds);
-
 
       await users.updateOne(
         { _id: new ObjectId(req.user._id) },
@@ -423,7 +417,6 @@ class AuthController {
         success: true,
         message: 'Senha alterada com sucesso'
       });
-
     } catch (error) {
       console.error('Change password error:', error);
       res.status(500).json({
@@ -433,10 +426,13 @@ class AuthController {
     }
   }
 
-
+  /**
+   * Logs out the current user by clearing the authentication cookie.
+   * @param {object} req - The Express request object.
+   * @param {object} res - The Express response object.
+   */
   async logout(req, res) {
     try {
-
       res.clearCookie('authToken', {
         httpOnly: true,
         secure: 'auto',
@@ -448,7 +444,6 @@ class AuthController {
         success: true,
         message: 'Logout realizado com sucesso'
       });
-
     } catch (error) {
       console.error('Logout error:', error);
       res.status(500).json({

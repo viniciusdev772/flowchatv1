@@ -2,6 +2,10 @@ const express = require('express');
 const { jidDecode, areJidsSameUser } = require('@whiskeysockets/baileys');
 const logger = require('pino')({ level: 'info' });
 
+/**
+ * @fileoverview This file defines the routes for resolving LIDs (Lightweight Instagram Direct) to phone numbers.
+ * @module api/lidResolver
+ */
 
 let USyncQuery, USyncUser;
 try {
@@ -21,104 +25,13 @@ try {
 
 const router = express.Router();
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+/**
+ * Middleware to check if the user owns the WhatsApp session.
+ * @param {object} req - The Express request object.
+ * @param {object} res - The Express response object.
+ * @param {function} next - The next middleware function.
+ * @returns {void}
+ */
 const checkSessionOwnership = (req, res, next) => {
   const { sessionId } = req.params;
   const userId = req.user?.id || req.user?._id;
@@ -164,6 +77,46 @@ const checkSessionOwnership = (req, res, next) => {
   next();
 };
 
+/**
+ * @swagger
+ * /lid-resolver/{sessionId}/lid/resolve:
+ *   post:
+ *     summary: Resolve a LID to a phone number
+ *     description: Attempts to resolve a LID to a phone number using various methods.
+ *     tags: [LID Resolver]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: sessionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The ID of the WhatsApp session.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               lid:
+ *                 type: string
+ *                 description: The LID to resolve.
+ *     responses:
+ *       '200':
+ *         description: The LID was resolved successfully.
+ *       '400':
+ *         description: Bad request, missing required parameters.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '403':
+ *         description: Forbidden, user does not have permission to access the session.
+ *       '404':
+ *         description: Session or LID not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 router.post('/:sessionId/lid/resolve', checkSessionOwnership, async (req, res) => {
   try {
     const { sessionId } = req.params;

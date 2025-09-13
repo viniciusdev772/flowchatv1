@@ -6,10 +6,19 @@ const logger = require('pino')();
 const { authenticateToken } = require('../middleware/auth');
 const apiTokenAuth = require('../middleware/apiTokenAuth');
 
+/**
+ * @fileoverview This file defines the routes for AI-powered summaries and analysis.
+ * @module api/aiSummary
+ */
 
 const OpenAI = require('openai');
 
-
+/**
+ * Creates an OpenAI client instance.
+ * @param {string} [customApiKey=null] - A custom OpenAI API key. If not provided, it will use the one from environment variables.
+ * @returns {OpenAI} An instance of the OpenAI client.
+ * @throws {Error} If no API key is provided.
+ */
 function getOpenAIClient(customApiKey = null) {
   const apiKey = customApiKey || process.env.OPENAI_API_KEY;
 
@@ -22,7 +31,10 @@ function getOpenAIClient(customApiKey = null) {
   });
 }
 
-
+/**
+ * @const {object} SUMMARY_PROMPTS
+ * @description A collection of system prompts for different summary tones.
+ */
 const SUMMARY_PROMPTS = {
   professional: {
     system:
@@ -46,7 +58,12 @@ const SUMMARY_PROMPTS = {
   },
 };
 
-
+/**
+ * Splits an array of messages into smaller batches.
+ * @param {Array<object>} messages - The array of messages to split.
+ * @param {number} [batchSize=100] - The size of each batch.
+ * @returns {Array<Array<object>>} An array of message batches.
+ */
 function processMessagesInBatches(messages, batchSize = 100) {
   const batches = [];
   for (let i = 0; i < messages.length; i += batchSize) {
@@ -55,15 +72,16 @@ function processMessagesInBatches(messages, batchSize = 100) {
   return batches;
 }
 
-
+/**
+ * Filters out internal download links from a text.
+ * @param {string} text - The text to filter.
+ * @returns {string} The filtered text.
+ */
 function filterInternalDownloadLinks(text) {
   if (!text) return text;
 
-
-
   const internalDownloadPattern = /https?:\/\/[^\s]+\/api\/baileys\/download\/[^\s]+/gi;
   const genericDownloadPattern = /https?:\/\/[^\s]+\/download\/[a-zA-Z0-9_]+/gi;
-
 
   let filteredText = text.replace(internalDownloadPattern, '[Arquivo compartilhado]');
   filteredText = filteredText.replace(genericDownloadPattern, '[Arquivo compartilhado]');
@@ -71,7 +89,11 @@ function filterInternalDownloadLinks(text) {
   return filteredText;
 }
 
-
+/**
+ * Formats an array of messages into a single string for the AI prompt.
+ * @param {Array<object>} messages - The array of messages to format.
+ * @returns {string} The formatted string of messages.
+ */
 function formatMessagesForPrompt(messages) {
   return messages
     .map((msg) => {
@@ -81,12 +103,9 @@ function formatMessagesForPrompt(messages) {
       });
       const name = msg.pushName || 'Usuário';
 
-
       let filteredText = filterInternalDownloadLinks(msg.text);
 
-
       let messageContent = '';
-
 
       if (msg.quotedMessage) {
         const quotedUser = msg.quotedMessage.participant ?
@@ -95,9 +114,7 @@ function formatMessagesForPrompt(messages) {
         messageContent += `(respondendo a ${quotedUser}: "${quotedText}") `;
       }
 
-
       if (msg.caption && msg.hasMedia) {
-
         const mediaType = msg.mediaType === 'image' ? 'imagem' :
                          msg.mediaType === 'video' ? 'vídeo' :
                          msg.mediaType === 'audio' ? 'áudio' :
@@ -105,7 +122,6 @@ function formatMessagesForPrompt(messages) {
                          msg.mediaType === 'sticker' ? 'figurinha' : 'mídia';
         messageContent += `${msg.caption} [${mediaType} compartilhada]`;
       } else if (msg.hasMedia) {
-
         const mediaType = msg.mediaType === 'image' ? 'Imagem' :
                          msg.mediaType === 'video' ? 'Vídeo' :
                          msg.mediaType === 'audio' ? 'Áudio' :
@@ -113,7 +129,6 @@ function formatMessagesForPrompt(messages) {
                          msg.mediaType === 'sticker' ? 'Figurinha' : 'Mídia';
         messageContent += `[${mediaType} compartilhada]`;
       } else {
-
         messageContent += filteredText;
       }
 
@@ -122,17 +137,59 @@ function formatMessagesForPrompt(messages) {
     .join('\n');
 }
 
-
-
-
+/**
+ * @swagger
+ * /ai-summary/summarize:
+ *   post:
+ *     summary: Generate a summary of collected messages
+ *     description: Creates a summary of messages from a message collector using an AI model.
+ *     tags: [AI Summary]
+ *     security:
+ *       - ApiTokenAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               collectorId:
+ *                 type: string
+ *                 description: The ID of the message collector.
+ *               tone:
+ *                 type: string
+ *                 enum: [professional, casual, analytical, brief]
+ *                 default: professional
+ *                 description: The tone of the summary.
+ *               customPrompt:
+ *                 type: string
+ *                 description: A custom prompt to override the default.
+ *               maxTokens:
+ *                 type: integer
+ *                 default: 2000
+ *                 description: The maximum number of tokens for the summary.
+ *               includeStats:
+ *                 type: boolean
+ *                 default: true
+ *                 description: Whether to include statistics in the summary.
+ *               customApiKey:
+ *                 type: string
+ *                 description: A custom OpenAI API key to use for this request.
+ *     responses:
+ *       '200':
+ *         description: The summary was generated successfully.
+ *       '400':
+ *         description: Bad request, missing required parameters.
+ *       '404':
+ *         description: Collector not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 router.post('/summarize', (req, res, next) => {
-
   const authHeader = req.headers.authorization;
   if (authHeader && authHeader.startsWith('Bearer baileys_')) {
-
     apiTokenAuth(req, res, next);
   } else {
-
     authenticateToken(req, res, next);
   }
 }, async (req, res) => {
@@ -155,7 +212,6 @@ router.post('/summarize', (req, res, next) => {
       });
     }
 
-
     const db = database.getDb();
     const collector = await db.collection('messageCollectors').findOne({
       _id: collectorId,
@@ -169,14 +225,12 @@ router.post('/summarize', (req, res, next) => {
       });
     }
 
-
     if (!['active', 'completed'].includes(collector.status)) {
       return res.status(400).json({
         success: false,
         message: 'Coletor deve estar ativo ou completado para gerar resumo',
       });
     }
-
 
     const messages = await db
       .collection('collectedMessages')
@@ -191,11 +245,9 @@ router.post('/summarize', (req, res, next) => {
       });
     }
 
-
     let effectiveApiKey = customApiKey;
 
     if (!effectiveApiKey) {
-
       const user = await db.collection('users').findOne({ _id: req.user._id });
       effectiveApiKey = user?.openaiApiKey;
     }
@@ -208,7 +260,6 @@ router.post('/summarize', (req, res, next) => {
       });
     }
 
-
     if (customApiKey && customApiKey !== req.user.openaiApiKey) {
       await db.collection('users').updateOne(
         { _id: req.user._id },
@@ -216,16 +267,13 @@ router.post('/summarize', (req, res, next) => {
       );
     }
 
-
     const openai = getOpenAIClient(effectiveApiKey);
-
 
     const topParticipantsCount = parseInt(req.body.topParticipants) || 5;
     const validatedCount = Math.max(3, Math.min(20, topParticipantsCount));
     const participantsList = Array.from({length: validatedCount}, (_, i) =>
       `${i + 1}. [Nome] - [X] mensagens`
     ).join('\n');
-
 
     const summaryTemplate = `
 Siga este formato exato para o resumo:
@@ -263,15 +311,12 @@ Encerramento 🌟
 [Frase de fechamento sobre o dia]
 `;
 
-
     const promptConfig = SUMMARY_PROMPTS[tone] || SUMMARY_PROMPTS.professional;
-
 
     const groupName = collector.config?.name || collector.groupId || 'Grupo WhatsApp';
     const startDate = collector.startTime ? new Date(collector.startTime).toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR');
 
     let systemPrompt = customPrompt || `${promptConfig.system}\n\nIMPORTANTE: Siga exatamente este template estruturado, substituindo os placeholders:\n\n${summaryTemplate}\n\nDados do grupo:\n- Nome do Grupo: ${groupName}\n- Data da coleta: ${startDate}\n- Total de mensagens: ${messages.length}`;
-
 
     systemPrompt += `\n\nVocê receberá mensagens de um grupo do WhatsApp coletadas durante um período específico.
     As mensagens estão no formato: [Hora] Nome: Mensagem
@@ -290,16 +335,13 @@ Encerramento 🌟
 
     Responda em português brasileiro com tom ${promptConfig.tone}.`;
 
-
     const batches = processMessagesInBatches(messages, 200);
     let summaries = [];
-
 
     const isStreaming =
       req.headers.accept && req.headers.accept.includes('text/stream');
 
     if (isStreaming) {
-
       res.writeHead(200, {
         'Content-Type': 'text/plain; charset=utf-8',
         'Transfer-Encoding': 'chunked',
@@ -350,7 +392,6 @@ Encerramento 🌟
       });
 
       if (isStreaming) {
-
         for await (const chunk of completion) {
           const content = chunk.choices[0]?.delta?.content;
           if (content) {
@@ -366,11 +407,9 @@ Encerramento 🌟
           })}\n\n`
         );
       } else {
-
         summaries.push(completion.choices[0].message.content);
       }
     }
-
 
     const summaryData = {
       collectorId,
@@ -393,17 +432,14 @@ Encerramento 🌟
       res.write(`data: ${JSON.stringify({ type: 'complete' })}\n\n`);
       res.end();
 
-
       await db.collection('aiSummaries').insertOne({
         ...summaryData,
         isStreamed: true,
       });
     } else {
-
       let finalSummary = summaries.join('\n\n---\n\n');
 
       if (summaries.length > 1) {
-
         const consolidationPrompt = `Você recebeu ${summaries.length} resumos parciais de um grupo do WhatsApp.
         Crie um resumo final consolidado e coerente integrando todas as informações:
 
@@ -421,7 +457,6 @@ Encerramento 🌟
 
         finalSummary = finalCompletion.choices[0].message.content;
       }
-
 
       const savedSummary = await db.collection('aiSummaries').insertOne({
         ...summaryData,
@@ -460,7 +495,32 @@ Encerramento 🌟
 });
 
 
-
+/**
+ * @swagger
+ * /ai-summary/list:
+ *   get:
+ *     summary: List all summaries
+ *     description: Retrieves a list of all AI-generated summaries for the authenticated user.
+ *     tags: [AI Summary]
+ *     security:
+ *       - ApiTokenAuth: []
+ *     responses:
+ *       '200':
+ *         description: A list of summaries.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 summaries:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *       '500':
+ *         description: Internal server error.
+ */
 router.get('/list', authenticateToken, async (req, res) => {
   try {
     const userId = req.user._id;
@@ -498,7 +558,34 @@ router.get('/list', authenticateToken, async (req, res) => {
 });
 
 
-
+/**
+ * @swagger
+ * /ai-summary/{summaryId}:
+ *   get:
+ *     summary: Get a specific summary
+ *     description: Retrieves a specific AI-generated summary by its ID.
+ *     tags: [AI Summary]
+ *     security:
+ *       - ApiTokenAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: summaryId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The ID of the summary to retrieve.
+ *     responses:
+ *       '200':
+ *         description: The requested summary.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/ApiResponse'
+ *       '404':
+ *         description: Summary not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 router.get('/:summaryId', authenticateToken, async (req, res) => {
   try {
     const { summaryId } = req.params;
@@ -531,7 +618,30 @@ router.get('/:summaryId', authenticateToken, async (req, res) => {
 });
 
 
-
+/**
+ * @swagger
+ * /ai-summary/{summaryId}:
+ *   delete:
+ *     summary: Delete a summary
+ *     description: Deletes a specific AI-generated summary by its ID.
+ *     tags: [AI Summary]
+ *     security:
+ *       - ApiTokenAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: summaryId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: The ID of the summary to delete.
+ *     responses:
+ *       '200':
+ *         description: The summary was deleted successfully.
+ *       '404':
+ *         description: Summary not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 router.delete('/:summaryId', authenticateToken, async (req, res) => {
   try {
     const { summaryId } = req.params;
@@ -564,12 +674,42 @@ router.delete('/:summaryId', authenticateToken, async (req, res) => {
 });
 
 
-
+/**
+ * @swagger
+ * /ai-summary/analyze-sentiment:
+ *   post:
+ *     summary: Analyze the sentiment of collected messages
+ *     description: Analyzes the sentiment of messages from a message collector using an AI model.
+ *     tags: [AI Summary]
+ *     security:
+ *       - ApiTokenAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               collectorId:
+ *                 type: string
+ *                 description: The ID of the message collector.
+ *               customApiKey:
+ *                 type: string
+ *                 description: A custom OpenAI API key to use for this request.
+ *     responses:
+ *       '200':
+ *         description: The sentiment analysis was successful.
+ *       '400':
+ *         description: Bad request, missing required parameters.
+ *       '404':
+ *         description: Collector or messages not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 router.post('/analyze-sentiment', authenticateToken, async (req, res) => {
   try {
     const { collectorId, customApiKey } = req.body;
     const userId = req.user._id;
-
 
     const db = database.getDb();
     const collector = await db.collection('messageCollectors').findOne({
@@ -584,7 +724,6 @@ router.post('/analyze-sentiment', authenticateToken, async (req, res) => {
       });
     }
 
-
     const collectedMessages = await db
       .collection('collectedMessages')
       .find({ collectorId })
@@ -598,11 +737,9 @@ router.post('/analyze-sentiment', authenticateToken, async (req, res) => {
       });
     }
 
-
     let effectiveApiKey = customApiKey;
 
     if (!effectiveApiKey) {
-
       const user = await db.collection('users').findOne({ _id: req.user._id });
       effectiveApiKey = user?.openaiApiKey;
     }
@@ -614,7 +751,6 @@ router.post('/analyze-sentiment', authenticateToken, async (req, res) => {
         needsApiKey: true
       });
     }
-
 
     if (customApiKey && customApiKey !== req.user.openaiApiKey) {
       await db.collection('users').updateOne(
@@ -647,7 +783,6 @@ router.post('/analyze-sentiment', authenticateToken, async (req, res) => {
     });
 
     const analysis = completion.choices[0].message.content;
-
 
     await db.collection('sentimentAnalysis').insertOne({
       collectorId,

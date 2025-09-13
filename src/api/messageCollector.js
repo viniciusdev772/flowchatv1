@@ -7,10 +7,21 @@ const { authenticateToken } = require('../middleware/auth');
 const cron = require('node-cron');
 const { v4: uuidv4 } = require('uuid');
 
+/**
+ * @fileoverview This file defines the routes for managing message collectors.
+ * @module api/messageCollector
+ */
 
 const activeCronJobs = new Map();
 
-
+/**
+ * Creates a new message collector in the database.
+ * @param {string} sessionId - The ID of the WhatsApp session.
+ * @param {string} groupId - The ID of the WhatsApp group.
+ * @param {string} userId - The ID of the user.
+ * @param {object} config - The configuration for the collector.
+ * @returns {Promise<string|null>} The ID of the created collector, or null if an error occurred.
+ */
 async function createCollectorInDB(sessionId, groupId, userId, config) {
   try {
     const db = database.getDb();
@@ -50,6 +61,12 @@ async function createCollectorInDB(sessionId, groupId, userId, config) {
   }
 }
 
+/**
+ * Updates the status of a message collector in the database.
+ * @param {string} collectorId - The ID of the collector.
+ * @param {object} updates - The updates to apply.
+ * @returns {Promise<boolean>} True if the update was successful, false otherwise.
+ */
 async function updateCollectorStatus(collectorId, updates) {
   try {
     const db = database.getDb();
@@ -71,7 +88,11 @@ async function updateCollectorStatus(collectorId, updates) {
   }
 }
 
-
+/**
+ * Removes duplicate messages from a collector.
+ * @param {string} collectorId - The ID of the collector.
+ * @returns {Promise<object>} An object with the result of the operation.
+ */
 async function cleanDuplicateMessages(collectorId) {
   try {
     const db = database.getDb();
@@ -132,6 +153,12 @@ async function cleanDuplicateMessages(collectorId) {
   }
 }
 
+/**
+ * Adds a message to the database for a specific collector.
+ * @param {string} collectorId - The ID of the collector.
+ * @param {object} messageData - The data of the message to add.
+ * @returns {Promise<boolean>} True if the message was added successfully, false otherwise.
+ */
 async function addMessageToDB(collectorId, messageData) {
   try {
     const db = database.getDb();
@@ -172,6 +199,11 @@ async function addMessageToDB(collectorId, messageData) {
   }
 }
 
+/**
+ * Gets all active message collectors from the database.
+ * @param {string|null} userId - The ID of the user to filter by.
+ * @returns {Promise<Array<object>>} An array of active collectors.
+ */
 async function getActiveCollectors(userId = null) {
   try {
     const db = database.getDb();
@@ -192,7 +224,11 @@ async function getActiveCollectors(userId = null) {
   }
 }
 
-
+/**
+ * Extracts the text from a message object.
+ * @param {object} message - The message object.
+ * @returns {string|null} The extracted text, or null if not found.
+ */
 function extractTextFromMessage(message) {
   if (!message.message) return null;
 
@@ -220,7 +256,13 @@ function extractTextFromMessage(message) {
   return null;
 }
 
-
+/**
+ * Extracts relevant data from a message object.
+ * @param {object} message - The message object.
+ * @param {string} sessionId - The ID of the WhatsApp session.
+ * @param {object} collectorConfig - The configuration of the collector.
+ * @returns {Promise<object|null>} The extracted message data, or null if invalid.
+ */
 async function extractMessageData(message, sessionId, collectorConfig) {
   if (!message.message) return null;
 
@@ -385,7 +427,12 @@ async function extractMessageData(message, sessionId, collectorConfig) {
   return messageData;
 }
 
-
+/**
+ * Sets up cron jobs for a message collector.
+ * @param {string} collectorId - The ID of the collector.
+ * @param {object} config - The configuration of the collector.
+ * @returns {void}
+ */
 function setupCronJobs(collectorId, config) {
   const timezone = config.timezone || 'America/Sao_Paulo';
   const jobs = [];
@@ -457,7 +504,12 @@ function setupCronJobs(collectorId, config) {
   }
 }
 
-
+/**
+ * Starts the message collection for a specific collector.
+ * @param {string} collectorId - The ID of the collector.
+ * @param {object} config - The configuration of the collector.
+ * @returns {Promise<void>}
+ */
 async function startCollection(collectorId, config) {
 
   const now = new Date();
@@ -485,7 +537,12 @@ async function startCollection(collectorId, config) {
   logger.info(`🕒 Cron: Iniciando coleta para ${collectorId} às ${String(config.startHour || 0).padStart(2, '0')}:${String(config.startMinute || 0).padStart(2, '0')}`);
 }
 
-
+/**
+ * Stops the message collection for a specific collector.
+ * @param {string} collectorId - The ID of the collector.
+ * @param {object} config - The configuration of the collector.
+ * @returns {Promise<void>}
+ */
 async function stopCollection(collectorId, config) {
   try {
     const db = database.getDb();
@@ -534,7 +591,12 @@ async function stopCollection(collectorId, config) {
   }
 }
 
-
+/**
+ * Checks if a user has permission to access a WhatsApp session.
+ * @param {string} sessionId - The ID of the WhatsApp session.
+ * @param {string} userId - The ID of the user.
+ * @returns {object} An object with the result of the permission check.
+ */
 function checkUserSessionPermission(sessionId, userId) {
   if (!global.whatsappSessions) {
     return {
@@ -564,8 +626,44 @@ function checkUserSessionPermission(sessionId, userId) {
   return { success: true, session };
 }
 
-
-
+/**
+ * @swagger
+ * /message-collector/start:
+ *   post:
+ *     summary: Start a new message collector
+ *     description: Configures and starts a new message collector for a specific WhatsApp group.
+ *     tags: [Message Collector]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               sessionId:
+ *                 type: string
+ *               groupId:
+ *                 type: string
+ *               startHour:
+ *                 type: integer
+ *               endHour:
+ *                 type: integer
+ *     responses:
+ *       '200':
+ *         description: The message collector was started successfully.
+ *       '400':
+ *         description: Bad request, missing required parameters.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '403':
+ *         description: Forbidden, user does not have permission to access the session.
+ *       '404':
+ *         description: Session not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 router.post('/start', authenticateToken, async (req, res) => {
   try {
     const {
@@ -693,8 +791,36 @@ router.post('/start', authenticateToken, async (req, res) => {
   }
 });
 
-
-
+/**
+ * @swagger
+ * /message-collector/stop:
+ *   post:
+ *     summary: Stop a message collector
+ *     description: Stops a specific message collector.
+ *     tags: [Message Collector]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               collectorId:
+ *                 type: string
+ *     responses:
+ *       '200':
+ *         description: The message collector was stopped successfully.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '403':
+ *         description: Forbidden, user does not have permission to access the collector.
+ *       '404':
+ *         description: Collector not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 router.post('/stop', authenticateToken, async (req, res) => {
   try {
     const {
@@ -816,8 +942,23 @@ router.post('/stop', authenticateToken, async (req, res) => {
   }
 });
 
-
-
+/**
+ * @swagger
+ * /message-collector/list:
+ *   get:
+ *     summary: List all message collectors
+ *     description: Retrieves a list of all message collectors for the authenticated user.
+ *     tags: [Message Collector]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       '200':
+ *         description: A list of message collectors.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '500':
+ *         description: Internal server error.
+ */
 router.get('/list', authenticateToken, async (req, res) => {
   try {
     const userId = req.user._id;
@@ -869,8 +1010,38 @@ router.get('/list', authenticateToken, async (req, res) => {
   }
 });
 
-
-
+/**
+ * @swagger
+ * /message-collector/generate-pending-summary:
+ *   post:
+ *     summary: Generate a pending summary
+ *     description: Generates a summary for a collector that has a pending auto-summary.
+ *     tags: [Message Collector]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               collectorId:
+ *                 type: string
+ *     responses:
+ *       '200':
+ *         description: The summary was generated successfully.
+ *       '400':
+ *         description: Bad request, missing required parameters.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '403':
+ *         description: Forbidden, user does not have permission to access the collector.
+ *       '404':
+ *         description: Collector not found or no pending summary.
+ *       '500':
+ *         description: Internal server error.
+ */
 router.post('/generate-pending-summary', authenticateToken, async (req, res) => {
   try {
     const {
@@ -994,6 +1165,23 @@ router.post('/generate-pending-summary', authenticateToken, async (req, res) => 
 
 
 
+/**
+ * @swagger
+ * /message-collector/delete-all:
+ *   delete:
+ *     summary: Delete all message collectors
+ *     description: Deletes all message collectors for the authenticated user.
+ *     tags: [Message Collector]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       '200':
+ *         description: All message collectors were deleted successfully.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '500':
+ *         description: Internal server error.
+ */
 router.delete('/delete-all', authenticateToken, async (req, res) => {
   try {
     const userId = req.user._id;
@@ -1067,8 +1255,33 @@ router.delete('/delete-all', authenticateToken, async (req, res) => {
   }
 });
 
-
-
+/**
+ * @swagger
+ * /message-collector/delete/{collectorId}:
+ *   delete:
+ *     summary: Delete a message collector
+ *     description: Deletes a specific message collector.
+ *     tags: [Message Collector]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: collectorId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       '200':
+ *         description: The message collector was deleted successfully.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '403':
+ *         description: Forbidden, user does not have permission to access the collector.
+ *       '404':
+ *         description: Collector not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 router.delete('/delete/:collectorId', authenticateToken, async (req, res) => {
   try {
     const { collectorId } = req.params;
@@ -1133,8 +1346,33 @@ router.delete('/delete/:collectorId', authenticateToken, async (req, res) => {
   }
 });
 
-
-
+/**
+ * @swagger
+ * /message-collector/messages/{collectorId}:
+ *   get:
+ *     summary: Get messages from a collector
+ *     description: Retrieves all messages from a specific message collector.
+ *     tags: [Message Collector]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: collectorId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       '200':
+ *         description: A list of messages.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '403':
+ *         description: Forbidden, user does not have permission to access the collector.
+ *       '404':
+ *         description: Collector not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 router.get('/messages/:collectorId', authenticateToken, async (req, res) => {
   try {
     const { collectorId } = req.params;
@@ -1208,6 +1446,11 @@ router.get('/messages/:collectorId', authenticateToken, async (req, res) => {
 });
 
 
+/**
+ * Integrates the message collector with the main application.
+ * @param {object} app - The Express application object.
+ * @returns {void}
+ */
 function integrateWithMainApp(app) {
   logger.info('🔗 Integrando Message Collector com sistema principal...');
 
@@ -1255,7 +1498,10 @@ function integrateWithMainApp(app) {
   logger.info('✅ Message Collector integrado - Hook global registrado');
 }
 
-
+/**
+ * Restores all cron jobs for active collectors.
+ * @returns {Promise<void>}
+ */
 async function restoreCronJobs() {
   try {
     const activeCollectors = await getActiveCollectors();
@@ -1268,7 +1514,12 @@ async function restoreCronJobs() {
   }
 }
 
-
+/**
+ * Generates and sends a summary for a collector.
+ * @param {string} collectorId - The ID of the collector.
+ * @param {object} collector - The collector object.
+ * @returns {Promise<void>}
+ */
 async function generateAndSendSummary(collectorId, collector) {
   try {
     const db = database.getDb();
@@ -1569,7 +1820,11 @@ Instruções de consolidação:
   }
 }
 
-
+/**
+ * Checks if a collector should be restarted.
+ * @param {object} collector - The collector object.
+ * @returns {boolean} True if the collector should be restarted, false otherwise.
+ */
 function shouldRestartCollector(collector) {
   try {
     const config = collector.config;
@@ -1598,7 +1853,11 @@ function shouldRestartCollector(collector) {
   }
 }
 
-
+/**
+ * Restarts a collector with a new name.
+ * @param {object} collector - The collector object.
+ * @returns {Promise<void>}
+ */
 async function restartCollectorWithNewName(collector) {
   try {
     const db = database.getDb();
