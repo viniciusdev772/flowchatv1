@@ -26,7 +26,17 @@ import {
   Clock
 } from 'lucide-react';
 
+/**
+ * @fileoverview This file contains a React component that displays a list of AI agents.
+ * @module components/AgentsList
+ */
 
+/**
+ * A component that displays a list of AI agents.
+ * @param {object} props - The component props.
+ * @param {function} props.onRefresh - A function to refresh the list of agents.
+ * @returns {JSX.Element} The rendered list of agents.
+ */
 export default function AgentsList({ onRefresh }) {
   const [agents, setAgents] = useState([]);
   const [isLoading, setIsLoading] = useState(true);

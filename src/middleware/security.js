@@ -1,7 +1,14 @@
 const mongoSanitize = require('express-mongo-sanitize');
 const { body, validationResult } = require('express-validator');
 
+/**
+ * @class SecurityMiddleware
+ * @description Provides a collection of security-related middleware functions.
+ */
 class SecurityMiddleware {
+  /**
+   * @constructor
+   */
   constructor() {
     this.suspiciousIPs = new Set();
     this.trustedOrigins = [
@@ -14,7 +21,10 @@ class SecurityMiddleware {
     ].filter(Boolean);
   }
 
-
+  /**
+   * Middleware to sanitize user input against MongoDB query injection.
+   * @returns {function} The express-mongo-sanitize middleware.
+   */
   mongoSanitization() {
     return mongoSanitize({
       replaceWith: '_',
@@ -24,7 +34,10 @@ class SecurityMiddleware {
     });
   }
 
-
+  /**
+   * Validation rules for user registration.
+   * @returns {Array} An array of express-validator validation chains.
+   */
   validateRegistration() {
     return [
       body('name')
@@ -74,7 +87,10 @@ class SecurityMiddleware {
     ];
   }
 
-
+  /**
+   * Validation rules for user login.
+   * @returns {Array} An array of express-validator validation chains.
+   */
   validateLogin() {
     return [
       body('email')
@@ -107,7 +123,10 @@ class SecurityMiddleware {
     ];
   }
 
-
+  /**
+   * Middleware to check for validation errors from express-validator.
+   * @returns {function} The middleware function.
+   */
   checkValidationResults() {
     return (req, res, next) => {
       const errors = validationResult(req);
@@ -129,16 +148,17 @@ class SecurityMiddleware {
     };
   }
 
-
+  /**
+   * Middleware to verify the request's origin.
+   * @returns {function} The middleware function.
+   */
   verifyOrigin() {
     return (req, res, next) => {
       const origin = req.headers.origin || req.headers.referer;
 
-
       if (!origin) {
         return next();
       }
-
 
       if (process.env.NODE_ENV === 'production') {
         if (!this.trustedOrigins.some(trusted => trusted && origin.startsWith(trusted))) {
@@ -156,7 +176,10 @@ class SecurityMiddleware {
     };
   }
 
-
+  /**
+   * Middleware to verify the User-Agent header.
+   * @returns {function} The middleware function.
+   */
   verifyUserAgent() {
     return (req, res, next) => {
       const userAgent = req.headers['user-agent'];
@@ -171,7 +194,6 @@ class SecurityMiddleware {
           error: 'MISSING_USER_AGENT'
         });
       }
-
 
       const suspiciousPatterns = [
         /curl/i, /wget/i, /python/i, /bot/i, /crawler/i,
@@ -193,7 +215,10 @@ class SecurityMiddleware {
     };
   }
 
-
+  /**
+   * Middleware to detect suspicious headers.
+   * @returns {function} The middleware function.
+   */
   detectSuspiciousHeaders() {
     return (req, res, next) => {
       const suspiciousHeaders = [
@@ -204,7 +229,6 @@ class SecurityMiddleware {
         'x-cluster-client-ip'
       ];
 
-
       suspiciousHeaders.forEach(header => {
         if (req.headers[header]) {
           const ips = req.headers[header].split(',');
@@ -214,7 +238,6 @@ class SecurityMiddleware {
           }
         }
       });
-
 
       if (process.env.NODE_ENV === 'production') {
         const devHeaders = ['x-debug', 'x-test', 'x-dev'];
@@ -230,44 +253,46 @@ class SecurityMiddleware {
     };
   }
 
-
+  /**
+   * Flags an IP address as suspicious.
+   * @param {string} ip - The IP address to flag.
+   */
   flagSuspiciousIP(ip) {
     this.suspiciousIPs.add(ip);
     console.warn(`IP ${ip} marcado como suspeito`);
-
 
     setTimeout(() => {
       this.suspiciousIPs.delete(ip);
     }, 24 * 60 * 60 * 1000);
   }
 
-
+  /**
+   * Middleware to block requests from suspicious IP addresses.
+   * @returns {function} The middleware function.
+   */
   blockSuspiciousIPs() {
     return (req, res, next) => {
       if (this.suspiciousIPs.has(req.ip)) {
         console.warn(`Bloqueando requisição de IP suspeito: ${req.ip}`);
-
         return res.status(403).json({
           success: false,
           message: 'Acesso bloqueado devido a atividade suspeita',
           error: 'IP_BLOCKED'
         });
       }
-
       next();
     };
   }
 
-
-
+  /**
+   * Middleware to verify the integrity of the request.
+   * @returns {function} The middleware function.
+   */
   verifyRequestIntegrity() {
     return (req, res, next) => {
-
       const contentLength = parseInt(req.headers['content-length'] || '0');
-
       if (contentLength > 10 * 1024 * 1024) {
         console.warn(`Requisição muito grande - Size: ${contentLength}, IP: ${req.ip}`);
-
         return res.status(413).json({
           success: false,
           message: 'Requisição muito grande',
@@ -275,13 +300,10 @@ class SecurityMiddleware {
         });
       }
 
-
       if (['POST', 'PUT', 'PATCH'].includes(req.method)) {
         const contentType = req.headers['content-type'];
-
         if (!contentType || !contentType.includes('application/json')) {
           console.warn(`Content-Type suspeito - Type: ${contentType}, IP: ${req.ip}`);
-
           return res.status(400).json({
             success: false,
             message: 'Content-Type deve ser application/json',
@@ -289,12 +311,14 @@ class SecurityMiddleware {
           });
         }
       }
-
       next();
     };
   }
 
-
+  /**
+   * Returns a full stack of security middlewares.
+   * @returns {Array<function>} An array of middleware functions.
+   */
   fullSecurityStack() {
     return [
       this.detectSuspiciousHeaders(),
@@ -306,7 +330,10 @@ class SecurityMiddleware {
     ];
   }
 
-
+  /**
+   * Gets security-related statistics.
+   * @returns {object} An object with security statistics.
+   */
   getSecurityStats() {
     return {
       suspiciousIPs: Array.from(this.suspiciousIPs),
@@ -315,7 +342,6 @@ class SecurityMiddleware {
     };
   }
 }
-
 
 const securityMiddleware = new SecurityMiddleware();
 

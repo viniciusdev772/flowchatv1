@@ -5,6 +5,25 @@ import { Calendar, Clock } from 'lucide-react';
 import { cn } from '../lib/utils';
 import 'react-datepicker/dist/react-datepicker.css';
 
+/**
+ * @fileoverview This file contains a React component that provides a date and time picker.
+ * @module components/DateTimePicker
+ */
+
+/**
+ * A component that provides a date and time picker.
+ * @param {object} props - The component props.
+ * @param {Date} props.selected - The selected date.
+ * @param {function} props.onChange - The function to call when the date changes.
+ * @param {string} props.placeholderText - The placeholder text.
+ * @param {string} props.className - The CSS class name.
+ * @param {Date} props.minDate - The minimum date.
+ * @param {boolean} props.showTimeSelect - Whether to show the time select.
+ * @param {string} props.dateFormat - The date format.
+ * @param {string} props.timeFormat - The time format.
+ * @param {number} props.timeIntervals - The time intervals.
+ * @returns {JSX.Element} The rendered date and time picker.
+ */
 const DateTimePicker = React.forwardRef(({
   selected,
   onChange,

@@ -1,10 +1,24 @@
 import { useCallback, useRef, useState } from 'react';
 
+/**
+ * @fileoverview This file contains a custom hook for generating smart suggestions.
+ * @module hooks/useSmartSuggestions
+ */
+
+/**
+ * A custom hook for generating smart suggestions for the AI assistant.
+ * @returns {object} An object with the smart suggestions and functions to generate and clear them.
+ */
 export const useSmartSuggestions = () => {
   const [smartSuggestions, setSmartSuggestions] = useState([]);
   const [isGeneratingSuggestions, setIsGeneratingSuggestions] = useState(false);
   const lastProcessedMessageId = useRef(null);
 
+  /**
+   * Generates smart suggestions based on the conversation history.
+   * @param {Array<object>} messages - The conversation history.
+   * @returns {Promise<void>}
+   */
   const generateSmartSuggestions = useCallback(
     async (messages) => {
       if (isGeneratingSuggestions || messages.length < 2) return;
@@ -66,6 +80,10 @@ export const useSmartSuggestions = () => {
     [isGeneratingSuggestions]
   );
 
+  /**
+   * Clears the smart suggestions.
+   * @returns {void}
+   */
   const clearSuggestions = useCallback(() => {
     setSmartSuggestions([]);
     lastProcessedMessageId.current = null;

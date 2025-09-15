@@ -22,6 +22,18 @@ import { Badge } from './ui/badge';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from './ui/dialog';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './ui/select';
 
+/**
+ * @fileoverview This file contains a React component that provides a panel for generating and viewing AI-powered summaries of collected messages.
+ * @module components/AISummaryPanel
+ */
+
+/**
+ * A panel for generating and viewing AI-powered summaries of collected messages.
+ * @param {object} props - The component props.
+ * @param {Array<object>} props.collectedMessages - The collected messages.
+ * @param {string} props.collectorId - The ID of the message collector.
+ * @returns {JSX.Element} The rendered AI summary panel.
+ */
 export default function AISummaryPanel({ collectedMessages, collectorId }) {
   const [summaries, setSummaries] = useState([]);
   const [isGenerating, setIsGenerating] = useState(false);

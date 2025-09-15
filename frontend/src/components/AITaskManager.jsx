@@ -37,6 +37,17 @@ import {
   Zap
 } from 'lucide-react';
 
+/**
+ * @fileoverview This file contains a React component that provides a user interface for managing AI-powered tasks.
+ * @module components/AITaskManager
+ */
+
+/**
+ * A component that provides a user interface for managing AI-powered tasks.
+ * @param {object} props - The component props.
+ * @param {string} props.tokenId - The ID of the API token.
+ * @returns {JSX.Element} The rendered AI task manager.
+ */
 const AITaskManager = ({ tokenId }) => {
   const [tasks, setTasks] = useState([]);
   const [filteredTasks, setFilteredTasks] = useState([]);

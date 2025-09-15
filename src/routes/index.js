@@ -9,7 +9,46 @@ const aiSummaryRoutes = require('../api/aiSummary');
 
 const router = express.Router();
 
+/**
+ * @fileoverview This file defines the main router for the application.
+ * It combines all the other route modules into a single router.
+ * @module routes/index
+ */
 
+/**
+ * @name GET /health
+ * @description Health check endpoint.
+ * @function
+ * @memberof module:routes/index
+ * @inner
+ * @param {string} path - Express path
+ * @param {callback} middleware - Express middleware.
+ */
+/**
+ * @swagger
+ * /health:
+ *   get:
+ *     summary: Health check
+ *     description: Checks if the management API is running.
+ *     tags: [Management]
+ *     responses:
+ *       '200':
+ *         description: The API is running.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 timestamp:
+ *                   type: string
+ *                   format: date-time
+ *                 version:
+ *                   type: string
+ */
 router.get('/health', (req, res) => {
   res.json({
     success: true,
@@ -19,30 +58,107 @@ router.get('/health', (req, res) => {
   });
 });
 
-
+/**
+ * @description Mounts the authentication routes.
+ * @name /auth
+ * @function
+ * @memberof module:routes/index
+ * @inner
+ * @param {string} path - Express path
+ * @param {object} router - The auth router.
+ */
 router.use('/auth', authRoutes);
 
-
+/**
+ * @description Mounts the token routes.
+ * @name /tokens
+ * @function
+ * @memberof module:routes/index
+ * @inner
+ * @param {string} path - Express path
+ * @param {object} router - The tokens router.
+ */
 router.use('/tokens', tokenRoutes);
 
-
+/**
+ * @description Mounts the session routes.
+ * @name /sessions
+ * @function
+ * @memberof module:routes/index
+ * @inner
+ * @param {string} path - Express path
+ * @param {object} router - The sessions router.
+ */
 router.use('/sessions', sessionRoutes);
 
-
+/**
+ * @description Mounts the media routes.
+ * @name /media
+ * @function
+ * @memberof module:routes/index
+ * @inner
+ * @param {string} path - Express path
+ * @param {object} router - The media router.
+ */
 router.use('/media', mediaRoutes);
 
-
+/**
+ * @description Mounts the AI routes.
+ * @name /ai
+ * @function
+ * @memberof module:routes/index
+ * @inner
+ * @param {string} path - Express path
+ * @param {object} router - The AI router.
+ */
 router.use('/ai', aiRoutes);
 
-
+/**
+ * @description Mounts the message collector routes.
+ * @name /message-collector
+ * @function
+ * @memberof module:routes/index
+ * @inner
+ * @param {string} path - Express path
+ * @param {object} router - The message collector router.
+ */
 router.use('/message-collector', messageCollectorRoutes);
 
-
+/**
+ * @description Mounts the AI summary routes.
+ * @name /ai-summary
+ * @function
+ * @memberof module:routes/index
+ * @inner
+ * @param {string} path - Express path
+ * @param {object} router - The AI summary router.
+ */
 router.use('/ai-summary', aiSummaryRoutes);
 
-
-
-
+/**
+ * @name GET /info
+ * @description Provides information about the API, including available endpoints.
+ * @function
+ * @memberof module:routes/index
+ * @inner
+ * @param {string} path - Express path
+ * @param {callback} middleware - Express middleware.
+ */
+/**
+ * @swagger
+ * /info:
+ *   get:
+ *     summary: API Information
+ *     description: Provides information about the API, including available endpoints.
+ *     tags: [Management]
+ *     responses:
+ *       '200':
+ *         description: Information about the API.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ */
 router.get('/info', (req, res) => {
   res.json({
     success: true,

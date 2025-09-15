@@ -21,11 +21,25 @@ import { Badge } from './ui/badge';
 import { Progress } from './ui/progress';
 import { Input } from './ui/input';
 
+/**
+ * @fileoverview This file contains the main component for the AI chat interface.
+ * @module components/AIStreamingChat
+ */
 
+/**
+ * Renders the content of a message.
+ * @param {object} props - The component props.
+ * @param {string} props.content - The content of the message.
+ * @returns {JSX.Element} The rendered message content.
+ */
 const MessageContentRenderer = ({ content }) => {
   return <MarkdownRenderer content={content} />;
 };
 
+/**
+ * The main component for the AI chat interface.
+ * @returns {JSX.Element} The rendered AI chat interface.
+ */
 export default function AIStreamingChat() {
   const [messages, setMessages] = useState([
     {
@@ -530,6 +544,10 @@ export default function AIStreamingChat() {
     }).format(timestamp);
   };
 
+  /**
+   * Renders the thinking indicator.
+   * @returns {JSX.Element} The rendered thinking indicator.
+   */
   const ThinkingIndicator = () => {
 
     const hasRecentGetHistory = streamingToolCalls.some(
@@ -581,6 +599,10 @@ export default function AIStreamingChat() {
     );
   };
 
+  /**
+   * Renders the tools progress indicator.
+   * @returns {JSX.Element|null} The rendered tools progress indicator, or null if no tools are being executed.
+   */
   const ToolsProgressIndicator = () => {
     if (executingTools.size === 0 && toolsProgress.total === 0) return null;
 
@@ -655,6 +677,12 @@ export default function AIStreamingChat() {
     );
   };
 
+  /**
+   * Renders the tool calls display.
+   * @param {object} props - The component props.
+   * @param {Array<object>} props.toolCalls - The tool calls to display.
+   * @returns {JSX.Element|null} The rendered tool calls display, or null if there are no tool calls.
+   */
   const ToolCallsDisplay = ({ toolCalls }) => {
     if (!toolCalls || toolCalls.length === 0) return null;
 
@@ -694,6 +722,12 @@ export default function AIStreamingChat() {
     );
   };
 
+  /**
+   * Renders a message bubble.
+   * @param {object} props - The component props.
+   * @param {object} props.message - The message to render.
+   * @returns {JSX.Element} The rendered message bubble.
+   */
   const MessageBubble = useCallback(({ message }) => {
     const isUser = message.role === 'user';
     const isError = message.isError;
@@ -777,7 +811,10 @@ export default function AIStreamingChat() {
     );
   }, []);
 
-
+  /**
+   * Renders the media download indicator.
+   * @returns {JSX.Element|null} The rendered media download indicator, or null if no media is being downloaded.
+   */
   const MediaDownloadIndicator = () => {
     if (downloadingMedia.size === 0) return null;
 

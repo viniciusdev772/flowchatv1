@@ -3508,6 +3508,27 @@ async function deleteAgentFromDatabase(agentId) {
 
 
 
+/**
+ * @swagger
+ * /agents/create:
+ *   post:
+ *     summary: Create a new AI agent
+ *     description: Creates a new AI agent with the provided configuration.
+ *     tags: [AI Agents]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/AIAgent'
+ *     responses:
+ *       '200':
+ *         description: The AI agent was created successfully.
+ *       '400':
+ *         description: Bad request, invalid data.
+ *       '500':
+ *         description: Internal server error.
+ */
 router.post('/create', async (req, res) => {
   try {
 
@@ -3557,7 +3578,19 @@ router.post('/create', async (req, res) => {
   }
 });
 
-
+/**
+ * @swagger
+ * /agents/list:
+ *   get:
+ *     summary: List all AI agents
+ *     description: Retrieves a list of all AI agents.
+ *     tags: [AI Agents]
+ *     responses:
+ *       '200':
+ *         description: A list of AI agents.
+ *       '500':
+ *         description: Internal server error.
+ */
 router.get('/list', async (req, res) => {
   try {
     const agentInstances = await getAllAgentsFromDatabase();
@@ -3590,6 +3623,27 @@ router.get('/list', async (req, res) => {
 });
 
 
+/**
+ * @swagger
+ * /agents/{agentId}:
+ *   get:
+ *     summary: Get an AI agent by ID
+ *     description: Retrieves a specific AI agent by its ID.
+ *     tags: [AI Agents]
+ *     parameters:
+ *       - in: path
+ *         name: agentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       '200':
+ *         description: The AI agent was retrieved successfully.
+ *       '404':
+ *         description: Agent not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 router.get('/:agentId', async (req, res) => {
   try {
     const agent = await getAgentFromDatabase(req.params.agentId);
@@ -3614,7 +3668,38 @@ router.get('/:agentId', async (req, res) => {
   }
 });
 
-
+/**
+ * @swagger
+ * /agents/{agentId}/api-key:
+ *   patch:
+ *     summary: Update an AI agent's API key
+ *     description: Updates the OpenAI API key for a specific AI agent.
+ *     tags: [AI Agents]
+ *     parameters:
+ *       - in: path
+ *         name: agentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               openaiApiKey:
+ *                 type: string
+ *     responses:
+ *       '200':
+ *         description: The API key was updated successfully.
+ *       '400':
+ *         description: Bad request, missing API key.
+ *       '404':
+ *         description: Agent not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 router.patch('/:agentId/api-key', async (req, res) => {
   try {
     const { agentId } = req.params;
@@ -3659,6 +3744,33 @@ router.patch('/:agentId/api-key', async (req, res) => {
 });
 
 
+/**
+ * @swagger
+ * /agents/{agentId}/settings:
+ *   patch:
+ *     summary: Update an AI agent's settings
+ *     description: Updates the settings for a specific AI agent.
+ *     tags: [AI Agents]
+ *     parameters:
+ *       - in: path
+ *         name: agentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *     responses:
+ *       '200':
+ *         description: The agent settings were updated successfully.
+ *       '404':
+ *         description: Agent not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 router.patch('/:agentId/settings', async (req, res) => {
   try {
     const { agentId } = req.params;
@@ -3717,7 +3829,27 @@ router.patch('/:agentId/settings', async (req, res) => {
   }
 });
 
-
+/**
+ * @swagger
+ * /agents/{agentId}/activate:
+ *   patch:
+ *     summary: Activate an AI agent
+ *     description: Activates a specific AI agent.
+ *     tags: [AI Agents]
+ *     parameters:
+ *       - in: path
+ *         name: agentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       '200':
+ *         description: The agent was activated successfully.
+ *       '404':
+ *         description: Agent not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 router.patch('/:agentId/activate', async (req, res) => {
   try {
     const agent = await getAgentFromDatabase(req.params.agentId);
@@ -3745,6 +3877,27 @@ router.patch('/:agentId/activate', async (req, res) => {
 });
 
 
+/**
+ * @swagger
+ * /agents/{agentId}/deactivate:
+ *   patch:
+ *     summary: Deactivate an AI agent
+ *     description: Deactivates a specific AI agent.
+ *     tags: [AI Agents]
+ *     parameters:
+ *       - in: path
+ *         name: agentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       '200':
+ *         description: The agent was deactivated successfully.
+ *       '404':
+ *         description: Agent not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 router.patch('/:agentId/deactivate', async (req, res) => {
   try {
     const agent = await getAgentFromDatabase(req.params.agentId);
@@ -3771,7 +3924,27 @@ router.patch('/:agentId/deactivate', async (req, res) => {
   }
 });
 
-
+/**
+ * @swagger
+ * /agents/{agentId}:
+ *   delete:
+ *     summary: Delete an AI agent
+ *     description: Deletes a specific AI agent.
+ *     tags: [AI Agents]
+ *     parameters:
+ *       - in: path
+ *         name: agentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       '200':
+ *         description: The agent was deleted successfully.
+ *       '404':
+ *         description: Agent not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 router.delete('/:agentId', async (req, res) => {
   try {
     const agentId = req.params.agentId;
@@ -3802,6 +3975,34 @@ router.delete('/:agentId', async (req, res) => {
 });
 
 
+/**
+ * @swagger
+ * /agents/process-message:
+ *   post:
+ *     summary: Process a message with an AI agent
+ *     description: Processes a message with the AI agent associated with the provided session ID.
+ *     tags: [AI Agents]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               sessionId:
+ *                 type: string
+ *               message:
+ *                 type: object
+ *     responses:
+ *       '200':
+ *         description: The message was processed successfully.
+ *       '400':
+ *         description: Bad request, missing required parameters.
+ *       '404':
+ *         description: Agent not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 router.post('/process-message', async (req, res) => {
   try {
     const { sessionId, message, whatsappClient } = req.body;
@@ -3846,7 +4047,32 @@ router.post('/process-message', async (req, res) => {
   }
 });
 
-
+/**
+ * @swagger
+ * /agents/{agentId}/conversations/{chatId}:
+ *   get:
+ *     summary: Get conversation history
+ *     description: Retrieves the conversation history for a specific chat with an AI agent.
+ *     tags: [AI Agents]
+ *     parameters:
+ *       - in: path
+ *         name: agentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: path
+ *         name: chatId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       '200':
+ *         description: The conversation history was retrieved successfully.
+ *       '404':
+ *         description: Agent not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 router.get('/:agentId/conversations/:chatId', async (req, res) => {
   try {
     const agent = await getAgentFromDatabase(req.params.agentId);
@@ -3882,6 +4108,32 @@ router.get('/:agentId/conversations/:chatId', async (req, res) => {
 });
 
 
+/**
+ * @swagger
+ * /agents/{agentId}/conversations/{chatId}:
+ *   delete:
+ *     summary: Clear conversation history
+ *     description: Clears the conversation history for a specific chat with an AI agent.
+ *     tags: [AI Agents]
+ *     parameters:
+ *       - in: path
+ *         name: agentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: path
+ *         name: chatId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       '200':
+ *         description: The conversation history was cleared successfully.
+ *       '404':
+ *         description: Agent not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 router.delete('/:agentId/conversations/:chatId?', async (req, res) => {
   try {
     const agent = await getAgentFromDatabase(req.params.agentId);
@@ -3912,7 +4164,27 @@ router.delete('/:agentId/conversations/:chatId?', async (req, res) => {
   }
 });
 
-
+/**
+ * @swagger
+ * /agents/{agentId}/stats:
+ *   get:
+ *     summary: Get AI agent stats
+ *     description: Retrieves statistics for a specific AI agent.
+ *     tags: [AI Agents]
+ *     parameters:
+ *       - in: path
+ *         name: agentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       '200':
+ *         description: The agent stats were retrieved successfully.
+ *       '404':
+ *         description: Agent not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 router.get('/:agentId/stats', async (req, res) => {
   try {
     const agent = await getAgentFromDatabase(req.params.agentId);
@@ -3944,6 +4216,59 @@ router.get('/:agentId/stats', async (req, res) => {
 });
 
 
+/**
+ * @swagger
+ * /agents/test-search:
+ *   post:
+ *     summary: Test the web search tool
+ *     description: Tests the web search tool with a given query.
+ *     tags: [AI Agents]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               query:
+ *                 type: string
+ *     responses:
+ *       '200':
+ *         description: The search was executed successfully.
+ *       '400':
+ *         description: Bad request, missing query.
+ *       '500':
+ *         description: Internal server error.
+ */
+/**
+ * @swagger
+ * /agents/test-search:
+ *   post:
+ *     summary: Test the web search tool
+ *     description: Tests the web search tool with a given query and returns the results. This is useful for debugging the search functionality.
+ *     tags: [AI Agents]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               query:
+ *                 type: string
+ *                 description: The search query to test.
+ *     responses:
+ *       '200':
+ *         description: The search was executed successfully.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *       '400':
+ *         description: Bad request, missing query.
+ *       '500':
+ *         description: Internal server error.
+ */
 router.post('/test-search', async (req, res) => {
   try {
     const { query } = req.body;
@@ -3973,7 +4298,6 @@ router.post('/test-search', async (req, res) => {
     });
   }
 });
-
 
 async function processWhatsAppMessage(whatsappClient, messageData, sessionId) {
   try {
@@ -4123,6 +4447,36 @@ async function processWhatsAppMessage(whatsappClient, messageData, sessionId) {
 }
 
 
+/**
+ * @swagger
+ * /agents/download/{fileName}:
+ *   get:
+ *     summary: Download a file generated by an agent
+ *     description: Downloads a ZIP file generated by an AI agent (e.g., from a web scrape).
+ *     tags: [AI Agents]
+ *     parameters:
+ *       - in: path
+ *         name: fileName
+ *         required: true
+ *         schema:
+ *           type: string
+ *           pattern: '^[a-zA-Z0-9_-]+\.zip$'
+ *         description: The name of the ZIP file to download.
+ *     responses:
+ *       '200':
+ *         description: The file is sent as an attachment.
+ *         content:
+ *           application/zip:
+ *             schema:
+ *               type: string
+ *               format: binary
+ *       '400':
+ *         description: Invalid filename provided.
+ *       '404':
+ *         description: The requested file was not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 router.get('/download/:fileName', async (req, res) => {
   try {
     const { fileName } = req.params;

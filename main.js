@@ -24,7 +24,14 @@ const apiTokenAuth = require('./src/middleware/apiTokenAuth');
 const swaggerUi = require('swagger-ui-express');
 const { swaggerSpec } = require('./src/config/swagger');
 
+/**
+ * @class Server
+ * @description A class to represent the main server.
+ */
 class Server {
+  /**
+   * Creates an instance of Server.
+   */
   constructor() {
     this.app = express();
     this.port = process.env.PORT || 3000;
@@ -33,6 +40,10 @@ class Server {
     this.setupErrorHandling();
   }
 
+  /**
+   * Sets up the middleware for the server.
+   * @returns {void}
+   */
   setupMiddleware() {
 
     this.app.use(
@@ -159,6 +170,10 @@ class Server {
     });
   }
 
+  /**
+   * Sets up the routes for the server.
+   * @returns {void}
+   */
   setupRoutes() {
 
     this.app.use(
@@ -208,6 +223,10 @@ class Server {
     });
   }
 
+  /**
+   * Sets up the error handling for the server.
+   * @returns {void}
+   */
   setupErrorHandling() {
 
     this.app.use((error, req, res, next) => {
@@ -239,6 +258,10 @@ class Server {
     });
   }
 
+  /**
+   * Starts the server.
+   * @returns {Promise<void>}
+   */
   async start() {
     try {
 
@@ -293,6 +316,10 @@ class Server {
     }
   }
 
+  /**
+   * Gracefully shuts down the server.
+   * @returns {Promise<void>}
+   */
   async gracefulShutdown() {
     console.log('Starting graceful shutdown...');
 

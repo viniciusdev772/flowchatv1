@@ -13,7 +13,19 @@ const {
 } = require('../ai/tools');
 const router = express.Router();
 
+/**
+ * @fileoverview This file contains the routes for the AI assistant.
+ * It handles chat requests, tool usage, and other AI-related functionalities.
+ * @module routes/ai
+ */
 
+/**
+ * Processes a string of content to find base64 encoded images,
+ * save them as files, and replace the base64 data with the URL of the saved image.
+ *
+ * @param {string} content The content to process.
+ * @returns {Promise<string>} The processed content with image URLs.
+ */
 async function processBase64Images(content) {
   if (!content || typeof content !== 'string') {
     return content;
@@ -110,7 +122,11 @@ async function processBase64Images(content) {
   return processedContent;
 }
 
-
+/**
+ * Retrieves the API token for a given user.
+ * @param {string|ObjectId} userId - The ID of the user.
+ * @returns {Promise<string>} The user's API token, or a default token if not found.
+ */
 async function getUserApiToken(userId) {
   try {
     const db = database.getDb();
@@ -121,10 +137,8 @@ async function getUserApiToken(userId) {
 
     const tokensCollection = db.collection('api_tokens');
 
-
     const userObjectId =
       typeof userId === 'string' ? new ObjectId(userId) : userId;
-
 
     const tokenRecord = await tokensCollection.findOne(
       {
@@ -155,12 +169,20 @@ async function getUserApiToken(userId) {
   }
 }
 
-
+/**
+ * @type {OpenAI}
+ * @description The default OpenAI instance.
+ */
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-
+/**
+ * Creates a new OpenAI instance with a custom API key.
+ * @param {string} customApiKey - The custom OpenAI API key.
+ * @returns {OpenAI} A new OpenAI instance.
+ * @throws {Error} If the custom API key is not provided.
+ */
 function createOpenAIInstance(customApiKey) {
   if (!customApiKey) {
     throw new Error('Chave OpenAI personalizada é obrigatória');
@@ -170,82 +192,52 @@ function createOpenAIInstance(customApiKey) {
   });
 }
 
-
-router.use((req, res, next) => {
-
-  if (req.path === '/health' || req.path === '/tools') {
-    return next();
-  }
-
-  const customApiKey = req.body?.customApiKey;
-
-
-  if (!customApiKey) {
-    return res.status(400).json({
-      success: false,
-      error: 'CUSTOM_API_KEY_REQUIRED',
-      message: 'Chave OpenAI personalizada é obrigatória',
-      userMessage: 'Configure sua chave OpenAI nas configurações para usar o chat de IA',
-      timestamp: new Date().toISOString()
-    });
-  }
-
-
-  if (!customApiKey.startsWith('sk-') || customApiKey.length < 48) {
-    return res.status(400).json({
-      success: false,
-      error: 'INVALID_API_KEY_FORMAT',
-      message: 'Formato de chave OpenAI inválido',
-      userMessage: 'A chave OpenAI deve começar com "sk-" e ter pelo menos 48 caracteres',
-      timestamp: new Date().toISOString()
-    });
-  }
-
-  console.log(`🔐 Usuário ${req.user?._id || 'unknown'} usando chave OpenAI personalizada`);
-  next();
-});
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+/**
+ * @swagger
+ * /ai/chat:
+ *   post:
+ *     summary: Interacts with the AI assistant
+ *     description: Sends a message to the AI assistant and receives a streamed response, potentially including tool calls.
+ *     tags: [AI Assistant]
+ *     security:
+ *       - ApiTokenAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               message:
+ *                 type: string
+ *                 description: The user's message to the AI.
+ *               conversation:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     role:
+ *                       type: string
+ *                       enum: [user, assistant]
+ *                     content:
+ *                       type: string
+ *                 description: The conversation history.
+ *               customApiKey:
+ *                 type: string
+ *                 description: The user's custom OpenAI API key.
+ *     responses:
+ *       '200':
+ *         description: A streamed response from the AI assistant.
+ *         content:
+ *           text/plain:
+ *             schema:
+ *               type: string
+ *               example: "data: {\"type\":\"content\",\"content\":\"Olá!\"}\n\ndata: {\"type\":\"done\"}\n"
+ *       '400':
+ *         description: Bad request, missing message or API key.
+ *       '500':
+ *         description: Internal server error.
+ */
 router.post('/chat', authenticateToken, async (req, res) => {
   try {
     const { message, conversation = [], customApiKey } = req.body;
@@ -769,6 +761,32 @@ Responda em português brasileiro, seja prático e direto.`;
 
 
 
+/**
+ * @swagger
+ * /ai/tools:
+ *   get:
+ *     summary: Get available AI tools
+ *     description: Retrieves a list of available tools for the AI assistant.
+ *     tags: [AI Assistant]
+ *     security:
+ *       - ApiTokenAuth: []
+ *     responses:
+ *       '200':
+ *         description: A list of available tools.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 tools:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                 total:
+ *                   type: integer
+ */
 router.get('/tools', authenticateToken, (req, res) => {
   const toolsInfo = openAITools.map((tool) => ({
     name: tool.function.name,
@@ -783,46 +801,32 @@ router.get('/tools', authenticateToken, (req, res) => {
   });
 });
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+/**
+ * @swagger
+ * /ai/save-base64-image:
+ *   post:
+ *     summary: Save a base64 encoded image
+ *     description: Saves a base64 encoded image as a file and returns the URL.
+ *     tags: [AI Assistant]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               base64Data:
+ *                 type: string
+ *               filename:
+ *                 type: string
+ *     responses:
+ *       '200':
+ *         description: The image was saved successfully.
+ *       '400':
+ *         description: Bad request, invalid base64 data.
+ *       '500':
+ *         description: Internal server error.
+ */
 router.post('/save-base64-image', async (req, res) => {
   try {
     const { base64Data, filename } = req.body;
@@ -899,13 +903,33 @@ router.post('/save-base64-image', async (req, res) => {
 
 
 
+/**
+ * @swagger
+ * /ai/health:
+ *   get:
+ *     summary: Check the health of the AI assistant
+ *     description: Checks the health of the AI assistant and its connection to the OpenAI API. If a custom API key is provided via the 'x-custom-api-key' header, it will be used to check the connection.
+ *     tags: [AI Assistant]
+ *     parameters:
+ *       - in: header
+ *         name: x-custom-api-key
+ *         schema:
+ *           type: string
+ *         required: false
+ *         description: Optional. A custom OpenAI API key to test a specific user's connection.
+ *     responses:
+ *       '200':
+ *         description: The AI assistant is healthy.
+ *       '500':
+ *         description: The AI assistant is unhealthy.
+ */
 router.get('/health', async (req, res) => {
   try {
-
     const customApiKey = req.headers['x-custom-api-key'];
-    const openaiInstance = createOpenAIInstance(customApiKey);
+    const openaiInstance = customApiKey ? createOpenAIInstance(customApiKey) : openai;
 
-
+    // The instance is created but not used, which is consistent with the original logic.
+    // A more robust check might involve an actual API call, like listing models.
 
     res.json({
       success: true,

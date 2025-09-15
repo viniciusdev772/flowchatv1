@@ -9,6 +9,10 @@ const { delay } = require('@whiskeysockets/baileys');
 
 const router = express.Router();
 
+/**
+ * @fileoverview This file defines the routes for managing WhatsApp tasks.
+ * @module api/whatsappTasks
+ */
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
@@ -68,7 +72,13 @@ const upload = multer({
   }
 });
 
-
+/**
+ * Middleware to check if the user is authenticated.
+ * @param {object} req - The Express request object.
+ * @param {object} res - The Express response object.
+ * @param {function} next - The next middleware function.
+ * @returns {void}
+ */
 const checkAuth = (req, res, next) => {
   const userId = req.user?.id || req.user?._id;
   if (!userId) {
@@ -81,7 +91,13 @@ const checkAuth = (req, res, next) => {
   next();
 };
 
-
+/**
+ * Middleware to check if the user owns the WhatsApp session.
+ * @param {object} req - The Express request object.
+ * @param {object} res - The Express response object.
+ * @param {function} next - The next middleware function.
+ * @returns {Promise<void>}
+ */
 const checkSessionOwnership = async (req, res, next) => {
   try {
     const { sessionId } = req.body;
@@ -114,7 +130,11 @@ const checkSessionOwnership = async (req, res, next) => {
   }
 };
 
-
+/**
+ * Calculates the next execution time for a task.
+ * @param {object} task - The task object.
+ * @returns {Date|null} The next execution time, or null if not applicable.
+ */
 const calculateNextExecution = (task) => {
   const now = new Date();
 
@@ -153,6 +173,51 @@ const calculateNextExecution = (task) => {
 };
 
 
+/**
+ * @swagger
+ * /whatsapp-tasks:
+ *   get:
+ *     summary: List all WhatsApp tasks
+ *     description: Retrieves a paginated list of all WhatsApp tasks for the authenticated user.
+ *     tags: [WhatsApp Tasks]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *         description: Filter tasks by status.
+ *       - in: query
+ *         name: type
+ *         schema:
+ *           type: string
+ *         description: Filter tasks by type.
+ *       - in: query
+ *         name: sessionId
+ *         schema:
+ *           type: string
+ *         description: Filter tasks by session ID.
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 50
+ *         description: The maximum number of tasks to return.
+ *       - in: query
+ *         name: offset
+ *         schema:
+ *           type: integer
+ *           default: 0
+ *         description: The number of tasks to skip before starting to collect the result set.
+ *     responses:
+ *       '200':
+ *         description: A list of tasks.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '500':
+ *         description: Internal server error.
+ */
 router.get('/', checkAuth, async (req, res) => {
   try {
     const db = database.getDb();
@@ -202,7 +267,35 @@ router.get('/', checkAuth, async (req, res) => {
   }
 });
 
-
+/**
+ * @swagger
+ * /whatsapp-tasks/upload:
+ *   post:
+ *     summary: Upload a file for a task
+ *     description: Uploads a file to be used in a WhatsApp task.
+ *     tags: [WhatsApp Tasks]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       '200':
+ *         description: The file was uploaded successfully.
+ *       '400':
+ *         description: Bad request, no file was sent.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '500':
+ *         description: Internal server error.
+ */
 router.post('/upload', checkAuth, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) {
@@ -248,7 +341,42 @@ router.post('/upload', checkAuth, upload.single('file'), async (req, res) => {
   }
 });
 
-
+/**
+ * @swagger
+ * /whatsapp-tasks:
+ *   post:
+ *     summary: Create a new WhatsApp task
+ *     description: Creates a new scheduled task to be executed on WhatsApp.
+ *     tags: [WhatsApp Tasks]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               title:
+ *                 type: string
+ *               type:
+ *                 type: string
+ *               sessionId:
+ *                 type: string
+ *               message:
+ *                 type: string
+ *     responses:
+ *       '201':
+ *         description: The task was created successfully.
+ *       '400':
+ *         description: Bad request, missing required parameters.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '403':
+ *         description: Forbidden, user does not have permission to access the session.
+ *       '500':
+ *         description: Internal server error.
+ */
 router.post('/', checkAuth, checkSessionOwnership, async (req, res) => {
   try {
     const db = database.getDb();
@@ -379,7 +507,37 @@ router.post('/', checkAuth, checkSessionOwnership, async (req, res) => {
   }
 });
 
-
+/**
+ * @swagger
+ * /whatsapp-tasks/{taskId}:
+ *   put:
+ *     summary: Update a WhatsApp task
+ *     description: Updates a specific WhatsApp task.
+ *     tags: [WhatsApp Tasks]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: taskId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *     responses:
+ *       '200':
+ *         description: The task was updated successfully.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '404':
+ *         description: Task not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 router.put('/:taskId', checkAuth, async (req, res) => {
   try {
     const db = database.getDb();
@@ -452,7 +610,42 @@ router.put('/:taskId', checkAuth, async (req, res) => {
   }
 });
 
-
+/**
+ * @swagger
+ * /whatsapp-tasks/{taskId}/status:
+ *   patch:
+ *     summary: Update the status of a WhatsApp task
+ *     description: Updates the status of a specific WhatsApp task.
+ *     tags: [WhatsApp Tasks]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: taskId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               status:
+ *                 type: string
+ *     responses:
+ *       '200':
+ *         description: The task status was updated successfully.
+ *       '400':
+ *         description: Bad request, invalid status.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '404':
+ *         description: Task not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 router.patch('/:taskId/status', checkAuth, async (req, res) => {
   try {
     const db = database.getDb();
@@ -520,7 +713,31 @@ router.patch('/:taskId/status', checkAuth, async (req, res) => {
   }
 });
 
-
+/**
+ * @swagger
+ * /whatsapp-tasks/{taskId}:
+ *   delete:
+ *     summary: Delete a WhatsApp task
+ *     description: Deletes a specific WhatsApp task.
+ *     tags: [WhatsApp Tasks]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: taskId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       '200':
+ *         description: The task was deleted successfully.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '404':
+ *         description: Task not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 router.delete('/:taskId', checkAuth, async (req, res) => {
   try {
     const db = database.getDb();
@@ -567,7 +784,31 @@ router.delete('/:taskId', checkAuth, async (req, res) => {
   }
 });
 
-
+/**
+ * @swagger
+ * /whatsapp-tasks/{taskId}/execute:
+ *   post:
+ *     summary: Execute a WhatsApp task
+ *     description: Manually executes a specific WhatsApp task.
+ *     tags: [WhatsApp Tasks]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: taskId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       '200':
+ *         description: The task was executed successfully.
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '404':
+ *         description: Task not found.
+ *       '500':
+ *         description: Internal server error.
+ */
 router.post('/:taskId/execute', checkAuth, async (req, res) => {
   try {
     const db = database.getDb();
@@ -675,6 +916,11 @@ async function simulateTyping(sock, targetJid, duration) {
 }
 
 
+/**
+ * Executes a WhatsApp task.
+ * @param {object} task - The task object to execute.
+ * @returns {Promise<object>} An object with the result of the execution.
+ */
 async function executeTask(task) {
   try {
     const sessions = global.whatsappSessions;
@@ -796,7 +1042,13 @@ async function executeTask(task) {
   }
 }
 
-
+/**
+ * Executes a task for a single target.
+ * @param {object} sock - The Baileys socket instance.
+ * @param {object} task - The task object.
+ * @param {string} targetJid - The JID of the target.
+ * @returns {Promise<object>} An object with the result of the execution.
+ */
 async function executeSingleTarget(sock, task, targetJid) {
   try {
 
@@ -1093,6 +1345,27 @@ async function executeSingleTarget(sock, task, targetJid) {
 }
 
 
+/**
+ * @swagger
+ * /whatsapp-tasks/stats:
+ *   get:
+ *     summary: Get WhatsApp tasks statistics
+ *     description: Retrieves statistics about the WhatsApp tasks for the authenticated user.
+ *     tags: [WhatsApp Tasks]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       '200':
+ *         description: The statistics were retrieved successfully.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *       '401':
+ *         description: Unauthorized, user not authenticated.
+ *       '500':
+ *         description: Internal server error.
+ */
 router.get('/stats', checkAuth, async (req, res) => {
   try {
     const db = database.getDb();

@@ -4,10 +4,18 @@ const UserAgent = require('user-agents');
 const retry = require('retry');
 const { JSDOM } = jsdom;
 
-
-
-
+/**
+ * @class WebScraper
+ * @description A robust web scraper that uses multiple strategies to fetch and parse web content.
+ * It includes retry logic and fallbacks to ensure high success rates.
+ */
 class WebScraper {
+  /**
+   * @constructor
+   * @param {object} options - Configuration options for the scraper.
+   * @param {number} [options.timeout=30000] - Request timeout in milliseconds.
+   * @param {number} [options.maxRetries=3] - Maximum number of retries on failure.
+   */
   constructor(options = {}) {
     this.timeout = options.timeout || 30000;
     this.maxRetries = options.maxRetries || 3;
@@ -15,9 +23,12 @@ class WebScraper {
     this.strategies = ['cheerio', 'jsdom', 'fallback'];
   }
 
-
-
-
+  /**
+   * Scrapes a URL with retry logic.
+   * @param {string} url - The URL to scrape.
+   * @param {object} options - Scraping options.
+   * @returns {Promise<object>} - A promise that resolves with the scraped data.
+   */
   async scrapeWithRetry(url, options = {}) {
     const operation = retry.operation({
       retries: this.maxRetries,
@@ -34,12 +45,9 @@ class WebScraper {
           resolve(result);
         } catch (error) {
           console.error(`❌ Attempt ${currentAttempt} failed:`, error.message);
-
           if (operation.retry(error)) {
             return;
           }
-
-
           try {
             const fallbackResult = await this.basicFallback(url);
             resolve(fallbackResult);
@@ -51,9 +59,12 @@ class WebScraper {
     });
   }
 
-
-
-
+  /**
+   * Tries different scraping strategies to get the content.
+   * @param {string} url - The URL to scrape.
+   * @param {object} options - Scraping options.
+   * @returns {Promise<object>} - The scraped data.
+   */
   async scrapeWithStrategies(url, options = {}) {
     const errors = [];
 
@@ -75,9 +86,13 @@ class WebScraper {
     throw new Error(`All strategies failed: ${errors.map(e => `${e.strategy}: ${e.error}`).join(', ')}`);
   }
 
-
-
-
+  /**
+   * Executes a specific scraping strategy.
+   * @param {string} strategy - The strategy to use ('cheerio', 'jsdom', 'fallback').
+   * @param {string} url - The URL to scrape.
+   * @param {object} options - Scraping options.
+   * @returns {Promise<object>} - The scraped data.
+   */
   async executeStrategy(strategy, url, options = {}) {
     switch (strategy) {
       case 'cheerio':
@@ -91,9 +106,12 @@ class WebScraper {
     }
   }
 
-
-
-
+  /**
+   * Scrapes a URL using Cheerio for static HTML parsing.
+   * @param {string} url - The URL to scrape.
+   * @param {object} options - Scraping options.
+   * @returns {Promise<object>} - The scraped data.
+   */
   async scrapeWithCheerio(url, options = {}) {
     const fetch = require('node-fetch');
     const headers = this.getHeaders(options);
@@ -121,9 +139,12 @@ class WebScraper {
     return this.extractData($, url, 'cheerio');
   }
 
-
-
-
+  /**
+   * Scrapes a URL using JSDOM to handle dynamic content (JavaScript execution).
+   * @param {string} url - The URL to scrape.
+   * @param {object} options - Scraping options.
+   * @returns {Promise<object>} - The scraped data.
+   */
   async scrapeWithJSDOM(url, options = {}) {
     const fetch = require('node-fetch');
     const headers = this.getHeaders(options);
@@ -154,9 +175,12 @@ class WebScraper {
     return this.extractDataFromDOM(document, url, 'jsdom');
   }
 
-
-
-
+  /**
+   * A basic fetch as a fallback strategy.
+   * @param {string} url - The URL to scrape.
+   * @param {object} options - Scraping options.
+   * @returns {Promise<object>} - The scraped data.
+   */
   async scrapeWithBasicFetch(url, options = {}) {
     const fetch = require('node-fetch');
     const headers = {
@@ -183,18 +207,18 @@ class WebScraper {
     };
   }
 
-
-
-
+  /**
+   * Extracts structured data from a Cheerio instance.
+   * @param {function} $ - The Cheerio instance.
+   * @param {string} url - The URL of the scraped page.
+   * @param {string} strategy - The strategy used for scraping.
+   * @returns {object} - The extracted data.
+   */
   extractData($, url, strategy) {
     const title = $('title').text().trim() || 'No title';
     const description = $('meta[name="description"]').attr('content') ||
                       $('meta[property="og:description"]').attr('content') || '';
-
-
     const mainContent = this.extractMainContent($);
-
-
     const jsonLd = this.extractJsonLd($);
     const metaTags = this.extractMetaTags($);
     const headings = this.extractHeadings($);
@@ -202,8 +226,6 @@ class WebScraper {
     const images = this.extractImages($, url);
     const tables = this.extractTables($);
     const forms = this.extractForms($);
-
-
     const textContent = this.cleanTextContent(mainContent);
 
     return {
@@ -211,23 +233,15 @@ class WebScraper {
       title: title,
       description: description,
       content: textContent,
-
-
       jsonLd: jsonLd,
       metaTags: metaTags,
-
-
       headings: headings,
       links: links.slice(0, 20),
       images: images.slice(0, 15),
       tables: tables,
       forms: forms,
-
-
       language: $('html').attr('lang') || metaTags.language || 'unknown',
       charset: metaTags.charset || 'utf-8',
-
-
       stats: {
         totalLinks: links.length,
         totalImages: images.length,
@@ -237,17 +251,19 @@ class WebScraper {
         wordCount: textContent.split(/\s+/).length,
         paragraphs: $('p').length,
       },
-
-
       strategy: strategy,
       timestamp: new Date().toISOString(),
       success: true
     };
   }
 
-
-
-
+  /**
+   * Extracts structured data from a JSDOM document.
+   * @param {object} document - The JSDOM document object.
+   * @param {string} url - The URL of the scraped page.
+   * @param {string} strategy - The strategy used for scraping.
+   * @returns {object} - The extracted data.
+   */
   extractDataFromDOM(document, url, strategy) {
     const title = document.title || 'No title';
     const metaDesc = document.querySelector('meta[name="description"]');
@@ -261,29 +277,28 @@ class WebScraper {
       title: title,
       description: description,
       content: cleanContent.substring(0, 5000),
-
       headings: {
         h1: Array.from(document.querySelectorAll('h1')).map(h => h.textContent.trim()).slice(0, 5),
         h2: Array.from(document.querySelectorAll('h2')).map(h => h.textContent.trim()).slice(0, 8),
         h3: Array.from(document.querySelectorAll('h3')).map(h => h.textContent.trim()).slice(0, 10),
       },
-
       stats: {
         contentLength: cleanContent.length,
         wordCount: cleanContent.split(/\s+/).length,
         links: document.querySelectorAll('a[href]').length,
         images: document.querySelectorAll('img[src]').length,
       },
-
       strategy: strategy,
       timestamp: new Date().toISOString(),
       success: true
     };
   }
 
-
-
-
+  /**
+   * Extracts the main content from the page using a series of selectors.
+   * @param {function} $ - The Cheerio instance.
+   * @returns {string} - The extracted main content.
+   */
   extractMainContent($) {
     const contentSelectors = [
       'article',
@@ -303,7 +318,6 @@ class WebScraper {
 
     let mainContent = '';
 
-
     for (const selector of contentSelectors) {
       const element = $(selector).first();
       if (element.length > 0) {
@@ -314,15 +328,12 @@ class WebScraper {
       }
     }
 
-
     if (!mainContent || mainContent.length < 200) {
       const paragraphs = $('p').map((i, el) => $(el).text().trim()).get();
       mainContent = paragraphs.join(' ');
     }
 
-
     if (!mainContent || mainContent.length < 100) {
-
       $('script, style, nav, footer, aside, .sidebar, .menu, .navigation, .ads, .advertisement, .social-share, .comments').remove();
       mainContent = $('body').text().trim();
     }
@@ -330,46 +341,47 @@ class WebScraper {
     return mainContent;
   }
 
-
-
-
+  /**
+   * Extracts JSON-LD structured data from the page.
+   * @param {function} $ - The Cheerio instance.
+   * @returns {object[]} - An array of JSON-LD objects.
+   */
   extractJsonLd($) {
     const jsonLdData = [];
-
     $('script[type="application/ld+json"]').each((i, script) => {
       try {
         const data = JSON.parse($(script).html());
         jsonLdData.push(data);
       } catch (error) {
-
+        // Ignore parsing errors
       }
     });
-
     return jsonLdData;
   }
 
-
-
-
+  /**
+   * Extracts meta tags from the page.
+   * @param {function} $ - The Cheerio instance.
+   * @returns {object} - An object containing meta tag data.
+   */
   extractMetaTags($) {
     const metaTags = {};
-
     $('meta').each((i, meta) => {
       const $meta = $(meta);
       const name = $meta.attr('name') || $meta.attr('property') || $meta.attr('http-equiv');
       const content = $meta.attr('content');
-
       if (name && content) {
         metaTags[name] = content;
       }
     });
-
     return metaTags;
   }
 
-
-
-
+  /**
+   * Extracts headings (h1-h6) from the page.
+   * @param {function} $ - The Cheerio instance.
+   * @returns {object} - An object containing arrays of headings.
+   */
   extractHeadings($) {
     return {
       h1: $('h1').map((i, el) => $(el).text().trim()).get().slice(0, 5),
@@ -381,17 +393,18 @@ class WebScraper {
     };
   }
 
-
-
-
+  /**
+   * Extracts links from the page.
+   * @param {function} $ - The Cheerio instance.
+   * @param {string} baseUrl - The base URL of the page.
+   * @returns {object[]} - An array of link objects.
+   */
   extractLinks($, baseUrl) {
     const links = [];
-
     $('a[href]').each((i, link) => {
       const $link = $(link);
       const href = $link.attr('href');
       const text = $link.text().trim();
-
       if (href && text && href.length > 1 && text.length > 1) {
         try {
           const absoluteUrl = new URL(href, baseUrl).href;
@@ -401,26 +414,26 @@ class WebScraper {
             isExternal: !absoluteUrl.includes(new URL(baseUrl).hostname)
           });
         } catch (error) {
-
+          // Ignore invalid URLs
         }
       }
     });
-
     return links;
   }
 
-
-
-
+  /**
+   * Extracts images from the page.
+   * @param {function} $ - The Cheerio instance.
+   * @param {string} baseUrl - The base URL of the page.
+   * @returns {object[]} - An array of image objects.
+   */
   extractImages($, baseUrl) {
     const images = [];
-
     $('img[src]').each((i, img) => {
       const $img = $(img);
       const src = $img.attr('src');
       const alt = $img.attr('alt') || '';
       const title = $img.attr('title') || '';
-
       if (src) {
         try {
           const absoluteUrl = new URL(src, baseUrl).href;
@@ -432,36 +445,32 @@ class WebScraper {
             height: $img.attr('height') || null,
           });
         } catch (error) {
-
+          // Ignore invalid image URLs
         }
       }
     });
-
     return images;
   }
 
-
-
-
+  /**
+   * Extracts tables from the page.
+   * @param {function} $ - The Cheerio instance.
+   * @returns {object[]} - An array of table objects.
+   */
   extractTables($) {
     const tables = [];
-
     $('table').each((i, table) => {
       if (i >= 5) return false;
-
       const $table = $(table);
       const headers = $table.find('th').map((j, th) => $(th).text().trim()).get();
       const rows = [];
-
       $table.find('tr').each((j, tr) => {
         if (j >= 10) return false;
-
         const cells = $(tr).find('td').map((k, td) => $(td).text().trim()).get();
         if (cells.length > 0) {
           rows.push(cells);
         }
       });
-
       if (headers.length > 0 || rows.length > 0) {
         tables.push({
           headers: headers,
@@ -471,21 +480,20 @@ class WebScraper {
         });
       }
     });
-
     return tables;
   }
 
-
-
-
+  /**
+   * Extracts forms from the page.
+   * @param {function} $ - The Cheerio instance.
+   * @returns {object[]} - An array of form objects.
+   */
   extractForms($) {
     const forms = [];
-
     $('form').each((i, form) => {
       const $form = $(form);
       const action = $form.attr('action') || '';
       const method = $form.attr('method') || 'GET';
-
       const inputs = $form.find('input').map((j, input) => {
         const $input = $(input);
         return {
@@ -495,7 +503,6 @@ class WebScraper {
           required: $input.attr('required') !== undefined
         };
       }).get();
-
       forms.push({
         action: action,
         method: method.toUpperCase(),
@@ -505,16 +512,16 @@ class WebScraper {
         buttons: $form.find('button, input[type="submit"]').length
       });
     });
-
     return forms;
   }
 
-
-
-
+  /**
+   * Cleans the text content by removing extra whitespace and special characters.
+   * @param {string} text - The text to clean.
+   * @returns {string} - The cleaned text.
+   */
   cleanTextContent(text) {
     if (!text) return '';
-
     return text
       .replace(/\s+/g, ' ')
       .replace(/\n\s*\n/g, '\n')
@@ -522,12 +529,13 @@ class WebScraper {
       .trim();
   }
 
-
-
-
+  /**
+   * Generates request headers, including a random User-Agent.
+   * @param {object} options - Additional header options.
+   * @returns {object} - The request headers.
+   */
   getHeaders(options = {}) {
     const userAgent = options.userAgent || this.userAgent.toString();
-
     return {
       'User-Agent': userAgent,
       'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
@@ -544,20 +552,19 @@ class WebScraper {
     };
   }
 
-
-
-
+  /**
+   * A basic fallback scraping method for when other strategies fail.
+   * @param {string} url - The URL to scrape.
+   * @returns {Promise<object>} - A promise that resolves with basic scraped data.
+   */
   async basicFallback(url) {
     const fetch = require('node-fetch');
-
     try {
       const response = await fetch(url, {
         headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Bot)' },
         timeout: 10000,
       });
-
       const text = await response.text();
-
       return {
         url: url,
         title: 'Basic Fallback',

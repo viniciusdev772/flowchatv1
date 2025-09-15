@@ -1,10 +1,19 @@
 import * as React from "react"
 
+/**
+ * @fileoverview This file implements a custom hook for displaying toast notifications.
+ * @module hooks/use-toast
+ */
+
 const TOAST_LIMIT = 1
 const TOAST_REMOVE_DELAY = 1000000
 
 let count = 0
 
+/**
+ * Generates a unique ID for a toast.
+ * @returns {string} The unique ID.
+ */
 function genId() {
   count = (count + 1) % Number.MAX_VALUE
   return count.toString()
@@ -12,6 +21,11 @@ function genId() {
 
 const toastTimeouts = new Map()
 
+/**
+ * Adds a toast to the remove queue.
+ * @param {string} toastId - The ID of the toast to remove.
+ * @returns {void}
+ */
 const addToRemoveQueue = (toastId) => {
   if (toastTimeouts.has(toastId)) {
     return
@@ -28,6 +42,12 @@ const addToRemoveQueue = (toastId) => {
   toastTimeouts.set(toastId, timeout)
 }
 
+/**
+ * The reducer for the toast state.
+ * @param {object} state - The current state.
+ * @param {object} action - The action to perform.
+ * @returns {object} The new state.
+ */
 export const reducer = (state, action) => {
   switch (action.type) {
     case "ADD_TOAST":
@@ -85,6 +105,11 @@ const listeners = []
 
 let memoryState = { toasts: [] }
 
+/**
+ * Dispatches an action to the toast state.
+ * @param {object} action - The action to dispatch.
+ * @returns {void}
+ */
 function dispatch(action) {
   memoryState = reducer(memoryState, action)
   listeners.forEach((listener) => {
@@ -92,6 +117,11 @@ function dispatch(action) {
   })
 }
 
+/**
+ * Displays a toast notification.
+ * @param {object} props - The props for the toast.
+ * @returns {object} An object with the toast ID, dismiss function, and update function.
+ */
 function toast({ ...props }) {
   const id = genId()
 
@@ -121,6 +151,10 @@ function toast({ ...props }) {
   }
 }
 
+/**
+ * A custom hook for displaying toast notifications.
+ * @returns {object} The toast state and functions.
+ */
 function useToast() {
   const [state, setState] = React.useState(memoryState)
 
